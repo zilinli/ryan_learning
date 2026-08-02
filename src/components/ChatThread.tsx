@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChatAttachment, ChatMessage } from "@/lib/types";
+import { MarkdownMessage } from "./MarkdownMessage";
 
 type Props = {
   messages: ChatMessage[];
@@ -31,8 +32,9 @@ export function ChatThread({ messages, streaming }: Props) {
           What are you working on?
         </p>
         <p className="max-w-md text-sm leading-relaxed text-[var(--ink-muted)]">
-          Chat with me, or upload several homework photos / a PDF. I&apos;ll
-          highlight the key lines and guide you step by step—no spoilers.
+          Chat with me, or upload homework photos / a PDF. I&apos;ll point to
+          the key lines, show maths clearly, and guide you step by step—no
+          spoilers.
         </p>
       </div>
     );
@@ -42,21 +44,22 @@ export function ChatThread({ messages, streaming }: Props) {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
       {messages.map((m) => {
         const attachments = messageAttachments(m);
+        const isUser = m.role === "user";
         return (
           <article
             key={m.id}
             className={`animate-fade-up flex flex-col gap-2 ${
-              m.role === "user" ? "items-end" : "items-start"
+              isUser ? "items-end" : "items-start"
             }`}
           >
             <span className="text-xs tracking-wide text-[var(--ink-muted)]">
-              {m.role === "user" ? "You" : "Spark"}
+              {isUser ? "You" : "Spark"}
             </span>
             <div
-              className={`max-w-[92%] whitespace-pre-wrap break-words px-1 text-[15px] leading-7 sm:max-w-[85%] ${
-                m.role === "user"
+              className={`max-w-[94%] break-words sm:max-w-[88%] ${
+                isUser
                   ? "rounded-2xl rounded-br-md bg-[var(--teal)] px-4 py-3 text-white"
-                  : "text-[var(--ink)]"
+                  : "rounded-2xl rounded-bl-md bg-white/70 px-4 py-3 text-[var(--ink)] ring-1 ring-[var(--line)]"
               }`}
             >
               {attachments.length > 0 ? (
@@ -68,24 +71,33 @@ export function ChatThread({ messages, streaming }: Props) {
                         key={a.id}
                         src={a.dataUrl}
                         alt={a.name || `Photo ${idx + 1}`}
-                        className="max-h-44 max-w-[9rem] rounded-xl border border-white/20 object-contain sm:max-w-[11rem]"
+                        className={`max-h-44 max-w-[9rem] rounded-xl object-contain sm:max-w-[11rem] ${
+                          isUser
+                            ? "border border-white/20"
+                            : "border border-[var(--line)]"
+                        }`}
                       />
                     ) : (
                       <span
                         key={a.id}
                         className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
-                          m.role === "user"
+                          isUser
                             ? "bg-white/20 text-white"
                             : "bg-[var(--mist)] text-[var(--ink)]"
                         }`}
                       >
-                        📎 {a.name}
+                        {a.name}
                       </span>
                     ),
                   )}
                 </div>
               ) : null}
-              {m.content}
+              {m.content ? (
+                <MarkdownMessage
+                  content={m.content}
+                  variant={isUser ? "user" : "assistant"}
+                />
+              ) : null}
               {streaming &&
               m.role === "assistant" &&
               m === messages[messages.length - 1] ? (

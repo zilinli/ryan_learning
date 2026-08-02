@@ -2,16 +2,47 @@
 
 export function cleanTutorSpeechText(text: string): string {
   let t = text.replace(/\r\n/g, "\n").trim();
+  // Strip fenced / inline code and links
   t = t.replace(/```[\s\S]*?```/g, " ");
   t = t.replace(/`([^`]+)`/g, "$1");
   t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // LaTeX → rough spoken form
+  t = t.replace(/\$\$([\s\S]*?)\$\$/g, (_, expr: string) => latexToSpeech(expr));
+  t = t.replace(/\$([^$\n]+)\$/g, (_, expr: string) => latexToSpeech(expr));
+  t = t.replace(/\\\[([\s\S]*?)\\\]/g, (_, expr: string) => latexToSpeech(expr));
+  t = t.replace(/\\\(([\s\S]*?)\\\)/g, (_, expr: string) => latexToSpeech(expr));
+  // Markdown chrome
   t = t.replace(/^#{1,6}\s+/gm, "");
+  t = t.replace(/^\s*>\s?/gm, "");
   t = t.replace(/^\s*[-*+]\s+/gm, "");
+  t = t.replace(/^\s*\d+\.\s+/gm, "");
   t = t.replace(/[*_~]+/g, "");
   t = t.replace(/\n{2,}/g, ". ");
   t = t.replace(/\n/g, " ");
   t = t.replace(/\s+/g, " ").trim();
   return t;
+}
+
+/** Best-effort LaTeX → short English for TTS (not a full math reader). */
+function latexToSpeech(raw: string): string {
+  let e = raw.trim();
+  e = e.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "$1 over $2");
+  e = e.replace(/\\sqrt\{([^{}]+)\}/g, "square root of $1");
+  e = e.replace(/\\sqrt/g, "square root ");
+  e = e.replace(/\\pm/g, " plus or minus ");
+  e = e.replace(/\\times/g, " times ");
+  e = e.replace(/\\div/g, " divided by ");
+  e = e.replace(/\\cdot/g, " times ");
+  e = e.replace(/\\leq/g, " less than or equal to ");
+  e = e.replace(/\\geq/g, " greater than or equal to ");
+  e = e.replace(/\\neq/g, " not equal to ");
+  e = e.replace(/\\left|\\right/g, "");
+  e = e.replace(/\\,/g, " ");
+  e = e.replace(/\\;/g, " ");
+  e = e.replace(/\\[a-zA-Z]+/g, " ");
+  e = e.replace(/[{}^_]/g, " ");
+  e = e.replace(/\s+/g, " ").trim();
+  return e ? ` ${e} ` : " ";
 }
 
 /** Split into short phrases so synthesis stays natural and reliable. */
