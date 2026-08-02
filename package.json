@@ -9,7 +9,8 @@
     "prepare-env": "node scripts/ensure-env.mjs",
     "lint": "eslint",
     "verify:voice": "node scripts/verify-voice.mjs",
-    "verify:tts": "node scripts/verify-tts.mjs"
+    "verify:tts": "node scripts/verify-tts.mjs",
+    "verify:stt": "node scripts/verify-stt.mjs"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.26",

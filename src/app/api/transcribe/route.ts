@@ -6,6 +6,8 @@ export const maxDuration = 120;
 
 const STT_URL = process.env.STT_URL || "http://127.0.0.1:8765/transcribe";
 
+const ALLOWED = new Set(["auto", "en", "zh", "yue", "es"]);
+
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
@@ -23,6 +25,9 @@ export async function POST(req: Request) {
       );
     }
 
+    let language = String(form.get("language") || "auto").toLowerCase();
+    if (!ALLOWED.has(language)) language = "auto";
+
     const forward = new FormData();
     const filename =
       (audio as File).name ||
@@ -32,6 +37,7 @@ export async function POST(req: Request) {
           ? "speech.ogg"
           : "speech.webm");
     forward.append("audio", audio, filename);
+    forward.append("language", language);
 
     const res = await fetch(STT_URL, {
       method: "POST",
@@ -41,6 +47,7 @@ export async function POST(req: Request) {
 
     const data = (await res.json().catch(() => null)) as {
       text?: string;
+      language?: string;
       error?: string;
     } | null;
 
@@ -54,12 +61,18 @@ export async function POST(req: Request) {
     const text = (data?.text || "").trim();
     if (!text) {
       return NextResponse.json(
-        { error: "Didn’t catch that — try again a bit louder." },
+        {
+          error:
+            "Didn’t catch that — try again louder, or pick the matching language voice.",
+        },
         { status: 422 },
       );
     }
 
-    return NextResponse.json({ text });
+    return NextResponse.json({
+      text,
+      language: data?.language || language,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Transcribe failed";
     return NextResponse.json(

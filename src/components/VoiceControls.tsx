@@ -13,6 +13,7 @@ import {
   isSecureMediaContext,
 } from "@/lib/media";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
+import { sttLangFromVoice } from "@/lib/stt-lang";
 import {
   getTutorVoice,
   loadSpeakEnabled,
@@ -215,6 +216,7 @@ export function VoiceControls({
       try {
         const body = new FormData();
         body.append("audio", blob, "speech.wav");
+        body.append("language", sttLangFromVoice(voiceIdRef.current));
         const res = await fetch("/api/transcribe", {
           method: "POST",
           body,
@@ -412,8 +414,8 @@ export function VoiceControls({
           disabled={disabled}
           onChange={(e) => void changeVoice(e.target.value as TutorVoiceId)}
           className="min-h-11 max-w-[14rem] rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)]"
-          title="Tutor voice / idioma"
-          aria-label="Tutor voice"
+          title="Voice + mic language (Auto / 普通话 / 粤语 / Español)"
+          aria-label="Tutor voice and recognition language"
         >
           {TUTOR_VOICES.map((v) => (
             <option key={v.id} value={v.id}>

@@ -15,9 +15,11 @@ from faster_whisper import WhisperModel
 
 HOST = os.environ.get("STT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("STT_PORT", "8765"))
-MODEL_SIZE = os.environ.get("STT_MODEL", "tiny.en")
+# Multilingual model (not *.en) — English, Mandarin, Spanish; Cantonese via zh+prompt
+MODEL_SIZE = os.environ.get("STT_MODEL", "base")
 # Default neural voice (clients may override per request)
 TTS_VOICE = os.environ.get("TTS_VOICE", "en-US-AvaNeural")
+ALLOWED_STT_LANGS = {"auto", "en", "zh", "yue", "es"}
 ALLOWED_VOICES = {
     "en-US-AvaNeural",
     "en-GB-RyanNeural",
@@ -97,6 +99,71 @@ def convert_to_wav(src: str) -> str:
     return wav_path
 
 
+def _normalize_stt_lang(raw: str | None) -> str:
+    lang = (raw or "auto").strip().lower()
+    aliases = {
+        "": "auto",
+        "auto": "auto",
+        "en": "en",
+        "eng": "en",
+        "english": "en",
+        "zh": "zh",
+        "zh-cn": "zh",
+        "zh-tw": "zh",
+        "cmn": "zh",
+        "mandarin": "zh",
+        "chinese": "zh",
+        "yue": "yue",
+        "zh-hk": "yue",
+        "zh-yue": "yue",
+        "cantonese": "yue",
+        "es": "es",
+        "spa": "es",
+        "spanish": "es",
+        "es-es": "es",
+        "es-mx": "es",
+    }
+    lang = aliases.get(lang, lang)
+    if lang not in ALLOWED_STT_LANGS:
+        return "auto"
+    return lang
+
+
+def _transcribe_kwargs(lang: str) -> dict:
+    """Build faster-whisper transcribe options for en / zh / yue / es / auto."""
+    # beam_size>1 helps non-English a bit; keep modest on CPU
+    base = {
+        "vad_filter": True,
+        "beam_size": 2,
+        "condition_on_previous_text": False,
+    }
+    if lang == "auto":
+        # Let Whisper detect among multilingual languages
+        base["language"] = None
+        return base
+    if lang == "en":
+        base["language"] = "en"
+        return base
+    if lang == "es":
+        base["language"] = "es"
+        base["initial_prompt"] = "Hola, esto es español."
+        return base
+    if lang == "zh":
+        base["language"] = "zh"
+        base["initial_prompt"] = "你好，这是普通话。"
+        return base
+    if lang == "yue":
+        # OpenAI Whisper has no dedicated Cantonese code; bias zh toward 粤语
+        base["language"] = "zh"
+        base["initial_prompt"] = (
+            "以下係廣東話（粤语）口述。"
+            "請用繁體或简体中文寫出粤语内容。"
+        )
+        return base
+    base["language"] = None
+    return base
+
+
 @app.get("/health")
 def health():
     return jsonify(
@@ -105,6 +172,7 @@ def health():
             "model": MODEL_SIZE,
             "loaded": model is not None,
             "tts_voice": TTS_VOICE,
+            "stt_langs": sorted(ALLOWED_STT_LANGS),
         }
     )
 
@@ -116,6 +184,11 @@ def transcribe():
     f = request.files["audio"]
     if not f or not f.filename:
         return jsonify({"error": "empty audio"}), 400
+
+    # language can be form field or query (?language=zh)
+    lang = _normalize_stt_lang(
+        request.form.get("language") or request.args.get("language")
+    )
 
     suffix = Path(f.filename).suffix or ".wav"
     if len(suffix) > 8:
@@ -132,23 +205,17 @@ def transcribe():
             return jsonify({"error": "Recording too short — speak a bit longer"}), 400
 
         # Always normalize via ffmpeg — mobile WebM is often incomplete for PyAV
-        if suffix.lower() == ".wav":
-            # Still re-encode for consistent sample rate
-            wav_path = convert_to_wav(tmp_path)
-        else:
-            wav_path = convert_to_wav(tmp_path)
+        wav_path = convert_to_wav(tmp_path)
 
-        segments, info = get_model().transcribe(
-            wav_path,
-            language="en",
-            vad_filter=True,
-            beam_size=1,
-        )
+        kwargs = _transcribe_kwargs(lang)
+        segments, info = get_model().transcribe(wav_path, **kwargs)
         text = " ".join(seg.text.strip() for seg in segments).strip()
+        detected = getattr(info, "language", None) or lang
         return jsonify(
             {
                 "text": text,
-                "language": getattr(info, "language", "en"),
+                "language": detected,
+                "requested_language": lang,
             }
         )
     except Exception as exc:  # noqa: BLE001
