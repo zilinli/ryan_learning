@@ -14,7 +14,9 @@ const ALLOWED_VOICES = new Set([
   "zh-HK-HiuMaanNeural",
   "zh-HK-WanLungNeural",
   "es-ES-ElviraNeural",
+  "es-ES-AlvaroNeural",
   "es-MX-DaliaNeural",
+  "es-MX-JorgeNeural",
   "es-US-PalomaNeural",
 ]);
 

@@ -73,6 +73,10 @@ export interface ChatRequestBody {
   attachments?: ChatAttachmentPayload[];
   /** Recent text turns (no images) — keeps context if agent was recreated */
   history?: HistoryTurn[];
+  /** Voice picker id: auto | ava | yunxi | wanLung | alvaro … */
+  voiceId?: string;
+  /** Explicit reply language: auto | en | zh | yue | es */
+  replyLanguage?: string;
   /** @deprecated legacy single image */
   image?: {
     data: string;

@@ -63,10 +63,10 @@ async function main() {
   const voices = [
     ["en-US-AvaNeural", "Hi, I'm Spark. I'll read replies in this voice."],
     ["en-GB-RyanNeural", "Hi, I'm Spark. I'll read replies in this British voice."],
-    ["zh-CN-XiaoxiaoNeural", "你好，我是 Spark。我会用普通话朗读这段话。"],
-    ["zh-HK-HiuMaanNeural", "你好，我係 Spark。我會用廣東話讀出呢段說話。"],
-    ["es-ES-ElviraNeural", "Hola, soy Spark. Leeré esta respuesta en español."],
-    ["es-MX-DaliaNeural", "Hola, soy Spark. Leeré esta respuesta en español de México."],
+    ["zh-CN-YunxiNeural", "你好，我是 Spark。我会用普通话朗读这段话。"],
+    ["zh-HK-WanLungNeural", "你好，我係 Spark。我會用廣東話讀出呢段說話。"],
+    ["es-ES-AlvaroNeural", "Hola, soy Spark. Leeré esta respuesta en español."],
+    ["es-MX-JorgeNeural", "Hola, soy Spark. Leeré esta respuesta en español de México."],
   ];
 
   // 2) Direct STT server TTS
@@ -161,16 +161,20 @@ async function main() {
   ok("detect English", detectSpeechLang("Let's look at the fraction carefully.") === "en");
   ok(
     "auto resolves Mandarin",
-    resolveEdgeVoice("auto", "这是阅读理解题") === "zh-CN-XiaoxiaoNeural",
+    resolveEdgeVoice("auto", "这是阅读理解题") === "zh-CN-YunxiNeural",
   );
   ok(
     "auto resolves Spanish",
-    resolveEdgeVoice("auto", "Lee el párrafo siguiente") === "es-ES-ElviraNeural" ||
-      resolveEdgeVoice("auto", "¿Qué significa esta palabra?") === "es-ES-ElviraNeural",
+    resolveEdgeVoice("auto", "Lee el párrafo siguiente") === "es-ES-AlvaroNeural" ||
+      resolveEdgeVoice("auto", "¿Qué significa esta palabra?") === "es-ES-AlvaroNeural",
   );
   ok(
     "Cantonese fixed voice",
-    resolveEdgeVoice("hiuMaan", "你好呀") === "zh-HK-HiuMaanNeural",
+    resolveEdgeVoice("wanLung", "你好呀") === "zh-HK-WanLungNeural",
+  );
+  ok(
+    "legacy Cantonese id maps to male",
+    resolveEdgeVoice("hiuMaan", "你好呀") === "zh-HK-WanLungNeural",
   );
 
   const md = [

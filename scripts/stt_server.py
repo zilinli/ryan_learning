@@ -32,7 +32,9 @@ ALLOWED_VOICES = {
     "zh-HK-WanLungNeural",
     # Spanish
     "es-ES-ElviraNeural",
+    "es-ES-AlvaroNeural",
     "es-MX-DaliaNeural",
+    "es-MX-JorgeNeural",
     "es-US-PalomaNeural",
 }
 

@@ -2,7 +2,7 @@ import { chunkForNeuralTts, pullSpeakableFromBuffer } from "./tts-text";
 import { resolveEdgeVoice, type TutorVoiceId } from "./voices";
 
 export type SpeakHandlers = {
-  /** Preference id (auto / xiaoxiao / elvira …) — resolved per chunk */
+  /** Preference id (auto / yunxi / alvaro …) — resolved per chunk */
   voiceId?: TutorVoiceId | string;
   /** Optional fixed edge voice override */
   voice?: string;
@@ -379,10 +379,10 @@ export class NeuralSpeechEngine {
 }
 
 function mapEdgeToId(edge: string): TutorVoiceId {
-  if (edge.startsWith("zh-HK")) return "hiuMaan";
-  if (edge.startsWith("zh-")) return "xiaoxiao";
-  if (edge.startsWith("es-MX")) return "dalia";
-  if (edge.startsWith("es-")) return "elvira";
+  if (edge.startsWith("zh-HK")) return "wanLung";
+  if (edge.startsWith("zh-")) return "yunxi";
+  if (edge.startsWith("es-MX")) return "jorge";
+  if (edge.startsWith("es-")) return "alvaro";
   if (edge.includes("Ryan") || edge.includes("en-GB")) return "ryan";
   return "ava";
 }

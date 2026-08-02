@@ -40,6 +40,8 @@ type Props = {
   disabled?: boolean;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
+  /** Keep parent in sync so chat replies use the same language */
+  onVoiceIdChange?: (id: TutorVoiceId) => void;
   onTranscript: (text: string) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
 };
@@ -52,6 +54,7 @@ export function VoiceControls({
   disabled,
   voiceEnabled,
   onVoiceEnabledChange,
+  onVoiceIdChange,
   onTranscript,
   onSpeakApi,
 }: Props) {
@@ -77,6 +80,7 @@ export function VoiceControls({
     const id = loadVoiceId();
     setVoiceId(id);
     voiceIdRef.current = id;
+    onVoiceIdChange?.(id);
     // Sync parent if localStorage says speak on (default true)
     const enabled = loadSpeakEnabled();
     wantSpeakRef.current = enabled;
@@ -349,13 +353,24 @@ export function VoiceControls({
     setVoiceId(id);
     voiceIdRef.current = id;
     saveVoiceId(id);
+    onVoiceIdChange?.(id);
     const voice = getTutorVoice(id);
     wantSpeakRef.current = true;
     if (!voiceEnabled) onVoiceEnabledChange(true);
     saveSpeakEnabled(true);
+    const langHint =
+      id === "wanLung"
+        ? "回复会用粤语"
+        : id === "yunxi"
+          ? "回复会用普通话"
+          : id === "alvaro" || id === "jorge"
+            ? "Respuestas en español"
+            : id === "auto"
+              ? "Auto: match your language"
+              : "Replies in English";
     try {
       await getSharedSpeechEngine().unlock();
-      setHint(`Voice: ${voice.label}`);
+      setHint(`${voice.label} · ${langHint}`);
       void runSpeak(voice.preview);
     } catch {
       setHint("Tap Speak on to enable sound for this voice");

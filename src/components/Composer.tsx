@@ -9,12 +9,14 @@ import {
 } from "@/lib/file-payload";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
+import type { TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 
 type Props = {
   disabled?: boolean;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
+  onVoiceIdChange?: (id: TutorVoiceId) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
   /** Unlock audio inside the Send tap (required on iPhone/iPad) */
   onPrepareSpeak?: () => Promise<void>;
@@ -28,6 +30,7 @@ export function Composer({
   disabled,
   voiceEnabled,
   onVoiceEnabledChange,
+  onVoiceIdChange,
   onSpeakApi,
   onPrepareSpeak,
   onSend,
@@ -209,6 +212,7 @@ export function Composer({
               disabled={disabled || adding}
               voiceEnabled={voiceEnabled}
               onVoiceEnabledChange={onVoiceEnabledChange}
+              onVoiceIdChange={onVoiceIdChange}
               onSpeakApi={onSpeakApi}
               onTranscript={(t) => {
                 setText(t);

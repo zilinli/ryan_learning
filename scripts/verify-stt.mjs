@@ -97,21 +97,21 @@ async function main() {
     {
       name: "Mandarin",
       language: "zh",
-      voice: "zh-CN-XiaoxiaoNeural",
+      voice: "zh-CN-YunxiNeural",
       text: "你好，请帮我看一下这道数学题。",
       expect: ["你好", "数学", "帮"],
     },
     {
       name: "Cantonese-biased",
       language: "yue",
-      voice: "zh-HK-HiuMaanNeural",
+      voice: "zh-HK-WanLungNeural",
       text: "你好，我想问功课。",
       expect: ["你好", "功课", "想", "问"],
     },
     {
       name: "Spanish",
       language: "es",
-      voice: "es-ES-ElviraNeural",
+      voice: "es-ES-AlvaroNeural",
       text: "Hola, necesito ayuda con la tarea de matemáticas.",
       expect: ["hola", "ayuda", "tarea", "matem"],
     },
@@ -145,7 +145,7 @@ async function main() {
     try {
       await synthWav(
         "Buenos días, ¿puedes explicarme esta pregunta?",
-        "es-MX-DaliaNeural",
+        "es-MX-JorgeNeural",
         wav,
       );
       const { res, data } = await transcribeNext(wav, "auto");
@@ -171,9 +171,10 @@ async function main() {
 
   // Client helper mapping
   const { sttLangFromVoice } = await import("../src/lib/stt-lang.ts");
-  ok("voice→stt xiaoxiao", sttLangFromVoice("xiaoxiao") === "zh");
-  ok("voice→stt hiuMaan", sttLangFromVoice("hiuMaan") === "yue");
-  ok("voice→stt elvira", sttLangFromVoice("elvira") === "es");
+  ok("voice→stt yunxi", sttLangFromVoice("yunxi") === "zh");
+  ok("voice→stt wanLung", sttLangFromVoice("wanLung") === "yue");
+  ok("voice→stt alvaro", sttLangFromVoice("alvaro") === "es");
+  ok("voice→stt legacy xiaoxiao", sttLangFromVoice("xiaoxiao") === "zh");
   ok("voice→stt auto", sttLangFromVoice("auto") === "auto");
 
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);

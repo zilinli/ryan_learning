@@ -5,7 +5,12 @@ import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { SetupPanel } from "./SetupPanel";
-import { loadSpeakEnabled } from "@/lib/voices";
+import {
+  loadSpeakEnabled,
+  loadVoiceId,
+  replyLangFromVoice,
+  type TutorVoiceId,
+} from "@/lib/voices";
 import {
   getActiveConversation,
   loadConversations,
@@ -179,6 +184,7 @@ export function TutorShell() {
   const [error, setError] = useState("");
   const [keyMissing, setKeyMissing] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
@@ -187,16 +193,24 @@ export function TutorShell() {
   const speakApiRef = useRef<SpeakStreamApi | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const voiceEnabledRef = useRef(true);
+  const voiceIdRef = useRef<TutorVoiceId>("auto");
 
   useEffect(() => {
     const enabled = loadSpeakEnabled();
     setVoiceEnabled(enabled);
     voiceEnabledRef.current = enabled;
+    const vid = loadVoiceId();
+    setVoiceId(vid);
+    voiceIdRef.current = vid;
   }, []);
 
   useEffect(() => {
     voiceEnabledRef.current = voiceEnabled;
   }, [voiceEnabled]);
+
+  useEffect(() => {
+    voiceIdRef.current = voiceId;
+  }, [voiceId]);
 
   const setSpeakApi = useCallback((api: SpeakStreamApi | null) => {
     speakApiRef.current = api;
@@ -361,6 +375,8 @@ export function TutorShell() {
           message: payload.text,
           reset: needReset,
           history: needReset ? undefined : history,
+          voiceId: voiceIdRef.current,
+          replyLanguage: replyLangFromVoice(voiceIdRef.current),
           attachments: payload.attachments.map((a) => ({
             name: a.name,
             mimeType: a.mimeType,
@@ -523,6 +539,7 @@ export function TutorShell() {
           disabled={busy}
           voiceEnabled={voiceEnabled}
           onVoiceEnabledChange={setVoiceEnabled}
+          onVoiceIdChange={setVoiceId}
           onSpeakApi={setSpeakApi}
           onPrepareSpeak={async () => {
             await speakApiRef.current?.prepare();

@@ -75,6 +75,9 @@ export async function POST(req: Request) {
     imageCount: imageAttachments.length,
     fileSummaries,
     history,
+    voiceId: typeof body.voiceId === "string" ? body.voiceId : undefined,
+    replyLanguage:
+      typeof body.replyLanguage === "string" ? body.replyLanguage : undefined,
   });
 
   const images: SDKImage[] | undefined =
