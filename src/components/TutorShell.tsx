@@ -20,6 +20,7 @@ import type {
   ConversationsStore,
   HistoryTurn,
 } from "@/lib/types";
+import type { SpeakStreamApi } from "./VoiceControls";
 
 function messageId() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -50,6 +51,15 @@ async function consumeChatStream(
     let full = "";
     let streamError = "";
 
+    const paint = () =>
+      new Promise<void>((resolve) => {
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => resolve());
+        } else {
+          setTimeout(resolve, 0);
+        }
+      });
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -57,6 +67,7 @@ async function consumeChatStream(
       const parts = buffer.split("\n\n");
       buffer = parts.pop() ?? "";
 
+      let gotDelta = false;
       for (const part of parts) {
         const lines = part.split("\n");
         let event = "message";
@@ -73,6 +84,7 @@ async function consumeChatStream(
         if (event === "delta" && data.text) {
           full += data.text;
           onDelta(data.text);
+          gotDelta = true;
         }
         if (event === "error" && data.error) {
           streamError = data.error;
@@ -80,8 +92,11 @@ async function consumeChatStream(
         if (event === "done" && data.text && !full) {
           full = data.text;
           onDelta(data.text);
+          gotDelta = true;
         }
       }
+      // Let React paint between SSE chunks (critical on iPad)
+      if (gotDelta) await paint();
     }
 
     if (streamError) throw new Error(streamError);
@@ -163,12 +178,18 @@ export function TutorShell() {
   const [error, setError] = useState("");
   const [keyMissing, setKeyMissing] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [speakText, setSpeakText] = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
   const resetIdsRef = useRef<Set<string>>(new Set());
+  const speakApiRef = useRef<SpeakStreamApi | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
+  const voiceEnabledRef = useRef(false);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
 
   useEffect(() => {
     const loaded = loadConversations();
@@ -183,10 +204,18 @@ export function TutorShell() {
       .catch(() => setKeyMissing(true));
   }, []);
 
+  // Debounce localStorage while streaming — sync writes freeze the UI on iPad
   useEffect(() => {
     if (!ready || !store) return;
-    saveConversations(store);
-  }, [ready, store]);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    const delay = busy ? 1500 : 200;
+    saveTimerRef.current = window.setTimeout(() => {
+      saveConversations(store);
+    }, delay);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [ready, store, busy]);
 
   const active = useMemo(
     () => (store ? getActiveConversation(store) : null),
@@ -224,14 +253,14 @@ export function TutorShell() {
       ],
     });
     setError("");
-    setSpeakText(undefined);
+    speakApiRef.current?.stop();
   };
 
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
+    speakApiRef.current?.stop();
     setStore({ ...store, activeId: id });
     setError("");
-    setSpeakText(undefined);
     resetNextRef.current = resetIdsRef.current.has(id);
   };
 
@@ -263,9 +292,9 @@ export function TutorShell() {
       }
     }
     resetIdsRef.current.delete(id);
+    speakApiRef.current?.stop();
     setStore({ version: 3, activeId, conversations });
     setError("");
-    setSpeakText(undefined);
   };
 
   const handleSend = async (payload: {
@@ -275,11 +304,12 @@ export function TutorShell() {
     if (busy || !store || !sessionId) return;
     setBusy(true);
     setError("");
-    setSpeakText(undefined);
+    speakApiRef.current?.stop();
 
     const needReset =
       resetNextRef.current || resetIdsRef.current.has(sessionId);
     const history = buildHistoryPreview(messages);
+    const shouldSpeak = voiceEnabledRef.current;
 
     const userMsg: ChatMessage = {
       id: messageId(),
@@ -310,6 +340,10 @@ export function TutorShell() {
         : prev,
     );
 
+    if (shouldSpeak) {
+      speakApiRef.current?.begin();
+    }
+
     try {
       const full = await consumeChatStream(
         {
@@ -326,6 +360,7 @@ export function TutorShell() {
           })),
         },
         (delta) => {
+          // Paint text immediately as SSE chunks arrive
           setStore((prev) => {
             if (!prev) return prev;
             const cur = getActiveConversation(prev);
@@ -335,11 +370,16 @@ export function TutorShell() {
             );
             return upsertActive(prev, { messages: msgs });
           });
+          if (shouldSpeak) {
+            speakApiRef.current?.push(delta);
+          }
         },
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
-      setSpeakText(full);
+      if (shouldSpeak) {
+        speakApiRef.current?.flush();
+      }
       if (!full.trim()) {
         setStore((prev) => {
           if (!prev) return prev;
@@ -359,6 +399,7 @@ export function TutorShell() {
       if (msg.includes("CURSOR_API_KEY") || msg.includes("API Key")) {
         setKeyMissing(true);
       }
+      speakApiRef.current?.stop();
       setStore((prev) => {
         if (!prev) return prev;
         const cur = getActiveConversation(prev);
@@ -375,6 +416,10 @@ export function TutorShell() {
       });
     } finally {
       setBusy(false);
+      // Persist promptly when the turn ends
+      window.setTimeout(() => {
+        setStore((prev) => (prev ? { ...prev } : prev));
+      }, 0);
     }
   };
 
@@ -464,13 +509,15 @@ export function TutorShell() {
         ) : null}
 
         <div className="shrink-0 border-t border-[var(--line)]/60 bg-[color-mix(in_srgb,var(--bg0)_82%,transparent)] backdrop-blur-md">
-          <Composer
-            disabled={busy}
-            voiceEnabled={voiceEnabled}
-            onVoiceEnabledChange={setVoiceEnabled}
-            speakText={speakText}
-            onSend={handleSend}
-          />
+        <Composer
+          disabled={busy}
+          voiceEnabled={voiceEnabled}
+          onVoiceEnabledChange={setVoiceEnabled}
+          onSpeakApi={(api) => {
+            speakApiRef.current = api;
+          }}
+          onSend={handleSend}
+        />
         </div>
       </div>
     </div>

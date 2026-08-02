@@ -69,6 +69,30 @@ function cleanTutorSpeechText(text) {
   return t;
 }
 
+function pullSpeakableFromBuffer(buffer, opts = {}) {
+  const minChars = opts.minChars ?? 28;
+  const maxWaitChars = opts.maxWaitChars ?? 160;
+  let buf = buffer.replace(/\r\n/g, "\n");
+  const ready = [];
+  const take = (end) => {
+    const raw = buf.slice(0, end);
+    buf = buf.slice(end).replace(/^\s+/, "");
+    const cleaned = cleanTutorSpeechText(raw);
+    if (cleaned.length >= 2) ready.push(cleaned);
+  };
+  while (true) {
+    const m = buf.match(/[.!?。！？](?:["')\]]+)?(?:\s+|$)/);
+    if (!m || m.index === undefined) break;
+    const end = m.index + m[0].length;
+    if (cleanTutorSpeechText(buf.slice(0, end)).length < Math.min(12, minChars) && !opts.force) {
+      break;
+    }
+    take(end);
+  }
+  if (opts.force && buf.trim()) take(buf.length);
+  return { ready, rest: buf };
+}
+
 function chunkForNeuralTts(text, maxLen = 420) {
   const cleaned = cleanTutorSpeechText(text);
   if (!cleaned) return [];
@@ -173,6 +197,29 @@ async function main() {
     ok(`TTS chunk ${i + 1}/${chunks.length}`, good, `bytes=${buf.length} chars=${chunk.length}`);
   }
   ok("all reply chunks playable", allChunkOk);
+
+  // Streaming speak: complete sentences become ready before the full reply
+  {
+    let buf = "";
+    const spoken = [];
+    for (const part of [
+      "Let's look at this carefully. ",
+      "What is the question asking? ",
+      "Try the next step",
+    ]) {
+      buf += part;
+      const { ready, rest } = pullSpeakableFromBuffer(buf);
+      spoken.push(...ready);
+      buf = rest;
+    }
+    const flushed = pullSpeakableFromBuffer(buf, { force: true });
+    spoken.push(...flushed.ready);
+    ok(
+      "stream speak pulls sentences early",
+      spoken.length >= 2 && spoken[0].includes("carefully"),
+      `n=${spoken.length} first=${spoken[0]?.slice(0, 40)}`,
+    );
+  }
 
   // Simulate race: wantSpeak must be set BEFORE speak loop checks
   let wantSpeak = false;

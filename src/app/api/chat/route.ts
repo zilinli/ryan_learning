@@ -145,6 +145,8 @@ export async function POST(req: Request) {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
+      // Discourage intermediaries from buffering the whole reply
+      "Content-Encoding": "identity",
     },
   });
 }

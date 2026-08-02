@@ -12,7 +12,7 @@ import {
   isCoarsePointer,
   isSecureMediaContext,
 } from "@/lib/media";
-import { NeuralSpeechEngine } from "@/lib/speech-player";
+import { getSharedSpeechEngine } from "@/lib/speech-player";
 import {
   getTutorVoice,
   loadVoiceId,
@@ -22,12 +22,21 @@ import {
 } from "@/lib/voices";
 import { startWavRecorder } from "@/lib/wav-recorder";
 
+export type SpeakStreamApi = {
+  begin: () => void;
+  push: (delta: string) => void;
+  flush: () => void;
+  stop: () => void;
+  unlocked: () => boolean;
+};
+
 type Props = {
   disabled?: boolean;
-  speakText?: string;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onTranscript: (text: string) => void;
+  /** Parent registers streaming TTS (speak while reply is generating) */
+  onSpeakApi?: (api: SpeakStreamApi | null) => void;
 };
 
 type RecorderSession = {
@@ -36,10 +45,10 @@ type RecorderSession = {
 
 export function VoiceControls({
   disabled,
-  speakText,
   voiceEnabled,
   onVoiceEnabledChange,
   onTranscript,
+  onSpeakApi,
 }: Props) {
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,10 +60,8 @@ export function VoiceControls({
   const [speaking, setSpeaking] = useState(false);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("ava");
 
-  const lastSpokenRef = useRef("");
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
-  const engineRef = useRef<NeuralSpeechEngine | null>(null);
   const wantSpeakRef = useRef(false);
   const speakTokenRef = useRef(0);
   const voiceIdRef = useRef<TutorVoiceId>("ava");
@@ -94,61 +101,83 @@ export function VoiceControls({
     setSupported(true);
   }, []);
 
-  const getEngine = useCallback(() => {
-    if (!engineRef.current) engineRef.current = new NeuralSpeechEngine();
-    return engineRef.current;
+  const makeHandlers = useCallback(() => {
+    const token = speakTokenRef.current;
+    const voice = getTutorVoice(voiceIdRef.current);
+    return {
+      voice: voice.edgeVoice,
+      shouldContinue: () =>
+        token === speakTokenRef.current && wantSpeakRef.current,
+      onStatus: (s: string) => {
+        if (token !== speakTokenRef.current) return;
+        setStatus(s);
+        setSpeaking(Boolean(s));
+      },
+      onError: (message: string) => {
+        if (token !== speakTokenRef.current) return;
+        setHint(
+          /play|unlock|audio|decode|NotAllowed/i.test(message)
+            ? "No sound — tap Speak on again, check iPad volume (not mute), then retry"
+            : message.slice(0, 80),
+        );
+        setStatus("");
+        setSpeaking(false);
+      },
+    };
   }, []);
 
   const stopSpeaking = useCallback(() => {
     speakTokenRef.current += 1;
     setSpeaking(false);
     setStatus("");
-    engineRef.current?.stop();
+    getSharedSpeechEngine().stop();
   }, []);
 
   const runSpeak = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
-      const engine = getEngine();
-      const token = ++speakTokenRef.current;
-      const voice = getTutorVoice(voiceIdRef.current);
-
+      const engine = getSharedSpeechEngine();
+      speakTokenRef.current += 1;
+      const handlers = makeHandlers();
       setSpeaking(true);
       setHint("");
-
-      const result = await engine.speak(text, {
-        voice: voice.edgeVoice,
-        shouldContinue: () =>
-          token === speakTokenRef.current && wantSpeakRef.current,
-        onStatus: (s) => {
-          if (token === speakTokenRef.current) setStatus(s);
-        },
-        onError: (message) => {
-          if (token !== speakTokenRef.current) return;
-          // Autoplay should usually work after Speak on unlock; keep UI quiet
-          setHint(message.includes("decode") ? "Voice decode issue — try Speak on again" : "");
-          setStatus("");
-          setSpeaking(false);
-        },
-      });
-
-      if (token !== speakTokenRef.current) return;
+      const result = await engine.speak(text, handlers);
+      if (handlers.shouldContinue?.() === false) return;
       if (result === "played") {
         setHint("");
         setStatus("");
       }
       setSpeaking(false);
     },
-    [getEngine],
+    [makeHandlers],
   );
 
+  // Expose streaming TTS API to parent (TutorShell)
   useEffect(() => {
-    if (!voiceEnabled || !speakText) return;
-    if (speakText === lastSpokenRef.current) return;
-    lastSpokenRef.current = speakText;
-    // Auto-play reply — engine was unlocked when Speak on was tapped
-    void runSpeak(speakText);
-  }, [speakText, voiceEnabled, runSpeak]);
+    if (!onSpeakApi) return;
+    const api: SpeakStreamApi = {
+      begin: () => {
+        if (!wantSpeakRef.current) return;
+        speakTokenRef.current += 1;
+        setSpeaking(true);
+        setHint("");
+        getSharedSpeechEngine().beginStream(makeHandlers());
+      },
+      push: (delta: string) => {
+        if (!wantSpeakRef.current || !delta) return;
+        getSharedSpeechEngine().streamPush(delta, makeHandlers());
+        setSpeaking(true);
+      },
+      flush: () => {
+        if (!wantSpeakRef.current) return;
+        getSharedSpeechEngine().streamFlush(makeHandlers());
+      },
+      stop: () => stopSpeaking(),
+      unlocked: () => getSharedSpeechEngine().isUnlocked(),
+    };
+    onSpeakApi(api);
+    return () => onSpeakApi(null);
+  }, [onSpeakApi, makeHandlers, stopSpeaking]);
 
   useEffect(
     () => () => {
@@ -277,13 +306,15 @@ export function VoiceControls({
     }
 
     const voice = getTutorVoice(voiceIdRef.current);
-    setHint(`Voice: ${voice.label}`);
+    setHint(`Voice on · ${voice.label} · turn iPad volume up`);
     try {
-      // Unlock Web Audio inside the user gesture, THEN fetch/play preview
-      await getEngine().unlock();
+      // Critical: unlock HTMLAudioElement inside this tap (iPad Safari/Chrome)
+      await getSharedSpeechEngine().unlock();
       void runSpeak(voice.preview);
     } catch {
-      setHint("Could not start audio — check phone silent mode / volume");
+      setHint(
+        "Could not start audio — tap Speak on again, disable silent mode, raise volume",
+      );
       wantSpeakRef.current = false;
       onVoiceEnabledChange(false);
     }
@@ -298,7 +329,7 @@ export function VoiceControls({
       wantSpeakRef.current = true;
       if (!voiceEnabled) onVoiceEnabledChange(true);
       try {
-        await getEngine().unlock();
+        await getSharedSpeechEngine().unlock();
       } catch {
         // ignore
       }
@@ -350,7 +381,7 @@ export function VoiceControls({
               ? "border-[var(--teal)] bg-[var(--mist)] text-[var(--ink)]"
               : "border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
           }`}
-          title="Read replies aloud automatically"
+          title="Read replies aloud as they stream in"
         >
           {speaking ? "Speaking…" : voiceEnabled ? "Speak on" : "Speak off"}
         </button>

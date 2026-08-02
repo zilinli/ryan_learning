@@ -1,4 +1,4 @@
-import { chunkForNeuralTts } from "./tts-text";
+import { chunkForNeuralTts, pullSpeakableFromBuffer } from "./tts-text";
 
 export type SpeakHandlers = {
   voice?: string;
@@ -7,87 +7,286 @@ export type SpeakHandlers = {
   shouldContinue?: () => boolean;
 };
 
-type AudioContextCtor = typeof AudioContext;
-
-function getAudioContextCtor(): AudioContextCtor | null {
-  if (typeof window === "undefined") return null;
-  return (
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: AudioContextCtor })
-      .webkitAudioContext ||
-    null
-  );
-}
+/** Minimal valid silent WAV — unlocks HTMLAudioElement inside a user gesture (iOS/iPad). */
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
 /**
- * Web Audio based player — after unlock() from a user tap, later replies
- * can autoplay without another "Hear reply" tap on most mobile browsers.
+ * iPad/Safari-friendly TTS player.
+ * Uses HTMLAudioElement + blob URLs (Web Audio decodeAudioData of MP3 is unreliable on iOS).
  */
 export class NeuralSpeechEngine {
-  private ctx: AudioContext | null = null;
-  private source: AudioBufferSourceNode | null = null;
+  private audio: HTMLAudioElement | null = null;
   private unlocked = false;
+  private queue: string[] = [];
+  private pumping = false;
+  private generation = 0;
+  private objectUrl: string | null = null;
+  private streamBuf = "";
+  private activeHandlers: SpeakHandlers = {};
 
   isUnlocked() {
-    return this.unlocked && !!this.ctx && this.ctx.state === "running";
+    return this.unlocked && !!this.audio;
   }
 
-  /** Call from a click/tap handler before the first network fetch. */
-  async unlock(): Promise<void> {
-    const Ctor = getAudioContextCtor();
-    if (!Ctor) throw new Error("Web Audio not supported");
-    if (!this.ctx) this.ctx = new Ctor();
-    if (this.ctx.state === "suspended") {
-      await this.ctx.resume();
+  private ensureAudio(): HTMLAudioElement {
+    if (typeof window === "undefined") {
+      throw new Error("Audio only available in the browser");
     }
-    // Tiny silent buffer keeps the context "hot" after user gesture
-    const silent = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
-    const node = this.ctx.createBufferSource();
-    node.buffer = silent;
-    node.connect(this.ctx.destination);
-    node.start(0);
+    if (!this.audio) {
+      const a = new Audio();
+      a.setAttribute("playsinline", "true");
+      a.setAttribute("webkit-playsinline", "true");
+      a.preload = "auto";
+      // iOS Safari — keep the same element after unlock() for later autoplay
+      (a as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+      // Attaching to DOM improves unlock persistence on iPad Safari/Chrome
+      a.style.position = "fixed";
+      a.style.width = "0";
+      a.style.height = "0";
+      a.style.opacity = "0";
+      a.style.pointerEvents = "none";
+      a.setAttribute("aria-hidden", "true");
+      if (typeof document !== "undefined") {
+        document.body.appendChild(a);
+      }
+      this.audio = a;
+    }
+    return this.audio;
+  }
+
+  private revokeUrl() {
+    if (this.objectUrl) {
+      try {
+        URL.revokeObjectURL(this.objectUrl);
+      } catch {
+        // ignore
+      }
+      this.objectUrl = null;
+    }
+  }
+
+  /** Must be called from a click/tap (Speak on). */
+  async unlock(): Promise<void> {
+    const a = this.ensureAudio();
+    a.muted = false;
+    a.volume = 1;
+    this.revokeUrl();
+    a.src = SILENT_WAV;
+    try {
+      await a.play();
+    } catch (err) {
+      throw err instanceof Error ? err : new Error("Audio unlock failed");
+    }
+    // Stop silent clip quickly; keep element "warm"
+    try {
+      a.pause();
+      a.currentTime = 0;
+    } catch {
+      // ignore
+    }
     this.unlocked = true;
   }
 
   stop() {
-    if (this.source) {
+    this.generation += 1;
+    this.queue = [];
+    this.pumping = false;
+    this.streamBuf = "";
+    const a = this.audio;
+    if (a) {
       try {
-        this.source.onended = null;
-        this.source.stop();
+        a.onended = null;
+        a.onerror = null;
+        a.pause();
+        a.removeAttribute("src");
+        a.load();
       } catch {
         // ignore
       }
-      try {
-        this.source.disconnect();
-      } catch {
-        // ignore
-      }
-      this.source = null;
+    }
+    this.revokeUrl();
+  }
+
+  /** Start a new streamed reply (clears prior speech). */
+  beginStream(handlers: SpeakHandlers = {}) {
+    this.stop();
+    this.activeHandlers = handlers;
+    this.streamBuf = "";
+  }
+
+  /** Feed live model deltas — speaks completed sentences ASAP. */
+  streamPush(delta: string, handlers?: SpeakHandlers) {
+    if (handlers) this.activeHandlers = handlers;
+    if (!delta) return;
+    this.streamBuf += delta;
+    const { ready, rest } = pullSpeakableFromBuffer(this.streamBuf);
+    this.streamBuf = rest;
+    for (const chunk of ready) {
+      this.enqueueChunk(chunk);
     }
   }
 
-  private async playBuffer(buffer: AudioBuffer): Promise<void> {
-    if (!this.ctx) await this.unlock();
-    const ctx = this.ctx!;
-    if (ctx.state === "suspended") await ctx.resume();
+  /** Speak any leftover buffer when the model finishes. */
+  streamFlush(handlers?: SpeakHandlers) {
+    if (handlers) this.activeHandlers = handlers;
+    const { ready, rest } = pullSpeakableFromBuffer(this.streamBuf, {
+      force: true,
+    });
+    this.streamBuf = rest;
+    for (const chunk of ready) {
+      this.enqueueChunk(chunk);
+    }
+  }
 
-    this.stop();
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    this.source = source;
+  private enqueueChunk(text: string) {
+    const cleaned = text.trim();
+    if (!cleaned) return;
+    this.queue.push(cleaned);
+    void this.pump();
+  }
+
+  private async playMp3(ab: ArrayBuffer, gen: number): Promise<void> {
+    const a = this.ensureAudio();
+    this.revokeUrl();
+    const url = URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" }));
+    this.objectUrl = url;
+    a.src = url;
+    a.muted = false;
+    a.volume = 1;
 
     await new Promise<void>((resolve, reject) => {
-      source.onended = () => {
-        if (this.source === source) this.source = null;
+      const onEnd = () => {
+        cleanup();
         resolve();
       };
-      try {
-        source.start(0);
-      } catch (err) {
-        reject(err instanceof Error ? err : new Error("start failed"));
+      const onErr = () => {
+        cleanup();
+        reject(new Error("Audio play failed"));
+      };
+      const cleanup = () => {
+        a.removeEventListener("ended", onEnd);
+        a.removeEventListener("error", onErr);
+      };
+      a.addEventListener("ended", onEnd);
+      a.addEventListener("error", onErr);
+      const playPromise = a.play();
+      if (playPromise) {
+        playPromise.catch(async (err) => {
+          // iOS often needs a second unlock after background / long idle
+          try {
+            await this.unlock();
+            if (gen !== this.generation) {
+              cleanup();
+              resolve();
+              return;
+            }
+            a.src = url;
+            await a.play();
+          } catch {
+            cleanup();
+            reject(err instanceof Error ? err : new Error("play blocked"));
+          }
+        });
       }
+      // Guard: if generation cancelled mid-play
+      const watch = window.setInterval(() => {
+        if (gen !== this.generation) {
+          window.clearInterval(watch);
+          try {
+            a.pause();
+          } catch {
+            // ignore
+          }
+          cleanup();
+          resolve();
+        }
+      }, 200);
+      a.addEventListener(
+        "ended",
+        () => {
+          window.clearInterval(watch);
+        },
+        { once: true },
+      );
     });
+  }
+
+  private async pump() {
+    if (this.pumping) return;
+    this.pumping = true;
+    const gen = this.generation;
+    const handlers = () => this.activeHandlers;
+
+    try {
+      while (this.queue.length > 0) {
+        if (gen !== this.generation) return;
+        const h = handlers();
+        if (h.shouldContinue && !h.shouldContinue()) {
+          this.stop();
+          return;
+        }
+        const chunk = this.queue.shift()!;
+        const remaining = this.queue.length;
+        h.onStatus?.(
+          remaining > 0 ? `Speaking… (${remaining + 1} left)` : "Speaking…",
+        );
+
+        try {
+          if (!this.unlocked) await this.unlock();
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: chunk, voice: h.voice }),
+          });
+          if (!res.ok) {
+            const data = (await res.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            throw new Error(data?.error || `TTS HTTP ${res.status}`);
+          }
+          const ab = await res.arrayBuffer();
+          if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
+          if (gen !== this.generation) return;
+          if (h.shouldContinue && !h.shouldContinue()) {
+            this.stop();
+            return;
+          }
+          await this.playMp3(ab, gen);
+        } catch (err) {
+          // One retry with fresh unlock (common on iPad after idle)
+          try {
+            await this.unlock();
+            if (gen !== this.generation) return;
+            const res = await fetch("/api/tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: chunk, voice: h.voice }),
+            });
+            if (!res.ok) throw new Error("TTS retry failed");
+            const ab = await res.arrayBuffer();
+            await this.playMp3(ab, gen);
+          } catch (err2) {
+            const msg =
+              err2 instanceof Error
+                ? err2.message
+                : err instanceof Error
+                  ? err.message
+                  : "play failed";
+            handlers().onError?.(msg);
+            this.queue = [];
+            return;
+          }
+        }
+      }
+      if (gen === this.generation) handlers().onStatus?.("");
+    } finally {
+      if (gen === this.generation) this.pumping = false;
+      // If more chunks arrived while finishing last play
+      if (gen === this.generation && this.queue.length > 0) {
+        void this.pump();
+      }
+    }
   }
 
   async speak(
@@ -97,12 +296,11 @@ export class NeuralSpeechEngine {
     const chunks = chunkForNeuralTts(text);
     if (!chunks.length) return "empty";
 
-    this.stop();
+    this.beginStream(handlers);
+    const gen = this.generation;
 
     try {
-      if (!this.ctx || this.ctx.state !== "running") {
-        await this.unlock();
-      }
+      if (!this.unlocked) await this.unlock();
     } catch (err) {
       handlers.onError?.(
         err instanceof Error ? err.message : "Audio unlock failed",
@@ -110,78 +308,41 @@ export class NeuralSpeechEngine {
       return "error";
     }
 
-    for (let i = 0; i < chunks.length; i += 1) {
+    for (const chunk of chunks) {
+      if (gen !== this.generation) return "cancelled";
       if (handlers.shouldContinue && !handlers.shouldContinue()) {
         this.stop();
         return "cancelled";
       }
-      const chunk = chunks[i]!;
-      handlers.onStatus?.(
-        chunks.length > 1 ? `Speaking… ${i + 1}/${chunks.length}` : "Speaking…",
-      );
-
-      try {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: chunk,
-            voice: handlers.voice,
-          }),
-        });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(data?.error || `TTS HTTP ${res.status}`);
-        }
-        const ab = await res.arrayBuffer();
-        if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
-
-        if (handlers.shouldContinue && !handlers.shouldContinue()) {
-          this.stop();
-          return "cancelled";
-        }
-
-        const ctx = this.ctx!;
-        // decodeAudioData may detach the buffer — copy first
-        const audioBuffer = await ctx.decodeAudioData(ab.slice(0));
-        await this.playBuffer(audioBuffer);
-      } catch (err) {
-        // One resume+retry helps after long idle on mobile
-        try {
-          await this.unlock();
-          const res = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              text: chunk,
-              voice: handlers.voice,
-            }),
-          });
-          if (!res.ok) throw new Error("TTS retry failed");
-          const ab = await res.arrayBuffer();
-          const audioBuffer = await this.ctx!.decodeAudioData(ab.slice(0));
-          await this.playBuffer(audioBuffer);
-        } catch (err2) {
-          const msg =
-            err2 instanceof Error
-              ? err2.message
-              : err instanceof Error
-                ? err.message
-                : "play failed";
-          handlers.onError?.(msg);
-          return "error";
-        }
-      }
+      this.enqueueChunk(chunk);
     }
 
+    // Wait until queue drained for this generation
+    while (
+      gen === this.generation &&
+      (this.pumping || this.queue.length > 0)
+    ) {
+      if (handlers.shouldContinue && !handlers.shouldContinue()) {
+        this.stop();
+        return "cancelled";
+      }
+      await new Promise((r) => setTimeout(r, 80));
+    }
+
+    if (gen !== this.generation) return "cancelled";
     handlers.onStatus?.("");
     return "played";
   }
 }
 
-/** @deprecated kept for tests — prefer NeuralSpeechEngine */
+let shared: NeuralSpeechEngine | null = null;
+
+export function getSharedSpeechEngine(): NeuralSpeechEngine {
+  if (!shared) shared = new NeuralSpeechEngine();
+  return shared;
+}
+
+/** @deprecated kept for tests */
 export async function speakWithNeuralVoice(
   text: string,
   _audio: HTMLAudioElement,

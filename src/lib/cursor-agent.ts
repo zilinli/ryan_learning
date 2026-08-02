@@ -105,6 +105,20 @@ export async function streamTutorReply(params: {
         ? { text: params.text, images: params.images }
         : params.text;
 
+    const emitExtra = (next: string) => {
+      if (!next) return;
+      if (next.length > fullText.length && next.startsWith(fullText)) {
+        const extra = next.slice(fullText.length);
+        fullText = next;
+        if (extra) params.handlers.onText(extra);
+        return;
+      }
+      if (!fullText) {
+        fullText = next;
+        params.handlers.onText(next);
+      }
+    };
+
     const run = await agent.send(message, {
       onDelta: ({ update }) => {
         if (params.signal?.aborted) return;
@@ -120,17 +134,18 @@ export async function streamTutorReply(params: {
       if (params.signal?.aborted) {
         throw new Error("Request cancelled");
       }
-      if (event.type === "assistant" && !emittedViaDelta) {
+      // Always try to surface progressive assistant text (covers SDKs that
+      // batch deltas or only emit full assistant snapshots).
+      if (event.type === "assistant") {
         for (const block of event.message.content) {
           if (block.type === "text" && block.text) {
-            const next = block.text;
-            if (next.length > fullText.length && next.startsWith(fullText)) {
-              const extra = next.slice(fullText.length);
-              fullText = next;
-              if (extra) params.handlers.onText(extra);
-            } else if (!fullText) {
-              fullText = next;
-              params.handlers.onText(next);
+            if (!emittedViaDelta) {
+              emitExtra(block.text);
+            } else if (
+              block.text.length > fullText.length &&
+              block.text.startsWith(fullText)
+            ) {
+              emitExtra(block.text);
             }
           }
         }

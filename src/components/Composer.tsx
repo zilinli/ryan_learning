@@ -8,13 +8,13 @@ import {
   type ClientAttachment,
 } from "@/lib/file-payload";
 import { CameraCapture } from "./CameraCapture";
-import { VoiceControls } from "./VoiceControls";
+import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 
 type Props = {
   disabled?: boolean;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
-  speakText?: string;
+  onSpeakApi?: (api: SpeakStreamApi | null) => void;
   onSend: (payload: {
     text: string;
     attachments: ClientAttachment[];
@@ -25,7 +25,7 @@ export function Composer({
   disabled,
   voiceEnabled,
   onVoiceEnabledChange,
-  speakText,
+  onSpeakApi,
   onSend,
 }: Props) {
   const [text, setText] = useState("");
@@ -191,9 +191,9 @@ export function Composer({
             </button>
             <VoiceControls
               disabled={disabled || adding}
-              speakText={speakText}
               voiceEnabled={voiceEnabled}
               onVoiceEnabledChange={onVoiceEnabledChange}
+              onSpeakApi={onSpeakApi}
               onTranscript={(t) => {
                 setText(t);
                 window.setTimeout(() => submit(t), 0);
