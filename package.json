@@ -8,7 +8,8 @@
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "prepare-env": "node scripts/ensure-env.mjs",
     "lint": "eslint",
-    "verify:voice": "node scripts/verify-voice.mjs"
+    "verify:voice": "node scripts/verify-voice.mjs",
+    "verify:tts": "node scripts/verify-tts.mjs"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.26",

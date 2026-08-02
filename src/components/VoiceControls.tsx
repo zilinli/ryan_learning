@@ -15,7 +15,9 @@ import {
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import {
   getTutorVoice,
+  loadSpeakEnabled,
   loadVoiceId,
+  saveSpeakEnabled,
   saveVoiceId,
   TUTOR_VOICES,
   type TutorVoiceId,
@@ -23,9 +25,12 @@ import {
 import { startWavRecorder } from "@/lib/wav-recorder";
 
 export type SpeakStreamApi = {
+  /** Call from a user gesture (Send) before streaming starts */
+  prepare: () => Promise<void>;
   begin: () => void;
   push: (delta: string) => void;
-  flush: () => void;
+  /** Flush + speak full text if streaming produced nothing */
+  finish: (fullText: string) => void;
   stop: () => void;
   unlocked: () => boolean;
 };
@@ -35,7 +40,6 @@ type Props = {
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onTranscript: (text: string) => void;
-  /** Parent registers streaming TTS (speak while reply is generating) */
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
 };
 
@@ -62,18 +66,26 @@ export function VoiceControls({
 
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
-  const wantSpeakRef = useRef(false);
+  const wantSpeakRef = useRef(voiceEnabled);
   const speakTokenRef = useRef(0);
   const voiceIdRef = useRef<TutorVoiceId>("ava");
+  const onSpeakApiRef = useRef(onSpeakApi);
+  onSpeakApiRef.current = onSpeakApi;
 
   useEffect(() => {
     const id = loadVoiceId();
     setVoiceId(id);
     voiceIdRef.current = id;
+    // Sync parent if localStorage says speak on (default true)
+    const enabled = loadSpeakEnabled();
+    wantSpeakRef.current = enabled;
+    if (enabled !== voiceEnabled) onVoiceEnabledChange(enabled);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot once
   }, []);
 
   useEffect(() => {
     wantSpeakRef.current = voiceEnabled;
+    saveSpeakEnabled(voiceEnabled);
   }, [voiceEnabled]);
 
   useEffect(() => {
@@ -84,20 +96,18 @@ export function VoiceControls({
       setSupported(false);
       setHttpsLink(upgrade);
       setHint(
-        "Mic needs the secure page. Tap below, then allow the certificate warning.",
+        "Needs the secure page for mic & voice. Tap below, then allow the certificate warning.",
       );
       if (window.location.protocol === "http:") {
         window.location.replace(upgrade);
       }
       return;
     }
+    // TTS works even if mic isn't available — don't disable Speak for that
     if (!canRecordAudio()) {
-      setSupported(false);
       setHttpsLink("");
-      setHint("This browser can’t record audio — try Chrome / Safari");
-      return;
+      setHint("Mic unavailable — typing still works. Speak may still work.");
     }
-    setHttpsLink("");
     setSupported(true);
   }, []);
 
@@ -116,9 +126,9 @@ export function VoiceControls({
       onError: (message: string) => {
         if (token !== speakTokenRef.current) return;
         setHint(
-          /play|unlock|audio|decode|NotAllowed/i.test(message)
-            ? "No sound — tap Speak on again, check iPad volume (not mute), then retry"
-            : message.slice(0, 80),
+          /play|unlock|audio|NotAllowed|gesture/i.test(message)
+            ? "Tap Speak on (or Send again) to allow sound, and check volume"
+            : message.slice(0, 100),
         );
         setStatus("");
         setSpeaking(false);
@@ -136,12 +146,11 @@ export function VoiceControls({
   const runSpeak = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
-      const engine = getSharedSpeechEngine();
       speakTokenRef.current += 1;
       const handlers = makeHandlers();
       setSpeaking(true);
       setHint("");
-      const result = await engine.speak(text, handlers);
+      const result = await getSharedSpeechEngine().speak(text, handlers);
       if (handlers.shouldContinue?.() === false) return;
       if (result === "played") {
         setHint("");
@@ -152,10 +161,17 @@ export function VoiceControls({
     [makeHandlers],
   );
 
-  // Expose streaming TTS API to parent (TutorShell)
+  // Stable speak API for TutorShell (must NOT null-out on every parent re-render)
   useEffect(() => {
-    if (!onSpeakApi) return;
     const api: SpeakStreamApi = {
+      prepare: async () => {
+        if (!wantSpeakRef.current) return;
+        try {
+          await getSharedSpeechEngine().unlock();
+        } catch {
+          // Send still proceeds; finish() may surface a hint
+        }
+      },
       begin: () => {
         if (!wantSpeakRef.current) return;
         speakTokenRef.current += 1;
@@ -166,18 +182,20 @@ export function VoiceControls({
       push: (delta: string) => {
         if (!wantSpeakRef.current || !delta) return;
         getSharedSpeechEngine().streamPush(delta, makeHandlers());
-        setSpeaking(true);
       },
-      flush: () => {
+      finish: (fullText: string) => {
         if (!wantSpeakRef.current) return;
-        getSharedSpeechEngine().streamFlush(makeHandlers());
+        getSharedSpeechEngine().finishReply(fullText, makeHandlers());
+        setSpeaking(true);
       },
       stop: () => stopSpeaking(),
       unlocked: () => getSharedSpeechEngine().isUnlocked(),
     };
-    onSpeakApi(api);
-    return () => onSpeakApi(null);
-  }, [onSpeakApi, makeHandlers, stopSpeaking]);
+    onSpeakApiRef.current?.(api);
+    return () => {
+      onSpeakApiRef.current?.(null);
+    };
+  }, [makeHandlers, stopSpeaking]);
 
   useEffect(
     () => () => {
@@ -230,6 +248,12 @@ export function VoiceControls({
     }
 
     stopSpeaking();
+    // Unlock TTS in the same gesture as mic (helps next reply autoplay)
+    try {
+      await getSharedSpeechEngine().unlock();
+    } catch {
+      // ignore
+    }
     setHint("");
     setStatus("Listening… speak now");
 
@@ -298,25 +322,23 @@ export function VoiceControls({
     const next = !voiceEnabled;
     wantSpeakRef.current = next;
     onVoiceEnabledChange(next);
+    saveSpeakEnabled(next);
 
     if (!next) {
       stopSpeaking();
-      setHint("");
+      setHint("Speak off");
       return;
     }
 
     const voice = getTutorVoice(voiceIdRef.current);
-    setHint(`Voice on · ${voice.label} · turn iPad volume up`);
+    setHint(`Speak on · ${voice.label}`);
     try {
-      // Critical: unlock HTMLAudioElement inside this tap (iPad Safari/Chrome)
       await getSharedSpeechEngine().unlock();
       void runSpeak(voice.preview);
     } catch {
       setHint(
-        "Could not start audio — tap Speak on again, disable silent mode, raise volume",
+        "Could not start audio — tap Speak on again and raise media volume",
       );
-      wantSpeakRef.current = false;
-      onVoiceEnabledChange(false);
     }
   };
 
@@ -325,16 +347,15 @@ export function VoiceControls({
     voiceIdRef.current = id;
     saveVoiceId(id);
     const voice = getTutorVoice(id);
-    if (wantSpeakRef.current || voiceEnabled) {
-      wantSpeakRef.current = true;
-      if (!voiceEnabled) onVoiceEnabledChange(true);
-      try {
-        await getSharedSpeechEngine().unlock();
-      } catch {
-        // ignore
-      }
+    wantSpeakRef.current = true;
+    if (!voiceEnabled) onVoiceEnabledChange(true);
+    saveSpeakEnabled(true);
+    try {
+      await getSharedSpeechEngine().unlock();
       setHint(`Voice: ${voice.label}`);
       void runSpeak(voice.preview);
+    } catch {
+      setHint("Tap Speak on to enable sound for this voice");
     }
   };
 
@@ -381,7 +402,7 @@ export function VoiceControls({
               ? "border-[var(--teal)] bg-[var(--mist)] text-[var(--ink)]"
               : "border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
           }`}
-          title="Read replies aloud as they stream in"
+          title="Read replies aloud (on by default)"
         >
           {speaking ? "Speaking…" : voiceEnabled ? "Speak on" : "Speak off"}
         </button>

@@ -7,6 +7,7 @@ import {
   filesToAttachments,
   type ClientAttachment,
 } from "@/lib/file-payload";
+import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 
@@ -15,6 +16,8 @@ type Props = {
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
+  /** Unlock audio inside the Send tap (required on iPhone/iPad) */
+  onPrepareSpeak?: () => Promise<void>;
   onSend: (payload: {
     text: string;
     attachments: ClientAttachment[];
@@ -26,6 +29,7 @@ export function Composer({
   voiceEnabled,
   onVoiceEnabledChange,
   onSpeakApi,
+  onPrepareSpeak,
   onSend,
 }: Props) {
   const [text, setText] = useState("");
@@ -64,10 +68,22 @@ export function Composer({
     const finalText = (overrideText ?? text).trim();
     const current = attachmentsRef.current;
     if (!finalText && current.length === 0) return;
-    onSend({ text: finalText, attachments: current });
+    const payload = { text: finalText, attachments: current };
     setText("");
     setAttachments([]);
     setError("");
+    // Unlock TTS in this user gesture, then send (iPad/iPhone autoplay policy)
+    void (async () => {
+      if (voiceEnabled) {
+        try {
+          if (onPrepareSpeak) await onPrepareSpeak();
+          else await getSharedSpeechEngine().unlock();
+        } catch {
+          // continue send even if unlock fails; Speak on can retry
+        }
+      }
+      onSend(payload);
+    })();
   };
 
   const atLimit = attachments.length >= MAX_ATTACHMENTS;

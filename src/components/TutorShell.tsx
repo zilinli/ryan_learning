@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { SetupPanel } from "./SetupPanel";
+import { loadSpeakEnabled } from "@/lib/voices";
 import {
   getActiveConversation,
   loadConversations,
@@ -177,7 +178,7 @@ export function TutorShell() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [keyMissing, setKeyMissing] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
@@ -185,11 +186,21 @@ export function TutorShell() {
   const resetIdsRef = useRef<Set<string>>(new Set());
   const speakApiRef = useRef<SpeakStreamApi | null>(null);
   const saveTimerRef = useRef<number | null>(null);
-  const voiceEnabledRef = useRef(false);
+  const voiceEnabledRef = useRef(true);
+
+  useEffect(() => {
+    const enabled = loadSpeakEnabled();
+    setVoiceEnabled(enabled);
+    voiceEnabledRef.current = enabled;
+  }, []);
 
   useEffect(() => {
     voiceEnabledRef.current = voiceEnabled;
   }, [voiceEnabled]);
+
+  const setSpeakApi = useCallback((api: SpeakStreamApi | null) => {
+    speakApiRef.current = api;
+  }, []);
 
   useEffect(() => {
     const loaded = loadConversations();
@@ -304,7 +315,6 @@ export function TutorShell() {
     if (busy || !store || !sessionId) return;
     setBusy(true);
     setError("");
-    speakApiRef.current?.stop();
 
     const needReset =
       resetNextRef.current || resetIdsRef.current.has(sessionId);
@@ -378,7 +388,7 @@ export function TutorShell() {
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
       if (shouldSpeak) {
-        speakApiRef.current?.flush();
+        speakApiRef.current?.finish(full);
       }
       if (!full.trim()) {
         setStore((prev) => {
@@ -513,8 +523,9 @@ export function TutorShell() {
           disabled={busy}
           voiceEnabled={voiceEnabled}
           onVoiceEnabledChange={setVoiceEnabled}
-          onSpeakApi={(api) => {
-            speakApiRef.current = api;
+          onSpeakApi={setSpeakApi}
+          onPrepareSpeak={async () => {
+            await speakApiRef.current?.prepare();
           }}
           onSend={handleSend}
         />

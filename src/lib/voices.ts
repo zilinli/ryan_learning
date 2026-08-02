@@ -46,3 +46,26 @@ export function saveVoiceId(id: TutorVoiceId) {
     // ignore
   }
 }
+
+const SPEAK_ENABLED_KEY = "spark.speakEnabled";
+
+/** Default ON — replies should be read aloud unless the student turns it off. */
+export function loadSpeakEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const saved = window.localStorage.getItem(SPEAK_ENABLED_KEY);
+    if (saved === "0" || saved === "false") return false;
+    if (saved === "1" || saved === "true") return true;
+  } catch {
+    // ignore
+  }
+  return true;
+}
+
+export function saveSpeakEnabled(enabled: boolean) {
+  try {
+    window.localStorage.setItem(SPEAK_ENABLED_KEY, enabled ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
