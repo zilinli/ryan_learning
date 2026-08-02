@@ -63,6 +63,10 @@ async function main() {
   const voices = [
     ["en-US-AvaNeural", "Hi, I'm Spark. I'll read replies in this voice."],
     ["en-GB-RyanNeural", "Hi, I'm Spark. I'll read replies in this British voice."],
+    ["zh-CN-XiaoxiaoNeural", "你好，我是 Spark。我会用普通话朗读这段话。"],
+    ["zh-HK-HiuMaanNeural", "你好，我係 Spark。我會用廣東話讀出呢段說話。"],
+    ["es-ES-ElviraNeural", "Hola, soy Spark. Leeré esta respuesta en español."],
+    ["es-MX-DaliaNeural", "Hola, soy Spark. Leeré esta respuesta en español de México."],
   ];
 
   // 2) Direct STT server TTS
@@ -143,12 +147,31 @@ async function main() {
   }
   ok("sequential stream sentences all playable", seqOk);
 
-  // 6) Helpers: clean + pullSpeakable + chunk (dynamic import)
+  // 6) Helpers: clean + pullSpeakable + chunk + lang detect
   const {
     cleanTutorSpeechText,
     chunkForNeuralTts,
     pullSpeakableFromBuffer,
   } = await import("../src/lib/tts-text.ts");
+  const { detectSpeechLang, resolveEdgeVoice } = await import(
+    "../src/lib/voices.ts"
+  );
+  ok("detect Chinese", detectSpeechLang("请看第一段：河水结冰了。") === "zh");
+  ok("detect Spanish", detectSpeechLang("Hola, ¿cómo estás? Gracias.") === "es");
+  ok("detect English", detectSpeechLang("Let's look at the fraction carefully.") === "en");
+  ok(
+    "auto resolves Mandarin",
+    resolveEdgeVoice("auto", "这是阅读理解题") === "zh-CN-XiaoxiaoNeural",
+  );
+  ok(
+    "auto resolves Spanish",
+    resolveEdgeVoice("auto", "Lee el párrafo siguiente") === "es-ES-ElviraNeural" ||
+      resolveEdgeVoice("auto", "¿Qué significa esta palabra?") === "es-ES-ElviraNeural",
+  );
+  ok(
+    "Cantonese fixed voice",
+    resolveEdgeVoice("hiuMaan", "你好呀") === "zh-HK-HiuMaanNeural",
+  );
 
   const md = [
     "> From Photo 1, paragraph 2: \"The river froze overnight.\"",

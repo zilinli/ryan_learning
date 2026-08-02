@@ -1,6 +1,10 @@
 import { chunkForNeuralTts, pullSpeakableFromBuffer } from "./tts-text";
+import { resolveEdgeVoice, type TutorVoiceId } from "./voices";
 
 export type SpeakHandlers = {
+  /** Preference id (auto / xiaoxiao / elvira …) — resolved per chunk */
+  voiceId?: TutorVoiceId | string;
+  /** Optional fixed edge voice override */
   voice?: string;
   onStatus?: (status: string) => void;
   onError?: (message: string) => void;
@@ -249,10 +253,17 @@ export class NeuralSpeechEngine {
     await this.waitEnded(a, gen);
   }
 
+  private resolveVoice(text: string, h: SpeakHandlers): string {
+    if (h.voiceId) return resolveEdgeVoice(h.voiceId, text);
+    if (h.voice) return resolveEdgeVoice(mapEdgeToId(h.voice), text);
+    return resolveEdgeVoice("auto", text);
+  }
+
   private async fetchTts(
     text: string,
-    voice?: string,
+    h: SpeakHandlers,
   ): Promise<ArrayBuffer> {
+    const voice = this.resolveVoice(text, h);
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -291,7 +302,7 @@ export class NeuralSpeechEngine {
             // May fail without gesture — surface error
             await this.unlock();
           }
-          const ab = await this.fetchTts(chunk, h.voice);
+          const ab = await this.fetchTts(chunk, h);
           if (gen !== this.generation) return;
           if (h.shouldContinue && !h.shouldContinue()) {
             this.stop();
@@ -303,7 +314,7 @@ export class NeuralSpeechEngine {
             // Retry once
             await this.unlock();
             if (gen !== this.generation) return;
-            const ab = await this.fetchTts(chunk, h.voice);
+            const ab = await this.fetchTts(chunk, h);
             await this.playMp3(ab, gen);
           } catch (err2) {
             const msg =
@@ -365,6 +376,15 @@ export class NeuralSpeechEngine {
     handlers.onStatus?.("");
     return this.playedInStream ? "played" : "error";
   }
+}
+
+function mapEdgeToId(edge: string): TutorVoiceId {
+  if (edge.startsWith("zh-HK")) return "hiuMaan";
+  if (edge.startsWith("zh-")) return "xiaoxiao";
+  if (edge.startsWith("es-MX")) return "dalia";
+  if (edge.startsWith("es-")) return "elvira";
+  if (edge.includes("Ryan") || edge.includes("en-GB")) return "ryan";
+  return "ava";
 }
 
 let shared: NeuralSpeechEngine | null = null;

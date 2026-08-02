@@ -9,6 +9,13 @@ const ALLOWED_VOICES = new Set([
   "en-GB-RyanNeural",
   "en-US-JennyNeural",
   "en-GB-ThomasNeural",
+  "zh-CN-XiaoxiaoNeural",
+  "zh-CN-YunxiNeural",
+  "zh-HK-HiuMaanNeural",
+  "zh-HK-WanLungNeural",
+  "es-ES-ElviraNeural",
+  "es-MX-DaliaNeural",
+  "es-US-PalomaNeural",
 ]);
 
 export async function POST(req: Request) {
@@ -31,7 +38,9 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       return Response.json(
         { error: data?.error || "TTS failed" },
         { status: 502 },

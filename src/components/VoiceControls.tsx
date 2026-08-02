@@ -62,13 +62,13 @@ export function VoiceControls({
   const [status, setStatus] = useState("");
   const [touchMode, setTouchMode] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [voiceId, setVoiceId] = useState<TutorVoiceId>("ava");
+  const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
 
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
   const wantSpeakRef = useRef(voiceEnabled);
   const speakTokenRef = useRef(0);
-  const voiceIdRef = useRef<TutorVoiceId>("ava");
+  const voiceIdRef = useRef<TutorVoiceId>("auto");
   const onSpeakApiRef = useRef(onSpeakApi);
   onSpeakApiRef.current = onSpeakApi;
 
@@ -115,6 +115,7 @@ export function VoiceControls({
     const token = speakTokenRef.current;
     const voice = getTutorVoice(voiceIdRef.current);
     return {
+      voiceId: voice.id,
       voice: voice.edgeVoice,
       shouldContinue: () =>
         token === speakTokenRef.current && wantSpeakRef.current,
@@ -410,8 +411,8 @@ export function VoiceControls({
           value={voiceId}
           disabled={disabled}
           onChange={(e) => void changeVoice(e.target.value as TutorVoiceId)}
-          className="min-h-11 max-w-[11rem] rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)]"
-          title="Tutor voice"
+          className="min-h-11 max-w-[14rem] rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+          title="Tutor voice / idioma"
           aria-label="Tutor voice"
         >
           {TUTOR_VOICES.map((v) => (

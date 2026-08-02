@@ -23,6 +23,15 @@ ALLOWED_VOICES = {
     "en-GB-RyanNeural",
     "en-US-JennyNeural",
     "en-GB-ThomasNeural",
+    # Mandarin / Cantonese
+    "zh-CN-XiaoxiaoNeural",
+    "zh-CN-YunxiNeural",
+    "zh-HK-HiuMaanNeural",
+    "zh-HK-WanLungNeural",
+    # Spanish
+    "es-ES-ElviraNeural",
+    "es-MX-DaliaNeural",
+    "es-US-PalomaNeural",
 }
 
 app = Flask(__name__)
@@ -187,8 +196,13 @@ def tts():
         import edge_tts
 
         async def _synth() -> bytes:
-            # Slightly slower for clearer tutoring; Ryan/Ava both sound natural
-            rate = "-8%" if voice.startswith("en-GB") else "-5%"
+            # Slightly slower for clearer tutoring across languages
+            if voice.startswith("en-GB"):
+                rate = "-8%"
+            elif voice.startswith("zh-") or voice.startswith("es-"):
+                rate = "-4%"
+            else:
+                rate = "-5%"
             communicate = edge_tts.Communicate(
                 text,
                 voice,
