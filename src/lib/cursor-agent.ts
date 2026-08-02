@@ -77,11 +77,27 @@ export async function streamTutorReply(params: {
   text: string;
   images?: SDKImage[];
   reset?: boolean;
+  signal?: AbortSignal;
   handlers: StreamHandlers;
 }): Promise<{ agentId: string; fullText: string }> {
+  if (params.signal?.aborted) {
+    throw new Error("Request cancelled");
+  }
+
   const agent = await getOrCreateAgent(params.sessionId, params.reset);
   let fullText = "";
   let emittedViaDelta = false;
+
+  const closeAgent = () => {
+    try {
+      agent.close();
+    } catch {
+      // ignore
+    }
+  };
+
+  const onAbort = () => closeAgent();
+  params.signal?.addEventListener("abort", onAbort);
 
   try {
     const message =
@@ -91,6 +107,7 @@ export async function streamTutorReply(params: {
 
     const run = await agent.send(message, {
       onDelta: ({ update }) => {
+        if (params.signal?.aborted) return;
         if (update.type === "text-delta" && update.text) {
           emittedViaDelta = true;
           fullText += update.text;
@@ -100,6 +117,9 @@ export async function streamTutorReply(params: {
     });
 
     for await (const event of run.stream()) {
+      if (params.signal?.aborted) {
+        throw new Error("Request cancelled");
+      }
       if (event.type === "assistant" && !emittedViaDelta) {
         for (const block of event.message.content) {
           if (block.type === "text" && block.text) {
@@ -119,6 +139,10 @@ export async function streamTutorReply(params: {
       }
     }
 
+    if (params.signal?.aborted) {
+      throw new Error("Request cancelled");
+    }
+
     const result = await run.wait();
     if (result.status === "error") {
       throw new Error(`Tutor run failed (${result.id}). Try again or start a new chat.`);
@@ -132,6 +156,9 @@ export async function streamTutorReply(params: {
 
     return { agentId: agent.agentId, fullText };
   } catch (err) {
+    if (params.signal?.aborted) {
+      throw new Error("Request cancelled");
+    }
     if (err instanceof CursorAgentError) {
       clearAgentId(params.sessionId);
       throw new Error(
@@ -140,11 +167,8 @@ export async function streamTutorReply(params: {
     }
     throw err;
   } finally {
-    try {
-      agent.close();
-    } catch {
-      // ignore
-    }
+    params.signal?.removeEventListener("abort", onAbort);
+    closeAgent();
   }
 }
 

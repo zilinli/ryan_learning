@@ -14,6 +14,10 @@ export function guessKind(mimeType: string, name: string): AttachmentKind {
 
 export function isAllowedAttachment(mimeType: string, name: string): boolean {
   if (mimeType.startsWith("image/")) return true;
+  // Phone camera / WeChat often give empty filename
+  if (!name || name === "image.jpg" || name === "blob") {
+    if (!mimeType || mimeType === "application/octet-stream") return true;
+  }
   if (IMAGE_EXT.test(name) || PDF_EXT.test(name) || TEXT_EXT.test(name)) {
     return true;
   }

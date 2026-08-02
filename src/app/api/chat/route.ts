@@ -41,6 +41,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // Reject clearly broken image payloads early (empty base64)
+  for (const a of attachments) {
+    if (a.kind === "image" && a.data != null && String(a.data).trim().length < 8) {
+      return Response.json(
+        { error: `Photo "${a.name}" looks empty — try Camera / Photos again.` },
+        { status: 400 },
+      );
+    }
+  }
+
   const imageAttachments = attachments.filter((a) => a.kind === "image" && a.data);
   const fileSummaries = await buildFileSummaries(attachments);
 
@@ -63,17 +73,39 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: string, data: unknown) => {
-        controller.enqueue(encoder.encode(sseEncode(event, data)));
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
       };
+
+      const send = (event: string, data: unknown) => {
+        if (closed || req.signal.aborted) return;
+        try {
+          controller.enqueue(encoder.encode(sseEncode(event, data)));
+        } catch {
+          closed = true;
+        }
+      };
+
+      const onAbort = () => close();
+      req.signal.addEventListener("abort", onAbort);
 
       try {
         send("status", { status: "thinking" });
+        if (req.signal.aborted) return;
+
         const { agentId, fullText } = await streamTutorReply({
           sessionId,
           text: prompt,
           images,
           reset,
+          signal: req.signal,
           handlers: {
             onText: (delta) => send("delta", { text: delta }),
             onStatus: (status) => send("status", { status }),
@@ -81,10 +113,12 @@ export async function POST(req: Request) {
         });
         send("done", { agentId, text: fullText });
       } catch (err) {
+        if (req.signal.aborted) return;
         const msg = err instanceof Error ? err.message : "Unknown error";
         send("error", { error: msg });
       } finally {
-        controller.close();
+        req.signal.removeEventListener("abort", onAbort);
+        close();
       }
     },
   });
@@ -93,7 +127,7 @@ export async function POST(req: Request) {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

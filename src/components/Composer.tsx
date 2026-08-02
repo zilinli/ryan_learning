@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { MAX_ATTACHMENTS } from "@/lib/attachments";
 import {
+  attachmentFromCameraCapture,
   filesToAttachments,
   type ClientAttachment,
 } from "@/lib/file-payload";
@@ -30,18 +31,30 @@ export function Composer({
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<ClientAttachment[]>([]);
   const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const cameraFileRef = useRef<HTMLInputElement>(null);
+  const fileId = useId();
+  const photoId = useId();
+  const attachmentsRef = useRef<ClientAttachment[]>([]);
+  attachmentsRef.current = attachments;
 
-  const addFiles = async (fileList: FileList | File[] | null) => {
+  const addFiles = useCallback(async (fileList: FileList | File[] | null) => {
     if (!fileList || fileList.length === 0) return;
-    const { items, errors } = await filesToAttachments(fileList, attachments.length);
-    if (items.length) {
-      setAttachments((prev) => [...prev, ...items].slice(0, MAX_ATTACHMENTS));
+    setAdding(true);
+    setError("");
+    try {
+      const { items, errors } = await filesToAttachments(
+        fileList,
+        attachmentsRef.current.length,
+      );
+      if (items.length) {
+        setAttachments((prev) => [...prev, ...items].slice(0, MAX_ATTACHMENTS));
+      }
+      if (errors.length) setError(errors.join(" "));
+    } finally {
+      setAdding(false);
     }
-    setError(errors.join(" ") || "");
-  };
+  }, []);
 
   const removeAttachment = (id: string) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -49,12 +62,16 @@ export function Composer({
 
   const submit = (overrideText?: string) => {
     const finalText = (overrideText ?? text).trim();
-    if (!finalText && attachments.length === 0) return;
-    onSend({ text: finalText, attachments });
+    const current = attachmentsRef.current;
+    if (!finalText && current.length === 0) return;
+    onSend({ text: finalText, attachments: current });
     setText("");
     setAttachments([]);
     setError("");
   };
+
+  const atLimit = attachments.length >= MAX_ATTACHMENTS;
+  const pickDisabled = disabled || adding || atLimit;
 
   return (
     <div className="safe-bottom mx-auto w-full max-w-3xl px-3 pt-2 sm:px-4">
@@ -100,7 +117,7 @@ export function Composer({
           value={text}
           disabled={disabled}
           rows={2}
-          placeholder="Ask anything, or add photos / PDF of your homework…"
+          placeholder="Ask anything, or add homework photos / PDF…"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -112,54 +129,55 @@ export function Composer({
         />
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
+            {/* label+input beats button.click() on many Android/Huawei WebViews */}
             <input
-              ref={fileRef}
+              id={fileId}
               type="file"
               multiple
-              accept="image/*,.pdf,.txt,.md,.csv,.json,application/pdf,text/plain"
-              className="hidden"
-              onChange={async (e) => {
-                const list = e.target.files;
+              accept="image/*,.pdf,.txt,.md,.csv,application/pdf,text/plain,text/csv"
+              className="sr-only"
+              disabled={pickDisabled}
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
                 e.target.value = "";
-                await addFiles(list);
+                void addFiles(files);
               }}
             />
             <input
-              ref={cameraFileRef}
+              id={photoId}
               type="file"
+              multiple
               accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={async (e) => {
-                const list = e.target.files;
+              className="sr-only"
+              disabled={pickDisabled}
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
                 e.target.value = "";
-                await addFiles(list);
+                void addFiles(files);
               }}
             />
-            <button
-              type="button"
-              disabled={disabled || attachments.length >= MAX_ATTACHMENTS}
-              onClick={() => fileRef.current?.click()}
-              className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--mist)] px-3 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--teal)] disabled:opacity-40"
+            <label
+              htmlFor={fileId}
+              aria-disabled={pickDisabled}
+              className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-[var(--line)] bg-[var(--mist)] px-3 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--teal)] ${
+                pickDisabled ? "pointer-events-none opacity-40" : ""
+              }`}
             >
-              Upload
-            </button>
+              {adding ? "Adding…" : "Upload"}
+            </label>
+            <label
+              htmlFor={photoId}
+              aria-disabled={pickDisabled}
+              className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--teal)] ${
+                pickDisabled ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              Photos
+            </label>
             <button
               type="button"
-              disabled={disabled || attachments.length >= MAX_ATTACHMENTS}
+              disabled={pickDisabled}
               onClick={() => {
-                setError("");
-                const coarse =
-                  typeof window !== "undefined" &&
-                  window.matchMedia("(pointer: coarse)").matches;
-                if (coarse) {
-                  cameraFileRef.current?.click();
-                } else {
-                  setCameraOpen(true);
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
                 setError("");
                 setCameraOpen(true);
               }}
@@ -172,19 +190,23 @@ export function Composer({
               Camera
             </button>
             <VoiceControls
-              disabled={disabled}
+              disabled={disabled || adding}
               speakText={speakText}
               voiceEnabled={voiceEnabled}
               onVoiceEnabledChange={onVoiceEnabledChange}
               onTranscript={(t) => {
                 setText(t);
-                submit(t);
+                window.setTimeout(() => submit(t), 0);
               }}
             />
           </div>
           <button
             type="button"
-            disabled={disabled || (!text.trim() && attachments.length === 0)}
+            disabled={
+              disabled ||
+              adding ||
+              (!text.trim() && attachments.length === 0)
+            }
             onClick={() => submit()}
             className="min-h-11 w-full rounded-full bg-[var(--teal)] px-5 py-2.5 text-sm font-medium text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
           >
@@ -193,22 +215,20 @@ export function Composer({
         </div>
       </div>
       {error ? <p className="mt-2 text-sm text-[var(--coral)]">{error}</p> : null}
+      {adding ? (
+        <p className="mt-1 text-xs text-[var(--teal)]">Processing files…</p>
+      ) : null}
 
       <CameraCapture
         open={cameraOpen}
+        capturedCount={attachments.filter((a) => a.kind === "image").length}
         onClose={() => setCameraOpen(false)}
         onCapture={(payload) => {
-          const item: ClientAttachment = {
-            id: `a_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            name: `camera-${attachments.length + 1}.jpg`,
-            mimeType: payload.mimeType,
-            kind: "image",
-            dataUrl: payload.dataUrl,
-            data: payload.data,
-          };
-          setAttachments((prev) =>
-            [...prev, item].slice(0, MAX_ATTACHMENTS),
-          );
+          const item = attachmentFromCameraCapture({
+            ...payload,
+            index: attachmentsRef.current.length + 1,
+          });
+          setAttachments((prev) => [...prev, item].slice(0, MAX_ATTACHMENTS));
           setError("");
         }}
       />

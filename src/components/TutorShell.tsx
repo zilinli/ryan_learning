@@ -21,59 +21,82 @@ async function consumeChatStream(
   body: unknown,
   onDelta: (text: string) => void,
 ): Promise<string> {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const payload = JSON.stringify(body);
 
-  if (!res.ok || !res.body) {
-    const data = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(data?.error || `Request failed (${res.status})`);
-  }
+  const readStream = async (res: Response): Promise<string> => {
+    if (!res.body) throw new Error(`Request failed (${res.status})`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let full = "";
+    let streamError = "";
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let full = "";
-  let streamError = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() ?? "";
-
-    for (const part of parts) {
-      const lines = part.split("\n");
-      let event = "message";
-      let dataLine = "";
-      for (const line of lines) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        if (line.startsWith("data:")) dataLine += line.slice(5).trim();
-      }
-      if (!dataLine) continue;
-      const data = JSON.parse(dataLine) as {
-        text?: string;
-        error?: string;
-      };
-      if (event === "delta" && data.text) {
-        full += data.text;
-        onDelta(data.text);
-      }
-      if (event === "error" && data.error) {
-        streamError = data.error;
-      }
-      if (event === "done" && data.text && !full) {
-        full = data.text;
-        onDelta(data.text);
+      for (const part of parts) {
+        const lines = part.split("\n");
+        let event = "message";
+        let dataLine = "";
+        for (const line of lines) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          if (line.startsWith("data:")) dataLine += line.slice(5).trim();
+        }
+        if (!dataLine) continue;
+        const data = JSON.parse(dataLine) as {
+          text?: string;
+          error?: string;
+        };
+        if (event === "delta" && data.text) {
+          full += data.text;
+          onDelta(data.text);
+        }
+        if (event === "error" && data.error) {
+          streamError = data.error;
+        }
+        if (event === "done" && data.text && !full) {
+          full = data.text;
+          onDelta(data.text);
+        }
       }
     }
+
+    if (streamError) throw new Error(streamError);
+    return full;
+  };
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
+
+    if (res.ok) {
+      return readStream(res);
+    }
+
+    const data = (await res.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    const msg = data?.error || `Request failed (${res.status})`;
+    // Retry once on empty/proxy 400 — intermittent nginx abort race
+    const retryable =
+      attempt === 0 &&
+      (res.status === 400 || res.status === 502 || res.status === 503) &&
+      (!data?.error || /invalid json|bad request/i.test(msg));
+    if (retryable) {
+      await new Promise((r) => setTimeout(r, 350));
+      continue;
+    }
+    throw new Error(msg);
   }
 
-  if (streamError) throw new Error(streamError);
-  return full;
+  throw new Error("Request failed");
 }
 
 export function TutorShell() {

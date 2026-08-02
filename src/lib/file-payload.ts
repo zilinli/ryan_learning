@@ -6,6 +6,7 @@ import {
   stripDataUrlPrefix,
   guessKind,
 } from "./attachments";
+import { compressImageDataUrl } from "./image-process";
 
 export type ClientAttachment = {
   id: string;
@@ -35,56 +36,63 @@ function readAsText(file: File): Promise<string> {
   });
 }
 
+function newId() {
+  return `a_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export async function fileToAttachment(file: File): Promise<ClientAttachment> {
-  const name = file.name || "upload";
+  const name = file.name || `upload-${Date.now()}`;
   let mimeType = normalizeMime(file.type, name);
 
-  if (!isAllowedAttachment(mimeType, name)) {
-    throw new Error(
-      `Unsupported file: ${name}. Use photos, PDF, or text (txt/md/csv).`,
-    );
+  // Phone camera often returns empty name + empty type
+  if (!file.type && !name.includes(".")) {
+    mimeType = "image/jpeg";
+  }
+
+  if (!isAllowedAttachment(mimeType, name) && !mimeType.startsWith("image/")) {
+    // Last resort: if browser thinks it's an image blob from camera
+    if (file.type.startsWith("image/") || file.name === "" || file.name === "image.jpg") {
+      mimeType = file.type || "image/jpeg";
+    } else {
+      throw new Error(
+        `Unsupported file: ${name || "unknown"}. Use photos, PDF, or text.`,
+      );
+    }
   }
   if (file.size > MAX_FILE_BYTES) {
     throw new Error(`Keep each file under 12MB (${name})`);
   }
 
-  const id = `a_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const kind = guessKind(mimeType, name);
+  const id = newId();
+  const kind = guessKind(mimeType, name || "photo.jpg");
 
-  if (kind === "image") {
+  if (kind === "image" || mimeType.startsWith("image/")) {
+    if (file.size < 32) {
+      throw new Error("That photo looks empty — try again");
+    }
     const dataUrlRaw = await readAsDataURL(file);
-    const prefix = dataUrlRaw.match(/^data:([^;]+);base64,/);
-    if (prefix?.[1] && prefix[1] !== "application/octet-stream") {
-      mimeType = prefix[1] === "image/jpg" ? "image/jpeg" : prefix[1];
+    if (!dataUrlRaw.startsWith("data:")) {
+      throw new Error(`Could not read photo ${name}`);
     }
-    if (
-      (mimeType === "image/heic" || mimeType === "image/heif") &&
-      !dataUrlRaw.startsWith("data:image/")
-    ) {
-      throw new Error("Please save HEIC photos as JPG, or use Upload from Photos");
+    const compressed = await compressImageDataUrl(dataUrlRaw, mimeType);
+    if (!compressed.data || compressed.data.length < 32) {
+      throw new Error("Could not process that photo — try Camera → Phone");
     }
-    if (mimeType === "image/heic" || mimeType === "image/heif") {
-      mimeType = "image/jpeg";
-    }
-    const dataUrl = dataUrlRaw.replace(
-      /^data:[^;]+;base64,/,
-      `data:${mimeType};base64,`,
-    );
+    const safeName =
+      name && name.includes(".")
+        ? name.replace(/\.(heic|heif)$/i, ".jpg")
+        : `photo-${id.slice(-6)}.jpg`;
     return {
       id,
-      name,
-      mimeType,
+      name: safeName,
+      mimeType: compressed.mimeType,
       kind: "image",
-      dataUrl,
-      data: stripDataUrlPrefix(dataUrl),
+      dataUrl: compressed.dataUrl,
+      data: compressed.data,
     };
   }
 
-  // Text-like documents: send extracted text (PDF text extracted on server)
-  if (
-    mimeType === "application/pdf" ||
-    name.toLowerCase().endsWith(".pdf")
-  ) {
+  if (mimeType === "application/pdf" || name.toLowerCase().endsWith(".pdf")) {
     const dataUrl = await readAsDataURL(file);
     return {
       id,
@@ -110,11 +118,18 @@ export async function filesToAttachments(
   fileList: FileList | File[],
   existingCount: number,
 ): Promise<{ items: ClientAttachment[]; errors: string[] }> {
-  const files = Array.from(fileList);
+  const files = Array.from(fileList).filter(Boolean);
   const room = Math.max(0, MAX_ATTACHMENTS - existingCount);
   const errors: string[] = [];
+  if (files.length === 0) return { items: [], errors: ["No file selected"] };
+  if (room <= 0) {
+    return {
+      items: [],
+      errors: [`Already at the limit of ${MAX_ATTACHMENTS} attachments`],
+    };
+  }
   if (files.length > room) {
-    errors.push(`You can attach up to ${MAX_ATTACHMENTS} files at once.`);
+    errors.push(`Only adding ${room} more (max ${MAX_ATTACHMENTS}).`);
   }
   const slice = files.slice(0, room);
   const items: ClientAttachment[] = [];
@@ -125,5 +140,25 @@ export async function filesToAttachments(
       errors.push(err instanceof Error ? err.message : `Failed: ${file.name}`);
     }
   }
+  if (!items.length && !errors.length) {
+    errors.push("Could not read the selected files");
+  }
   return { items, errors };
+}
+
+export function attachmentFromCameraCapture(payload: {
+  dataUrl: string;
+  mimeType: string;
+  data: string;
+  index?: number;
+}): ClientAttachment {
+  const id = newId();
+  return {
+    id,
+    name: `camera-${payload.index ?? id.slice(-4)}.jpg`,
+    mimeType: payload.mimeType || "image/jpeg",
+    kind: "image",
+    dataUrl: payload.dataUrl,
+    data: payload.data,
+  };
 }
