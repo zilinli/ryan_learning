@@ -1,0 +1,46 @@
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Source_Sans_3 } from "next/font/google";
+import "./globals.css";
+
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+});
+
+const body = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-body",
+});
+
+export const metadata: Metadata = {
+  title: "Spark · AI Tutor",
+  description:
+    "Simple English tutoring for international-school students — chat and photo help, step by step.",
+  appleWebApp: {
+    capable: true,
+    title: "Spark",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#eef6f4",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={`${display.variable} ${body.variable} h-full`}>
+      <body className="min-h-dvh antialiased">{children}</body>
+    </html>
+  );
+}
