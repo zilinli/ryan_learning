@@ -39,16 +39,40 @@ export interface ChatMessage {
   createdAt: number;
 }
 
+/** @deprecated single-session shape (v2 localStorage) */
 export interface TutorSessionState {
   sessionId: string;
   messages: ChatMessage[];
   updatedAt: number;
 }
 
+/** One chat in the sidebar history list */
+export interface ConversationRecord {
+  sessionId: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ConversationsStore {
+  version: 3;
+  activeId: string;
+  conversations: ConversationRecord[];
+}
+
+/** Compact prior turns for prompt continuity after agent cold-start */
+export interface HistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface ChatRequestBody {
   sessionId: string;
   message: string;
   attachments?: ChatAttachmentPayload[];
+  /** Recent text turns (no images) — keeps context if agent was recreated */
+  history?: HistoryTurn[];
   /** @deprecated legacy single image */
   image?: {
     data: string;

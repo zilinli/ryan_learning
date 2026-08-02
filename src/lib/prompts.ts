@@ -1,9 +1,25 @@
+import type { HistoryTurn } from "./types";
+
+const MAX_HISTORY_TURNS = 8;
+const MAX_HISTORY_CHARS = 500;
+
+function formatHistory(history?: HistoryTurn[]): string[] {
+  if (!history?.length) return [];
+  const turns = history.slice(-MAX_HISTORY_TURNS).map((t) => {
+    const role = t.role === "user" ? "Student" : "Tutor";
+    const text = t.content.replace(/\s+/g, " ").trim().slice(0, MAX_HISTORY_CHARS);
+    return `${role}: ${text}`;
+  });
+  return ["", "[Recent chat — continue this thread]", ...turns];
+}
+
 export function buildTutorPrompt(params: {
   userText: string;
   imageCount: number;
   fileSummaries?: string[];
+  history?: HistoryTurn[];
 }): string {
-  const { userText, imageCount, fileSummaries = [] } = params;
+  const { userText, imageCount, fileSummaries = [], history } = params;
   const hasHomework = imageCount > 0 || fileSummaries.length > 0;
 
   const mediaLines: string[] = [];
@@ -44,6 +60,7 @@ export function buildTutorPrompt(params: {
     "Style: warm AI teacher — simple English, Socratic, encouraging, like a patient classroom tutor.",
     "Do not edit files or run commands.",
     ...mediaLines,
+    ...formatHistory(history),
     homeworkCoach,
     "",
     "[Student message]",

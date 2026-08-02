@@ -54,10 +54,27 @@ export async function POST(req: Request) {
   const imageAttachments = attachments.filter((a) => a.kind === "image" && a.data);
   const fileSummaries = await buildFileSummaries(attachments);
 
+  const history = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (t) =>
+            t &&
+            (t.role === "user" || t.role === "assistant") &&
+            typeof t.content === "string" &&
+            t.content.trim(),
+        )
+        .slice(-8)
+        .map((t) => ({
+          role: t.role as "user" | "assistant",
+          content: t.content.slice(0, 500),
+        }))
+    : undefined;
+
   const prompt = buildTutorPrompt({
     userText: message ?? "",
     imageCount: imageAttachments.length,
     fileSummaries,
+    history,
   });
 
   const images: SDKImage[] | undefined =
