@@ -1,7 +1,9 @@
 import {
   deleteServerConversation,
   getServerConversation,
+  historyStats,
   listServerConversations,
+  searchServerConversations,
   upsertServerConversation,
   upsertServerConversations,
 } from "@/lib/history-store";
@@ -10,7 +12,7 @@ import type { ConversationRecord } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET — all chats on this server (global history). */
+/** GET — all chats, optional ?q= keyword search, ?sessionId=, ?stats=1 */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const sessionId = url.searchParams.get("sessionId");
@@ -21,10 +23,33 @@ export async function GET(req: Request) {
     }
     return Response.json({ conversation: one });
   }
+
+  if (url.searchParams.get("stats") === "1") {
+    const stats = await historyStats();
+    return Response.json({ stats });
+  }
+
+  const q = (url.searchParams.get("q") || "").trim();
+  if (q) {
+    const hits = await searchServerConversations(q);
+    return Response.json({
+      version: 3,
+      query: q,
+      conversations: hits.map((h) => h.conversation),
+      hits: hits.map((h) => ({
+        sessionId: h.conversation.sessionId,
+        matchedTitle: h.matchedTitle,
+        snippet: h.snippet,
+      })),
+    });
+  }
+
   const conversations = await listServerConversations();
+  const stats = await historyStats();
   return Response.json({
     version: 3,
     conversations,
+    stats,
   });
 }
 

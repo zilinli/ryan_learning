@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { ConversationRecord } from "@/lib/types";
-import { MAX_CONVERSATIONS } from "@/lib/storage";
+import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
+import { searchConversations } from "@/lib/history-retention";
 
 type Props = {
   open: boolean;
@@ -36,7 +38,14 @@ export function HistorySidebar({
   onSelect,
   onDelete,
 }: Props) {
-  const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
+  const [query, setQuery] = useState("");
+
+  const hits = useMemo(
+    () => searchConversations(conversations, query),
+    [conversations, query],
+  );
+
+  const searching = query.trim().length > 0;
 
   const panel = (
     <aside className="flex h-full w-[min(18rem,85vw)] flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg0)_94%,white)]">
@@ -46,7 +55,7 @@ export function HistorySidebar({
             Spark
           </p>
           <p className="text-[11px] text-[var(--ink-muted)]">
-            All chats · synced · max {MAX_CONVERSATIONS}
+            All chats · keep newest {MAX_TOTAL_MESSAGES.toLocaleString()} msgs
           </p>
         </div>
         <button
@@ -59,7 +68,7 @@ export function HistorySidebar({
         </button>
       </div>
 
-      <div className="px-3 pb-2">
+      <div className="flex flex-col gap-2 px-3 pb-2">
         <button
           type="button"
           disabled={disabled}
@@ -71,16 +80,39 @@ export function HistorySidebar({
         >
           New chat
         </button>
+        <label className="relative block">
+          <span className="sr-only">Search history</span>
+          <input
+            type="search"
+            value={query}
+            disabled={disabled}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search chats…"
+            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-white/80 px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] disabled:opacity-50"
+            enterKeyHint="search"
+            autoComplete="off"
+          />
+          {query ? (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 min-h-8 min-w-8 -translate-y-1/2 rounded-full text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+            >
+              ×
+            </button>
+          ) : null}
+        </label>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
-        {sorted.length === 0 ? (
+        {hits.length === 0 ? (
           <p className="px-2 py-6 text-center text-xs text-[var(--ink-muted)]">
-            No chats yet
+            {searching ? "No matches" : "No chats yet"}
           </p>
         ) : (
           <ul className="flex flex-col gap-0.5">
-            {sorted.map((c) => {
+            {hits.map(({ conversation: c, snippet, matchedTitle }) => {
               const active = c.sessionId === activeId;
               return (
                 <li key={c.sessionId} className="group relative">
@@ -99,7 +131,17 @@ export function HistorySidebar({
                   >
                     <span className="line-clamp-2 pr-6 text-sm text-[var(--ink)]">
                       {c.title || "New chat"}
+                      {searching && matchedTitle ? (
+                        <span className="ml-1 text-[10px] text-[var(--teal)]">
+                          title
+                        </span>
+                      ) : null}
                     </span>
+                    {snippet ? (
+                      <span className="line-clamp-2 pr-6 text-[11px] leading-snug text-[var(--ink-muted)]">
+                        {snippet}
+                      </span>
+                    ) : null}
                     <span className="text-[11px] text-[var(--ink-muted)]">
                       {relativeTime(c.updatedAt)}
                       {c.messages.length
@@ -125,6 +167,12 @@ export function HistorySidebar({
             })}
           </ul>
         )}
+        {searching ? (
+          <p className="px-2 pt-2 text-center text-[10px] text-[var(--ink-muted)]">
+            {hits.length} match{hits.length === 1 ? "" : "es"} · max{" "}
+            {MAX_CONVERSATIONS} chats listed
+          </p>
+        ) : null}
       </div>
     </aside>
   );

@@ -4,15 +4,21 @@ import type {
   ConversationsStore,
   TutorSessionState,
 } from "./types";
+import {
+  enforceHistoryRetention,
+  MAX_TOTAL_MESSAGES,
+} from "./history-retention";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = "spark-tutor-sessions-v3";
 
 /** Hard caps so localStorage + RAM stay small on phones */
-export const MAX_CONVERSATIONS = 50;
+export const MAX_CONVERSATIONS = 100;
 export const MAX_MESSAGES_PER_CHAT = 80;
 const MAX_CONTENT_CHARS = 6_000;
 const MAX_TITLE_LEN = 42;
+
+export { MAX_TOTAL_MESSAGES };
 
 export function newSessionId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -79,6 +85,11 @@ function pruneStore(store: ConversationsStore): ConversationsStore {
     (c) => c.sessionId === store.activeId || c.messages.length > 0,
   );
 
+  // Global message + size retention (keep newest ~10k messages)
+  list = enforceHistoryRetention(list, {
+    maxMessages: MAX_TOTAL_MESSAGES,
+  });
+
   // LRU by updatedAt — keep active always
   if (list.length > MAX_CONVERSATIONS) {
     const active = list.find((c) => c.sessionId === store.activeId);
@@ -87,6 +98,17 @@ function pruneStore(store: ConversationsStore): ConversationsStore {
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, MAX_CONVERSATIONS - 1);
     list = active ? [active, ...rest] : rest.slice(0, MAX_CONVERSATIONS);
+  }
+
+  // Ensure active empty draft survives retention if it was filtered out
+  if (
+    store.activeId &&
+    !list.some((c) => c.sessionId === store.activeId)
+  ) {
+    const active = store.conversations.find(
+      (c) => c.sessionId === store.activeId,
+    );
+    if (active) list = [active, ...list].slice(0, MAX_CONVERSATIONS);
   }
 
   const conversations = list.map((c) => {

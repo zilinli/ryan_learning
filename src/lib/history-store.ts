@@ -2,10 +2,26 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { ConversationRecord } from "./types";
 import { slimMessages, titleFromMessages } from "./storage";
+import {
+  countMessages,
+  enforceHistoryRetention,
+  estimateHistoryBytes,
+  MAX_HISTORY_BYTES,
+  MAX_TOTAL_MESSAGES,
+  searchConversations,
+  type HistorySearchHit,
+} from "./history-retention";
 
 /** Server-side durable chat history (shared across browsers / devices). */
 const DATA_DIR = path.join(process.cwd(), "data", "conversations");
-export const SERVER_MAX_CONVERSATIONS = 100;
+export const SERVER_MAX_CONVERSATIONS = 200;
+
+export {
+  MAX_HISTORY_BYTES,
+  MAX_TOTAL_MESSAGES,
+  searchConversations,
+  type HistorySearchHit,
+};
 
 function safeId(sessionId: string): string | null {
   const id = (sessionId || "").trim();
@@ -36,7 +52,7 @@ export function sanitizeForServer(
   };
 }
 
-export async function listServerConversations(): Promise<ConversationRecord[]> {
+async function readAllFromDisk(): Promise<ConversationRecord[]> {
   await ensureDir();
   const names = await fs.readdir(DATA_DIR);
   const out: ConversationRecord[] = [];
@@ -52,8 +68,66 @@ export async function listServerConversations(): Promise<ConversationRecord[]> {
       // skip corrupt
     }
   }
-  out.sort((a, b) => b.updatedAt - a.updatedAt);
-  return out.slice(0, SERVER_MAX_CONVERSATIONS);
+  return out;
+}
+
+/**
+ * Drop oldest chats / trim messages so we stay under 10k messages and disk budget.
+ * Deletes pruned conversation files from disk.
+ */
+export async function enforceServerRetention(): Promise<{
+  conversations: number;
+  messages: number;
+  bytes: number;
+  removed: number;
+}> {
+  const before = await readAllFromDisk();
+  const kept = enforceHistoryRetention(before, {
+    maxMessages: MAX_TOTAL_MESSAGES,
+    maxBytes: MAX_HISTORY_BYTES,
+  }).slice(0, SERVER_MAX_CONVERSATIONS);
+
+  const keepIds = new Set(kept.map((c) => c.sessionId));
+  let removed = 0;
+
+  for (const c of before) {
+    if (keepIds.has(c.sessionId)) continue;
+    try {
+      await fs.unlink(filePath(c.sessionId));
+      removed += 1;
+    } catch {
+      // ignore
+    }
+  }
+
+  // Rewrite chats that were message-trimmed
+  for (const c of kept) {
+    const prev = before.find((x) => x.sessionId === c.sessionId);
+    if (prev && prev.messages.length !== c.messages.length) {
+      await fs.writeFile(filePath(c.sessionId), JSON.stringify(c), "utf8");
+    }
+  }
+
+  return {
+    conversations: kept.length,
+    messages: countMessages(kept),
+    bytes: estimateHistoryBytes(kept),
+    removed,
+  };
+}
+
+export async function listServerConversations(): Promise<ConversationRecord[]> {
+  const all = await readAllFromDisk();
+  const kept = enforceHistoryRetention(all).slice(0, SERVER_MAX_CONVERSATIONS);
+  kept.sort((a, b) => b.updatedAt - a.updatedAt);
+  return kept;
+}
+
+export async function searchServerConversations(
+  query: string,
+): Promise<HistorySearchHit[]> {
+  const list = await listServerConversations();
+  return searchConversations(list, query);
 }
 
 export async function getServerConversation(
@@ -83,7 +157,7 @@ export async function upsertServerConversation(
   await ensureDir();
   const clean = sanitizeForServer({ ...record, sessionId: id });
   await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
-  await pruneServerOverflow();
+  await enforceServerRetention();
   return clean;
 }
 
@@ -91,10 +165,15 @@ export async function upsertServerConversations(
   records: ConversationRecord[],
 ): Promise<number> {
   let saved = 0;
+  await ensureDir();
   for (const rec of records) {
-    const out = await upsertServerConversation(rec);
-    if (out) saved += 1;
+    const id = safeId(rec.sessionId);
+    if (!id || !rec.messages?.length) continue;
+    const clean = sanitizeForServer({ ...rec, sessionId: id });
+    await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
+    saved += 1;
   }
+  if (saved > 0) await enforceServerRetention();
   return saved;
 }
 
@@ -111,11 +190,19 @@ export async function deleteServerConversation(
   }
 }
 
-async function pruneServerOverflow(): Promise<void> {
+export async function historyStats(): Promise<{
+  conversations: number;
+  messages: number;
+  bytes: number;
+  maxMessages: number;
+  maxBytes: number;
+}> {
   const list = await listServerConversations();
-  if (list.length <= SERVER_MAX_CONVERSATIONS) return;
-  const drop = list.slice(SERVER_MAX_CONVERSATIONS);
-  await Promise.all(
-    drop.map((c) => fs.unlink(filePath(c.sessionId)).catch(() => undefined)),
-  );
+  return {
+    conversations: list.length,
+    messages: countMessages(list),
+    bytes: estimateHistoryBytes(list),
+    maxMessages: MAX_TOTAL_MESSAGES,
+    maxBytes: MAX_HISTORY_BYTES,
+  };
 }

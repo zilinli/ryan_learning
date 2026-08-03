@@ -150,6 +150,50 @@ async function main() {
       { method: "DELETE" },
     );
     ok("history DELETE removes chat", del.ok);
+
+    // Keyword search
+    const id2 = `syshist_q_${Date.now()}`;
+    await fetch("http://127.0.0.1:3000/api/history", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation: {
+          sessionId: id2,
+          title: "Algebra homework",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              content: "Solve the quadratic equation carefully",
+              createdAt: Date.now(),
+            },
+          ],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      }),
+    });
+    const searched = await (
+      await fetch("http://127.0.0.1:3000/api/history?q=quadratic")
+    ).json();
+    ok(
+      "history search by keyword",
+      Array.isArray(searched.conversations) &&
+        searched.conversations.some((c) => c.sessionId === id2),
+      `n=${searched.conversations?.length ?? 0}`,
+    );
+    const stats = await (
+      await fetch("http://127.0.0.1:3000/api/history?stats=1")
+    ).json();
+    ok(
+      "history stats expose message budget",
+      stats.stats?.maxMessages === 10000,
+      JSON.stringify(stats.stats),
+    );
+    await fetch(
+      `http://127.0.0.1:3000/api/history?sessionId=${encodeURIComponent(id2)}`,
+      { method: "DELETE" },
+    );
   }
 
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);
