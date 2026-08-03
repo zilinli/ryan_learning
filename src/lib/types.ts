@@ -85,7 +85,7 @@ export interface ChatRequestBody {
   replyLanguage?: string;
   /** Other chat titles for cross-session continuity */
   recentTitles?: string[];
-  /** Cross-session learning memory snapshot (topics / BKT skills) */
+  /** Cross-session learning memory snapshot (topics / BKT skills / session digests) */
   learningMemory?: {
     topics?: Array<{
       id: string;
@@ -108,6 +108,13 @@ export interface ChatRequestBody {
     }>;
     recentStruggles?: string[];
     recentWins?: string[];
+    /** Session digests — episodic memory from past conversations */
+    sessionDigests?: Array<{
+      date: string;
+      topic: string;
+      insight: string;
+      bestApproach: string;
+    }>;
     updatedAt?: number;
   };
   /** Engagement / streak snapshot for celebration cues */

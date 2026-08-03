@@ -883,6 +883,18 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
     );
   }
 
+  // Session digests — episodic memory from past sessions
+  if (m.sessionDigests.length) {
+    const digestLines = m.sessionDigests
+      .slice(0, 6) // newest first
+      .map((d) => `  - ${d.date} — ${d.topic}: ${d.insight}. ${d.bestApproach ? `Approach: ${d.bestApproach}.` : ""}`.trim());
+    lines.push(
+      `## Session History (recent tutoring sessions)`,
+      ...digestLines,
+      `When teaching: prefer approaches that worked before. If returning to a topic, acknowledge prior session insights.`,
+    );
+  }
+
   if (m.recentWins.length) {
     lines.push(`Recent wins: ${m.recentWins.join(" · ")}.`);
   }
@@ -942,6 +954,7 @@ export function serializeLearningMemoryForChat(
     })),
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),
+    sessionDigests: m.sessionDigests.slice(0, MAX_DIGESTS),
     updatedAt: m.updatedAt,
   };
 }
