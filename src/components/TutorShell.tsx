@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
-import { MiniConsoleShell } from "./MiniConsoleShell";
 import { AgentConsolePanel } from "./AgentConsolePanel";
 import { SetupPanel } from "./SetupPanel";
 import {
@@ -247,7 +246,6 @@ export function TutorShell() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [miniConsoleOpen, setMiniConsoleOpen] = useState(false);
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
@@ -371,9 +369,7 @@ export function TutorShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
 
-  const handleOpenMiniConsole = useCallback(() => { setMiniConsoleOpen(true); }, []);
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); }, []);
-  const handleOpenFullConsole = useCallback(() => { setMiniConsoleOpen(false); window.location.href = "/console"; }, []);
 
   const startNewSession = () => {
     if (!store || busy) return;
@@ -692,7 +688,6 @@ export function TutorShell() {
         conversations={store.conversations}
         activeId={store.activeId}
         disabled={busy}
-        onOpenConsole={handleOpenMiniConsole}
         onOpenCodeAgent={handleOpenCodeAgent}
         engagementLabel={
           engagement
@@ -804,7 +799,6 @@ export function TutorShell() {
         </div>
       </div>
 
-      <MiniConsoleShell open={miniConsoleOpen} onClose={() => setMiniConsoleOpen(false)} onOpenFullConsole={handleOpenFullConsole} />
       <AgentConsolePanel open={agentPanelOpen} onClose={() => setAgentPanelOpen(false)} />
     </div>
   );
