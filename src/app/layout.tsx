@@ -15,7 +15,7 @@ const body = Source_Sans_3({
 export const metadata: Metadata = {
   title: "Spark · AI Tutor",
   description:
-    "Simple English tutoring for international-school students — chat and photo help, step by step.",
+    "Open-source Socratic AI tutor for international-school students — chat, homework photos, voice, and step-by-step coaching. https://github.com/zilinli/ryan_learning",
   appleWebApp: {
     capable: true,
     title: "Spark",
