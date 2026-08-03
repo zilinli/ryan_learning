@@ -110,13 +110,77 @@ For new contributors, read in this order:
 5. `src/lib/geometry-svg.ts` — SVG pipeline (500 lines)
 6. `src/components/TutorShell.tsx` — Main orchestrator (700 lines)
 
-## Design Principles
+## Design Philosophy: Minimum Cognitive Load for a 9-Year-Old
+
+> **最高原则：界面简单易用，小学生 0 基础上手。对话是重点，极简风格。**
+
+### The "Physical Tutor" Test
+
+Every UI element must pass: **"Would a physical tutor sitting next to Ryan have this?"**
+
+| Element | Passes? | If not, why it's still there |
+|---------|---------|------------------------------|
+| Chat messages | ✅ | That's the tutor talking |
+| One input box | ✅ | That's Ryan answering |
+| Voice button | ✅ | Speech is natural |
+| History sidebar | ⚠️ | Minimized by default — only when explicitly opened |
+| Skill panel | ❌ | Hidden behind sidebar toggle; BKT data is for the *agent*, not the child |
+| Settings gear | ❌ | Voice selector only; no other settings exist |
+
+### What "极简" Means in Practice
+
+```
+Screen layout (mobile-first, 375px width):
+
+┌──────────────────────────────┐
+│  🏠 Spark · Ryan          🎤 │  ← header: name + voice record
+│                              │
+│  ┌──────────────────────────┐│
+│  │                          ││
+│  │   "Let's try fractions!  ││  ← chat area: large text,
+│  │    What's 1/2 + 1/4?"    ││     generous spacing,
+│  │                          ││     rendered math inline
+│  └──────────────────────────┘│
+│                              │
+│  ┌──────────────────────────┐│
+│  │  "I think it's 3/4?"     ││  ← student response
+│  └──────────────────────────┘│
+│                              │
+│  ┌──────────────────────────┐│
+│  │  [diagram: pie chart]    ││  ← SVG rendered as <img>
+│  └──────────────────────────┘│
+│                              │
+│  ┌──────────────────────────┐│
+│  │  Ask anything about      ││  ← single input: keyboard or
+│  │  your homework...      📸││     camera for photo upload
+│  └──────────────────────────┘│
+│                              │
+└──────────────────────────────┘
+```
+
+### Design Decisions Driven by "0 基础"
+
+| Decision | Rationale |
+|----------|-----------|
+| No login | URL is the session — a child should never see a login screen |
+| No tutorial | Placeholder text in the input box IS the instruction: "Ask anything about your homework" |
+| No progress bars | Progress is for parents/teachers, not for the child during a session; BKT data is for the *agent* |
+| No feature flags or badges | A 9-year-old should never wonder "what does this icon mean?" |
+| No multi-step workflows | Every feature accessible in 1 action (click mic = record; click camera = upload photo; type = ask) |
+| White space, not information density | Cognitive bandwidth should be on the *problem*, not the *interface* |
+| Text-first, icons-second | Every button has a text label; icons are supplementary |
+
+### Design Principles (Tutoring)
 
 1. **No early answers** — Socratic hint ladder before solution
 2. **Explain your reasoning** — L1.5 asks WHY before right/wrong
 3. **Second chances** — L2.5 allows self-correction
 4. **粤语 first** — Cantonese default, 普通话 only on explicit voice choice
+
+### Design Principles (Engineering)
+
 5. **Diagrams always render** — Triple defense repair pipeline
 6. **TTS never reads markup** — `cleanTutorSpeechText` strips everything non-speech
 7. **Client-first, server-safe** — localStorage primary, server for cross-device sync
 8. **No Python in production path** — TypeScript-only (except optional STT server)
+9. **Photo-first workflow** — Inspired by 豆包爱学: Ryan can take a photo of his worksheet and ask "帮我看看这道题" — the agent infers the problem from the image and the natural-language question together

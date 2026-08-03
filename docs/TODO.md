@@ -4,6 +4,22 @@
 
 ---
 
+## Phase 0: 极简 UI & 课程对齐 (🔴 — Foundation)
+
+> **最高原则：界面简单易用，小学生 0 基础上手。对话是重点，极简风格。**
+
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 0.1 | 🔴 Remove all UI chrome beyond chat + voice + sidebar toggle | 2d | `TutorShell.tsx`, `Composer.tsx` | No dashboard, no progress bars, no settings beyond voice selector; verify: "would a physical tutor have this?" |
+| 0.2 | 🔴 Mobile-first responsive: 375px target, 16px+ base font, 24px+ input text | 2d | All components | Reference: Khan Academy mobile, 豆包爱学; test on iPhone SE screen size |
+| 0.3 | 🔴 Photo-first workflow: one-tap camera → OCR/NLP → agent | 3d | `Composer.tsx`, `photo-vault.ts`, Agent | Inspired by 豆包爱学 拍照搜题; Ryan snaps worksheet → "帮我看看这道题" → agent infers problem + question |
+| 0.4 | 🟡 Singapore bar-model diagram type in `draw_geometry` | 3d | `geometry-svg.ts`, `tutor-harness.ts` | Bar-model shape type: horizontal/vertical bars with labels, comparison models, part-whole models |
+| 0.5 | 🟡 BASIS G5 textbook problem templates | 2d | `prompts.ts`, Agent | Pre-load Envision Math G5 topic list; agent generates G5-appropriate problem difficulty |
+| 0.6 | 🟡 Multi-lingual word-problem parsing (EN + 中文) | 2d | `skill-catalog.ts`, Agent | Detect and preserve language in word problems; agent responds in same language as question |
+| 0.7 | 🟡 Zero-login session persistence (URL-param-based) | 1d | `storage.ts`, `TutorShell.tsx` | No auth flow; session ID in URL query param → localStorage; cross-device via URL sharing |
+
+---
+
 ## Phase 1: Memory Module Depth (🔴)
 
 | # | Task | Effort | Dependencies | Notes |
@@ -56,7 +72,10 @@
 
 - [ ] Add "last practiced" timestamp to SkillsPanel UI
 - [ ] Export learning memory as printable PDF for parent review
-- [ ] Add "suggest a topic" button based on weakest skill
-- [ ] Inline skill tag display on each message (which skill was practiced)
+- [ ] Add "suggest a topic" button based on weakest skill (but hidden: only for parent mode, not visible to child)
+- [ ] Inline skill tag display on each message (which skill was practiced) — agent-only, not child-visible
 - [ ] Keyboard shortcut: `Ctrl+Enter` to send (already Enter; add `Shift+Enter` for newline → swap)
 - [ ] Add dark mode support
+- [ ] Remove all unused UI elements from production bundle (tree-shake unused icons, fonts)
+- [ ] Reduce input box height on mobile to 44px touch target (single-line until multi-line expands)
+- [ ] Add 豆包爱学-style "拍题" hint on camera button: "拍下题目，我来帮你"

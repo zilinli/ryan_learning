@@ -36,11 +36,11 @@ flowchart TB
     UI --> STT
 ```
 
-## Document Map
+## document map
 
 | Document | Scope |
 |----------|-------|
-| **[DESIGN.md](DESIGN.md)** ← you are here | Overall architecture, data flow, deployment |
+| **[DESIGN.md](DESIGN.md)** ← you are here | Overall architecture, curriculum, principles, deployment |
 | **[subsystems/memory-bkt.md](subsystems/memory-bkt.md)** | 🧠 Learning Memory & BKT (most important) |
 | **[subsystems/agent-prompt.md](subsystems/agent-prompt.md)** | Agent pipeline, prompt engineering, hint ladder |
 | **[subsystems/geometry-diagrams.md](subsystems/geometry-diagrams.md)** | SVG/Mermaid rendering, geometry engine |
@@ -49,6 +49,142 @@ flowchart TB
 | **[subsystems/security-sanitization.md](subsystems/security-sanitization.md)** | Threat model, input sanitization, tool sandboxing |
 | **[synthesis.md](synthesis.md)** | Cross-cutting summary + design rationale |
 | **[TODO.md](TODO.md)** | Downstream development task list |
+
+---
+
+## 🎯 Design Philosophy: Zero-Barrier for Elementary Students
+
+> **最高原则：界面简单易用，小学生 0 基础上手。对话是重点，极简风格。**
+
+### Three Pillars
+
+```mermaid
+mindmap
+  root((Spark Design))
+    对话优先
+      Chat is the only UI
+      No dashboards, no menus
+      Type or speak — that's it
+    极简风格
+      White space, large type
+      One action per screen
+      No icons without labels
+    0 基础
+      No tutorial needed
+      Placeholder guides action
+      Mistakes are harmless
+```
+
+### What We Removed (vs. Typical EdTech)
+
+| Typical EdTech | Spark Decision | Why |
+|---------------|---------------|-----|
+| Dashboard with courses, progress bars, charts | None — just a chat | 9yo doesn't need a dashboard |
+| Login / registration flow | URL-is-the-session (no auth) | 0-friction start |
+| Settings panel | Voice selector only | Everything else infers automatically |
+| Multi-level navigation (tabs, drawers) | Chat + collapsible sidebar | No mode-switching for a child |
+| Onboarding wizard / tutorial | Placeholder text: "Ask me anything about your homework" | Self-discoverable |
+| Feature notification badges | None | No cognitive noise |
+
+### Physical Reference: A Tutor Sitting Next to You
+
+When Ryan sits with a human tutor, there's no dashboard. No course catalog. No profile settings. It's just: **"What are you working on today?"**
+
+Spark models this 1:1 physical tutoring session. Every UI decision is tested against: *"Would a physical tutor have this?"* If not, cut it.
+
+### Conversation is the Core
+
+```mermaid
+flowchart LR
+    subgraph Interface["What Ryan Sees"]
+        CHAT["🗨️ Chat messages"]
+        INPUT["⌨️ One input box"]
+        VOICE["🎤 Optional voice button"]
+    end
+
+    subgraph Hidden["What Spark Handles Automatically"]
+        LANG["Language detection"]
+        MATH["LaTeX rendering"]
+        DIAG["Diagram rendering"]
+        TTS["Speech synthesis"]
+        MEM["Memory updates"]
+    end
+
+    CHAT --- INPUT --- VOICE
+    INPUT -.->|"invisible"| LANG
+    INPUT -.->|"invisible"| MATH
+    CHAT -.->|"invisible"| DIAG
+    CHAT -.->|"invisible"| TTS
+    CHAT -.->|"invisible"| MEM
+```
+
+**The student only sees conversation.** Everything else — language detection, math rendering, diagram repair, voice synthesis, memory tracking — happens invisibly.
+
+### Product Inspirations
+
+| Product | What We Learned |
+|---------|----------------|
+| **豆包爱学** (ByteDance) | "引导式解题而非直接给答案" — same Socratic philosophy; multi-modal input (photo/voice/text) with one unified chat interface; AI老师角色人格化 |
+| **Khanmigo** (Khan Academy) | "Socratic tutoring with no direct answers" — validated the hint-ladder approach; frictionless onboarding (no separate download); clean layouts, big buttons, friendly colors; integrated into existing platform rather than standalone |
+| **Khan Academy (classic)** | Large type for young readers, high-contrast CTAs, mastery-based progression badges — all without overwhelming the primary learning interface |
+
+---
+
+## 📚 Curriculum Alignment
+
+Spark's skill catalog and tutoring prompts are aligned to Ryan's actual school curricula:
+
+### BASIS International School (G4)
+
+Ryan attends a BASIS International School. Key characteristics:
+
+- **Accelerated math**: Grade 4 uses Envision Mathematics Grade 5 (`978-1-4188-4685-5`). Topics exceed Common Core G4.
+- **Spiraled curriculum**: Concepts revisited with increasing depth through G4–G7 bridge years
+- **Subject Expert Teachers**: Separate teachers for Math, English, History, Science — each subject has distinct expectations
+- **50-minute periods**: Tutoring sessions should respect attention spans
+- **Academic Enrichment period**: Built-in homework help time — Spark can be used during this block
+
+**BASIS G4 Math topics** → skill-catalog alignment:
+
+| BASIS G4 Topic | Spark Skill ID | Notes |
+|---------------|----------------|-------|
+| Multi-digit multiplication | `multiplication-facts` | Accelerated to G5 level (Envision G5) |
+| Place value to millions | `place-value` | Includes decimals |
+| Fractions — equivalence, operations | `fractions-concepts`, `equivalent-fractions` | G5 depth on equivalent fractions |
+| Fraction word problems | `fraction-word-problems` | Multi-step bar models expected |
+| Division with remainders | `division-basics` | Long division introduced mid-year |
+| Geometry — angles, perimeter, area | `geometry-angles`, `geometry-measure` | Angle measurement + classification |
+| Decimals — notation, comparison | `decimals` | Tied to place value and fractions |
+
+### Singapore Math (Benchmark)
+
+Singapore Primary 4 Mathematics provides the **Concrete-Pictorial-Abstract (CPA) framework** and world-leading word-problem pedagogy:
+
+- **CPA progression**: When Spark generates diagrams, follow CPA — start with concrete visual (bar model), transition to abstract equation
+- **Bar models**: The Singapore bar-model method for word problems is built into Spark's `draw_geometry` tool
+- **Spiral approach**: Topics like fractions and measurement reintroduced with increasing complexity — Spark's BKT tracks mastery at each spiral level
+- **Heuristics**: Singapore's problem-solving heuristics (draw a diagram, make a list, guess and check, work backwards) are embedded in the agent's hint ladder
+
+### Common Core Grade 4 (US Baseline)
+
+Many international schools (including BASIS) reference Common Core. Spark's skill catalog covers all 5 domains:
+
+| CCSS Domain | Skills Covered |
+|-------------|----------------|
+| Operations & Algebraic Thinking | `multiplication-facts`, `division-basics` |
+| Number & Operations in Base Ten | `place-value`, `decimals` |
+| Number & Operations—Fractions | `fractions-concepts`, `equivalent-fractions`, `fraction-word-problems` |
+| Measurement & Data | `geometry-measure` |
+| Geometry | `geometry-angles` |
+
+**Fractions denominators**: CCSS limits to `2,3,4,5,6,8,10,12,100` — Spark's agent is prompted to stay within these when generating practice problems.
+
+### Practical Impact on Skill Catalog
+
+- **Denominator selection**: `fractions-concepts` keyword patterns emphasize CCSS-allowed denominators
+- **Bar model diagrams**: `draw_geometry` supports Singapore-style bar models for word problems
+- **Depth progression**: BKT tracks when a skill was first seen vs. when it's being revisited at greater depth (BASIS spiral)
+- **Multi-lingual word problems**: Both English and Chinese (简体/繁體) word-problem phrasing is supported per Ryan's bilingual BASIS environment
 
 ## Request Flow
 
@@ -134,7 +270,23 @@ graph LR
 | Client-side BKT | Instant UI feedback, offline-capable | Server only gets snapshot on sync |
 | TypeScript-only (no Python) | Single deploy artifact; no Python runtime dependency | pyBKT has more BKT variants; we implement the canonical 4-param model |
 
-## Related Work & References
+## related work & References
+
+### Curriculum & Pedagogy
+
+- [BASIS International School Curriculum](https://basisinternational.com/academics/curriculum/) — Accelerated, spiraled K12 liberal arts; G4 uses Envision Math G5
+- [BASIS Grades 4–7](https://enrollbasis.com/curriculum/grades-4-7-curriculum/) — Bridge years curriculum with Subject Expert Teachers
+- [Singapore Primary Mathematics Syllabus (2021)](https://www.moe.gov.sg/primary/curriculum/syllabus) — CPA framework, bar-model word problems, spiral approach
+- [Common Core G4 Math](https://www.thecorestandards.org/Math/Content/4/) — US baseline: 5 domains, fraction denominators 2–12 & 100
+- [Savvas Envision Mathematics 2024](https://www.savvas.com/) — BASIS G4–G7 math textbook series
+
+### Product Design References
+
+| Product | Key Design Insight |
+|---------|-------------------|
+| [豆包爱学](https://apps.apple.com/cn/app/id6469102455) | 引导式解题 (Socratic, not answers); 多模态交互 with unified chat; AI 老师角色人格化; 拍照搜题 + 作业批改 = photo-first workflow |
+| [Khanmigo](https://www.khanmigo.ai/) | "Clean layouts, big buttons, friendly colors"; frictionless onboarding — no separate dashboard; Socratic tutoring anchored to existing content; integrated into platform not standalone |
+| [Khan Academy (classic)](https://www.khanacademy.org/) | Mastery-based progression; large type, high-contrast CTA; simple navigation that prioritizes "what's next" |
 
 ### Bayesian Knowledge Tracing
 

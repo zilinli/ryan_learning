@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-The Learning Memory module models **what Ryan knows** across G4 subjects using **Bayesian Knowledge Tracing (BKT)** with a 14-skill catalog.
+The Learning Memory module models **what Ryan knows** across G4 subjects using **Bayesian Knowledge Tracing (BKT)** with a 14-skill catalog aligned to **BASIS International School G4**, **Singapore Math P4**, and **Common Core G4** curricula. See [DESIGN.md § Curriculum Alignment](../DESIGN.md#-curriculum-alignment) for the full mapping.
 
 ```mermaid
 flowchart LR
