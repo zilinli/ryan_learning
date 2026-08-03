@@ -46,6 +46,7 @@ export function HistorySidebar({
   onDelete,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const hits = useMemo(
     () => searchConversations(conversations, query),
@@ -121,9 +122,17 @@ export function HistorySidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
         {hits.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-[var(--ink-muted)]">
-            {searching ? "No matches" : "No chats yet"}
-          </p>
+          <div className="flex flex-col items-center gap-2 px-2 py-10 text-center">
+            <p className="text-2xl">💬</p>
+            <p className="text-sm font-medium text-[var(--ink)]">
+              {searching ? "No matches" : "No conversations yet"}
+            </p>
+            <p className="max-w-[15rem] text-xs leading-relaxed text-[var(--ink-muted)]">
+              {searching
+                ? "Try a different search term."
+                : "Start chatting — your conversations will appear here."}
+            </p>
+          </div>
         ) : (
           <ul className="flex flex-col gap-0.5">
             {hits.map(({ conversation: c, snippet, matchedTitle }) => {
@@ -170,7 +179,7 @@ export function HistorySidebar({
                     aria-label="Delete chat"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(c.sessionId);
+                      setConfirmDelete(c.sessionId);
                     }}
                     className="absolute right-1.5 top-2 min-h-9 min-w-9 rounded-full text-[var(--ink-muted)] opacity-70 hover:bg-[var(--mist)] hover:text-[var(--coral)] group-hover:opacity-100"
                   >
@@ -215,17 +224,45 @@ export function HistorySidebar({
       {/* Desktop: always visible */}
       <div className="relative z-20 hidden h-full shrink-0 lg:block">{panel}</div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — slide animation */}
       {open ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-[rgba(10,28,34,0.45)]"
-            aria-label="Close history"
+            className="absolute inset-0 bg-[rgba(10,28,34,0.45)] transition-opacity duration-250 ease-out"
+            aria-label="Close sidebar"
             onClick={onClose}
           />
-          <div className="absolute inset-y-0 left-0 animate-fade-up shadow-2xl">
+          <div className="absolute inset-y-0 left-0 animate-slide-in-left shadow-2xl">
             {panel}
+          </div>
+        </div>
+      ) : null}
+      {/* Delete confirmation overlay */}
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,28,34,0.35)] px-4">
+          <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-xl ring-1 ring-[var(--line)]">
+            <p className="text-sm font-medium text-[var(--ink)]">Delete this conversation?</p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">This cannot be undone.</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--mist)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDelete(confirmDelete);
+                  setConfirmDelete(null);
+                }}
+                className="flex-1 rounded-full bg-[var(--coral)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

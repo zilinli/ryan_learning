@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatAttachment, ChatMessage } from "@/lib/types";
 import { getPhotoFromVault } from "@/lib/photo-vault";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -59,6 +59,9 @@ export function ChatThread({ messages, streaming }: Props) {
     alt: string;
   } | null>(null);
   const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
+  const [userScrolled, setUserScrolled] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,23 +89,55 @@ export function ChatThread({ messages, streaming }: Props) {
     };
   }, [messages, vaultMap]);
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (!userScrolled) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, userScrolled]);
+
+  // Detect manual scroll-up to disable auto-scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setUserScrolled(distFromBottom > 120);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToBottom = () => {
+    setUserScrolled(false);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   if (messages.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center animate-fade-up">
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center animate-fade-up">
+        <div className="text-4xl">📚</div>
         <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)] sm:text-3xl">
-          What are you working on?
+          Ask anything about your homework...
         </p>
         <p className="max-w-md text-sm leading-relaxed text-[var(--ink-muted)]">
-          Chat with me, or upload homework photos / a PDF. I&apos;ll point to
-          the key lines, show maths &amp; diagrams clearly, and guide you step
-          by step—no spoilers.
+          Snap a photo, type a question, or use the mic. I'll guide you step by
+          step — no spoilers.
         </p>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--ink-muted)]">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
+            📷 Photo homework
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
+            🎤 Voice question
+          </span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+    <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
       {messages.map((m) => {
         const attachments = messageAttachments(m);
         const isUser = m.role === "user";
@@ -231,6 +266,19 @@ export function ChatThread({ messages, streaming }: Props) {
           alt={lightbox.alt}
           onClose={() => setLightbox(null)}
         />
+      ) : null}
+      {/* Scroll anchor */}
+      <div ref={bottomRef} />
+
+      {/* "New messages" floating badge */}
+      {userScrolled ? (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          className="fixed bottom-24 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--line)] bg-white/95 px-4 py-2 text-xs font-medium text-[var(--teal)] shadow-lg backdrop-blur transition hover:bg-white"
+        >
+          ↓ New messages
+        </button>
       ) : null}
     </div>
   );

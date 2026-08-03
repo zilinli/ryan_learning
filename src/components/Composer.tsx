@@ -174,6 +174,7 @@ export function Composer({
               pickDisabled ? "pointer-events-none opacity-30" : ""
             }`}
             title="Upload file"
+            aria-label="Upload file"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -188,21 +189,25 @@ export function Composer({
               setError("");
               setCameraOpen(true);
             }}
-            className={`flex min-h-[2.75rem] items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition disabled:opacity-40 ${
+            className={`flex min-h-[2.75rem] items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
               cameraOpen
                 ? "bg-[var(--coral)] text-white"
                 : "bg-[var(--ink)] text-white hover:opacity-90"
             }`}
-            title="拍下题目，我来帮你"
+            title="Snap homework"
+            aria-label="Camera — snap homework"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
             <span className="hidden sm:inline">
-              拍下题目，我来帮你
+              Photo
             </span>
-            <span className="sm:hidden">Camera</span>
+            <span className="hidden md:inline">
+              {" "}homework
+            </span>
+            <span className="sm:hidden">Photo</span>
           </button>
 
           <VoiceControls

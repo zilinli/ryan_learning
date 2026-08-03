@@ -354,6 +354,16 @@ export function TutorShell() {
     el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
+  // Esc closes sidebar
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebarOpen]);
+
   const startNewSession = () => {
     if (!store || busy) return;
     const id = newSessionId();
@@ -670,36 +680,43 @@ export function TutorShell() {
       />
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg0)]">
-        <header className="safe-top flex w-full shrink-0 items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+        <header className="safe-top flex w-full shrink-0 items-center justify-between gap-2 px-3 py-2 sm:px-4" style={{ minHeight: 48 }}>
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
-            aria-label="Menu"
+            onClick={() => setSidebarOpen((p) => !p)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            aria-label={sidebarOpen ? "Close menu" : "Menu"}
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <line x1="3" y1="5" x2="17" y2="5" />
-              <line x1="3" y1="10" x2="17" y2="10" />
-              <line x1="3" y1="15" x2="17" y2="15" />
-            </svg>
+            {sidebarOpen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <line x1="3" y1="5" x2="17" y2="5" />
+                <line x1="3" y1="10" x2="17" y2="10" />
+                <line x1="3" y1="15" x2="17" y2="15" />
+              </svg>
+            )}
           </button>
           <div className="flex min-w-0 items-center gap-1">
-            <span className="font-[family-name:var(--font-display)] text-lg tracking-wide text-[var(--ink)] sm:text-xl">
-              Spark
+            <span className="font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
+              ✨ Spark
             </span>
             <span className="hidden text-sm text-[var(--ink-muted)] sm:inline">· Ryan</span>
           </div>
-          {/* Voice toggle in header — single action, always visible */}
+          {/* Voice toggle in header */}
           <button
             type="button"
             onClick={() => setVoiceEnabled((v) => !v)}
-            className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition ${
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
               voiceEnabled
                 ? "bg-[var(--teal)]/10 text-[var(--teal)]"
                 : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
             }`}
-            aria-label={voiceEnabled ? "Voice on" : "Voice off"}
-            title={voiceEnabled ? "Voice on — tap to mute" : "Voice off — tap to speak"}
+            aria-label={voiceEnabled ? "Speak on" : "Speak off"}
+            title={voiceEnabled ? "Speak on — tap to mute" : "Speak off — tap to speak"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -724,9 +741,19 @@ export function TutorShell() {
         ) : null}
 
         {error ? (
-          <p className="mx-auto w-full max-w-3xl shrink-0 px-4 text-sm text-[var(--coral)]">
-            {error}
-          </p>
+          <div className="mx-auto mb-1 w-full max-w-2xl shrink-0 rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/5 px-4 py-2.5">
+            <p className="flex items-center gap-2 text-sm font-medium text-[var(--coral)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="mt-1 text-xs text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
         ) : null}
 
         <div className="shrink-0 border-t border-[var(--line)]/60 bg-[color-mix(in_srgb,var(--bg0)_82%,transparent)] backdrop-blur-md">
@@ -768,7 +795,7 @@ function DarkToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
       aria-label={dark ? "Light mode" : "Dark mode"}
       title={dark ? "Switch to light" : "Switch to dark"}
     >
