@@ -39,9 +39,9 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     expect(getTutorVoice("wanLung").lang).toBe("yue");
   });
 
-  it("auto picks Mandarin TTS for Mandarin Chinese, Cantonese when marked", () => {
+  it("auto picks Cantonese TTS for Chinese by default", () => {
     expect(resolveEdgeVoice("auto", "你好，请看这一题")).toBe(
-      "zh-CN-YunxiNeural",
+      "zh-HK-WanLungNeural",
     );
     expect(resolveEdgeVoice("auto", "你睇吓呢一句，你觉得系咩意思？")).toBe(
       "zh-HK-WanLungNeural",
@@ -60,7 +60,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   });
 
   it("switches English fixed voice when chunk is Chinese/Spanish", () => {
-    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-CN-YunxiNeural");
+    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-HK-WanLungNeural");
     expect(resolveEdgeVoice("ava", "你睇吓呢题点解？")).toBe(
       "zh-HK-WanLungNeural",
     );
@@ -78,9 +78,9 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
 });
 
 describe("detectSpeechLang", () => {
-  it("defaults Chinese without 粤语 markers to Mandarin", () => {
-    expect(detectSpeechLang("这一题怎么解？")).toBe("zh");
-    expect(detectSpeechLang("请看第一段：河水结冰了。")).toBe("zh");
+  it("defaults Chinese to Cantonese (粤语)", () => {
+    expect(detectSpeechLang("这一题怎么解？")).toBe("yue");
+    expect(detectSpeechLang("请看第一段：河水结冰了。")).toBe("yue");
   });
 
   it("detects Cantonese via particles and lexicon", () => {
@@ -111,14 +111,14 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(replyLangFromVoice("xiaoxiao")).toBe("zh");
   });
 
-  it("locks Auto Chinese turns to 普通话 / 粤语 from the student text", () => {
-    expect(resolveReplyLanguage("auto", "这一题怎么解？")).toBe("zh");
+  it("locks Auto Chinese turns to 粤语 by default", () => {
+    expect(resolveReplyLanguage("auto", "这一题怎么解？")).toBe("yue");
     expect(resolveReplyLanguage("auto", "你睇吓呢题点解？")).toBe("yue");
     expect(resolveReplyLanguage("auto", "What is 7 times 8?")).toBe("auto");
     expect(resolveReplyLanguage("yunxi", "hello")).toBe("zh");
   });
 
-  it("emits Mandarin-default Auto instructions", () => {
+  it("emits 粤语-default Auto instructions", () => {
     const zh = replyLanguageInstructions("zh").join("\n");
     expect(zh).toMatch(/普通话/);
     expect(zh).toMatch(/REQUIRED/);
@@ -127,7 +127,7 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(yue).toMatch(/粤语/);
 
     const auto = replyLanguageInstructions("auto").join("\n");
-    expect(auto).toMatch(/普通话/);
-    expect(auto).toMatch(/Cantonese markers|粤语/);
+    expect(auto).toMatch(/粤语/);
+    expect(auto).toMatch(/defaults to 粤语|Chinese defaults to 粤语/);
   });
 });

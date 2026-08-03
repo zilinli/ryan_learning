@@ -7,7 +7,7 @@ export type StudentProfile = {
   age: number;
   grade: string;
   school: string;
-  /** Auto Chinese: default Mandarin for BASIS kids unless they use 粤语 */
+  /** Auto Chinese: default Cantonese (粤语); pick 云希 for Mandarin */
   preferredChinese: ChineseDialectPref;
   stronger: string[];
   focusAreas: string[];
@@ -18,7 +18,7 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   age: 9,
   grade: "Grade 4 (G4)",
   school: "BASIS International School",
-  preferredChinese: "zh",
+  preferredChinese: "yue",
   stronger: ["science curiosity", "trying again after a short break"],
   focusAreas: [
     "multi-step fraction word problems",
@@ -34,7 +34,7 @@ export const BASIS_G4_CURRICULUM = [
   "ELA: reading comprehension with evidence, narrative writing, vocabulary",
 ].join("; ");
 
-const PROFILE_KEY = "spark.studentProfile";
+const PROFILE_KEY = "spark.studentProfile.v2";
 
 export function loadStudentProfile(): StudentProfile {
   if (typeof window === "undefined") return { ...DEFAULT_STUDENT_PROFILE };
@@ -46,7 +46,7 @@ export function loadStudentProfile(): StudentProfile {
       ...DEFAULT_STUDENT_PROFILE,
       ...parsed,
       preferredChinese:
-        parsed.preferredChinese === "yue" ? "yue" : "zh",
+        parsed.preferredChinese === "zh" ? "zh" : "yue",
       stronger: Array.isArray(parsed.stronger)
         ? parsed.stronger
         : DEFAULT_STUDENT_PROFILE.stronger,

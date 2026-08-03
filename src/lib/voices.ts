@@ -31,10 +31,10 @@ export const DEFAULT_VOICE_ID: TutorVoiceId = "auto";
 export const TUTOR_VOICES: TutorVoice[] = [
   {
     id: "auto",
-    label: "Auto · 自动（中文默认普通话）",
-    edgeVoice: "zh-CN-YunxiNeural",
+    label: "Auto · 自动（中文默认粤语）",
+    edgeVoice: "zh-HK-WanLungNeural",
     preview:
-      "Hi — 你好，我用普通话跟你学 — Hola. Chinese defaults to Mandarin; 粤语 when you write Cantonese.",
+      "Hi — 你好，我用广东话同你学 — Hola. Chinese defaults to Cantonese; pick 云希 for Mandarin.",
     lang: "auto",
   },
   {
@@ -132,7 +132,7 @@ export function countYueSignals(text: string): number {
 
 /**
  * Detect dominant language of a TTS / Auto-reply chunk.
- * Chinese → Mandarin by default; Cantonese when 粤语 markers appear (BASIS kids prefer 普通话).
+ * Chinese → 粤语 by default (family preference). Mandarin only when voice is locked to 云希.
  */
 export function detectSpeechLang(text: string): SpeechLang {
   const t = text || "";
@@ -147,12 +147,7 @@ export function detectSpeechLang(text: string): SpeechLang {
   const isChinese =
     (han >= 1 && han * 2 >= Math.max(letters, 1)) || han >= 4;
   if (isChinese) {
-    const yue = countYueSignals(t);
-    // Need clear 粤语 signal; otherwise Mandarin (Ryan / BASIS default)
-    if (yue >= 1 && (yue >= 2 || han <= 28 || yue * 3 >= Math.max(han, 1))) {
-      return "yue";
-    }
-    return "zh";
+    return "yue";
   }
   if (spanishMarks >= 1 || strongEs) return "es";
   if (
@@ -264,7 +259,7 @@ export function replyLangFromVoice(
 export function resolveReplyLanguage(
   voiceId: TutorVoiceId | string | null | undefined,
   userText?: string,
-  preferredChinese: "zh" | "yue" = "zh",
+  preferredChinese: "zh" | "yue" = "yue",
 ): ReplyLangMode {
   const locked = replyLangFromVoice(voiceId);
   if (locked !== "auto") return locked;
@@ -286,10 +281,10 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
   if (mode === "auto") {
     return [
       "",
-      "[Reply language — Auto — Chinese defaults to 普通话]",
-      "- Match the student's language (English / 普通话 / 粤语 / Español).",
-      "- If the student writes Chinese WITHOUT clear Cantonese markers (嘅/係/唔/喺/咗/睇吓/点解…), reply in 【简体中文普通话】.",
-      "- Reply in 【粤语】only when the student writes Cantonese markers OR clearly asks for 粤语/广东话.",
+      "[Reply language — Auto — Chinese defaults to 粤语]",
+      "- Match the student's language (English / 粤语 / 普通话 / Español).",
+      "- If the student writes Chinese (with or without Cantonese markers), reply in 【粤语】（广东话书面/口语）by default.",
+      "- Use 【简体中文普通话】only when the student clearly asks for 普通话/Mandarin, or the voice picker is locked to 云希.",
       "- If the message mixes languages, follow the student's main language.",
       "- Homework photos may be in English even if the student chats in Chinese — still reply in the student's chat language, and quote the photo text exactly as written.",
     ];

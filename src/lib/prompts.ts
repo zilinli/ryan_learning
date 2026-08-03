@@ -55,7 +55,7 @@ function audienceLine(mode: ReplyLangMode): string {
   if (mode === "en") {
     return "Audience: international-school student; reply in English.";
   }
-  return "Audience: international-school student; follow their language (Auto mode — Chinese defaults to 普通话).";
+  return "Audience: international-school student; follow their language (Auto mode — Chinese defaults to 粤语).";
 }
 
 function styleLine(mode: ReplyLangMode): string {

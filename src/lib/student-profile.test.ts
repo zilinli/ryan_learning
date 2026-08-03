@@ -13,7 +13,7 @@ import {
 describe("student profile", () => {
   it("defaults to Ryan at BASIS G4", () => {
     expect(DEFAULT_STUDENT_PROFILE.name).toBe("Ryan");
-    expect(DEFAULT_STUDENT_PROFILE.preferredChinese).toBe("zh");
+    expect(DEFAULT_STUDENT_PROFILE.preferredChinese).toBe("yue");
     expect(BASIS_G4_CURRICULUM).toMatch(/fraction/i);
   });
 
@@ -21,7 +21,7 @@ describe("student profile", () => {
     const lines = studentProfilePromptLines().join("\n");
     expect(lines).toContain("Ryan");
     expect(lines).toContain("BASIS");
-    expect(lines).toMatch(/普通话|Mandarin/);
+    expect(lines).toMatch(/粤语|Cantonese/);
   });
 });
 

@@ -27,7 +27,8 @@ export function isDiagramLanguage(language: string | undefined): boolean {
 }
 
 function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
-  const safe = sanitizeSvg(code);
+  // Tolerate "svg<svg...>" glue from models / broken fences
+  const safe = sanitizeSvg(code.replace(/^svg\s*(?=<svg\b)/i, ""));
   if (!safe) {
     return (
       <pre
