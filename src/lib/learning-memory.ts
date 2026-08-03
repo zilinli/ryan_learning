@@ -71,12 +71,20 @@ export type LearningMemory = {
   updatedAt: number;
 };
 
+export type SessionDigest = {
+  date: string;
+  topic: string;
+  insight: string;
+  bestApproach: string;
+};
+
 export type TurnOutcome = "correct" | "incorrect" | "practice";
 
 const KEY = "spark.learningMemory";
 const MAX_TOPICS = 12;
 const MAX_SKILLS = 24;
 const MAX_NOTES = 5;
+const MAX_DIGESTS = 10;
 
 /** Prerequisite mastery threshold for warm-up eligibility (≥ 60%). */
 const PREREQ_THRESHOLD = 0.6;

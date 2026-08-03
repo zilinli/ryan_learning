@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
+import { MiniConsoleShell } from "./MiniConsoleShell";
 import { SetupPanel } from "./SetupPanel";
 import {
   loadSpeakEnabled,
@@ -242,6 +243,7 @@ export function TutorShell() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [miniConsoleOpen, setMiniConsoleOpen] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
@@ -363,6 +365,9 @@ export function TutorShell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
+
+  const handleOpenMiniConsole = useCallback(() => { setMiniConsoleOpen(true); }, []);
+  const handleOpenFullConsole = useCallback(() => { setMiniConsoleOpen(false); window.location.href = "/console"; }, []);
 
   const startNewSession = () => {
     if (!store || busy) return;
@@ -661,6 +666,7 @@ export function TutorShell() {
         conversations={store.conversations}
         activeId={store.activeId}
         disabled={busy}
+        onOpenConsole={handleOpenMiniConsole}
         engagementLabel={
           engagement
             ? [
@@ -770,6 +776,8 @@ export function TutorShell() {
         />
         </div>
       </div>
+
+      <MiniConsoleShell open={miniConsoleOpen} onClose={() => setMiniConsoleOpen(false)} onOpenFullConsole={handleOpenFullConsole} />
     </div>
   );
 }
