@@ -168,13 +168,19 @@ export function detectLanguage(text: string): DetectedLanguage {
   if (cjkCount === 0) return "en";
   if (latinCount === 0) {
     // Check for 繁體 indicators (HK/TW specific chars)
-    if (/[嘅唔咁啲喺嗰嚟嘢嘅啱嘥]{2,}/.test(t)) return "zh-HK";
+    if (
+      /[嘅咁啲喺嗰嚟嘢啱嘥]/u.test(t) ||
+      /(唔該|係咪|睇下|邊個|點解|而家|乜嘢|點樣)/u.test(t)
+    )
+      return "zh-HK";
     return "zh-CN";
   }
 
   // Mixed: determine dominant
   if (cjkCount / total > 0.55) {
-    return /[嘅唔咁啲喺嗰嚟嘢嘅啱嘥]{2,}/.test(t) ? "zh-HK" : "zh-CN";
+    return /[嘅咁啲喺嗰嚟嘢啱嘥]/u.test(t)
+      ? "zh-HK"
+      : "zh-CN";
   }
   if (latinCount / total > 0.55) return "en";
   return "mixed";
@@ -184,7 +190,7 @@ export function detectLanguage(text: string): DetectedLanguage {
  * Detect if text contains word-problem phrasing (in any language).
  */
 export function isWordProblem(text: string): boolean {
-  return /\b(word problem|story|how many|share|equally|一共|应用|應用|share)\b/i.test(
+  return /(word problem|story|how many|share equally|一共|应用|應用|share equally|应用题)/i.test(
     text,
   );
 }

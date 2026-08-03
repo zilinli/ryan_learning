@@ -268,8 +268,8 @@ function eloExpected(difficultyRating: number, studentRating = 1400): number {
 
 /**
  * Update Elo difficulty rating after a turn.
- * Correct → item was too easy (rating decreases).
- * Incorrect → item was too hard (rating increases).
+ * Correct → student beat expectations (rating increases, item harder than estimated).
+ * Incorrect → student fell short of expectations (rating decreases, item easier than estimated).
  *
  * @param elo     current Elo state
  * @param outcome observed outcome

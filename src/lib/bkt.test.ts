@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applySm2Decay,
   bktUpdate,
+  DEFAULT_BKT,
   DEFAULT_SM2,
+  difficultyAdjustedBktParams,
+  eloUpdate,
   masteryFromPKnown,
   outcomeToSm2Quality,
   pKnownFromMastery,
@@ -254,5 +257,75 @@ describe("pSolve", () => {
     expect(withoutGuess).toBe(0);
     const withGuess = pSolve(0.0, 0.1, 0.2);
     expect(withGuess).toBeCloseTo(0.2, 1);
+  });
+});
+
+// ── Elo-hybrid Difficulty Tracking (Phase 1.6) ──────────────
+
+describe("eloUpdate", () => {
+  const now = 1700000000000;
+  const base = { rating: 1500, n: 0, lastUpdate: 0 };
+
+  it("decreases Elo on incorrect (student fell short of expectation)", () => {
+    const next = eloUpdate(base, "incorrect", now);
+    expect(next.rating).toBeLessThan(1500);
+    expect(next.n).toBe(1);
+    expect(next.lastUpdate).toBe(now);
+  });
+
+  it("increases Elo on correct (student beat expectation)", () => {
+    const next = eloUpdate(base, "correct", now);
+    expect(next.rating).toBeGreaterThan(1500);
+  });
+
+  it("small adjustment on practice outcome", () => {
+    const next = eloUpdate(base, "practice", now);
+    expect(next.rating).toBeGreaterThan(1490);
+    expect(next.rating).toBeLessThan(1520);
+  });
+
+  it("dynamic K-value decreases with more attempts", () => {
+    const first = eloUpdate(base, "incorrect", now);
+    const mid = eloUpdate({ ...base, rating: first.rating, n: 5, lastUpdate: now }, "incorrect", now);
+    const many = eloUpdate({ ...base, rating: mid.rating, n: 10, lastUpdate: now }, "incorrect", now);
+    const deltaFirst = Math.abs(first.rating - base.rating);
+    const deltaMid = Math.abs(mid.rating - first.rating);
+    const deltaMany = Math.abs(many.rating - mid.rating);
+    expect(deltaMid).toBeLessThanOrEqual(deltaFirst);
+    expect(deltaMany).toBeLessThanOrEqual(deltaMid);
+  });
+
+  it("clamps rating between 800 and 2600", () => {
+    let elo = base;
+    for (let i = 0; i < 100; i++) elo = eloUpdate(elo, "correct", now + i);
+    expect(elo.rating).toBeGreaterThanOrEqual(800);
+
+    elo = base;
+    for (let i = 0; i < 100; i++) elo = eloUpdate(elo, "incorrect", now + i);
+    expect(elo.rating).toBeLessThanOrEqual(2600);
+  });
+});
+
+describe("difficultyAdjustedBktParams", () => {
+  it("returns higher slip for harder items", () => {
+    const easy = difficultyAdjustedBktParams({ rating: 1000, n: 10, lastUpdate: 0 });
+    const hard = difficultyAdjustedBktParams({ rating: 2000, n: 10, lastUpdate: 0 });
+    expect(hard.pSlip).toBeGreaterThan(easy.pSlip);
+  });
+
+  it("returns lower guess for harder items", () => {
+    const easy = difficultyAdjustedBktParams({ rating: 1000, n: 10, lastUpdate: 0 });
+    const hard = difficultyAdjustedBktParams({ rating: 2000, n: 10, lastUpdate: 0 });
+    expect(hard.pGuess).toBeLessThan(easy.pGuess);
+  });
+
+  it("all values stay in [0,1] for any rating", () => {
+    for (const rating of [800, 1200, 1500, 1800, 2200, 2600]) {
+      const params = difficultyAdjustedBktParams({ rating, n: 1, lastUpdate: 0 });
+      expect(params.pSlip).toBeGreaterThan(0);
+      expect(params.pSlip).toBeLessThan(1);
+      expect(params.pGuess).toBeGreaterThan(0);
+      expect(params.pGuess).toBeLessThan(1);
+    }
   });
 });
