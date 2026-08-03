@@ -1,5 +1,6 @@
 /**
- * 启动前确保 .env.local 存在：优先 secret.bin，其次已有 .env.local / 环境变量。
+ * 启动前确保 .env.local 存在：
+ * 优先 secret.bin → 已有 .env.local / 环境变量 → 内置默认 Key（免手动输入）。
  */
 import { createDecipheriv, createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -11,6 +12,9 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const secretFile = path.join(root, "config", "secret.bin");
 const envFile = path.join(root, ".env.local");
 const APP_SECRET = "qizhi-local-kid-launch-v1";
+/** 与 src/lib/default-api-key.ts 保持一致，小孩启动无需输入 */
+const DEFAULT_CURSOR_API_KEY =
+  "crsr_7d9e4149365f2e279a8716bf279885c58d5bb49d9c74f540b30fc1a20c58dd70";
 
 function deriveKey() {
   return createHash("sha256").update(APP_SECRET).digest();
@@ -52,10 +56,7 @@ if (!isCursorApiKey(apiKey)) {
 }
 
 if (!isCursorApiKey(apiKey)) {
-  console.error(
-    "未找到 CURSOR_API_KEY。请配置 .env.local 或运行: node scripts/set-secret.mjs <key>",
-  );
-  process.exit(1);
+  apiKey = DEFAULT_CURSOR_API_KEY;
 }
 
 await fs.writeFile(envFile, `CURSOR_API_KEY=${apiKey}\n`, "utf8");

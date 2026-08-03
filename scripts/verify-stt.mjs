@@ -81,9 +81,20 @@ async function main() {
     `model=${health.model}`,
   );
   ok(
+    "STT model is stronger than base",
+    health.ok &&
+      !["tiny", "base", "tiny.en", "base.en"].includes(String(health.model)),
+    `model=${health.model}`,
+  );
+  ok(
     "STT langs advertised",
     Array.isArray(health.stt_langs) && health.stt_langs.includes("zh"),
     JSON.stringify(health.stt_langs),
+  );
+  ok(
+    "SenseVoice enabled for zh/yue",
+    health.sensevoice === true,
+    `sensevoice=${health.sensevoice} err=${health.sensevoice_error || ""}`,
   );
 
   const cases = [
@@ -93,6 +104,7 @@ async function main() {
       voice: "en-US-AvaNeural",
       text: "Hello, I need help with my homework today.",
       expect: ["hello", "homework", "help"],
+      // SenseVoice or whisper both OK for English
     },
     {
       name: "Mandarin",
@@ -100,14 +112,16 @@ async function main() {
       voice: "zh-CN-YunxiNeural",
       text: "你好，请帮我看一下这道数学题。",
       expect: ["你好", "数学", "帮"],
+      engine: "sensevoice",
     },
     {
-      name: "Cantonese-biased",
+      name: "Cantonese",
       language: "yue",
       voice: "zh-HK-WanLungNeural",
-      text: "你好，我想问功课。",
-      expect: ["你好", "功课", "想", "问"],
+      text: "呢个功课点做呀，我想问老师。",
+      expect: ["功课", "想", "问", "呢", "做"],
       expectLang: "yue",
+      engine: "sensevoice",
     },
     {
       name: "Spanish",
@@ -115,6 +129,7 @@ async function main() {
       voice: "es-ES-AlvaroNeural",
       text: "Hola, necesito ayuda con la tarea de matemáticas.",
       expect: ["hola", "ayuda", "tarea", "matem"],
+      engine: "whisper",
     },
   ];
 
@@ -125,10 +140,15 @@ async function main() {
       const { res, data } = await transcribe(wav, c.language);
       const text = (data.text || "").trim();
       const langOk = !c.expectLang || data.language === c.expectLang;
+      const engineOk = !c.engine || !data.engine || data.engine === c.engine;
       ok(
         `STT ${c.name}`,
-        res.ok && text.length > 0 && includesAny(text, c.expect) && langOk,
-        `lang=${data.language || c.language} text="${text}"`,
+        res.ok &&
+          text.length > 0 &&
+          includesAny(text, c.expect) &&
+          langOk &&
+          engineOk,
+        `lang=${data.language || c.language} engine=${data.engine || "?"} text="${text}"`,
       );
     } catch (err) {
       ok(`STT ${c.name}`, false, err instanceof Error ? err.message : String(err));

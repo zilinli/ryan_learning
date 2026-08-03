@@ -51,6 +51,7 @@ function buildHistoryPreview(messages: ChatMessage[]): HistoryTurn[] {
 async function consumeChatStream(
   body: unknown,
   onDelta: (text: string) => void,
+  onStatus?: (status: string) => void,
 ): Promise<string> {
   const payload = JSON.stringify(body);
 
@@ -91,11 +92,15 @@ async function consumeChatStream(
         const data = JSON.parse(dataLine) as {
           text?: string;
           error?: string;
+          status?: string;
         };
         if (event === "delta" && data.text) {
           full += data.text;
           onDelta(data.text);
           gotDelta = true;
+        }
+        if (event === "status" && data.status) {
+          onStatus?.(data.status);
         }
         if (event === "error" && data.error) {
           streamError = data.error;
@@ -187,6 +192,7 @@ export function TutorShell() {
   const [store, setStore] = useState<ConversationsStore | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [agentStatus, setAgentStatus] = useState("");
   const [keyMissing, setKeyMissing] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
@@ -345,6 +351,7 @@ export function TutorShell() {
     if (busy || !store || !sessionId) return;
     setBusy(true);
     setError("");
+    setAgentStatus("Thinking…");
 
     const needReset =
       resetNextRef.current || resetIdsRef.current.has(sessionId);
@@ -402,6 +409,7 @@ export function TutorShell() {
           })),
         },
         (delta) => {
+          setAgentStatus("");
           // Paint text immediately as SSE chunks arrive
           setStore((prev) => {
             if (!prev) return prev;
@@ -416,6 +424,7 @@ export function TutorShell() {
             speakApiRef.current?.push(delta);
           }
         },
+        (status) => setAgentStatus(status),
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
@@ -458,6 +467,7 @@ export function TutorShell() {
       });
     } finally {
       setBusy(false);
+      setAgentStatus("");
       // Persist promptly when the turn ends
       window.setTimeout(() => {
         setStore((prev) => (prev ? { ...prev } : prev));
@@ -543,6 +553,12 @@ export function TutorShell() {
         >
           <ChatThread messages={messages} streaming={busy} />
         </main>
+
+        {agentStatus ? (
+          <p className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-1 text-xs text-[var(--teal)]">
+            {agentStatus}
+          </p>
+        ) : null}
 
         {error ? (
           <p className="mx-auto w-full max-w-3xl shrink-0 px-4 text-sm text-[var(--coral)]">

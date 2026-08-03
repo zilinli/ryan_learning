@@ -31,6 +31,18 @@ describe("cleanTutorSpeechText", () => {
   it("returns empty for blank input", () => {
     expect(cleanTutorSpeechText("   \n  ")).toBe("");
   });
+
+  it("removes spaces between Chinese characters", () => {
+    expect(cleanTutorSpeechText("你 好 ， 请 看 这 一 题")).toBe(
+      "你好，请看这一题",
+    );
+  });
+
+  it("joins Chinese lines without inserting Latin spaces", () => {
+    const out = cleanTutorSpeechText("先看这一句。\n你觉得什么意思？");
+    expect(out).toBe("先看这一句。你觉得什么意思？");
+    expect(out).not.toMatch(/。\s/);
+  });
 });
 
 describe("chunkForNeuralTts", () => {
@@ -85,25 +97,24 @@ describe("pullSpeakableFromBuffer", () => {
     expect(rest.length).toBeLessThan(long.length);
   });
 
-  it("uses snappy defaults so streaming speaks before 100 chars wait", () => {
+  it("waits longer by default so streaming is less choppy", () => {
     const clause =
-      "Let's look carefully at the first sentence of the passage and notice the key wording here now";
-    expect(clause.length).toBeGreaterThan(90);
+      "Let's look carefully at the first sentence of the passage and notice";
+    // Under default maxWait (160) — should NOT soft-break yet
+    expect(clause.length).toBeLessThan(160);
     const { ready, rest } = pullSpeakableFromBuffer(clause);
-    expect(ready.length).toBeGreaterThanOrEqual(1);
-    expect(ready[0]!.length).toBeGreaterThanOrEqual(16);
-    expect(rest.length).toBeLessThan(clause.length);
+    expect(ready).toEqual([]);
+    expect(rest).toBe(clause);
   });
 
   it("soft-breaks near the wait window, not at the first space", () => {
-    const words = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
+    const words = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
     const { ready } = pullSpeakableFromBuffer(words, {
-      minChars: 16,
-      maxWaitChars: 50,
+      minChars: 28,
+      maxWaitChars: 80,
     });
     expect(ready.length).toBe(1);
-    // Should keep a meaningful phrase, not just "word0"
-    expect(ready[0]!.length).toBeGreaterThan(16);
+    expect(ready[0]!.length).toBeGreaterThan(28);
     expect(ready[0]!.startsWith("word0")).toBe(true);
   });
 });

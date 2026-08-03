@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Local STT (faster-whisper) + neural TTS (edge-tts) for Spark."""
+"""Local STT (Whisper + SenseVoice) + neural TTS (edge-tts) for Spark.
+
+- Mandarin / Cantonese / auto (CJK+EN) → SenseVoice when available
+- English / Spanish / auto fallback → faster-whisper (multilingual small)
+"""
 
 from __future__ import annotations
 
 import asyncio
 import os
+import re
 import subprocess
 import tempfile
+import threading
 import traceback
 from pathlib import Path
 
@@ -15,8 +21,8 @@ from faster_whisper import WhisperModel
 
 HOST = os.environ.get("STT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("STT_PORT", "8765"))
-# Multilingual model (not *.en) — English, Mandarin, Spanish; Cantonese via zh+prompt
-MODEL_SIZE = os.environ.get("STT_MODEL", "base")
+# Multilingual Whisper (not *.en). small ≫ base for zh/es on CPU.
+MODEL_SIZE = os.environ.get("STT_MODEL", "small")
 # Default neural voice (clients may override per request)
 TTS_VOICE = os.environ.get("TTS_VOICE", "en-US-AvaNeural")
 ALLOWED_STT_LANGS = {"auto", "en", "zh", "yue", "es"}
@@ -38,17 +44,109 @@ ALLOWED_VOICES = {
     "es-US-PalomaNeural",
 }
 
+SENSEVOICE_REPO = os.environ.get(
+    "SENSEVOICE_REPO",
+    "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+)
+# Prefer SenseVoice for these (and for auto before Whisper)
+SENSEVOICE_LANGS = {"zh", "yue", "auto"}
+
 app = Flask(__name__)
 model: WhisperModel | None = None
+# SenseVoice recognizers keyed by language: auto | zh | yue | en
+sense_voice_pool: dict[str, object] = {}
+sense_voice_error: str | None = None
+_yue_supported: bool | None = None
+# faster-whisper / ONNX are not safe for overlapping calls on one model
+_infer_lock = threading.Lock()
+_tts_lock = threading.Lock()
 
 
 def get_model() -> WhisperModel:
     global model
     if model is None:
-        print(f"[stt] loading model {MODEL_SIZE} …", flush=True)
+        print(f"[stt] loading whisper model {MODEL_SIZE} …", flush=True)
         model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
-        print("[stt] model ready", flush=True)
+        print("[stt] whisper ready", flush=True)
     return model
+
+
+def _model_supports_yue() -> bool:
+    """True when the loaded Whisper tokenizer has a <|yue|> token (large-v3+)."""
+    global _yue_supported
+    if _yue_supported is not None:
+        return _yue_supported
+    try:
+        tok = get_model().hf_tokenizer
+        _yue_supported = tok.token_to_id("<|yue|>") is not None
+    except Exception:  # noqa: BLE001
+        _yue_supported = False
+    return _yue_supported
+
+
+def _resolve_sensevoice_paths() -> tuple[str, str] | None:
+    """Locate SenseVoice int8 ONNX + tokens (HF cache or SENSEVOICE_DIR)."""
+    root = os.environ.get("SENSEVOICE_DIR", "").strip()
+    if not root:
+        try:
+            from huggingface_hub import snapshot_download
+
+            root = snapshot_download(SENSEVOICE_REPO, local_files_only=False)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[stt] SenseVoice download failed: {exc}", flush=True)
+            return None
+
+    model_path = os.path.join(root, "model.int8.onnx")
+    tokens_path = os.path.join(root, "tokens.txt")
+    if not os.path.isfile(model_path):
+        model_path = os.path.join(root, "model.onnx")
+    if not os.path.isfile(model_path) or not os.path.isfile(tokens_path):
+        print(f"[stt] SenseVoice files missing under {root}", flush=True)
+        return None
+    return model_path, tokens_path
+
+
+def get_sense_voice(lang: str = "auto"):
+    """Lazy-load one SenseVoice recognizer (auto LID covers zh / yue / en)."""
+    global sense_voice_error
+    _ = lang  # callers may pass zh/yue; we keep a single auto model
+    key = "auto"
+    if key in sense_voice_pool:
+        return sense_voice_pool[key]
+    if sense_voice_error is not None:
+        return None
+
+    try:
+        import sherpa_onnx
+    except ImportError as exc:
+        sense_voice_error = f"sherpa-onnx not installed: {exc}"
+        print(f"[stt] {sense_voice_error}", flush=True)
+        return None
+
+    paths = _resolve_sensevoice_paths()
+    if not paths:
+        sense_voice_error = "SenseVoice model not found"
+        return None
+
+    model_path, tokens_path = paths
+    try:
+        print("[stt] loading SenseVoice …", flush=True)
+        recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(
+            model=model_path,
+            tokens=tokens_path,
+            num_threads=int(os.environ.get("SENSEVOICE_THREADS", "2")),
+            language=key,
+            use_itn=True,
+            debug=False,
+        )
+        sense_voice_pool[key] = recognizer
+        sense_voice_error = None
+        print("[stt] SenseVoice ready", flush=True)
+        return recognizer
+    except Exception as exc:  # noqa: BLE001
+        sense_voice_error = str(exc)
+        print(f"[stt] SenseVoice load failed: {exc}", flush=True)
+        return None
 
 
 def convert_to_wav(src: str) -> str:
@@ -131,16 +229,26 @@ def _normalize_stt_lang(raw: str | None) -> str:
     return lang
 
 
-def _transcribe_kwargs(lang: str) -> dict:
-    """Build faster-whisper transcribe options for en / zh / yue / es / auto."""
-    # beam_size>1 helps non-English a bit; keep modest on CPU
+def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
+    """Build faster-whisper options. Keep CPU decode light to avoid queue/OOM."""
     base = {
-        "vad_filter": True,
+        "vad_filter": vad,
+        "vad_parameters": {
+            "min_silence_duration_ms": 350,
+            "speech_pad_ms": 300,
+        },
+        # beam 5 + temp fallbacks was backing up waitress on 4GB RAM
         "beam_size": 2,
+        "best_of": 2,
+        "patience": 1.0,
+        "temperature": 0.0,
         "condition_on_previous_text": False,
+        "without_timestamps": True,
+        "compression_ratio_threshold": 2.6,
+        "log_prob_threshold": -1.2,
+        "no_speech_threshold": 0.55,
     }
     if lang == "auto":
-        # Let Whisper detect among multilingual languages
         base["language"] = None
         return base
     if lang == "en":
@@ -148,26 +256,178 @@ def _transcribe_kwargs(lang: str) -> dict:
         return base
     if lang == "es":
         base["language"] = "es"
-        base["initial_prompt"] = "Hola, esto es español."
+        base["initial_prompt"] = (
+            "Hola. Esto es español. Necesito ayuda con la tarea."
+        )
+        base["beam_size"] = 3
+        base["best_of"] = 3
         return base
     if lang == "zh":
         base["language"] = "zh"
-        base["initial_prompt"] = "你好，这是普通话。"
+        base["initial_prompt"] = "你好。这是普通话。请帮我看一下这道题。"
         return base
     if lang == "yue":
-        # OpenAI Whisper has no dedicated Cantonese code; bias zh toward 粤语
-        base["language"] = "zh"
-        base["initial_prompt"] = (
-            "以下係廣東話（粤语）口述。"
-            "請用繁體或简体中文寫出粤语内容。"
-        )
+        if _model_supports_yue():
+            base["language"] = "yue"
+            base["initial_prompt"] = "你好。呢段係廣東話。我想问功课。"
+        else:
+            base["language"] = "zh"
+            base["initial_prompt"] = (
+                "以下係廣東話口述。請用中文寫出粤语内容。"
+            )
         return base
     base["language"] = None
     return base
 
 
+def _wav_rms(wav_path: str) -> float:
+    """Rough RMS of a 16-bit WAV; 0 if unreadable."""
+    try:
+        samples, _sr = _read_wav_f32(wav_path)
+        if samples is None or len(samples) == 0:
+            return 0.0
+        import numpy as np
+
+        return float(np.sqrt(np.mean(np.square(samples))))
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+_LATIN_WORD_RE = re.compile(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ']+")
+
+
+def _text_usable(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    # Strip light punctuation for length checks
+    core = re.sub(r"[\s.,!?;:。！？、…\"'“”]+", "", t)
+    if len(core) < 2:
+        return False
+    # Single-token Latin hallucinations on noise ("I", "te", "a.")
+    if not _CJK_RE.search(t):
+        words = _LATIN_WORD_RE.findall(t)
+        if len(words) <= 1 and len(core) <= 4:
+            return False
+    return True
+
+
+def _prefer_sensevoice_for_auto(sv_text: str, sv_lang: str) -> bool:
+    """For Auto, only trust SenseVoice on clear CJK (or ja/ko).
+
+    Latin-script Auto must use Whisper — SenseVoice has no Spanish and
+    frequently emits short Latin junk on Spanish audio.
+    """
+    if not _text_usable(sv_text):
+        return False
+    if _CJK_RE.search(sv_text):
+        return True
+    if sv_lang in ("zh", "yue", "ja", "ko"):
+        return True
+    return False
+
+
+def _read_wav_f32(path: str):
+    """Load mono WAV as float32 samples + sample rate for SenseVoice."""
+    import wave
+
+    import numpy as np
+
+    with wave.open(path, "rb") as wf:
+        channels = wf.getnchannels()
+        width = wf.getsampwidth()
+        sr = wf.getframerate()
+        raw = wf.readframes(wf.getnframes())
+
+    if width == 2:
+        samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    elif width == 4:
+        samples = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
+    else:
+        samples = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+        samples = (samples - 128.0) / 128.0
+
+    if channels > 1:
+        samples = samples.reshape(-1, channels).mean(axis=1)
+
+    return samples, sr
+
+
+def _transcribe_sensevoice(wav_path: str, lang: str) -> tuple[str, str]:
+    """Run SenseVoice; returns (text, reported_lang)."""
+    sv = get_sense_voice(lang)
+    if sv is None:
+        raise RuntimeError(sense_voice_error or "SenseVoice unavailable")
+
+    samples, sr = _read_wav_f32(wav_path)
+    with _infer_lock:
+        stream = sv.create_stream()
+        stream.accept_waveform(sr, samples)
+        sv.decode_stream(stream)
+        text = (stream.result.text or "").strip()
+
+    detected = lang
+    if "<|" in text:
+        tag = re.search(r"<\|(zh|yue|en|ja|ko)\|>", text)
+        if tag:
+            detected = tag.group(1)
+        text = re.sub(r"<\|[^|]*\|>", "", text).strip()
+    if lang in ("zh", "yue"):
+        detected = lang
+    return text, detected
+
+
+def _transcribe_whisper(
+    wav_path: str, lang: str, *, vad: bool = True
+) -> tuple[str, str]:
+    kwargs = _transcribe_kwargs(lang, vad=vad)
+    with _infer_lock:
+        segments, info = get_model().transcribe(wav_path, **kwargs)
+        text = " ".join(seg.text.strip() for seg in segments).strip()
+        detected = getattr(info, "language", None) or lang
+    return text, detected
+
+
+def _transcribe_pipeline(wav_path: str, lang: str) -> tuple[str, str, str]:
+    """Return (text, detected_lang, engine)."""
+    rms = _wav_rms(wav_path)
+    if rms < 0.004:
+        return "", lang, "silence"
+
+    # Spanish is Whisper-only; SenseVoice coverage is zh/yue/en/ja/ko
+    use_sv = lang in SENSEVOICE_LANGS and get_sense_voice(lang) is not None
+    if lang == "es":
+        use_sv = False
+    if lang == "en" and get_sense_voice(lang) is not None:
+        # SenseVoice handles English well and is much faster on CPU
+        use_sv = True
+
+    if use_sv:
+        try:
+            text, detected = _transcribe_sensevoice(wav_path, lang)
+            if lang == "auto" and not _prefer_sensevoice_for_auto(text, detected):
+                # Likely Spanish / empty — fall through to Whisper
+                pass
+            elif _text_usable(text):
+                return text, detected, "sensevoice"
+        except Exception as sv_exc:  # noqa: BLE001
+            print(f"[stt] SenseVoice failed: {sv_exc}", flush=True)
+
+    text, detected = _transcribe_whisper(wav_path, lang, vad=True)
+    if not _text_usable(text):
+        # VAD sometimes eats short tutoring clips — retry raw
+        text2, detected2 = _transcribe_whisper(wav_path, lang, vad=False)
+        if _text_usable(text2):
+            return text2, detected2, "whisper"
+        return text, detected, "whisper"
+    return text, detected, "whisper"
+
+
 @app.get("/health")
 def health():
+    sv_ok = bool(sense_voice_pool) or get_sense_voice() is not None
+
     return jsonify(
         {
             "ok": True,
@@ -175,6 +435,15 @@ def health():
             "loaded": model is not None,
             "tts_voice": TTS_VOICE,
             "stt_langs": sorted(ALLOWED_STT_LANGS),
+            "sensevoice": sv_ok,
+            "sensevoice_error": sense_voice_error,
+            "engines": {
+                "zh": "sensevoice" if sv_ok else "whisper",
+                "yue": "sensevoice" if sv_ok else "whisper",
+                "en": "sensevoice" if sv_ok else "whisper",
+                "es": "whisper",
+                "auto": "sensevoice+whisper" if sv_ok else "whisper",
+            },
         }
     )
 
@@ -187,7 +456,6 @@ def transcribe():
     if not f or not f.filename:
         return jsonify({"error": "empty audio"}), 400
 
-    # language can be form field or query (?language=zh)
     lang = _normalize_stt_lang(
         request.form.get("language") or request.args.get("language")
     )
@@ -206,31 +474,41 @@ def transcribe():
         if os.path.getsize(tmp_path) < 64:
             return jsonify({"error": "Recording too short — speak a bit longer"}), 400
 
-        # Always normalize via ffmpeg — mobile WebM is often incomplete for PyAV
         wav_path = convert_to_wav(tmp_path)
+        text, detected, engine = _transcribe_pipeline(wav_path, lang)
 
-        kwargs = _transcribe_kwargs(lang)
-        segments, info = get_model().transcribe(wav_path, **kwargs)
-        text = " ".join(seg.text.strip() for seg in segments).strip()
-        detected = getattr(info, "language", None) or lang
-        # Whisper has no Cantonese code — keep the caller's yue preference visible
-        if lang == "yue":
-            detected = "yue"
-        elif detected:
-            detected = _normalize_stt_lang(detected)
+        if engine == "silence" or not _text_usable(text):
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "Didn’t catch speech — speak louder and a bit longer"
+                        ),
+                        "text": "",
+                        "language": detected,
+                        "requested_language": lang,
+                        "engine": engine,
+                    }
+                ),
+                422,
+            )
+
         return jsonify(
             {
                 "text": text,
                 "language": detected,
                 "requested_language": lang,
+                "engine": engine,
             }
         )
     except Exception as exc:  # noqa: BLE001
         traceback.print_exc()
         msg = str(exc)
-        if "Invalid data" in msg or "decode" in msg.lower():
+        if "Invalid data" in msg or "decode" in msg.lower() or "ffmpeg" in msg.lower():
             msg = "Could not read the recording — try Mic again and speak clearly"
-        return jsonify({"error": msg}), 500
+        elif "Memory" in msg or "alloc" in msg.lower():
+            msg = "Voice service busy — try again in a moment"
+        return jsonify({"error": msg[:240]}), 500
     finally:
         for p in (tmp_path, wav_path):
             if p and os.path.exists(p):
@@ -270,13 +548,15 @@ def tts():
         import edge_tts
 
         async def _synth() -> bytes:
-            # Slightly slower for clearer tutoring across languages
+            # Slightly slower for clarity, but keep zh near-natural to avoid choppy pacing
             if voice.startswith("en-GB"):
-                rate = "-8%"
-            elif voice.startswith("zh-") or voice.startswith("es-"):
+                rate = "-6%"
+            elif voice.startswith("zh-"):
+                rate = "-2%"
+            elif voice.startswith("es-"):
                 rate = "-4%"
             else:
-                rate = "-5%"
+                rate = "-4%"
             communicate = edge_tts.Communicate(
                 text,
                 voice,
@@ -289,7 +569,8 @@ def tts():
                     parts.append(chunk["data"])
             return b"".join(parts)
 
-        audio = asyncio.run(_synth())
+        with _tts_lock:
+            audio = asyncio.run(_synth())
         if len(audio) < 100:
             return jsonify({"error": "TTS produced empty audio"}), 500
 
@@ -309,10 +590,16 @@ def tts():
 
 if __name__ == "__main__":
     get_model()
+    get_sense_voice()
     try:
         from waitress import serve
 
-        print(f"[stt] waitress on {HOST}:{PORT} voice={TTS_VOICE}", flush=True)
-        serve(app, host=HOST, port=PORT, threads=4)
+        print(
+            f"[stt] waitress on {HOST}:{PORT} whisper={MODEL_SIZE} "
+            f"sensevoice={'on' if sense_voice_pool else 'off'} voice={TTS_VOICE}",
+            flush=True,
+        )
+        # 2 threads: model is locked; extra threads only pile up RAM on 4GB boxes
+        serve(app, host=HOST, port=PORT, threads=2, channel_timeout=120)
     except ImportError:
         app.run(host=HOST, port=PORT, threaded=True)

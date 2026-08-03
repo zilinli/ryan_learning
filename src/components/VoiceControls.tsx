@@ -23,7 +23,11 @@ import {
   TUTOR_VOICES,
   type TutorVoiceId,
 } from "@/lib/voices";
-import { startWavRecorder } from "@/lib/wav-recorder";
+import {
+  blobLooksSilent,
+  filenameForAudioBlob,
+  startWavRecorder,
+} from "@/lib/wav-recorder";
 
 export type SpeakStreamApi = {
   /** Call from a user gesture (Send) before streaming starts */
@@ -218,26 +222,41 @@ export function VoiceControls({
       setStatus("Recognizing…");
       setHint("");
       try {
+        if (await blobLooksSilent(blob)) {
+          throw new Error("Too quiet — hold Mic closer and speak clearly");
+        }
         const body = new FormData();
-        body.append("audio", blob, "speech.wav");
+        body.append("audio", blob, filenameForAudioBlob(blob));
         body.append("language", sttLangFromVoice(voiceIdRef.current));
         const res = await fetch("/api/transcribe", {
           method: "POST",
           body,
+          signal: AbortSignal.timeout(75_000),
         });
         const data = (await res.json().catch(() => null)) as {
           text?: string;
           error?: string;
         } | null;
         if (!res.ok) {
-          throw new Error(data?.error || "Recognition failed");
+          throw new Error(
+            data?.error ||
+              (res.status === 502 || res.status === 503
+                ? "Voice service busy — wait a second and try again"
+                : "Recognition failed"),
+          );
         }
         const text = (data?.text || "").trim();
-        if (!text) throw new Error("Didn’t catch that — try again");
+        if (!text) throw new Error("Didn’t catch that — try again louder");
         setStatus("");
         onTranscript(text);
       } catch (err) {
-        setHint(err instanceof Error ? err.message : "Recognition failed");
+        const msg =
+          err instanceof Error ? err.message : "Recognition failed";
+        setHint(
+          /abort|timeout/i.test(msg)
+            ? "Recognition timed out — try a shorter sentence"
+            : msg,
+        );
         setStatus("");
       } finally {
         setBusy(false);
@@ -287,7 +306,8 @@ export function VoiceControls({
     setListening(false);
     try {
       const blob = await session.stop();
-      if (blob.size < 4000) {
+      // ~0.1s of 16kHz WAV ≈ 3.2KB; MediaRecorder chunks vary
+      if (blob.size < 2500) {
         setHint("Too short — tap Mic, speak, then tap again");
         setStatus("");
         return;

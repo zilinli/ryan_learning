@@ -33,8 +33,8 @@ export function ChatThread({ messages, streaming }: Props) {
         </p>
         <p className="max-w-md text-sm leading-relaxed text-[var(--ink-muted)]">
           Chat with me, or upload homework photos / a PDF. I&apos;ll point to
-          the key lines, show maths clearly, and guide you step by step—no
-          spoilers.
+          the key lines, show maths &amp; diagrams clearly, and guide you step
+          by step—no spoilers.
         </p>
       </div>
     );

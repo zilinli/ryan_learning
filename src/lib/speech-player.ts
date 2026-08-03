@@ -1,4 +1,8 @@
-import { chunkForNeuralTts, pullSpeakableFromBuffer } from "./tts-text";
+import {
+  chunkForNeuralTts,
+  joinSpeechParts,
+  pullSpeakableFromBuffer,
+} from "./tts-text";
 import { resolveEdgeVoice, type TutorVoiceId } from "./voices";
 
 export type SpeakHandlers = {
@@ -199,7 +203,17 @@ export class NeuralSpeechEngine {
   private enqueueChunk(text: string) {
     const cleaned = text.trim();
     if (cleaned.length < 2) return;
-    this.queue.push(cleaned);
+    const last = this.queue[this.queue.length - 1];
+    // Glue short fragments into one synth request — cuts inter-clip silence
+    if (
+      last &&
+      (last.length < 48 || cleaned.length < 28) &&
+      joinSpeechParts(last, cleaned).length <= 240
+    ) {
+      this.queue[this.queue.length - 1] = joinSpeechParts(last, cleaned);
+    } else {
+      this.queue.push(cleaned);
+    }
     this.warmPrefetch(this.activeHandlers);
     void this.pump();
   }
@@ -208,8 +222,8 @@ export class NeuralSpeechEngine {
     return `${this.resolveVoice(text, h)}\0${text}`;
   }
 
-  /** Kick off TTS for the next 1–2 queued phrases while audio is playing. */
-  private warmPrefetch(h: SpeakHandlers, ahead = 2) {
+  /** Kick off TTS for the next 1–3 queued phrases while audio is playing. */
+  private warmPrefetch(h: SpeakHandlers, ahead = 3) {
     for (let i = 0; i < Math.min(ahead, this.queue.length); i += 1) {
       const text = this.queue[i]!;
       const key = this.cacheKey(text, h);

@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
+import { DiagramBlock, isDiagramLanguage } from "./DiagramBlock";
 
 type Props = {
   content: string;
@@ -19,6 +20,11 @@ function isEvidenceQuote(text: string): boolean {
   );
 }
 
+function fenceLanguage(className?: string): string {
+  const m = /language-([\w-]+)/.exec(className || "");
+  return m?.[1] || "";
+}
+
 export function MarkdownMessage({ content, variant = "assistant" }: Props) {
   const user = variant === "user";
 
@@ -27,7 +33,11 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
       <p className="mb-2 last:mb-0 leading-7">{children}</p>
     ),
     strong: ({ children }) => (
-      <strong className={user ? "font-semibold text-white" : "font-semibold text-[var(--ink)]"}>
+      <strong
+        className={
+          user ? "font-semibold text-white" : "font-semibold text-[var(--ink)]"
+        }
+      >
         {children}
       </strong>
     ),
@@ -53,7 +63,34 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         {children}
       </a>
     ),
+    img: ({ src, alt }) => {
+      const href = typeof src === "string" ? src : "";
+      if (!href) return null;
+      // Allow https images and data URLs from tutor diagrams
+      const ok =
+        href.startsWith("https://") ||
+        href.startsWith("http://") ||
+        href.startsWith("data:image/");
+      if (!ok) return null;
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={href}
+          alt={alt || "illustration"}
+          className={`tutor-md-img my-2 max-h-72 w-auto max-w-full rounded-xl object-contain ${
+            user ? "border border-white/25" : "border border-[var(--line)] bg-white"
+          }`}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      );
+    },
     code: ({ className, children, ...props }) => {
+      const lang = fenceLanguage(className);
+      const text = String(children).replace(/\n$/, "");
+      if (className && isDiagramLanguage(lang)) {
+        return <DiagramBlock language={lang} code={text} user={user} />;
+      }
       const inline = !className;
       if (inline) {
         return (
@@ -78,11 +115,24 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         </code>
       );
     },
-    pre: ({ children }) => (
-      <pre className="mb-2 overflow-x-auto last:mb-0">{children}</pre>
-    ),
+    pre: ({ children }) => {
+      // DiagramBlock renders its own container — avoid double <pre>
+      const child = Array.isArray(children) ? children[0] : children;
+      if (
+        child &&
+        typeof child === "object" &&
+        "props" in child &&
+        isDiagramLanguage(
+          fenceLanguage(
+            (child as { props?: { className?: string } }).props?.className,
+          ),
+        )
+      ) {
+        return <>{children}</>;
+      }
+      return <pre className="mb-2 overflow-x-auto last:mb-0">{children}</pre>;
+    },
     blockquote: ({ children }) => {
-      // Flatten text to detect evidence-style quotes
       const text = collectText(children);
       const evidence = !user && isEvidenceQuote(text);
       return (
@@ -141,7 +191,9 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: "ignore" }]]}
+        rehypePlugins={[
+          [rehypeKatex, { throwOnError: false, strict: "ignore" }],
+        ]}
         components={components}
       >
         {content}
