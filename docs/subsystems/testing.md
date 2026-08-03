@@ -32,7 +32,7 @@ graph TD
     end
 
     subgraph Bottom["Large · Fast · Reliable"]
-        U1["23 vitest files · ~155 blocks"]
+        U1["24 vitest files · 220 blocks"]
     end
 
     E2E --> INT1
@@ -80,7 +80,7 @@ All tests live in `src/lib/` alongside the modules they test.
 ### 2.3 Test Execution
 
 ```bash
-# Unit tests only (~155 blocks, ~5s)
+# Unit tests only (220 blocks, ~4s)
 npm test
 
 # Full suite (unit + 7 integration verifications, ~3min)
