@@ -156,12 +156,20 @@ async function main() {
   const { detectSpeechLang, resolveEdgeVoice } = await import(
     "../src/lib/voices.ts"
   );
-  ok("detect Chinese", detectSpeechLang("请看第一段：河水结冰了。") === "zh");
+  ok("detect Chinese as Cantonese-preferring", detectSpeechLang("请看第一段：河水结冰了。") === "yue");
+  ok(
+    "detect Cantonese",
+    detectSpeechLang("你睇吓呢一句，系咩意思？") === "yue",
+  );
   ok("detect Spanish", detectSpeechLang("Hola, ¿cómo estás? Gracias.") === "es");
   ok("detect English", detectSpeechLang("Let's look at the fraction carefully.") === "en");
   ok(
-    "auto resolves Mandarin",
-    resolveEdgeVoice("auto", "这是阅读理解题") === "zh-CN-YunxiNeural",
+    "auto resolves Chinese to Cantonese TTS",
+    resolveEdgeVoice("auto", "这是阅读理解题") === "zh-HK-WanLungNeural",
+  );
+  ok(
+    "auto resolves Cantonese",
+    resolveEdgeVoice("auto", "呢题点解？你睇吓先。") === "zh-HK-WanLungNeural",
   );
   ok(
     "auto resolves Spanish",

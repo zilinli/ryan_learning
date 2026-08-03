@@ -35,12 +35,15 @@ describe("normalizeVoiceId", () => {
 describe("getTutorVoice / resolveEdgeVoice", () => {
   it("returns matching voice metadata", () => {
     expect(getTutorVoice("yunxi").edgeVoice).toBe("zh-CN-YunxiNeural");
-    expect(getTutorVoice("wanLung").lang).toBe("zh");
+    expect(getTutorVoice("wanLung").lang).toBe("yue");
   });
 
-  it("auto picks voice by detected language", () => {
+  it("auto picks Cantonese for Chinese, Spanish/English otherwise", () => {
     expect(resolveEdgeVoice("auto", "你好，请看这一题")).toBe(
-      "zh-CN-YunxiNeural",
+      "zh-HK-WanLungNeural",
+    );
+    expect(resolveEdgeVoice("auto", "你睇吓呢一句，你觉得系咩意思？")).toBe(
+      "zh-HK-WanLungNeural",
     );
     expect(resolveEdgeVoice("auto", "Hola, ¿cómo estás?")).toBe(
       "es-ES-AlvaroNeural",
@@ -56,7 +59,10 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   });
 
   it("switches English fixed voice when chunk is Chinese/Spanish", () => {
-    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-CN-YunxiNeural");
+    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-HK-WanLungNeural");
+    expect(resolveEdgeVoice("ava", "你睇吓呢题点解？")).toBe(
+      "zh-HK-WanLungNeural",
+    );
     expect(resolveEdgeVoice("ryan", "¿Qué significa esto?")).toBe(
       "es-ES-AlvaroNeural",
     );
@@ -71,8 +77,17 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
 });
 
 describe("detectSpeechLang", () => {
-  it("detects Chinese when Han dominates", () => {
-    expect(detectSpeechLang("这一题怎么解？")).toBe("zh");
+  it("prefers Cantonese for Chinese text", () => {
+    expect(detectSpeechLang("这一题怎么解？")).toBe("yue");
+    expect(detectSpeechLang("请看第一段：河水结冰了。")).toBe("yue");
+  });
+
+  it("detects Cantonese markers as Chinese → yue", () => {
+    expect(detectSpeechLang("你睇吓呢一句，你觉得系咩意思？")).toBe("yue");
+    expect(detectSpeechLang("唔好成段用英文教，用粤语同我倾偈啦。")).toBe(
+      "yue",
+    );
+    expect(detectSpeechLang("呢题点解？")).toBe("yue");
   });
 
   it("detects Spanish via marks and common words", () => {
@@ -107,6 +122,7 @@ describe("replyLangFromVoice / replyLanguageInstructions", () => {
     expect(es).toMatch(/Español|español/i);
 
     const auto = replyLanguageInstructions("auto").join("\n");
-    expect(auto).toMatch(/Match the student's language/);
+    expect(auto).toMatch(/粤语|广东话/);
+    expect(auto).toMatch(/Chinese prefers|中文/i);
   });
 });
