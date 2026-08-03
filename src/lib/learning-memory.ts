@@ -13,6 +13,7 @@
 
 import {
   applySm2Decay,
+  DEFAULT_BKT,
   DEFAULT_ELO,
   DEFAULT_SM2,
   difficultyAdjustedBktParams,

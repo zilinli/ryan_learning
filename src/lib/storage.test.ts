@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_MESSAGES_PER_CHAT,
   newSessionId,
+  sessionIdFromUrl,
+  setUrlSession,
   slimMessages,
   titleFromMessages,
 } from "./storage";
@@ -142,5 +144,75 @@ describe("slimMessages", () => {
     );
     expect(slim[0]!.content).toContain("data:image/svg+xml");
     expect(slim[0]!.content).toContain("![直角三角形 ABC]");
+  });
+});
+
+// ── URL-param Session Persistence (Phase 0.7) ──────────────
+
+describe("sessionIdFromUrl", () => {
+  it("returns null when no session param", () => {
+    delete (globalThis as Record<string, unknown>).window;
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "",
+          href: "http://localhost:3000",
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    expect(sessionIdFromUrl()).toBeNull();
+  });
+
+  it("extracts session param from URL", () => {
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "?session=abc-123-def",
+          href: "http://localhost:3000/?session=abc-123-def",
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    expect(sessionIdFromUrl()).toBe("abc-123-def");
+  });
+
+  it("returns null for short session ids", () => {
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "?session=x",
+          href: "http://localhost:3000/?session=x",
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    expect(sessionIdFromUrl()).toBe("x");
+  });
+});
+
+describe("setUrlSession", () => {
+  it("updates window URL with session param", () => {
+    let replaced = "";
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "",
+          href: "http://localhost:3000",
+        },
+        history: {
+          replaceState(_d: unknown, _t: string, u: string) {
+            replaced = u;
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    setUrlSession("my-share-id");
+    expect(replaced).toContain("session=my-share-id");
   });
 });

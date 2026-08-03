@@ -67,6 +67,7 @@ describe("learning-memory", () => {
           incorrect: 1,
           lastSeen: Date.now(),
           sm2State: { ef: 2.5, interval: 7, reps: 3, prevReview: Date.now() },
+          eloState: { rating: 1500, n: 0, lastUpdate: 0 },
         },
       ],
       updatedAt: Date.now(),
