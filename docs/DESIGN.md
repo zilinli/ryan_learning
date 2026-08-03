@@ -1,13 +1,40 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.2.0 · August 2026  
+> Version 0.2.1 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---
 
 ## Architecture at a Glance
 
-![flowchart](figures/DESIGN-0-flowchart.svg)
+```mermaid
+flowchart TB
+    subgraph Browser["Browser (React SPA)"]
+        UI["Chat UI + Composer"]
+        TTS["Speech Player"]
+    end
+
+    subgraph Next["Next.js 16 Server"]
+        API["API Routes"]
+        Agent["Cursor SDK Agent"]
+        Harness["Tutor Harness"]
+        Memory["Learning Memory (BKT)"]
+        Store["History Store"]
+    end
+
+    subgraph External["External Services"]
+        Cursor["Cursor Cloud"]
+        Edge["Edge Neural TTS"]
+        STT["Local STT (8765)"]
+    end
+
+    UI --> API
+    API --> Agent --> Cursor
+    Agent --> Harness
+    API --> Memory --> Store
+    UI --> TTS --> Edge
+    UI --> STT
+```
 
 ## document map
 
@@ -18,6 +45,7 @@
 | **[subsystems/agent-prompt.md](subsystems/agent-prompt.md)** | Agent pipeline, prompt engineering, hint ladder |
 | **[subsystems/geometry-diagrams.md](subsystems/geometry-diagrams.md)** | SVG/Mermaid rendering, geometry engine |
 | **[subsystems/voice-tts-stt.md](subsystems/voice-tts-stt.md)** | Multi-language TTS/STT, speech player |
+| **[subsystems/ui-composer.md](subsystems/ui-composer.md)** | Composer layout — PC / iPad / iPhone / Huawei; English chrome |
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/security-sanitization.md](subsystems/security-sanitization.md)** | Threat model, input sanitization, tool sandboxing |
 | **[subsystems/testing.md](subsystems/testing.md)** | 🧪 Test strategy, gap analysis, regression catalog |
@@ -32,7 +60,7 @@
 
 ### Three Pillars
 
-![mindmap](figures/DESIGN-1-mindmap.svg)
+![Design Philosophy Mindmap](figures/DESIGN-1-mindmap.svg)
 
 ### What We Removed (vs. Typical EdTech)
 
@@ -53,7 +81,29 @@ Spark models this 1:1 physical tutoring session. Every UI decision is tested aga
 
 ### Conversation is the Core
 
-![flowchart](figures/DESIGN-2-flowchart.svg)
+```mermaid
+flowchart LR
+    subgraph Interface["What Ryan Sees"]
+        CHAT["🗨️ Chat messages"]
+        INPUT["⌨️ One input box"]
+        VOICE["🎤 Optional voice button"]
+    end
+
+    subgraph Hidden["What Spark Handles Automatically"]
+        LANG["Language detection"]
+        MATH["LaTeX rendering"]
+        DIAG["Diagram rendering"]
+        TTS["Speech synthesis"]
+        MEM["Memory updates"]
+    end
+
+    CHAT --- INPUT --- VOICE
+    INPUT -.->|"invisible"| LANG
+    INPUT -.->|"invisible"| MATH
+    CHAT -.->|"invisible"| DIAG
+    CHAT -.->|"invisible"| TTS
+    CHAT -.->|"invisible"| MEM
+```
 
 **The student only sees conversation.** Everything else — language detection, math rendering, diagram repair, voice synthesis, memory tracking — happens invisibly.
 
@@ -125,11 +175,35 @@ Many international schools (including BASIS) reference Common Core. Spark's skil
 
 ## Request Flow
 
-![sequenceDiagram](figures/DESIGN-3-sequenceDiagram.svg)
+![Tutoring Flow](figures/DESIGN-3-sequenceDiagram.svg)
 
 ## Tech Stack
 
-![graph](figures/DESIGN-4-graph.svg)
+```mermaid
+graph LR
+    subgraph Frontend
+        React["React 19"]
+        Tailwind["Tailwind CSS 4"]
+        KaTeX["KaTeX"]
+        Mermaid["Mermaid"]
+    end
+    subgraph Backend
+        Next["Next.js 16"]
+        SDK["@cursor/sdk"]
+        BKT2["BKT Engine"]
+    end
+    subgraph Storage
+        LS["localStorage"]
+        IDB["IndexedDB"]
+        FS["File System"]
+    end
+    React --> Next
+    Next --> SDK
+    Next --> BKT2
+    BKT2 --> LS
+    BKT2 --> FS
+    LS --> IDB
+```
 
 ## Deployment
 
@@ -157,6 +231,8 @@ Many international schools (including BASIS) reference Common Core. Spark's skil
 | Cantonese default | Ryan's family language; `detectSpeechLang` uses CJK + Yue signals | Must distinguish Yue from 普通话; 云希 voice forces 普通话 |
 | Client-side BKT | Instant UI feedback, offline-capable | Server only gets snapshot on sync |
 | TypeScript-only (no Python) | Single deploy artifact; no Python runtime dependency | pyBKT has more BKT variants; we implement the canonical 4-param model |
+| English UI chrome | Child-facing labels stay English across devices | Tutoring replies stay multilingual (Cantonese default) — [ui-composer.md](subsystems/ui-composer.md) |
+| One responsive Composer | Same component for PC / iPad / iPhone / Huawei via width + pointer | Phone collapses voice picker so the toolbar never wraps |
 
 ## related work & References
 

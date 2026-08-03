@@ -12,7 +12,44 @@ Convert raw user input + learner context into a structured prompt that drives th
 
 ## 2. Architecture
 
-![flowchart](../figures/agent-prompt-0-flowchart.svg)
+```mermaid
+flowchart TB
+    subgraph Input
+        UT[userText]
+        IM[imageCount / fileSummaries]
+        HI[history · 8 turns]
+        PR[studentProfile]
+        LM[learningMemory · BKT]
+        EN[engagement · streak/badges]
+        VO[voiceId / replyLanguage]
+    end
+
+    subgraph Builder["buildTutorPrompt()"]
+        direction TB
+        L1["audienceLine + styleLine"]
+        L2["studentProfilePromptLines"]
+        L3["learningMemoryPromptLines"]
+        L4["formatEngagementLines"]
+        L5["mediaLines + formatHistory"]
+        L6["formatRules + thinkFirstRules"]
+        L7["homeworkCoach (conditional)"]
+        L8["OUTPUT_HYGIENE"]
+        L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7 --> L8
+    end
+
+    subgraph Output
+        PROMPT["System Prompt · ~4000 chars"]
+    end
+
+    UT --> Builder
+    IM --> Builder
+    HI --> Builder
+    PR --> Builder
+    LM --> Builder
+    EN --> Builder
+    VO --> Builder
+    Builder --> PROMPT
+```
 
 ---
 
@@ -33,13 +70,47 @@ Convert raw user input + learner context into a structured prompt that drives th
 
 ## 4. Hint Ladder
 
-![flowchart](../figures/agent-prompt-1-flowchart.svg)
+```mermaid
+flowchart TD
+    Q["Student asks conceptual question"]
+    L0["L0 · Locate / Clarify\n→ What do you notice?"]
+    L1["L1 · Interactive Choice\n→ 2–3 options · Which do you pick?"]
+    L15["L1.5 · Explain Reasoning\n→ Why B? What clues?"]
+    L2["L2 · Process Nudge\n→ Try ___ method · No key numbers"]
+    L25["L2.5 · Second Chance\n→ Wrong → re-check this part"]
+    L3["L3 · Stronger Scaffold\n→ Still stuck → more hints"]
+    FULL["Full Solution\n→ Only if explicitly asked"]
+
+    Q --> L0
+    L0 --> L1
+    L1 --> L15
+    L15 -->|"correct"| L2
+    L15 -->|"wrong"| L25
+    L25 -->|"still wrong"| L3
+    L2 -->|"stuck"| L3
+    L3 -->|"explicit ask"| FULL
+
+    L15 -.->|"2+ 'I don't get it'"| ANALOGY["Analogy Switch\nfractions → pizza\nplace value → money"]
+    ANALOGY --> L2
+```
 
 ---
 
 ## 5. Tool Dispatch
 
-![flowchart](../figures/agent-prompt-2-flowchart.svg)
+```mermaid
+flowchart LR
+    A["Agent decides to use tool"]
+    A --> WS["web_search\nDuckDuckGo → Google\nkid-friendly sources"]
+    A --> FP["fetch_page\nRead URL text"]
+    A --> PY["run_python\nSandbox · 8s timeout"]
+    A --> JS["run_js\nSandbox · 8s timeout"]
+    A --> DG["draw_geometry\nShape spec → SVG markdown image"]
+    A --> RS["recall_learner_skills\nRead BKT mastery snapshot"]
+
+    DG --> IMG["![alt](data:image/svg+xml;base64,…)"]
+    RS --> JSON["JSON · strengths / focus / recent"]
+```
 
 **Tool narration filtering** (`tutor-text-filter.ts`): If the agent says "Let me use web_search…" that chatter is stripped before the student sees the reply.
 

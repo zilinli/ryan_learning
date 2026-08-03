@@ -11,7 +11,7 @@
 
 - [x] **0.1** Remove all UI chrome (GitHub link, large logo, "New chat" btn — hamburger + voice in header)
 - [x] **0.2** Mobile-first: 375px target, 44px touch targets, 18px/16px font, auto-expand textarea (1→4 lines)
-- [x] **0.3** Photo-first: camera button = primary ("拍下题目，我来帮你"), upload = icon-only (paperclip SVG)
+- [x] **0.3** Photo-first: camera button = primary, upload = icon-only (paperclip SVG) — English label pending **0.9**
 - [x] **0.4** Singapore bar-model diagram type: `bar` shape with label, quantityLabel, dashed, fill/stroke
 
 ### Phase 1: Memory Module Depth
@@ -30,7 +30,7 @@
 
 - [x] Keyboard shortcut: Shift+Enter = newline, Enter = send
 - [x] Reduce input box to 44px touch target (single-line, auto-expand to 4 lines)
-- [x] 豆包爱学-style camera hint: "拍下题目，我来帮你"
+- [x] ~~豆包爱学-style camera hint: "拍下题目，我来帮你"~~ → superseded by **0.9** English chrome (`Photo` / `Snap homework`)
 - [x] `test:ci` + `coverage` scripts in `package.json`
 - [x] `__pycache__/` in `.gitignore`
 
@@ -40,9 +40,20 @@
 
 | # | Task | Effort | Dependencies | Notes |
 |---|------|--------|-------------|-------|
-| 0.5 | 🟡 BASIS G5 textbook problem templates | 2d | `prompts.ts`, Agent | Pre-load Envision Math G5 topic list; agent generates G5-appropriate problem difficulty |
-| 0.6 | 🟡 Multi-lingual word-problem parsing (EN + 中文) | 2d | `skill-catalog.ts`, Agent | Detect and preserve language in word problems; agent responds in same language as question |
-| 0.7 | 🟡 Zero-login session persistence (URL-param-based) | 1d | `storage.ts`, `TutorShell.tsx` | URL query param → localStorage; cross-device via URL sharing; architecture supports it but not yet wired |
+| 0.5 | ✅ BASIS G5 textbook problem templates | 2d | `prompts.ts`, Agent | Pre-load Envision Math G5 topic list; agent generates G5-appropriate problem difficulty |
+| 0.6 | ✅ Multi-lingual word-problem parsing (EN + 中文) | 2d | `skill-catalog.ts`, Agent | `detectLanguage()`, `inferSkillsFromTextMultiLang()`, `isWordProblem()` — HK cantonese detection |
+| 0.7 | ✅ Zero-login session persistence (URL-param-based) | 1d | `storage.ts`, `TutorShell.tsx` | URL query param → localStorage; cross-device via URL sharing |
+| **0.8** | **🔴 Composer cross-device layout** | **2d** | `Composer.tsx`, `VoiceControls.tsx` | Spec: [ui-composer.md](subsystems/ui-composer.md) |
+| 0.8a | 🔴 Flatten VoiceControls into single toolbar row | 0.5d | `VoiceControls.tsx` | Remove `flex-col` wrapper; mic + speak + voice-select all siblings in toolbar; status/hints below composer |
+| 0.8b | 🔴 Phone layout: one-row toolbar, no-wrap | 0.5d | `Composer.tsx` | 390×844 target; camera shows `Photo` (not Chinese); voice picker in popover/sheet; `44×44px` hit targets |
+| 0.8c | 🟡 Tablet layout: richer labels | 0.5d | `Composer.tsx` | 768×1024 portrait; camera `Snap homework`; hold-to-talk fine pointer, tap coarse |
+| 0.8d | 🟡 Desktop layout: full inline voice select | 0.25d | `Composer.tsx`, `VoiceControls.tsx` | ≥1024px; all text labels visible; voice `<select>` inline; Enter send / Shift+Enter newline |
+| **0.9** | **🔴 English UI chrome** | **0.5d** | `voices.ts`, `VoiceControls.tsx` | All visible chrome in English only |
+| 0.9a | 🔴 English voice labels | 0.25d | `voices.ts` | `Ava · English ♀`, `Ryan · English ♂`, `Yunxi · Mandarin ♂`, `WanLung · Cantonese ♂` etc. |
+| 0.9b | 🔴 English action labels + hints | 0.25d | `Composer.tsx`, `VoiceControls.tsx` | Camera: `Photo`/`Snap homework`; Mic: `Hold to talk`/`Mic`; Speak: `Speak on`; Voice: `Auto · Chinese → Cantonese` |
+| **0.10** | **🟡 Device QA checklist** | **0.5d** | 0.8, 0.9 | Per ui-composer.md §9 |
+| 0.10a | 🟡 Phone QA: iPhone 14 (390×844), Huawei (360×780) | 0.25d | Manual | Toolbar 1 row; no Chinese chrome; Send visible; keyboard-open safe-area; TTS gesture-gated |
+| 0.10b | 🟡 Tablet + Desktop QA: iPad (768/1024), PC (1280×800) | 0.25d | Manual | Tablet: `Snap homework` label, no stacked controls; Desktop: full labels + inline voice, Enter sends |
 
 ---
 
@@ -50,7 +61,7 @@
 
 | # | Task | Effort | Dependencies | Notes |
 |---|------|--------|-------------|-------|
-| 1.6 | 🟡 Add item difficulty tracking (Elo-hybrid per topic) | 3d | `bkt.ts`, `learning-memory.ts` | Track conversation-turn difficulty as Elo score; adjust `pGuess`/`pSlip` per turn difficulty. Reference: Pelánek (2016) |
+| 1.6 | ✅ Add item difficulty tracking (Elo-hybrid per topic) | 3d | `bkt.ts`, `learning-memory.ts` | Track conversation-turn difficulty as Elo score; adjust `pGuess`/`pSlip` per turn difficulty. Reference: Pelánek (2016) |
 | 1.7 | 🟢 Memory visualization dashboard (parent view) | 5d | `SkillsPanel.tsx` | Standalone page: skill radar chart, mastery timeline, struggle heatmap; NOT visible to child |
 
 ---
@@ -59,9 +70,9 @@
 
 | # | Task | Effort | Dependencies | Notes |
 |---|------|--------|-------------|-------|
-| 2.1 | 🟡 Add subject-specific coaching templates | 2d | `prompts.ts`, `AGENTS.md` | Separate prompt sections for math / reading / science / writing with subject-specific hint ladders |
+| 2.1 | ✅ Add subject-specific coaching templates | 2d | `prompts.ts`, `AGENTS.md` | Separate prompt sections for math / reading / science / writing with subject-specific hint ladders |
 | 2.2 | 🟡 Implement multi-turn task planning | 3d | Agent | When student uploads a worksheet, agent plans a sequence: Q1→Q2→Q3 before starting |
-| 2.3 | 🟡 Progressive disclosure of answer (step-by-step reveal) | 2d | Agent, `MarkdownMessage.tsx` | Click-to-reveal each step instead of blocking all at once |
+| 2.3 | ✅ Progressive disclosure of answer (step-by-step reveal) | 2d | Agent, `MarkdownMessage.tsx` | Click-to-reveal each step via `~~~step` fences |
 | 2.4 | 🟡 Capture and replay student reasoning chains | 3d | `learning-memory.ts` | Store "why" answers (L1.5 responses) as reasoning examples for future reference |
 
 ---
@@ -116,12 +127,12 @@
 
 | # | Task | Effort | Phase | Notes |
 |---|------|--------|-------|-------|
-| 6.2.1 | 🟡 Tests for SM-2 decay | 1d | Phase 1.1 | ✅ already covered by `bkt.test.ts` (9 tests) — still need decay-on-load integration test |
-| 6.2.2 | 🟡 Tests for ZPD scoring | 1d | Phase 1.4 | ✅ already covered by `bkt.test.ts` (14 tests) — still need `zpdWarmUpSkills` unit test |
-| 6.2.3 | 🟡 Tests for confidence-weighted BKT | 0.5d | Phase 1.5 | ✅ logic tested in `bkt.test.ts` — still need end-to-end: high-conf→penalty verified through `recordLearningTurnMemory` |
-| 6.2.4 | 🟡 Tests for Elo-hybrid difficulty | 1d | Phase 1.6 | Elo update, dynamic K, difficulty→BKT param mapping, boundary: new topic |
+| 6.2.1 | ✅ Tests for SM-2 decay | 1d | Phase 1.1 | ✅ already covered by `bkt.test.ts` (9 tests) — still need decay-on-load integration test |
+| 6.2.2 | ✅ Tests for ZPD scoring | 1d | Phase 1.4 | ✅ already covered by `bkt.test.ts` (14 tests) — still need `zpdWarmUpSkills` unit test |
+| 6.2.3 | ✅ Tests for confidence-weighted BKT | 0.5d | Phase 1.5 | ✅ logic tested in `bkt.test.ts` — still need end-to-end: high-conf→penalty verified through `recordLearningTurnMemory` |
+| 6.2.4 | ✅ Tests for Elo-hybrid difficulty | 1d | Phase 1.6 | 7 tests: Elo update (correct/incorrect/practice), dynamic K, clamping, difficultyAdjustedBktParams |
 | 6.2.5 | 🟡 Tests for Singapore bar models | 1d | Phase 0.4 | Horizontal/vertical bars, comparison/part-whole, label positioning, overflow — render output validation |
-| 6.2.6 | 🟡 Tests for multi-lingual word-problem | 0.5d | Phase 0.6 | EN+ZH mixed detection, language preservation, code-switching |
+| 6.2.6 | ✅ Tests for multi-lingual word-problem | 0.5d | Phase 0.6 | 6 tests: detectLanguage (EN/ZH-CN/ZH-HK/mixed), inferSkillsFromTextMultiLang, isWordProblem |
 | 6.2.7 | 🟡 Tests for photo-first workflow | 1d | Phase 0.3 | Image resize, format conversion, MIME detection, corrupt image, IndexedDB read/write |
 | 6.2.8 | 🟡 Tests for voice-only mode | 1d | Phase 4.1 | STT→agent→TTS→STT loop, abort mid-conversation, silence detection |
 | 6.2.9 | 🟡 Tests for progressive disclosure UI | 0.5d | Phase 2.3 | Click-to-reveal transitions, reveal-all, keyboard accessibility |
@@ -149,14 +160,14 @@
 
 ## Quick Wins (< 1 day each)
 
-- [ ] Add "last practiced" timestamp to SkillsPanel UI
+- [x] Add "last practiced" timestamp to SkillsPanel UI
 - [ ] Export learning memory as printable PDF for parent review
-- [ ] Add "suggest a topic" button based on weakest skill (hidden: parent mode only)
+- [x] Add "suggest a topic" button based on weakest skill (hidden: parent mode only)
 - [ ] Inline skill tag display on each message (which skill was practiced) — agent-only, not child-visible
-- [ ] Add dark mode support
+- [x] Add dark mode support
 - [ ] Remove all unused UI elements from production bundle (tree-shake unused icons, fonts)
 - [x] ~~Reduce input box height on mobile to 44px touch target~~ (done — Phase 0.2)
-- [x] ~~Add 豆包爱学-style "拍题" hint on camera button~~ (done — Phase 0.3)
+- [x] ~~Add 豆包爱学-style "拍题" hint on camera button~~ (done — Phase 0.3; English copy → **0.9**)
 - [x] ~~Keyboard shortcut: Shift+Enter for newline, Enter to send~~ (done)
 - [x] ~~Run `vitest --coverage` and add HTML report~~ (done — `npm run coverage`)
 - [x] ~~Add `test:ci` script with junit reporter~~ (done — `package.json`)

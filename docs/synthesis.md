@@ -38,7 +38,56 @@ Every subsystem (BKT, SVG, prompts, harness, storage, sync, STT proxy) is TypeSc
 
 ## Data Flow Summary
 
-![flowchart](figures/synthesis-0-flowchart.svg)
+```mermaid
+flowchart TD
+    subgraph Inputs
+        U["User message"]
+        A["Attachments"]
+        L["Language pref"]
+    end
+
+    subgraph Context
+        P["Student Profile"]
+        M["Learning Memory (BKT)"]
+        E["Engagement"]
+        H["History"]
+    end
+
+    subgraph Processing
+        PR["Prompt Builder"]
+        AG["Cursor Agent"]
+        TO["Tools"]
+    end
+
+    subgraph Outputs
+        TX["Text reply"]
+        DG["Diagrams"]
+        SP["Speech"]
+    end
+
+    subgraph Storage
+        CL["Client (localStorage)"]
+        SV["Server (FS)"]
+    end
+
+    U --> PR
+    A --> PR
+    L --> PR
+    P --> PR
+    M --> PR
+    E --> PR
+    H --> PR
+    PR --> AG
+    AG --> TO
+    TO --> AG
+    AG --> TX
+    AG --> DG
+    TX --> CL
+    TX --> SV
+    M --> CL
+    M --> SV
+    TX --> SP
+```
 
 ## Test Coverage
 
@@ -81,33 +130,26 @@ Every UI element must pass: **"Would a physical tutor sitting next to Ryan have 
 ### What "极简" Means in Practice
 
 ```
-Screen layout (mobile-first, 375px width):
+Screen layout (phone ~390px — iPhone / Huawei):
 
 ┌──────────────────────────────┐
-│  🏠 Spark · Ryan          🎤 │  ← header: name + voice record
+│  ☰  Spark · Ryan         🔊  │  ← header: menu + speak toggle
 │                              │
 │  ┌──────────────────────────┐│
-│  │                          ││
-│  │   "Let's try fractions!  ││  ← chat area: large text,
-│  │    What's 1/2 + 1/4?"    ││     generous spacing,
-│  │                          ││     rendered math inline
+│  │  "Let's try fractions!   ││  ← chat: large type, math,
+│  │   What's 1/2 + 1/4?"     ││     diagrams as <img>
 │  └──────────────────────────┘│
 │                              │
 │  ┌──────────────────────────┐│
-│  │  "I think it's 3/4?"     ││  ← student response
-│  └──────────────────────────┘│
-│                              │
-│  ┌──────────────────────────┐│
-│  │  [diagram: pie chart]    ││  ← SVG rendered as <img>
-│  └──────────────────────────┘│
-│                              │
-│  ┌──────────────────────────┐│
-│  │  Ask anything about      ││  ← single input: keyboard or
-│  │  your homework...      📸││     camera for photo upload
-│  └──────────────────────────┘│
+│  │  Ask anything about      ││
+│  │  your homework…          ││
+│  │  📎  📷 Photo  🎤  🔊  ➤ ││  ← one toolbar row (EN chrome)
+│  └──────────────────────────┘│  ← voice picker collapsed on phone
 │                              │
 └──────────────────────────────┘
 ```
+
+Cross-device composer (PC / iPad / iPhone / Huawei): **[subsystems/ui-composer.md](subsystems/ui-composer.md)**.
 
 ### Design Decisions Driven by "0 基础"
 
@@ -119,7 +161,9 @@ Screen layout (mobile-first, 375px width):
 | No feature flags or badges | A 9-year-old should never wonder "what does this icon mean?" |
 | No multi-step workflows | Every feature accessible in 1 action (click mic = record; click camera = upload photo; type = ask) |
 | White space, not information density | Cognitive bandwidth should be on the *problem*, not the *interface* |
-| Text-first, icons-second | Every button has a text label; icons are supplementary |
+| Text-first, icons-second | Short English labels when space allows; on phone, icons + `title`/`aria-label` OK if hit target ≥44px |
+| English chrome | UI labels stay English; tutoring speech/text may follow student language (Cantonese default) |
+| One toolbar row | Composer actions must not wrap — progressive disclosure for voice language on narrow screens |
 
 ### Design Principles (Tutoring)
 
@@ -134,4 +178,4 @@ Screen layout (mobile-first, 375px width):
 6. **TTS never reads markup** — `cleanTutorSpeechText` strips everything non-speech
 7. **Client-first, server-safe** — localStorage primary, server for cross-device sync
 8. **No Python in production path** — TypeScript-only (except optional STT server)
-9. **Photo-first workflow** — Inspired by 豆包爱学: Ryan can take a photo of his worksheet and ask "帮我看看这道题" — the agent infers the problem from the image and the natural-language question together
+9. **Photo-first workflow** — Inspired by 豆包爱学: Ryan snaps a worksheet photo and asks for help — the agent uses image + text together. Camera chrome is English (`Photo` / `Snap homework`); see [ui-composer.md](subsystems/ui-composer.md).

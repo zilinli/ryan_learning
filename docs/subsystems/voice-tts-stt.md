@@ -6,7 +6,25 @@
 
 ## Architecture
 
-![flowchart](../figures/voice-tts-stt-0-flowchart.svg)
+```mermaid
+flowchart LR
+    subgraph Input
+        Mic["Microphone"] --> WAV["WAV Recorder"]
+        WAV --> API1["/api/transcribe"]
+    end
+
+    subgraph Output
+        Text["Tutor reply"] --> Clean["cleanTutorSpeechText"]
+        Clean --> Chunk["chunkForNeuralTts"]
+        Chunk --> API2["/api/tts"]
+        API2 --> Player["Speech Player"]
+    end
+
+    subgraph Backend
+        API1 --> STT["Local STT :8765"]
+        API2 --> Edge["Edge Neural TTS"]
+    end
+```
 
 ## Voice Inventory
 
@@ -51,3 +69,8 @@
 | `src/api/tts/route.ts` | TTS proxy → Edge Neural |
 | `src/api/transcribe/route.ts` | STT endpoint → local service |
 | `scripts/stt_server.py` | faster-whisper + SenseVoice server |
+| `src/components/VoiceControls.tsx` | Mic / Speak / voice picker UI — layout in [ui-composer.md](ui-composer.md) |
+
+## UI chrome vs tutoring language
+
+Voice **picker labels and hints** are English ([ui-composer.md](ui-composer.md) §6). TTS preview strings and agent reply language remain multilingual; Cantonese stays the Chinese family default.

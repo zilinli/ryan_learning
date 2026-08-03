@@ -8,11 +8,62 @@
 
 The Learning Memory module models **what Ryan knows** across G4 subjects using **Bayesian Knowledge Tracing (BKT)** with a 14-skill catalog aligned to **BASIS International School G4**, **Singapore Math P4**, and **Common Core G4** curricula. See [DESIGN.md § Curriculum Alignment](../DESIGN.md#-curriculum-alignment) for the full mapping.
 
-![flowchart](../figures/memory-bkt-0-flowchart.svg)
+```mermaid
+flowchart LR
+    subgraph Input["Per Turn"]
+        UT["userText"]
+        AT["assistantText"]
+        CT["chatTitle"]
+    end
+
+    subgraph Inference["Skill Inference"]
+        KW["Keyword Matcher"]
+        INF[("inferSkillsFromText")]
+    end
+
+    subgraph Outcome["Outcome Classification"]
+        WIN["looksLikeWin"]
+        STR["looksLikeStruggle"]
+        CONF["parseConfidence"]
+    end
+
+    subgraph BKT2["BKT Update"]
+        BKT3["softBktUpdate(pKnown, outcome)"]
+    end
+
+    subgraph Output["Memory Output"]
+        SK["skills[]"]
+        TP["topics[]"]
+        ST["strengths"]
+        WK["weaknesses"]
+    end
+
+    UT --> INF
+    AT --> INF
+    CT --> INF
+    INF --> BKT3
+    UT --> WIN --> BKT3
+    UT --> STR --> BKT3
+    UT --> CONF --> SK
+    BKT3 --> SK --> TP
+    SK --> ST
+    SK --> WK
+```
 
 ## 2. Algorithm Selection: Why BKT
 
-![graph](../figures/memory-bkt-1-graph.svg)
+```mermaid
+graph TD
+    A["Skill Mastery Problem"] --> B["BKT"]
+    A --> C["Elo Rating"]
+    A --> D["SM-2"]
+    A --> E["DKT"]
+
+    B --> B1["✓ Binary mastery<br/>✓ Single-learner OK<br/>✓ No training data"]
+    C --> C1["✓ Simple (1 param)<br/>✗ Multi-learner design"]
+    D --> D1["✓ Forgetting model<br/>✗ Assumes flashcards"]
+    E --> E1["✓ Rich dependencies<br/>✗ Needs 1000s of logs"]
+```
 
 | Criteria | BKT | Elo | SM-2 | DKT |
 |----------|-----|-----|------|-----|
@@ -48,7 +99,32 @@ Spark conversations aren't binary quizzes. `softBktUpdate` uses a 3-way classifi
 
 ## 5. Skill Catalog (14 micro-skills)
 
-![graph](../figures/memory-bkt-2-graph.svg)
+```mermaid
+graph TD
+    subgraph Math
+        MF["multiplication-facts"]
+        PV["place-value"] --> DC["decimals"]
+        FC["fractions-concepts"]
+        MF --> EF["equivalent-fractions"]
+        FC --> EF
+        EF --> WP["fraction-word-problems"]
+        FC --> WP
+        MF --> DB["division-basics"]
+        GA["geometry-angles"]
+        MF --> GM["geometry-measure"]
+    end
+    subgraph ELA
+        RE["reading-evidence"]
+        NW["narrative-writing"]
+    end
+    subgraph Science
+        EM["earth-moon-sun"]
+        EC["ecosystems"]
+    end
+    subgraph Humanities
+        AC["ancient-civ"]
+    end
+```
 
 ## 6. Update Lifecycle
 

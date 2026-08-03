@@ -20,7 +20,7 @@
 
 ## Sync Flow
 
-![sequenceDiagram](../figures/storage-sync-0-sequenceDiagram.svg)
+![Sync Process](../figures/storage-sync-0-sequenceDiagram.svg)
 
 ## Retention Rules
 
