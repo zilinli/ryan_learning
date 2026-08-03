@@ -1,0 +1,9 @@
+"use client";
+import { useCallback, useRef, useState } from "react";
+type Props={disabled?:boolean;placeholder?:string;singleLine?:boolean;onSubmit:(text:string)=>void};
+export function ConsoleComposer({disabled,placeholder,singleLine,onSubmit}:Props){
+  const[text,setText]=useState("");const ref=useRef<HTMLTextAreaElement>(null);
+  const submit=useCallback(()=>{const t=text.trim();if(!t||disabled)return;setText("");onSubmit(t);if(ref.current)ref.current.style.height="auto"},[text,disabled,onSubmit]);
+  const kd=useCallback((e:React.KeyboardEvent)=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();submit()}},[submit]);
+  return <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-3 shadow-sm backdrop-blur"><textarea ref={ref} value={text} disabled={disabled} rows={singleLine?1:3} placeholder={placeholder??"Tell Spark what to improve\u2026"} onChange={e=>{setText(e.target.value);if(!singleLine){e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,160)+"px"}}} onKeyDown={kd} className="w-full resize-none bg-transparent py-1 text-[15px] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50"/><div className="mt-2 flex items-center justify-between"><span className="text-[11px] text-[var(--ink-muted)]">{singleLine?"Enter to send":"Enter send \u00b7 Shift+Enter newline"}</span><button type="button" disabled={disabled||!text.trim()} onClick={submit} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--teal)] px-4 py-2 text-sm font-semibold text-white hover:brightness-105 disabled:opacity-40">Send<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg></button></div></div>;
+}
