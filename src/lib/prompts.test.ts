@@ -45,7 +45,10 @@ describe("buildTutorPrompt", () => {
     });
     expect(withImage).toContain("Homework coach");
     expect(withImage).toContain("Photo 1…Photo 2");
-    expect(withImage).toContain("step by step");
+    expect(withImage).toContain("Think-first coaching");
+    expect(withImage).toContain("Hint ladder");
+    expect(withImage).toContain("Anti-spoiler");
+    expect(withImage).toMatch(/Interactive patterns|interactive/i);
 
     const withFile = buildTutorPrompt({
       userText: "see file",
@@ -55,6 +58,17 @@ describe("buildTutorPrompt", () => {
     });
     expect(withFile).toContain("Document text extracted");
     expect(withFile).toContain("hello");
+  });
+
+  it("requires think-first coaching even without attachments", () => {
+    const p = buildTutorPrompt({
+      userText: "How do I solve this equation?",
+      imageCount: 0,
+      voiceId: "ava",
+    });
+    expect(p).toContain("Think-first coaching");
+    expect(p).toContain("Anti-spoiler");
+    expect(p).toMatch(/interactive/i);
   });
 
   it("appends recent history (trimmed)", () => {
