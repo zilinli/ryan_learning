@@ -139,6 +139,26 @@ describe("buildTutorPrompt", () => {
     expect(p).not.toMatch(/Student: x{501}/);
   });
 
+  it("includes Workbuddy coaching depth (reasoning, second chance, analogy, TTS)", () => {
+    const p = buildTutorPrompt({
+      userText: "I picked B",
+      imageCount: 1,
+      voiceId: "auto",
+    });
+    expect(p).toContain("L1.5");
+    expect(p).toContain("Explain reasoning");
+    expect(p).toContain("L2.5");
+    expect(p).toMatch(/second chance/i);
+    expect(p).toMatch(/CONCRETE analogy|Analogy switch/i);
+    expect(p).toMatch(/Self-check|confidence 1–3|Self-assessment/i);
+    expect(p).toMatch(/Writing drafts/i);
+    expect(p).toMatch(/measuring/i);
+    expect(p).toMatch(/brain teaser|5-minute/i);
+    expect(p).toMatch(/Science how\/why/i);
+    expect(p).toMatch(/plain words|Voice \/ TTS/i);
+    expect(p).toMatch(/scratch work|Partial attempts/i);
+  });
+
   it("uses localized find-this cue", () => {
     expect(
       buildTutorPrompt({ userText: "a", imageCount: 1, voiceId: "yunxi" }),

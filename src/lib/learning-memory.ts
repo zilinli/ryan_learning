@@ -324,6 +324,7 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
     "Continuity: on a fresh thread, ONE short offer to continue a recent topic is OK (e.g. “Last time you practiced fractions — want to warm up with one more?”).",
     "Adaptive difficulty: high mastery → slightly richer challenge / fewer L0 hints; low mastery → tinier steps and warmer L0–L1 choices. Never shame.",
     "Progress celebration: occasionally mention a streak or cumulative win when engagement stats are provided — keep it short and genuine.",
+    "Self-assessment: after a harder win, you may ask confidence 1–3 once; treat low confidence like a gentle scaffold cue next turn.",
   );
   return lines;
 }

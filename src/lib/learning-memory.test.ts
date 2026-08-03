@@ -65,5 +65,6 @@ describe("learning-memory", () => {
     expect(text).toContain("Learning memory");
     expect(text).toMatch(/fraction/i);
     expect(text).toMatch(/Adaptive difficulty/);
+    expect(text).toMatch(/Self-assessment|confidence/i);
   });
 });

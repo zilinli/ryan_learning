@@ -28,6 +28,12 @@ describe("cleanTutorSpeechText", () => {
     expect(out.toLowerCase()).toContain("1 over 2");
   });
 
+  it("speaks square roots and powers for kids", () => {
+    const out = cleanTutorSpeechText("Try $\\sqrt{2}$ and $x^2$.");
+    expect(out.toLowerCase()).toContain("square root of 2");
+    expect(out.toLowerCase()).toContain("squared");
+  });
+
   it("returns empty for blank input", () => {
     expect(cleanTutorSpeechText("   \n  ")).toBe("");
   });

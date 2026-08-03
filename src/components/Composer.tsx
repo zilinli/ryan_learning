@@ -136,7 +136,7 @@ export function Composer({
           value={text}
           disabled={disabled}
           rows={2}
-          placeholder="Ask anything, or add homework photos / PDF…"
+          placeholder="Ask anything — or photo homework / your scratch work…"
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {

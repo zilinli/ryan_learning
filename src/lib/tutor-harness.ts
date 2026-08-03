@@ -448,7 +448,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
   return {
     web_search: {
       description:
-        "Search the public web (DuckDuckGo first, then Google; Wikipedia fallback) for facts, definitions, word meanings, science background, or current info. Use when unsure or when the student asks something that needs lookup. Returns top titles, URLs, and snippets.",
+        "Search the public web (DuckDuckGo first, then Google; Wikipedia fallback) for facts, definitions, word meanings, science background, or current info. For science how/why, prefer kid-friendly sources (NASA Kids, National Geographic Kids, etc.). Use when unsure or when the student asks something that needs lookup. Returns top titles, URLs, and snippets.",
       inputSchema: {
         type: "object",
         properties: {
@@ -569,7 +569,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
     },
     draw_geometry: {
       description:
-        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Use for geometry homework — highlight what to notice, not the final answer.",
+        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Prefer discovery marks (e.g. a side labeled '?') over revealing the final answer. After showing the figure, ask what they notice and invite a measuring/pointing move (ruler thought-experiment or “where is the right angle?”).",
       inputSchema: {
         type: "object",
         properties: {

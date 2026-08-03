@@ -113,9 +113,16 @@ function latexToSpeech(raw: string): string {
   e = e.replace(/\\leq/g, " less than or equal to ");
   e = e.replace(/\\geq/g, " greater than or equal to ");
   e = e.replace(/\\neq/g, " not equal to ");
+  e = e.replace(/\\angle/g, " angle ");
+  e = e.replace(/\\triangle/g, " triangle ");
+  e = e.replace(/\\degree|\\circ/g, " degrees ");
   e = e.replace(/\\left|\\right/g, "");
   e = e.replace(/\\,/g, " ");
   e = e.replace(/\\;/g, " ");
+  // x^{2} / x^2 → x squared (common G4 forms)
+  e = e.replace(/([A-Za-z0-9])\^\{?2\}?/g, "$1 squared");
+  e = e.replace(/([A-Za-z0-9])\^\{?3\}?/g, "$1 cubed");
+  e = e.replace(/([A-Za-z0-9])_\{?([A-Za-z0-9]+)\}?/g, "$1 sub $2");
   e = e.replace(/\\[a-zA-Z]+/g, " ");
   e = e.replace(/[{}^_]/g, " ");
   e = e.replace(/\s+/g, " ").trim();
