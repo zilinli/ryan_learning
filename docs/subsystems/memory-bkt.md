@@ -73,7 +73,7 @@ graph TD
 | Forgetting | ⚠️ v0.3 | ❌ | ✅ built-in | ✅ |
 | TS open-source ref | ✅ MasteryTrace | ❌ Python | ✅ sm2-ts | ❌ |
 
-**Decision:** BKT canonical 4-parameter model (Corbett & Anderson 1995). Elo hybrid + SM-2 decay planned for v0.3.
+**Decision:** BKT canonical 4-parameter model (Corbett & Anderson 1995). Elo hybrid + SM-2 decay are now implemented (v0.2).
 
 ## 3. BKT Equations
 
@@ -167,9 +167,16 @@ Sidebar shows live BKT skill map (strength ≥65% in teal; focus ≤50% in coral
 4. [x1ee7/sm2-spaced-repetition](https://github.com/x1ee7/sm2-spaced-repetition) — Zero-dep TypeScript SM-2
 5. Pelánek, R. (2016). "Applications of the Elo Rating System in Adaptive Educational Systems." *Computers & Education*
 
-## 10. Future Directions (v0.3+)
+## 10. Extended Features (implemented v0.2)
 
-- **SM-2 decay**: Add per-skill ease factor + exponential forgetting curve (ref: sm2-spaced-repetition)
-- **Elo hybrid**: Track per-turn difficulty; adjust BKT params dynamically (ref: Pelánek 2016)
-- **ZPD sequencing**: P(solve) ≈ 0.7 scoring for next-skill recommendation (ref: BKT guide pipeline)
-- **Confidence-weighted updates**: High confidence + wrong = bigger slip penalty
+All planned v0.3+ features are now implemented:
+
+- **SM-2 decay**: `applySm2Decay()`, `sm2Update()`, `outcomeToSm2Quality()` — per-skill ease factor + exponential forgetting curve (ref: sm2-spaced-repetition). 9 tests.
+- **Elo hybrid**: `eloUpdate()`, `difficultyAdjustedBktParams()` — track per-turn difficulty; dynamically adjust BKT `pSlip`/`pGuess`. 7 tests. Ref: Pelánek (2016).
+- **ZPD sequencing**: `zpdScore()` (Gaussian peak at 0.7 P(solve)), `pSolve()`, `jointPSolve()`, `zpdWarmUpSkills()`. 14 tests.
+- **Confidence-weighted updates**: `parseConfidence()` extracts self-report (1–3); high confidence + wrong = steeper slip penalty; low confidence + correct = dampened gain.
+- **Recall cache**: `storeRecallCache()`/`loadRecallCache()` with 5min TTL, invalidated on new turn.
+
+### Remaining (v0.3+)
+
+- Memory visualization dashboard (parent view): skill radar chart, mastery timeline (see [TODO.md](../TODO.md) §1.7)

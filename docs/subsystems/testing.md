@@ -51,13 +51,13 @@ graph TD
 
 ## 2. Current Test Inventory
 
-### 2.1 Unit Tests (23 files, ~155 blocks, all vitest)
+### 2.1 Unit Tests (24 files, 220 tests, all vitest)
 
 All tests live in `src/lib/` alongside the modules they test.
 
 | Category | Files | Coverage |
 |----------|-------|----------|
-| **Memory & BKT** | `bkt.test.ts` (10), `learning-memory.test.ts` (7), `skill-catalog.test.ts` (9) | BKT update (correct/incorrect/practice), mastery helpers, topic inference, skill confidence parsing, strengths/weaknesses, prompt rendering |
+| **Memory & BKT** | `bkt.test.ts` (35+), `learning-memory.test.ts` (7), `skill-catalog.test.ts` (20), `engagement.test.ts` (13) | BKT update, SM-2 decay, ZPD scoring, Elo-hybrid, confidence-weighted BKT, mastery helpers, topic inference, word-problem detection (EN+ZH), language detection, engagement (streaks/badges) |
 | **Voice & TTS** | `voices.test.ts` (15), `tts-text.test.ts` (16), `stt-lang.test.ts` (3), `media.test.ts` (6), `wav-recorder.test.ts` (4) | Voice normalization, language detection (zh→yue, es, en), TTS text cleaning (markdown, LaTeX, SVG silence), streaming sentence extraction, WAV encoding |
 | **Agent & Prompt** | `prompts.test.ts` (8), `tutor-harness.test.ts` (7), `tutor-text-filter.test.ts` (7) | Prompt assembly (profile/memory/engagement/voice locking), Python/JS sandbox, meta-narration scrubbing, streaming delta filter |
 | **Geometry & Diagrams** | `geometry-svg.test.ts` (11), `svg-persist-tts.test.ts` (5), `diagram-tts.test.ts` (2) | SVG sanitize/repair/encode, streaming collapse repair, production bug reproductions, diagram persistence in TTS |
@@ -109,16 +109,16 @@ npm run verify:all
 | **File Payload** | `file-payload.ts` | Untested — file handling for uploads |
 | **API Routes (8 total)** | All `src/app/api/**/route.ts` | Only indirect coverage via verify scripts; no route-level unit tests for error codes, validation, edge cases |
 
-### 3.3 Coverage for Planned Features (v0.3+)
+### 3.3 Coverage for Next Features (Phase 0.8–5.x)
+
+✅ Already covered (smoke tests done):
+- SM-2 decay (9 tests), ZPD scoring (14 tests), confidence-weighted BKT, Elo-hybrid (7 tests), multi-lingual word-problem (11 tests) — all in `bkt.test.ts` + `skill-catalog.test.ts`
+
+🟡 Tests still needed:
 
 | Feature | Tests Needed |
 |---------|-------------|
-| SM-2 forgetting decay (`bkt.ts` + `learning-memory.ts`) | `bkt.test.ts`: decay curve correctness, ease-factor clamping, days-since-last-review weighting |
-| ZPD scoring (`bkt.ts`) | `bkt.test.ts`: P(solve) computation, geo-mean joint, closeness to target=0.7 |
-| Confidence-weighted BKT (`learning-memory.ts`) | `learning-memory.test.ts`: high-conf+wrong→large penalty, low-conf+correct→small gain |
-| Elo-hybrid difficulty (`bkt.ts`) | `bkt.test.ts`: Elo update equation, dynamic K-value, difficulty→BKT param mapping |
-| Singapore bar-model geometry (`geometry-svg.ts`) | `geometry-svg.test.ts`: horizontal/vertical bars, comparison models, part-whole, label positioning, overflow |
-| Multi-lingual word-problem parsing (`skill-catalog.ts`) | `skill-catalog.test.ts`: EN+ZH mixed detection, language preservation, code-switching handling |
+| Singapore bar-model geometry (`geometry-svg.ts`) | Horizontal/vertical bars, comparison models, part-whole, label positioning, overflow |
 | Photo-first OCR workflow (`Composer.tsx` + `image-process.ts`) | Component test for camera → upload → chat flow; `image-process.test.ts` for resize/format; `photo-vault.test.ts` for IndexedDB read/write |
 | Voice-only mode (`speech-player.ts` + `Composer.tsx`) | `speech-player.test.ts`: queue management, abort/cancel, autoplay on mobile, fallback on error |
 | Progressive disclosure (`MarkdownMessage.tsx`) | Component test for click-to-reveal state transitions |
@@ -287,7 +287,7 @@ jobs:
 
 | Layer | Current | Target v0.3 | Target v1.0 |
 |-------|---------|------------|-------------|
-| `src/lib/*.ts` (pure logic) | ~85% | 90% | 95% |
+| `src/lib/*.ts` (pure logic) | ~90% | 92% | 95% |
 | `src/app/api/**/route.ts` (API) | ~30% (integration only) | 60% | 80% |
 | `src/components/*.tsx` (UI) | 0% | 40% | 70% |
 | Integration verifiers | 7 scripts | 10 scripts | 12 scripts |

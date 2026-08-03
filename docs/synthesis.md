@@ -93,8 +93,8 @@ flowchart TD
 
 | Layer | Tests | Files |
 |-------|-------|-------|
-| Unit (Vitest) | 161 tests | 23 files |
-| System verify | 8 scripts | `verify:*` |
+| Unit (Vitest) | 220 tests | 24 files |
+| System verify | 7 scripts | `verify:*` |
 | Build check | `next build` | CI |
 
 Full suite: `npm run verify:all` (unit + history/upload/tts/stt/voice/diagrams/system).
