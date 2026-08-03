@@ -20,23 +20,7 @@
 
 ## Sync Flow
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as /api/history
-    participant FS as File System
-
-    Client->>API: GET (hydrate on load)
-    API->>FS: Read conversations/
-    FS-->>API: JSON array
-    API-->>Client: Merge with local
-
-    Client->>API: PUT (after chat)
-    API->>FS: Write conversation JSON
-
-    Client->>API: DELETE
-    API->>FS: Remove file
-```
+![sequenceDiagram](../figures/storage-sync-0-sequenceDiagram.svg)
 
 ## Retention Rules
 

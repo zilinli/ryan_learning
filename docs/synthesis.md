@@ -38,56 +38,7 @@ Every subsystem (BKT, SVG, prompts, harness, storage, sync, STT proxy) is TypeSc
 
 ## Data Flow Summary
 
-```mermaid
-flowchart TD
-    subgraph Inputs
-        U["User message"]
-        A["Attachments"]
-        L["Language pref"]
-    end
-
-    subgraph Context
-        P["Student Profile"]
-        M["Learning Memory (BKT)"]
-        E["Engagement"]
-        H["History"]
-    end
-
-    subgraph Processing
-        PR["Prompt Builder"]
-        AG["Cursor Agent"]
-        TO["Tools"]
-    end
-
-    subgraph Outputs
-        TX["Text reply"]
-        DG["Diagrams"]
-        SP["Speech"]
-    end
-
-    subgraph Storage
-        CL["Client (localStorage)"]
-        SV["Server (FS)"]
-    end
-
-    U --> PR
-    A --> PR
-    L --> PR
-    P --> PR
-    M --> PR
-    E --> PR
-    H --> PR
-    PR --> AG
-    AG --> TO
-    TO --> AG
-    AG --> TX
-    AG --> DG
-    TX --> CL
-    TX --> SV
-    M --> CL
-    M --> SV
-    TX --> SP
-```
+![flowchart](figures/synthesis-0-flowchart.svg)
 
 ## Test Coverage
 

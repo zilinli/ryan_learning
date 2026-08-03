@@ -16,38 +16,7 @@ Spark's testing strategy follows three principles:
 
 ### Test Pyramid
 
-```mermaid
-graph TD
-    subgraph Top["Small · Slow · Flaky"]
-        E2E["E2E: verify-system.mjs"]
-    end
-
-    subgraph Middle["Medium"]
-        INT1["verify-voice.mjs"]
-        INT2["verify-tts.mjs"]
-        INT3["verify-stt.mjs"]
-        INT4["verify-diagrams.mjs"]
-        INT5["verify-history.mjs"]
-        INT6["verify-upload.mjs"]
-    end
-
-    subgraph Bottom["Large · Fast · Reliable"]
-        U1["23 vitest files · ~155 blocks"]
-    end
-
-    E2E --> INT1
-    E2E --> INT2
-    E2E --> INT3
-    E2E --> INT4
-    E2E --> INT5
-    E2E --> INT6
-    INT1 --> U1
-    INT2 --> U1
-    INT3 --> U1
-    INT4 --> U1
-    INT5 --> U1
-    INT6 --> U1
-```
+![graph](../figures/testing-0-graph.svg)
 
 ## 2. Current Test Inventory
 

@@ -7,34 +7,7 @@
 
 ## Architecture at a Glance
 
-```mermaid
-flowchart TB
-    subgraph Browser["Browser (React SPA)"]
-        UI["Chat UI + Composer"]
-        TTS["Speech Player"]
-    end
-
-    subgraph Next["Next.js 16 Server"]
-        API["API Routes"]
-        Agent["Cursor SDK Agent"]
-        Harness["Tutor Harness"]
-        Memory["Learning Memory (BKT)"]
-        Store["History Store"]
-    end
-
-    subgraph External["External Services"]
-        Cursor["Cursor Cloud"]
-        Edge["Edge Neural TTS"]
-        STT["Local STT (8765)"]
-    end
-
-    UI --> API
-    API --> Agent --> Cursor
-    Agent --> Harness
-    API --> Memory --> Store
-    UI --> TTS --> Edge
-    UI --> STT
-```
+![flowchart](figures/DESIGN-0-flowchart.svg)
 
 ## document map
 
@@ -59,22 +32,7 @@ flowchart TB
 
 ### Three Pillars
 
-```mermaid
-mindmap
-  root((Spark Design))
-    对话优先
-      Chat is the only UI
-      No dashboards, no menus
-      Type or speak — that's it
-    极简风格
-      White space, large type
-      One action per screen
-      No icons without labels
-    0 基础
-      No tutorial needed
-      Placeholder guides action
-      Mistakes are harmless
-```
+![mindmap](figures/DESIGN-1-mindmap.svg)
 
 ### What We Removed (vs. Typical EdTech)
 
@@ -95,29 +53,7 @@ Spark models this 1:1 physical tutoring session. Every UI decision is tested aga
 
 ### Conversation is the Core
 
-```mermaid
-flowchart LR
-    subgraph Interface["What Ryan Sees"]
-        CHAT["🗨️ Chat messages"]
-        INPUT["⌨️ One input box"]
-        VOICE["🎤 Optional voice button"]
-    end
-
-    subgraph Hidden["What Spark Handles Automatically"]
-        LANG["Language detection"]
-        MATH["LaTeX rendering"]
-        DIAG["Diagram rendering"]
-        TTS["Speech synthesis"]
-        MEM["Memory updates"]
-    end
-
-    CHAT --- INPUT --- VOICE
-    INPUT -.->|"invisible"| LANG
-    INPUT -.->|"invisible"| MATH
-    CHAT -.->|"invisible"| DIAG
-    CHAT -.->|"invisible"| TTS
-    CHAT -.->|"invisible"| MEM
-```
+![flowchart](figures/DESIGN-2-flowchart.svg)
 
 **The student only sees conversation.** Everything else — language detection, math rendering, diagram repair, voice synthesis, memory tracking — happens invisibly.
 
@@ -189,60 +125,11 @@ Many international schools (including BASIS) reference Common Core. Spark's skil
 
 ## Request Flow
 
-```mermaid
-sequenceDiagram
-    participant User as Student (Ryan)
-    participant UI as Browser
-    participant API as /api/chat
-    participant Prompt as Prompt Builder
-    participant Agent as Cursor Agent
-    participant Tools as Tutor Harness
-    participant BKT as Learning Memory
-
-    User->>UI: Type / photo question
-    UI->>API: POST { text, attachments, learningMemory, engagement, voiceId }
-    API->>Prompt: buildTutorPrompt(profile, memory, engagement, history)
-    Prompt->>BKT: Read strengths/weaknesses
-    BKT-->>Prompt: Skill map with P(known)
-    Prompt-->>API: Full system prompt
-    API->>Agent: Agent.prompt(systemPrompt, userText)
-    Agent->>Tools: May call web_search, draw_geometry, recall_learner_skills
-    Tools-->>Agent: Tool results
-    Agent-->>API: SSE streaming text
-    API-->>UI: SSE delta chunks
-    UI-->>User: Rendered markdown + diagrams + TTS
-    UI->>BKT: After stream: recordLearningTurnMemory()
-    BKT->>BKT: BKT update per skill
-    BKT->>API: PUT /api/learning (sync)
-```
+![sequenceDiagram](figures/DESIGN-3-sequenceDiagram.svg)
 
 ## Tech Stack
 
-```mermaid
-graph LR
-    subgraph Frontend
-        React["React 19"]
-        Tailwind["Tailwind CSS 4"]
-        KaTeX["KaTeX"]
-        Mermaid["Mermaid"]
-    end
-    subgraph Backend
-        Next["Next.js 16"]
-        SDK["@cursor/sdk"]
-        BKT2["BKT Engine"]
-    end
-    subgraph Storage
-        LS["localStorage"]
-        IDB["IndexedDB"]
-        FS["File System"]
-    end
-    React --> Next
-    Next --> SDK
-    Next --> BKT2
-    BKT2 --> LS
-    BKT2 --> FS
-    LS --> IDB
-```
+![graph](figures/DESIGN-4-graph.svg)
 
 ## Deployment
 

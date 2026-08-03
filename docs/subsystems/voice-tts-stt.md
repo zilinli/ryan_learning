@@ -6,25 +6,7 @@
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    subgraph Input
-        Mic["Microphone"] --> WAV["WAV Recorder"]
-        WAV --> API1["/api/transcribe"]
-    end
-
-    subgraph Output
-        Text["Tutor reply"] --> Clean["cleanTutorSpeechText"]
-        Clean --> Chunk["chunkForNeuralTts"]
-        Chunk --> API2["/api/tts"]
-        API2 --> Player["Speech Player"]
-    end
-
-    subgraph Backend
-        API1 --> STT["Local STT :8765"]
-        API2 --> Edge["Edge Neural TTS"]
-    end
-```
+![flowchart](../figures/voice-tts-stt-0-flowchart.svg)
 
 ## Voice Inventory
 

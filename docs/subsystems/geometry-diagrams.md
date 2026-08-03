@@ -6,15 +6,7 @@
 
 ## Rendering Pipeline
 
-```mermaid
-flowchart LR
-    A["Model emits SVG"] --> B["normalizeTutorMarkdown"]
-    B --> C["repairCollapsedSvg"]
-    C --> D["sanitizeSvg"]
-    D --> E["svgToMarkdownImage (base64)"]
-    E --> F["splitTutorContent"]
-    F --> G["MarkdownMessage: img tag"]
-```
+![flowchart](../figures/geometry-diagrams-0-flowchart.svg)
 
 ### Streaming Repair
 
