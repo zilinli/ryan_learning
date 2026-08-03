@@ -64,6 +64,8 @@ export class NeuralSpeechEngine {
   private activeHandlers: SpeakHandlers = {};
   private playedInStream = false;
   private silentUri: string | null = null;
+  /** Prefetch next chunk(s) while the current one plays — kills inter-paragraph gaps */
+  private prefetch = new Map<string, Promise<ArrayBuffer>>();
 
   isUnlocked() {
     return this.unlocked && !!this.audio;
@@ -142,6 +144,7 @@ export class NeuralSpeechEngine {
     this.pumping = false;
     this.streamBuf = "";
     this.playedInStream = false;
+    this.prefetch.clear();
     const a = this.audio;
     if (a) {
       try {
@@ -197,7 +200,44 @@ export class NeuralSpeechEngine {
     const cleaned = text.trim();
     if (cleaned.length < 2) return;
     this.queue.push(cleaned);
+    this.warmPrefetch(this.activeHandlers);
     void this.pump();
+  }
+
+  private cacheKey(text: string, h: SpeakHandlers): string {
+    return `${this.resolveVoice(text, h)}\0${text}`;
+  }
+
+  /** Kick off TTS for the next 1–2 queued phrases while audio is playing. */
+  private warmPrefetch(h: SpeakHandlers, ahead = 2) {
+    for (let i = 0; i < Math.min(ahead, this.queue.length); i += 1) {
+      const text = this.queue[i]!;
+      const key = this.cacheKey(text, h);
+      if (this.prefetch.has(key)) continue;
+      const gen = this.generation;
+      const req = this.fetchTts(text, h)
+        .then((ab) => {
+          if (gen !== this.generation) {
+            this.prefetch.delete(key);
+          }
+          return ab;
+        })
+        .catch((err) => {
+          this.prefetch.delete(key);
+          throw err;
+        });
+      this.prefetch.set(key, req);
+    }
+  }
+
+  private async takeAudio(text: string, h: SpeakHandlers): Promise<ArrayBuffer> {
+    const key = this.cacheKey(text, h);
+    const pending = this.prefetch.get(key);
+    if (pending) {
+      this.prefetch.delete(key);
+      return pending;
+    }
+    return this.fetchTts(text, h);
   }
 
   private waitEnded(a: HTMLAudioElement, gen: number): Promise<void> {
@@ -216,9 +256,10 @@ export class NeuralSpeechEngine {
       const onErr = () => done(new Error("Audio play failed"));
       a.addEventListener("ended", onEnd);
       a.addEventListener("error", onErr);
+      // Poll frequently so Stop feels instant
       const watch = window.setInterval(() => {
         if (gen !== this.generation) done();
-      }, 150);
+      }, 50);
     });
   }
 
@@ -294,6 +335,8 @@ export class NeuralSpeechEngine {
           return;
         }
         const chunk = this.queue.shift()!;
+        // Overlap: synthesize upcoming chunks while this one plays
+        this.warmPrefetch(h);
         const left = this.queue.length;
         h.onStatus?.(left > 0 ? `Speaking… (${left + 1} left)` : "Speaking…");
 
@@ -302,12 +345,14 @@ export class NeuralSpeechEngine {
             // May fail without gesture — surface error
             await this.unlock();
           }
-          const ab = await this.fetchTts(chunk, h);
+          const ab = await this.takeAudio(chunk, h);
           if (gen !== this.generation) return;
           if (h.shouldContinue && !h.shouldContinue()) {
             this.stop();
             return;
           }
+          // Keep warming while playback runs
+          this.warmPrefetch(h);
           await this.playMp3(ab, gen);
         } catch (err) {
           try {
@@ -315,6 +360,7 @@ export class NeuralSpeechEngine {
             await this.unlock();
             if (gen !== this.generation) return;
             const ab = await this.fetchTts(chunk, h);
+            this.warmPrefetch(h);
             await this.playMp3(ab, gen);
           } catch (err2) {
             const msg =
@@ -325,6 +371,7 @@ export class NeuralSpeechEngine {
                   : "play failed";
             this.activeHandlers.onError?.(msg);
             this.queue = [];
+            this.prefetch.clear();
             return;
           }
         }

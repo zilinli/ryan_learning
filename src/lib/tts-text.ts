@@ -45,8 +45,8 @@ function latexToSpeech(raw: string): string {
   return e ? ` ${e} ` : " ";
 }
 
-/** Split into short phrases so synthesis stays natural and reliable. */
-export function chunkForNeuralTts(text: string, maxLen = 420): string[] {
+/** Split into short phrases so synthesis stays fast and natural. */
+export function chunkForNeuralTts(text: string, maxLen = 220): string[] {
   const cleaned = cleanTutorSpeechText(text);
   if (!cleaned) return [];
   if (cleaned.length <= maxLen) return [cleaned];
@@ -90,8 +90,9 @@ export function pullSpeakableFromBuffer(
   buffer: string,
   opts: { force?: boolean; minChars?: number; maxWaitChars?: number } = {},
 ): { ready: string[]; rest: string } {
-  const minChars = opts.minChars ?? 28;
-  const maxWaitChars = opts.maxWaitChars ?? 160;
+  // Snappy defaults: start speaking as soon as a short clause is ready
+  const minChars = opts.minChars ?? 16;
+  const maxWaitChars = opts.maxWaitChars ?? 90;
   let buf = buffer.replace(/\r\n/g, "\n");
   const ready: string[] = [];
 
@@ -107,7 +108,10 @@ export function pullSpeakableFromBuffer(
     if (!m || m.index === undefined) break;
     const end = m.index + m[0].length;
     // Avoid tiny fragments like "OK."
-    if (cleanTutorSpeechText(buf.slice(0, end)).length < Math.min(12, minChars) && !opts.force) {
+    if (
+      cleanTutorSpeechText(buf.slice(0, end)).length < Math.min(8, minChars) &&
+      !opts.force
+    ) {
       break;
     }
     take(end);
@@ -116,12 +120,20 @@ export function pullSpeakableFromBuffer(
   if (opts.force && buf.trim()) {
     take(buf.length);
   } else if (buf.length >= maxWaitChars) {
-    // Soft break at comma / space so speech starts before the full answer
-    const soft = buf.search(/[,;:，；]\s+| {1}/);
-    if (soft > minChars) {
+    // Soft-break near the wait window (not the first space in the buffer)
+    const windowEnd = Math.min(buf.length, maxWaitChars + 24);
+    let soft = -1;
+    for (let i = windowEnd - 1; i >= minChars; i -= 1) {
+      const ch = buf[i]!;
+      if (",;:，；、 ".includes(ch)) {
+        soft = i;
+        break;
+      }
+    }
+    if (soft >= minChars) {
       take(soft + 1);
-    } else if (buf.length >= maxWaitChars + 40) {
-      take(maxWaitChars);
+    } else {
+      take(Math.min(buf.length, maxWaitChars));
     }
   }
 

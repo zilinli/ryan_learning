@@ -84,4 +84,26 @@ describe("pullSpeakableFromBuffer", () => {
     expect(ready.length).toBeGreaterThanOrEqual(1);
     expect(rest.length).toBeLessThan(long.length);
   });
+
+  it("uses snappy defaults so streaming speaks before 100 chars wait", () => {
+    const clause =
+      "Let's look carefully at the first sentence of the passage and notice the key wording here now";
+    expect(clause.length).toBeGreaterThan(90);
+    const { ready, rest } = pullSpeakableFromBuffer(clause);
+    expect(ready.length).toBeGreaterThanOrEqual(1);
+    expect(ready[0]!.length).toBeGreaterThanOrEqual(16);
+    expect(rest.length).toBeLessThan(clause.length);
+  });
+
+  it("soft-breaks near the wait window, not at the first space", () => {
+    const words = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
+    const { ready } = pullSpeakableFromBuffer(words, {
+      minChars: 16,
+      maxWaitChars: 50,
+    });
+    expect(ready.length).toBe(1);
+    // Should keep a meaningful phrase, not just "word0"
+    expect(ready[0]!.length).toBeGreaterThan(16);
+    expect(ready[0]!.startsWith("word0")).toBe(true);
+  });
 });
