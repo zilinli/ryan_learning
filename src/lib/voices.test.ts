@@ -8,6 +8,7 @@ import {
   replyLangFromVoice,
   replyLanguageInstructions,
   resolveEdgeVoice,
+  resolveReplyLanguage,
   TUTOR_VOICES,
 } from "./voices";
 
@@ -38,9 +39,9 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     expect(getTutorVoice("wanLung").lang).toBe("yue");
   });
 
-  it("auto picks Cantonese for Chinese, Spanish/English otherwise", () => {
+  it("auto picks Mandarin TTS for Mandarin Chinese, Cantonese when marked", () => {
     expect(resolveEdgeVoice("auto", "你好，请看这一题")).toBe(
-      "zh-HK-WanLungNeural",
+      "zh-CN-YunxiNeural",
     );
     expect(resolveEdgeVoice("auto", "你睇吓呢一句，你觉得系咩意思？")).toBe(
       "zh-HK-WanLungNeural",
@@ -59,7 +60,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   });
 
   it("switches English fixed voice when chunk is Chinese/Spanish", () => {
-    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-HK-WanLungNeural");
+    expect(resolveEdgeVoice("ava", "请用中文解释")).toBe("zh-CN-YunxiNeural");
     expect(resolveEdgeVoice("ava", "你睇吓呢题点解？")).toBe(
       "zh-HK-WanLungNeural",
     );
@@ -77,12 +78,12 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
 });
 
 describe("detectSpeechLang", () => {
-  it("prefers Cantonese for Chinese text", () => {
-    expect(detectSpeechLang("这一题怎么解？")).toBe("yue");
-    expect(detectSpeechLang("请看第一段：河水结冰了。")).toBe("yue");
+  it("defaults Chinese without 粤语 markers to Mandarin", () => {
+    expect(detectSpeechLang("这一题怎么解？")).toBe("zh");
+    expect(detectSpeechLang("请看第一段：河水结冰了。")).toBe("zh");
   });
 
-  it("detects Cantonese markers as Chinese → yue", () => {
+  it("detects Cantonese via particles and lexicon", () => {
     expect(detectSpeechLang("你睇吓呢一句，你觉得系咩意思？")).toBe("yue");
     expect(detectSpeechLang("唔好成段用英文教，用粤语同我倾偈啦。")).toBe(
       "yue",
@@ -100,7 +101,7 @@ describe("detectSpeechLang", () => {
   });
 });
 
-describe("replyLangFromVoice / replyLanguageInstructions", () => {
+describe("replyLangFromVoice / resolveReplyLanguage", () => {
   it("maps voices to reply language modes", () => {
     expect(replyLangFromVoice("auto")).toBe("auto");
     expect(replyLangFromVoice("ava")).toBe("en");
@@ -110,7 +111,14 @@ describe("replyLangFromVoice / replyLanguageInstructions", () => {
     expect(replyLangFromVoice("xiaoxiao")).toBe("zh");
   });
 
-  it("emits strong language lock instructions for fixed modes", () => {
+  it("locks Auto Chinese turns to 普通话 / 粤语 from the student text", () => {
+    expect(resolveReplyLanguage("auto", "这一题怎么解？")).toBe("zh");
+    expect(resolveReplyLanguage("auto", "你睇吓呢题点解？")).toBe("yue");
+    expect(resolveReplyLanguage("auto", "What is 7 times 8?")).toBe("auto");
+    expect(resolveReplyLanguage("yunxi", "hello")).toBe("zh");
+  });
+
+  it("emits Mandarin-default Auto instructions", () => {
     const zh = replyLanguageInstructions("zh").join("\n");
     expect(zh).toMatch(/普通话/);
     expect(zh).toMatch(/REQUIRED/);
@@ -118,11 +126,8 @@ describe("replyLangFromVoice / replyLanguageInstructions", () => {
     const yue = replyLanguageInstructions("yue").join("\n");
     expect(yue).toMatch(/粤语/);
 
-    const es = replyLanguageInstructions("es").join("\n");
-    expect(es).toMatch(/Español|español/i);
-
     const auto = replyLanguageInstructions("auto").join("\n");
-    expect(auto).toMatch(/粤语|广东话/);
-    expect(auto).toMatch(/Chinese prefers|中文/i);
+    expect(auto).toMatch(/普通话/);
+    expect(auto).toMatch(/Cantonese markers|粤语/);
   });
 });

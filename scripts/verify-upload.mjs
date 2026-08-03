@@ -95,14 +95,12 @@ async function probeChat(payload, label) {
       // ignore
     }
     const good =
-      /event:\s*(status|delta|error)/.test(buf) &&
+      /event:\s*(status|delta|error)/i.test(buf) &&
       !/Type a message or add/.test(buf);
     ok(label, good, buf.slice(0, 100).replace(/\n/g, " "));
     ok(
       `${label} started stream`,
-      buf.includes("thinking") ||
-        buf.includes("delta") ||
-        buf.includes("error"),
+      /thinking|delta|error|working/i.test(buf),
     );
     return good;
   } catch (err) {

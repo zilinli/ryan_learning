@@ -386,7 +386,7 @@ export function VoiceControls({
           : id === "alvaro" || id === "jorge"
             ? "Respuestas en español"
             : id === "auto"
-              ? "Auto: 中文优先粤语 / match language"
+              ? "Auto: 中文默认普通话 / match language"
               : "Replies in English";
     try {
       await getSharedSpeechEngine().unlock();
@@ -449,7 +449,7 @@ export function VoiceControls({
           disabled={disabled}
           onChange={(e) => void changeVoice(e.target.value as TutorVoiceId)}
           className="min-h-11 max-w-[14rem] rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)]"
-          title="Voice + mic language (Auto 中文→粤语 / 普通话 / Español)"
+          title="Voice + mic language (Auto 中文→普通话 / 粤语 / Español)"
           aria-label="Tutor voice and recognition language"
         >
           {TUTOR_VOICES.map((v) => (

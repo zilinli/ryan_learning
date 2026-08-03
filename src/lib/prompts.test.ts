@@ -48,6 +48,9 @@ describe("buildTutorPrompt", () => {
     expect(withImage).toContain("Think-first coaching");
     expect(withImage).toContain("Hint ladder");
     expect(withImage).toContain("Anti-spoiler");
+    expect(withImage).toContain("Recall vs conceptual");
+    expect(withImage).toContain("Ryan");
+    expect(withImage).toContain("BASIS");
     expect(withImage).toMatch(/Interactive patterns|interactive/i);
 
     const withFile = buildTutorPrompt({
@@ -68,7 +71,19 @@ describe("buildTutorPrompt", () => {
     });
     expect(p).toContain("Think-first coaching");
     expect(p).toContain("Anti-spoiler");
+    expect(p).toContain("Output hygiene");
     expect(p).toMatch(/interactive/i);
+  });
+
+  it("includes recent chat titles for continuity", () => {
+    const p = buildTutorPrompt({
+      userText: "hi",
+      imageCount: 0,
+      voiceId: "auto",
+      recentTitles: ["Fractions homework", "Moon phases"],
+    });
+    expect(p).toContain("Recent chats");
+    expect(p).toContain("Fractions homework");
   });
 
   it("appends recent history (trimmed)", () => {

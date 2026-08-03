@@ -77,6 +77,8 @@ export interface ChatRequestBody {
   voiceId?: string;
   /** Explicit reply language: auto | en | zh | yue | es */
   replyLanguage?: string;
+  /** Other chat titles for cross-session continuity */
+  recentTitles?: string[];
   /** @deprecated legacy single image */
   image?: {
     data: string;

@@ -2,6 +2,8 @@ import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachme
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
 import { buildTutorPrompt } from "@/lib/prompts";
+import { DEFAULT_STUDENT_PROFILE } from "@/lib/student-profile";
+import { filterTutorDelta, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
 import type { ChatRequestBody } from "@/lib/types";
 import type { SDKImage } from "@cursor/sdk";
 
@@ -11,6 +13,20 @@ export const maxDuration = 300;
 
 function sseEncode(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function friendlyStatus(raw: string): string | null {
+  const s = (raw || "").trim();
+  if (!s) return null;
+  if (
+    /tool|web_search|fetch_page|run_python|run_js|draw_geometry|harness|mcp|diagram tools/i.test(
+      s,
+    )
+  ) {
+    return "Working…";
+  }
+  if (/think/i.test(s)) return "Thinking…";
+  return s.length > 48 ? `${s.slice(0, 45)}…` : s;
 }
 
 export async function POST(req: Request) {
@@ -41,7 +57,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Reject clearly broken image payloads early (empty base64)
   for (const a of attachments) {
     if (a.kind === "image" && a.data != null && String(a.data).trim().length < 8) {
       return Response.json(
@@ -70,11 +85,20 @@ export async function POST(req: Request) {
         }))
     : undefined;
 
+  const recentTitles = Array.isArray(body.recentTitles)
+    ? body.recentTitles
+        .filter((t): t is string => typeof t === "string")
+        .map((t) => t.slice(0, 80))
+        .slice(0, 5)
+    : undefined;
+
   const prompt = buildTutorPrompt({
     userText: message ?? "",
     imageCount: imageAttachments.length,
     fileSummaries,
     history,
+    recentTitles,
+    studentProfile: DEFAULT_STUDENT_PROFILE,
     voiceId: typeof body.voiceId === "string" ? body.voiceId : undefined,
     replyLanguage:
       typeof body.replyLanguage === "string" ? body.replyLanguage : undefined,
@@ -117,9 +141,10 @@ export async function POST(req: Request) {
       req.signal.addEventListener("abort", onAbort);
 
       try {
-        send("status", { status: "thinking" });
+        send("status", { status: "Thinking…" });
         if (req.signal.aborted) return;
 
+        let visible = "";
         const { agentId, fullText } = await streamTutorReply({
           sessionId,
           text: prompt,
@@ -127,11 +152,20 @@ export async function POST(req: Request) {
           reset,
           signal: req.signal,
           handlers: {
-            onText: (delta) => send("delta", { text: delta }),
-            onStatus: (status) => send("status", { status }),
+            onText: (delta) => {
+              const cleaned = filterTutorDelta(delta);
+              if (!cleaned) return;
+              visible += cleaned;
+              send("delta", { text: cleaned });
+            },
+            onStatus: (status) => {
+              const friendly = friendlyStatus(status);
+              if (friendly) send("status", { status: friendly });
+            },
           },
         });
-        send("done", { agentId, text: fullText });
+        const finalText = scrubTutorVisibleText(visible || fullText);
+        send("done", { agentId, text: finalText });
       } catch (err) {
         if (req.signal.aborted) return;
         const msg = err instanceof Error ? err.message : "Unknown error";
@@ -148,7 +182,6 @@ export async function POST(req: Request) {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
-      // Discourage intermediaries from buffering the whole reply
       "Content-Encoding": "identity",
     },
   });

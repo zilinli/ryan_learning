@@ -8,7 +8,7 @@ import { SetupPanel } from "./SetupPanel";
 import {
   loadSpeakEnabled,
   loadVoiceId,
-  replyLangFromVoice,
+  resolveReplyLanguage,
   type TutorVoiceId,
 } from "@/lib/voices";
 import {
@@ -24,6 +24,13 @@ import {
   hydrateFromServer,
   pushStoreToServer,
 } from "@/lib/history-sync";
+import {
+  engagementSummary,
+  loadEngagement,
+  recordLearningTurn,
+  type EngagementState,
+} from "@/lib/engagement";
+import { loadStudentProfile } from "@/lib/student-profile";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
   ChatMessage,
@@ -197,6 +204,7 @@ export function TutorShell() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
@@ -213,6 +221,7 @@ export function TutorShell() {
     const vid = loadVoiceId();
     setVoiceId(vid);
     voiceIdRef.current = vid;
+    setEngagement(loadEngagement());
   }, []);
 
   useEffect(() => {
@@ -392,14 +401,27 @@ export function TutorShell() {
     }
 
     try {
+      const profile = loadStudentProfile();
+      const recentTitles = store.conversations
+        .filter((c) => c.sessionId !== sessionId && c.messages.length > 0)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, 5)
+        .map((c) => c.title)
+        .filter((t) => t && t !== "New chat");
+
       const full = await consumeChatStream(
         {
           sessionId,
           message: payload.text,
           reset: needReset,
           history: needReset ? undefined : history,
+          recentTitles,
           voiceId: voiceIdRef.current,
-          replyLanguage: replyLangFromVoice(voiceIdRef.current),
+          replyLanguage: resolveReplyLanguage(
+            voiceIdRef.current,
+            payload.text,
+            profile.preferredChinese,
+          ),
           attachments: payload.attachments.map((a) => ({
             name: a.name,
             mimeType: a.mimeType,
@@ -428,6 +450,7 @@ export function TutorShell() {
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
+      setEngagement(recordLearningTurn());
       if (shouldSpeak) {
         speakApiRef.current?.finish(full);
       }
@@ -510,6 +533,9 @@ export function TutorShell() {
         conversations={store.conversations}
         activeId={store.activeId}
         disabled={busy}
+        engagementLabel={
+          engagement ? engagementSummary(engagement) : undefined
+        }
         onNew={startNewSession}
         onSelect={selectConversation}
         onDelete={deleteConversation}

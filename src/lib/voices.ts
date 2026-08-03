@@ -31,10 +31,10 @@ export const DEFAULT_VOICE_ID: TutorVoiceId = "auto";
 export const TUTOR_VOICES: TutorVoice[] = [
   {
     id: "auto",
-    label: "Auto · 自动（中文优先粤语）",
-    edgeVoice: "zh-HK-WanLungNeural",
+    label: "Auto · 自动（中文默认普通话）",
+    edgeVoice: "zh-CN-YunxiNeural",
     preview:
-      "Hi — 你好呀，我用广东话同你倾 — Hola. Chinese replies default to Cantonese.",
+      "Hi — 你好，我用普通话跟你学 — Hola. Chinese defaults to Mandarin; 粤语 when you write Cantonese.",
     lang: "auto",
   },
   {
@@ -52,18 +52,18 @@ export const TUTOR_VOICES: TutorVoice[] = [
     lang: "en",
   },
   {
-    id: "wanLung",
-    label: "雲龍 · 粤语 ♂",
-    edgeVoice: "zh-HK-WanLungNeural",
-    preview: "你好，我係 Spark。我會用廣東話讀出回覆。",
-    lang: "yue",
-  },
-  {
     id: "yunxi",
     label: "云希 · 普通话 ♂",
     edgeVoice: "zh-CN-YunxiNeural",
     preview: "你好，我是 Spark。我会用普通话朗读回复。",
     lang: "zh",
+  },
+  {
+    id: "wanLung",
+    label: "雲龍 · 粤语 ♂",
+    edgeVoice: "zh-HK-WanLungNeural",
+    preview: "你好，我係 Spark。我會用廣東話讀出回覆。",
+    lang: "yue",
   },
   {
     id: "alvaro",
@@ -115,15 +115,15 @@ export function getTutorVoice(id: string | null | undefined): TutorVoice {
 }
 
 /**
- * Cantonese written markers (kept for tooling / future nuance).
- * Product default: any Chinese TTS chunk uses 粤语 voice in Auto mode.
+ * Cantonese written markers (particles / lexicon) that Mandarin rarely uses.
+ * Includes both 繁体 and common 简体 informal spellings from tutor replies.
  */
 const YUE_CHAR_RE =
   /[嘅係唔喺咗喇咩啲冇佢嚟嘢噃㗎喎囉噉咁哋畀諗睇嗰啱嗱嘞唓]/g;
 const YUE_WORD_RE =
   /點解|点解|點樣|点样|邊度|边度|幾時|几时|係咪|系咪|係唔係|系唔系|唔係|唔系|唔好|唔知|唔使|咁樣|咁样|返嚟|出嚟|鍾意|钟意|傾偈|倾偈|嗰個|嗰个|呢度|嗰度|做咩|乜嘢|邊個|边个|幾多|几多|吓啦|喺度|睇吓|講吓|讲吓|你哋|我哋|佢哋|咗喇|嘅啦|先至|仲有|嚟喇|係咩|系咩/g;
 
-/** @internal exported for unit tests */
+/** Exported for unit tests */
 export function countYueSignals(text: string): number {
   const chars = text.match(YUE_CHAR_RE)?.length ?? 0;
   const words = text.match(YUE_WORD_RE)?.length ?? 0;
@@ -131,8 +131,8 @@ export function countYueSignals(text: string): number {
 }
 
 /**
- * Detect dominant language of a TTS chunk.
- * Chinese defaults to Cantonese (粤语) for this product; Spanish via ñ/¿/¡ and common words.
+ * Detect dominant language of a TTS / Auto-reply chunk.
+ * Chinese → Mandarin by default; Cantonese when 粤语 markers appear (BASIS kids prefer 普通话).
  */
 export function detectSpeechLang(text: string): SpeechLang {
   const t = text || "";
@@ -147,11 +147,14 @@ export function detectSpeechLang(text: string): SpeechLang {
   const isChinese =
     (han >= 1 && han * 2 >= Math.max(letters, 1)) || han >= 4;
   if (isChinese) {
-    // Prefer 广东话 whenever the chunk is Chinese (普通话 only via fixed 云希 voice)
-    return "yue";
+    const yue = countYueSignals(t);
+    // Need clear 粤语 signal; otherwise Mandarin (Ryan / BASIS default)
+    if (yue >= 1 && (yue >= 2 || han <= 28 || yue * 3 >= Math.max(han, 1))) {
+      return "yue";
+    }
+    return "zh";
   }
   if (spanishMarks >= 1 || strongEs) return "es";
-  // Accented Spanish vowels without ñ (e.g. "está", "matemáticas")
   if (
     /[áéíóúüÁÉÍÓÚÜ]/.test(t) &&
     /\b(el|la|los|las|de|que|en|un|una|es|por|para|con|del|al)\b/i.test(t)
@@ -254,17 +257,41 @@ export function replyLangFromVoice(
   }
 }
 
+/**
+ * Resolve reply language for this turn.
+ * Fixed voices lock language; Auto inspects the student message (普通话 vs 粤语).
+ */
+export function resolveReplyLanguage(
+  voiceId: TutorVoiceId | string | null | undefined,
+  userText?: string,
+  preferredChinese: "zh" | "yue" = "zh",
+): ReplyLangMode {
+  const locked = replyLangFromVoice(voiceId);
+  if (locked !== "auto") return locked;
+  const text = (userText || "").trim();
+  if (!text) return "auto";
+  const detected = detectSpeechLang(text);
+  if (detected === "yue") return "yue";
+  if (detected === "zh") return preferredChinese === "yue" ? "yue" : "zh";
+  if (detected === "es") return "es";
+  if (detected === "en") {
+    // Pure English → stay Auto so agent can still match if later turns switch
+    return "auto";
+  }
+  return "auto";
+}
+
 /** Strong system instructions so the tutor stays in the selected language. */
 export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
   if (mode === "auto") {
     return [
       "",
-      "[Reply language — Auto — Chinese prefers 粤语]",
-      "- Match the student's language (English / 粤语 / Español).",
-      "- If the student uses Chinese (普通话、简体、繁体、或中英夹杂里的中文), reply in 【粤语 / 广东话】by default (粤语书面语或口语都得).",
-      "- Use 普通话 only if the student clearly asks for Mandarin / 普通话 / Putonghua.",
-      "- If the message mixes languages, follow the student's main language (Chinese → 粤语).",
-      "- Homework photos may be in English even if the student chats in Chinese — still reply in 粤语 (or their chat language), and quote the photo text exactly as written.",
+      "[Reply language — Auto — Chinese defaults to 普通话]",
+      "- Match the student's language (English / 普通话 / 粤语 / Español).",
+      "- If the student writes Chinese WITHOUT clear Cantonese markers (嘅/係/唔/喺/咗/睇吓/点解…), reply in 【简体中文普通话】.",
+      "- Reply in 【粤语】only when the student writes Cantonese markers OR clearly asks for 粤语/广东话.",
+      "- If the message mixes languages, follow the student's main language.",
+      "- Homework photos may be in English even if the student chats in Chinese — still reply in the student's chat language, and quote the photo text exactly as written.",
     ];
   }
   if (mode === "en") {

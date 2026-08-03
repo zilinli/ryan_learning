@@ -11,6 +11,7 @@ type Props = {
   conversations: ConversationRecord[];
   activeId: string;
   disabled?: boolean;
+  engagementLabel?: string;
   onNew: () => void;
   onSelect: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
@@ -34,6 +35,7 @@ export function HistorySidebar({
   conversations,
   activeId,
   disabled,
+  engagementLabel,
   onNew,
   onSelect,
   onDelete,
@@ -57,6 +59,11 @@ export function HistorySidebar({
           <p className="text-[11px] text-[var(--ink-muted)]">
             All chats · keep newest {MAX_TOTAL_MESSAGES.toLocaleString()} msgs
           </p>
+          {engagementLabel ? (
+            <p className="mt-0.5 text-[11px] font-medium text-[var(--teal)]">
+              {engagementLabel}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
