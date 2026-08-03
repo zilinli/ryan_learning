@@ -106,6 +106,7 @@ describe("buildTutorPrompt", () => {
         skills: [],
         recentWins: ["Progress on fractions"],
         recentStruggles: [],
+        sessionDigests: [],
         updatedAt: Date.now(),
       },
       engagement: {
