@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildGeometrySvg,
   geometrySpecToMarkdown,
+  normalizeTutorMarkdown,
   sanitizeSvg,
 } from "./geometry-svg";
 
@@ -20,6 +21,12 @@ describe("sanitizeSvg", () => {
     );
     expect(out).not.toContain("script");
     expect(out).not.toContain("onclick");
+  });
+
+  it("strips leading svg language glue", () => {
+    const out = sanitizeSvg('svg<svg viewBox="0 0 1 1"></svg>');
+    expect(out).toContain("<svg");
+    expect(out!.startsWith("svg")).toBe(false);
   });
 });
 
@@ -51,5 +58,16 @@ describe("buildGeometrySvg", () => {
     expect(geometrySpecToMarkdown({ shapes: [{ type: "circle", center: [10, 10], r: 5 }] })).toContain(
       "```svg",
     );
+  });
+});
+
+describe("normalizeTutorMarkdown", () => {
+  it("repairs bare svg<svg blocks", () => {
+    const out = normalizeTutorMarkdown(
+      'look\nsvg<svg viewBox="0 0 10 10"></svg>\nend',
+    );
+    expect(out).toContain("```svg");
+    expect(out).toContain('<svg viewBox="0 0 10 10"></svg>');
+    expect(out).not.toMatch(/svg<svg/);
   });
 });
