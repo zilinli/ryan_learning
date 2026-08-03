@@ -4,10 +4,10 @@
  */
 
 const META_SENTENCE =
-  /(?:^|[.!?。！？\n]\s*)((?:let me|i(?:'m| am| will|'ll)|okay[, ]+|ok[, ]+|sure[, ]+|now[, ]+|first[, ]+)?(?:(?:just )?(?:check|checking|look(?:ing)? up|search(?:ing)?|fetch(?:ing)?|call(?:ing)?|use|using|run(?:ning)?|draw(?:ing)?|open(?:ing)?)\b[^.!?\n]{0,120}(?:tool|diagram|web_search|fetch_page|run_python|run_js|draw_geometry|harness|svg generator)[^.!?\n]{0,80})[.!?。！？]?)/gi;
+  /(?:^|[.!?。！？\n]\s*)((?:let me|i(?:'m| am| will|'ll)|okay[, ]+|ok[, ]+|sure[, ]+|now[, ]+|first[, ]+)?(?:(?:just )?(?:check|checking|look(?:ing)? up|search(?:ing)?|fetch(?:ing)?|call(?:ing)?|use|using|run(?:ning)?|draw(?:ing)?|open(?:ing)?|recall(?:ing)?)\b[^.!?\n]{0,120}(?:tool|diagram|web_search|fetch_page|run_python|run_js|draw_geometry|recall_learner_skills|harness|svg generator)[^.!?\n]{0,80})[.!?。！？]?)/gi;
 
 const META_LINE =
-  /^\s*(?:[-*•]\s*)?(?:tool(?:\s+call)?|using tool|calling tool|web_search|fetch_page|run_python|run_js|draw_geometry|status:\s*thinking)\b.*$/gim;
+  /^\s*(?:[-*•]\s*)?(?:tool(?:\s+call)?|using tool|calling tool|web_search|fetch_page|run_python|run_js|draw_geometry|recall_learner_skills|status:\s*thinking)\b.*$/gim;
 
 const META_PHRASE =
   /\b(?:let me check what (?:diagram )?tools? we have|i(?:'ll| will) (?:now )?(?:use|call|run) (?:the )?(?:tool|diagram|search)|checking (?:available )?tools?|looking up (?:a )?(?:tool|diagram))\b[^.!?\n]*/gi;

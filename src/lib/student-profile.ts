@@ -1,5 +1,11 @@
 /** Ryan / family student profile + BASIS G4 context (local, editable). */
 
+import {
+  skillStrengths,
+  skillWeaknesses,
+  type LearningMemory,
+} from "./learning-memory";
+
 export type ChineseDialectPref = "zh" | "yue";
 
 export type StudentProfile = {
@@ -66,6 +72,33 @@ export function saveStudentProfile(profile: StudentProfile): void {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Refresh static stronger/focus lists from BKT skill memory so the profile
+ * stays aligned with what Ryan actually practices.
+ */
+export function syncProfileFromSkills(
+  profile: StudentProfile,
+  mem: LearningMemory,
+): StudentProfile {
+  const strong = skillStrengths(mem, 3).map((s) => s.label);
+  const weak = skillWeaknesses(mem, 3).map((s) => s.label);
+  const next: StudentProfile = {
+    ...profile,
+    stronger: strong.length
+      ? strong
+      : profile.stronger.length
+        ? profile.stronger
+        : DEFAULT_STUDENT_PROFILE.stronger,
+    focusAreas: weak.length
+      ? weak
+      : profile.focusAreas.length
+        ? profile.focusAreas
+        : DEFAULT_STUDENT_PROFILE.focusAreas,
+  };
+  saveStudentProfile(next);
+  return next;
 }
 
 /** Lines injected into every tutor prompt */

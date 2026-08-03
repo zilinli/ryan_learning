@@ -13,6 +13,13 @@ import {
   type GeometrySpec,
   type GeomShape,
 } from "./geometry-svg";
+import {
+  learningMemoryPromptLines,
+  normalizeMemory,
+  skillStrengths,
+  skillWeaknesses,
+} from "./learning-memory";
+import { readServerLearningMemory } from "./learning-memory-store";
 
 const MAX_SEARCH_RESULTS = 5;
 const MAX_PAGE_CHARS = 6000;
@@ -617,6 +624,77 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
         }
       },
     },
+    recall_learner_skills: {
+      description:
+        "Read Ryan’s cross-session skill map (Bayesian Knowledge Tracing mastery). Use when choosing difficulty, picking a warm-up, or deciding whether to review prerequisites. Returns strengths, focus/weak skills, and recent notes. Prefer this over guessing what he knows.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          focus: {
+            type: "string",
+            description: "Optional topic keyword to highlight (e.g. fractions)",
+          },
+        },
+      },
+      execute: async (args) => {
+        try {
+          const mem = normalizeMemory(await readServerLearningMemory());
+          const focus = asString(args.focus).toLowerCase();
+          const strong = skillStrengths(mem, 5);
+          const weak = skillWeaknesses(mem, 5);
+          const recent = [...mem.skills]
+            .sort((a, b) => b.lastSeen - a.lastSeen)
+            .slice(0, 8);
+          const focused = focus
+            ? mem.skills.filter(
+                (s) =>
+                  s.id.includes(focus) ||
+                  s.label.toLowerCase().includes(focus) ||
+                  s.topicId.includes(focus),
+              )
+            : [];
+          const payload = {
+            model: "BKT (Bayesian Knowledge Tracing)",
+            strengths: strong.map((s) => ({
+              skill: s.label,
+              mastery: s.mastery,
+              attempts: s.attempts,
+            })),
+            focus: weak.map((s) => ({
+              skill: s.label,
+              mastery: s.mastery,
+              incorrect: s.incorrect,
+              confidence: s.confidence,
+            })),
+            recent: recent.map((s) => ({
+              skill: s.label,
+              mastery: s.mastery,
+              attempts: s.attempts,
+            })),
+            matched: focused.map((s) => ({
+              skill: s.label,
+              mastery: s.mastery,
+            })),
+            wins: mem.recentWins,
+            struggles: mem.recentStruggles,
+            coachNotes: learningMemoryPromptLines(mem).slice(2, 8),
+          };
+          return JSON.stringify(payload, null, 2);
+        } catch (err) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `recall_learner_skills failed: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    },
   };
 }
 
@@ -632,6 +710,8 @@ export function statusLabelForTool(name: string): string {
       return "Running JavaScript…";
     case "draw_geometry":
       return "Drawing a diagram…";
+    case "recall_learner_skills":
+      return "Checking Ryan’s skills…";
     default:
       return `Using ${name}…`;
   }

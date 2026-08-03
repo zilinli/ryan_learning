@@ -31,7 +31,10 @@ import {
   recordLearningTurn,
   type EngagementState,
 } from "@/lib/engagement";
-import { loadStudentProfile } from "@/lib/student-profile";
+import {
+  loadStudentProfile,
+  syncProfileFromSkills,
+} from "@/lib/student-profile";
 import { SPARK_GITHUB_LABEL, SPARK_GITHUB_URL } from "@/lib/site";
 import {
   hydrateLearningMemoryFromServer,
@@ -547,6 +550,7 @@ export function TutorShell() {
         chatTitle: active?.title || titleFromMessages(messages),
       });
       setLearningMemory(nextMem);
+      syncProfileFromSkills(profile, nextMem);
       void pushLearningMemoryToServer(nextMem);
       if (shouldSpeak) {
         speakApiRef.current?.finish(full);
@@ -647,6 +651,7 @@ export function TutorShell() {
                 .join(" · ")
             : undefined
         }
+        learningMemory={learningMemory}
         onNew={startNewSession}
         onSelect={selectConversation}
         onDelete={deleteConversation}

@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import type { ConversationRecord } from "@/lib/types";
+import type { LearningMemory } from "@/lib/learning-memory";
 import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
 import { searchConversations } from "@/lib/history-retention";
 import { SPARK_GITHUB_LABEL, SPARK_GITHUB_URL } from "@/lib/site";
+import { SkillsPanel } from "./SkillsPanel";
 
 type Props = {
   open: boolean;
@@ -13,6 +15,7 @@ type Props = {
   activeId: string;
   disabled?: boolean;
   engagementLabel?: string;
+  learningMemory?: LearningMemory | null;
   onNew: () => void;
   onSelect: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
@@ -37,6 +40,7 @@ export function HistorySidebar({
   activeId,
   disabled,
   engagementLabel,
+  learningMemory,
   onNew,
   onSelect,
   onDelete,
@@ -75,6 +79,8 @@ export function HistorySidebar({
           Close
         </button>
       </div>
+
+      <SkillsPanel memory={learningMemory ?? null} />
 
       <div className="flex flex-col gap-2 px-3 pb-2">
         <button

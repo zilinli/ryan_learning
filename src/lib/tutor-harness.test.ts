@@ -31,6 +31,7 @@ describe("tutor-harness runners", () => {
     expect(statusLabelForTool("web_search")).toMatch(/Search/i);
     expect(statusLabelForTool("run_python")).toMatch(/Python/i);
     expect(statusLabelForTool("draw_geometry")).toMatch(/diagram|Drawing/i);
+    expect(statusLabelForTool("recall_learner_skills")).toMatch(/skill/i);
   });
 });
 

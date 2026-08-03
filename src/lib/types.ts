@@ -85,13 +85,25 @@ export interface ChatRequestBody {
   replyLanguage?: string;
   /** Other chat titles for cross-session continuity */
   recentTitles?: string[];
-  /** Cross-session learning memory snapshot (topics / mastery) */
+  /** Cross-session learning memory snapshot (topics / BKT skills) */
   learningMemory?: {
     topics?: Array<{
       id: string;
       label: string;
       mastery: number;
       solves?: number;
+      lastSeen?: number;
+    }>;
+    skills?: Array<{
+      id: string;
+      label: string;
+      topicId?: string;
+      pKnown?: number;
+      mastery?: number;
+      attempts?: number;
+      correct?: number;
+      incorrect?: number;
+      confidence?: number;
       lastSeen?: number;
     }>;
     recentStruggles?: string[];
