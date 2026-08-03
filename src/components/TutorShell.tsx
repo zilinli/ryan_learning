@@ -41,6 +41,11 @@ import {
   serializeLearningMemoryForChat,
   type LearningMemory,
 } from "@/lib/learning-memory";
+import {
+  ingestStorePhotos,
+  putPhotoInVault,
+  restoreStorePhotosFromVault,
+} from "@/lib/photo-vault";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
   ChatMessage,
@@ -49,6 +54,7 @@ import type {
   HistoryTurn,
 } from "@/lib/types";
 import type { SpeakStreamApi } from "./VoiceControls";
+import { preferCompleteTutorText } from "@/lib/tutor-text-filter";
 
 function messageId() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -69,6 +75,7 @@ async function consumeChatStream(
   body: unknown,
   onDelta: (text: string) => void,
   onStatus?: (status: string) => void,
+  onReplace?: (text: string) => void,
 ): Promise<string> {
   const payload = JSON.stringify(body);
 
@@ -122,10 +129,19 @@ async function consumeChatStream(
         if (event === "error" && data.error) {
           streamError = data.error;
         }
-        if (event === "done" && data.text && !full) {
-          full = data.text;
-          onDelta(data.text);
-          gotDelta = true;
+        // Always prefer the server's final text — streaming deltas often glue
+        // English words ("Hello" + "world" → "Helloworld" if spaces were dropped).
+        if (event === "done" && data.text) {
+          const preferred = preferCompleteTutorText(full, data.text);
+          if (!full) {
+            full = preferred;
+            onDelta(preferred);
+            gotDelta = true;
+          } else if (preferred !== full) {
+            full = preferred;
+            onReplace?.(preferred);
+            gotDelta = true;
+          }
         }
       }
       // Let React paint between SSE chunks (critical on iPad)
@@ -256,13 +272,21 @@ export function TutorShell() {
     setStore(loaded);
     setReady(true);
 
-    // Overlay shared server history so every browser sees the same chats
-    void hydrateFromServer(loaded).then((merged) => {
-      setStore(merged);
-      saveConversations(merged);
-      // Upload any local-only chats the server does not have yet
-      void pushStoreToServer(merged);
-    });
+    // Keep homework photos in IndexedDB, then merge server history, then
+    // restore any photos the server JSON no longer carries as base64.
+    void (async () => {
+      await ingestStorePhotos(loaded);
+      const merged = await hydrateFromServer(loaded);
+      const restored = await restoreStorePhotosFromVault(merged);
+      await ingestStorePhotos(restored);
+      setStore(restored);
+      saveConversations(restored);
+      const withMedia = await pushStoreToServer(restored);
+      if (withMedia !== restored) {
+        setStore(withMedia);
+        saveConversations(withMedia);
+      }
+    })();
 
     fetch("/api/setup")
       .then(async (r) => {
@@ -280,7 +304,15 @@ export function TutorShell() {
     const delay = busy ? 1500 : 280;
     saveTimerRef.current = window.setTimeout(() => {
       saveConversations(store);
-      if (!busy) void pushStoreToServer(store);
+      if (!busy) {
+        void (async () => {
+          await ingestStorePhotos(store);
+          const withMedia = await pushStoreToServer(store);
+          if (withMedia !== store) {
+            setStore(withMedia);
+          }
+        })();
+      }
     }, delay);
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
@@ -466,6 +498,18 @@ export function TutorShell() {
           }
         },
         (status) => setAgentStatus(status),
+        (text) => {
+          // Replace glued streaming text with the corrected final reply
+          setStore((prev) => {
+            if (!prev) return prev;
+            const cur = getActiveConversation(prev);
+            if (cur.sessionId !== sessionId) return prev;
+            const msgs = cur.messages.map((m) =>
+              m.id === assistantId ? { ...m, content: text } : m,
+            );
+            return upsertActive(prev, { messages: msgs });
+          });
+        },
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);

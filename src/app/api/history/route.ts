@@ -78,7 +78,7 @@ export async function PUT(req: Request) {
 
   if (Array.isArray(body.conversations)) {
     const saved = await upsertServerConversations(body.conversations);
-    return Response.json({ ok: true, saved });
+    return Response.json({ ok: true, saved: saved.length, conversations: saved });
   }
 
   return Response.json(

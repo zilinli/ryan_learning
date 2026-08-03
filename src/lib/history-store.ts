@@ -197,17 +197,17 @@ export async function upsertServerConversation(
 
 export async function upsertServerConversations(
   records: ConversationRecord[],
-): Promise<number> {
-  let saved = 0;
+): Promise<ConversationRecord[]> {
+  const saved: ConversationRecord[] = [];
   await ensureDir();
   for (const rec of records) {
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
     const clean = await prepareConversationForServer({ ...rec, sessionId: id });
     await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
-    saved += 1;
+    saved.push(clean);
   }
-  if (saved > 0) await enforceServerRetention();
+  if (saved.length > 0) await enforceServerRetention();
   return saved;
 }
 
