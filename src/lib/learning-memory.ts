@@ -3,11 +3,29 @@
  * Combines:
  * - Coarse topic buckets (legacy UI / continuity)
  * - Fine-grained skills with Bayesian Knowledge Tracing (BKT)
+ * - SM-2 spaced repetition for forgetting decay
+ * - Confidence-weighted BKT updates
+ * - ZPD-based warm-up skill selection
+ * - Recall cache for prompt context snippets
  *
  * Stored in localStorage + synced to /api/learning.
  */
 
-import { masteryFromPKnown, pKnownFromMastery, softBktUpdate } from "./bkt";
+import {
+  applySm2Decay,
+  DEFAULT_ELO,
+  DEFAULT_SM2,
+  difficultyAdjustedBktParams,
+  eloUpdate,
+  masteryFromPKnown,
+  outcomeToSm2Quality,
+  pKnownFromMastery,
+  sm2Update,
+  softBktUpdate,
+  zpdScore,
+  type EloState,
+  type Sm2State,
+} from "./bkt";
 import {
   getSkillDef,
   inferSkillsFromText,
@@ -28,7 +46,7 @@ export type SkillMastery = {
   id: string;
   label: string;
   topicId: string;
-  /** BKT P(L) in 0–1 */
+  /** BKT P(L) in 0–1 (after applying SM-2 decay on load) */
   pKnown: number;
   /** 0–100 mirror of pKnown for display / legacy */
   mastery: number;
@@ -38,6 +56,10 @@ export type SkillMastery = {
   /** Last self-report 1–3, if any */
   confidence?: number;
   lastSeen: number;
+  /** SM-2 spaced repetition state for this skill */
+  sm2State: Sm2State;
+  /** Elo-hybrid difficulty rating for this skill/topic */
+  eloState: EloState;
 };
 
 export type LearningMemory = {
@@ -55,6 +77,33 @@ const MAX_TOPICS = 12;
 const MAX_SKILLS = 24;
 const MAX_NOTES = 5;
 
+/** Prerequisite mastery threshold for warm-up eligibility (≥ 60%). */
+const PREREQ_THRESHOLD = 0.6;
+
+// ── Recall cache (for Phase 1.3: avoid duplicate tool calls) ───────
+
+let recallCacheLines: string[] | null = null;
+let recallCacheTimestamp = 0;
+const RECALL_CACHE_TTL_MS = 5 * 60_000; // 5 minutes
+
+/** Store results from a recall_learner_skills tool call for reuse in prompts. */
+export function storeRecallCache(lines: string[]): void {
+  recallCacheLines = lines;
+  recallCacheTimestamp = Date.now();
+}
+
+/** Load cached recall results if they're still fresh. */
+export function loadRecallCache(): string[] | null {
+  if (!recallCacheLines) return null;
+  if (Date.now() - recallCacheTimestamp > RECALL_CACHE_TTL_MS) {
+    recallCacheLines = null;
+    return null;
+  }
+  return recallCacheLines;
+}
+
+// ── Core CRUD ──────────────────────────────────────────────────────
+
 export function emptyLearningMemory(): LearningMemory {
   return {
     topics: [],
@@ -70,7 +119,9 @@ export function loadLearningMemory(): LearningMemory {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return emptyLearningMemory();
-    return normalizeMemory(JSON.parse(raw) as Partial<LearningMemory>);
+    const mem = normalizeMemory(JSON.parse(raw) as Partial<LearningMemory>);
+    // Apply SM-2 decay on load so pKnown reflects time since last review
+    return applyMemoryDecay(mem);
   } catch {
     return emptyLearningMemory();
   }
@@ -95,6 +146,47 @@ function cleanNotes(v: unknown): string[] {
     .map((x) => x.replace(/\s+/g, " ").trim().slice(0, 80))
     .slice(0, MAX_NOTES);
 }
+
+// ── SM-2 Decay ─────────────────────────────────────────────────────
+
+/** Parse SM-2 state from serialised data, defaulting missing fields. */
+function normalizeSm2(raw: unknown): Sm2State {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_SM2 };
+  const o = raw as Record<string, unknown>;
+  return {
+    ef: clamp(typeof o.ef === "number" ? o.ef : DEFAULT_SM2.ef, 1.3, 3.5),
+    interval: Math.max(1, Math.floor(Number(o.interval) || DEFAULT_SM2.interval)),
+    reps: Math.max(0, Math.floor(Number(o.reps) || 0)),
+    prevReview: Number(o.prevReview) || 0,
+  };
+}
+
+/** Parse Elo state from serialised data, defaulting missing fields. */
+function normalizeElo(raw: unknown): EloState {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_ELO };
+  const o = raw as Record<string, unknown>;
+  return {
+    rating: clamp(typeof o.rating === "number" ? o.rating : DEFAULT_ELO.rating, 800, 2600),
+    n: Math.max(0, Math.floor(Number(o.n) || 0)),
+    lastUpdate: Number(o.lastUpdate) || 0,
+  };
+}
+
+/** Apply SM-2 forgetting decay to all skills in memory. */
+export function applyMemoryDecay(mem: LearningMemory): LearningMemory {
+  const now = Date.now();
+  const skills = mem.skills.map((s) => {
+    const decayed = applySm2Decay(s.pKnown, s.sm2State, now);
+    return {
+      ...s,
+      pKnown: decayed,
+      mastery: masteryFromPKnown(decayed),
+    };
+  });
+  return { ...mem, skills };
+}
+
+// ── Normalisation ───────────────────────────────────────────────────
 
 function normalizeSkill(raw: Partial<SkillMastery>): SkillMastery | null {
   if (!raw || typeof raw.id !== "string") return null;
@@ -124,6 +216,8 @@ function normalizeSkill(raw: Partial<SkillMastery>): SkillMastery | null {
         ? clamp(Math.round(raw.confidence), 1, 3)
         : undefined,
     lastSeen: Number(raw.lastSeen) || 0,
+    sm2State: normalizeSm2((raw as Record<string, unknown>).sm2State),
+    eloState: normalizeElo((raw as Record<string, unknown>).eloState),
   };
 }
 
@@ -143,10 +237,11 @@ function skillsFromTopics(topics: TopicMastery[]): SkillMastery[] {
         correct: 0,
         incorrect: 0,
         lastSeen: t.lastSeen,
+        sm2State: { ...DEFAULT_SM2 },
+        eloState: { ...DEFAULT_ELO },
       });
       continue;
     }
-    // Put mass on the first matching skill for that topic
     const primary = defs[0]!;
     out.push({
       id: primary.id,
@@ -158,6 +253,8 @@ function skillsFromTopics(topics: TopicMastery[]): SkillMastery[] {
       correct: 0,
       incorrect: 0,
       lastSeen: t.lastSeen,
+      sm2State: { ...DEFAULT_SM2 },
+      eloState: { ...DEFAULT_ELO },
     });
   }
   return out.slice(0, MAX_SKILLS);
@@ -235,6 +332,8 @@ export function normalizeMemory(
   };
 }
 
+// ── Text Analysis ───────────────────────────────────────────────────
+
 /** @deprecated prefer inferSkillsFromText — kept for tests / topic UI */
 export function inferTopicsFromText(
   text: string,
@@ -294,9 +393,16 @@ export function classifyTurnOutcome(
   return "practice";
 }
 
+// ── Merge ───────────────────────────────────────────────────────────
+
 function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
   const newer = a.lastSeen >= b.lastSeen ? a : b;
   const pKnown = Math.max(a.pKnown, b.pKnown);
+  const mergedSm2 = newer.sm2State.prevReview
+    ? newer.sm2State
+    : a.sm2State.prevReview >= (b.sm2State.prevReview || 0)
+      ? a.sm2State
+      : b.sm2State || { ...DEFAULT_SM2 };
   return {
     id: a.id,
     label: newer.label,
@@ -308,6 +414,8 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
     incorrect: Math.max(a.incorrect, b.incorrect),
     confidence: newer.confidence ?? a.confidence ?? b.confidence,
     lastSeen: Math.max(a.lastSeen, b.lastSeen),
+    sm2State: mergedSm2,
+    eloState: newer.eloState.n > 0 ? newer.eloState : (b.eloState.n > 0 ? b.eloState : a.eloState),
   };
 }
 
@@ -328,7 +436,7 @@ export function mergeLearningMemory(
     .slice(0, MAX_SKILLS);
   const newer = (na.updatedAt || 0) >= (nb.updatedAt || 0) ? na : nb;
   const older = newer === na ? nb : na;
-  return normalizeMemory({
+  const merged = normalizeMemory({
     skills,
     topics: topicsFromSkills(skills),
     recentStruggles: [
@@ -341,10 +449,15 @@ export function mergeLearningMemory(
     ].slice(0, MAX_NOTES),
     updatedAt: Math.max(na.updatedAt || 0, nb.updatedAt || 0),
   });
+  // Apply SM-2 decay after merge so stale remote skills don't look mastered
+  return applyMemoryDecay(merged);
 }
 
+// ── Record Turn (BKT + SM-2 + Confidence-weighted) ─────────────────
+
 /**
- * Update memory after a tutoring turn using BKT on inferred skills.
+ * Update memory after a tutoring turn using confidence-weighted BKT
+ * and SM-2 spaced repetition updates.
  */
 export function recordLearningTurnMemory(
   prev: LearningMemory,
@@ -363,7 +476,8 @@ export function recordLearningTurnMemory(
   const inferred = inferSkillsFromText(blob);
   if (!inferred.length && !params.userText.trim()) return prev;
 
-  const base = normalizeMemory(prev);
+  // Apply SM-2 decay before updating, so stale pKnown is current
+  const base = applyMemoryDecay(normalizeMemory(prev));
   const skills = [...base.skills];
   const outcome = classifyTurnOutcome(
     params.userText,
@@ -374,16 +488,19 @@ export function recordLearningTurnMemory(
   const touch = (id: string, label: string, topicId: string) => {
     let s = skills.find((x) => x.id === id);
     if (!s) {
+      const def = getSkillDef(id);
       s = {
         id,
-        label,
-        topicId,
+        label: def?.label || label,
+        topicId: def?.topicId || topicId,
         pKnown: 0.25,
         mastery: 25,
         attempts: 0,
         correct: 0,
         incorrect: 0,
         lastSeen: now,
+        sm2State: { ...DEFAULT_SM2 },
+        eloState: { ...DEFAULT_ELO },
       };
       skills.unshift(s);
     }
@@ -391,11 +508,49 @@ export function recordLearningTurnMemory(
     s.topicId = topicId;
     s.lastSeen = now;
     s.attempts += 1;
-    s.pKnown = softBktUpdate(s.pKnown, outcome);
+
+    // ── Confidence-weighted BKT update (Phase 1.5) ──
+    if (confidence && (outcome === "correct" || outcome === "incorrect")) {
+      if (outcome === "incorrect" && confidence >= 2) {
+        // High-conf wrong → amplified slip penalty (larger drop)
+        // Apply BKT twice to simulate stronger negative evidence
+        const first = softBktUpdate(s.pKnown, outcome);
+        s.pKnown = softBktUpdate(first, outcome);
+      } else if (outcome === "correct" && confidence === 1) {
+        // Low-conf correct → dampened gain (half-step)
+        const damped = softBktUpdate(s.pKnown, "practice");
+        s.pKnown = damped;
+      } else {
+        s.pKnown = softBktUpdate(s.pKnown, outcome);
+      }
+    } else {
+      s.pKnown = softBktUpdate(s.pKnown, outcome);
+    }
+
     s.mastery = masteryFromPKnown(s.pKnown);
     if (outcome === "correct") s.correct += 1;
     if (outcome === "incorrect") s.incorrect += 1;
     if (confidence) s.confidence = confidence;
+
+    // ── SM-2 update (Phase 1.1) ──
+    const quality = outcomeToSm2Quality(outcome, confidence);
+    s.sm2State = sm2Update(s.sm2State, quality, now);
+
+    // ── Elo-hybrid difficulty update (Phase 1.6) ──
+    s.eloState = eloUpdate(s.eloState, outcome, now);
+
+    // Re-apply BKT with difficulty-adjusted params for a finer update
+    // (the primary BKT above uses default params; this second pass
+    //  nudges pKnown toward the difficulty-calibrated estimate)
+    const diff = difficultyAdjustedBktParams(s.eloState);
+    const adjustedPKnown = softBktUpdate(
+      s.pKnown,
+      outcome,
+      { ...DEFAULT_BKT, ...diff },
+    );
+    // Blend: 30% difficulty-adjusted, 70% original to avoid oscillation
+    s.pKnown = clamp(s.pKnown * 0.7 + adjustedPKnown * 0.3, 0.001, 0.999);
+    s.mastery = masteryFromPKnown(s.pKnown);
   };
 
   if (inferred.length) {
@@ -403,6 +558,9 @@ export function recordLearningTurnMemory(
   } else if (params.userText.trim().length > 8) {
     touch("general-practice", "general practice", "general");
   }
+
+  // ── Recall cache: invalidate after a turn (stale) ──
+  recallCacheLines = null;
 
   const recentStruggles = [...base.recentStruggles];
   const recentWins = [...base.recentWins];
@@ -427,6 +585,8 @@ export function recordLearningTurnMemory(
   return next;
 }
 
+// ── Analysis Queries ────────────────────────────────────────────────
+
 export function skillStrengths(mem: LearningMemory, limit = 3): SkillMastery[] {
   return [...normalizeMemory(mem).skills]
     .filter((s) => s.attempts > 0 && s.mastery >= 65)
@@ -439,6 +599,21 @@ export function skillWeaknesses(mem: LearningMemory, limit = 3): SkillMastery[] 
     .filter((s) => s.attempts > 0 && (s.mastery <= 50 || (s.confidence ?? 3) <= 1))
     .sort((a, b) => a.mastery - b.mastery || b.incorrect - a.incorrect)
     .slice(0, limit);
+}
+
+/** Check if all prerequisites for a skill are satisfied (≥ PREREQ_THRESHOLD). */
+export function prerequisitesSatisfied(
+  mem: LearningMemory,
+  skillId: string,
+): boolean {
+  const def = getSkillDef(skillId);
+  if (!def?.requires?.length) return true;
+  const skills = normalizeMemory(mem).skills;
+  for (const req of def.requires) {
+    const row = skills.find((s) => s.id === req);
+    if (!row || row.pKnown < PREREQ_THRESHOLD) return false;
+  }
+  return true;
 }
 
 /** Prerequisites that look weak relative to a focus skill. */
@@ -457,14 +632,63 @@ export function weakPrerequisites(mem: LearningMemory, skillId: string): string[
   return weak;
 }
 
+// ── ZPD-based Warm-up Selection (Phase 1.2 + 1.4) ──────────────────
+
+/**
+ * Find the best skill for warm-up / next session:
+ * weakest skill whose prerequisites are all ≥ 60%, scored by ZPD closeness.
+ * Also considers SM-2 interval: skills due for review get a bonus.
+ */
+export function zpdWarmUpSkills(
+  mem: LearningMemory,
+  limit = 3,
+): SkillMastery[] {
+  const decaied = applyMemoryDecay(normalizeMemory(mem));
+  const now = Date.now();
+  const eligible = decaied.skills.filter(
+    (s) => s.attempts > 0 && prerequisitesSatisfied(decaied, s.id),
+  );
+
+  // Score by ZPD closeness to 0.7, with review-due bonus
+  const scored = eligible.map((s) => {
+    let score = zpdScore(s.pKnown);
+    // Bonus for skills past their SM-2 review interval (needs review)
+    const daysSince = (now - s.sm2State.prevReview) / 86_400_000;
+    if (s.sm2State.prevReview > 0 && daysSince >= s.sm2State.interval * 0.5) {
+      score *= 1.15; // 15% bonus for review-due skills
+    }
+    // Penalty for very new skills (low confidence)
+    if (s.attempts <= 2) score *= 0.85;
+    return { skill: s, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score || a.skill.attempts - b.skill.attempts)
+    .slice(0, limit)
+    .map((x) => x.skill);
+}
+
+// ── Prompt Lines ────────────────────────────────────────────────────
+
 /** Compact lines for the tutor system prompt */
 export function learningMemoryPromptLines(mem?: LearningMemory | null): string[] {
-  const m = mem ? normalizeMemory(mem) : null;
+  // Try recall cache first (Phase 1.3)
+  const cached = loadRecallCache();
+  if (cached && mem) {
+    // Cache hit: append freshness note but don't recompute
+    const lines = [...cached];
+    lines.push(
+      `[Skill snapshot cached < 5 min — use this; call recall_learner_skills if you need a fresh read.]`,
+    );
+    return lines;
+  }
+
+  const m = mem ? applyMemoryDecay(normalizeMemory(mem)) : null;
   if (!m || (!m.skills.length && !m.topics.length)) {
     return [
       "",
       "[Learning memory — skills / BKT]",
-      "No prior skill history yet. After this session, update Ryan’s skill map (strengths vs focus areas).",
+      "No prior skill history yet. After this session, update Ryan's skill map (strengths vs focus areas).",
     ];
   }
 
@@ -477,13 +701,14 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
     (s) =>
       `${s.label} (P≈${s.mastery}%` +
       (s.confidence ? `, conf ${s.confidence}/3` : "") +
-      `, n=${s.attempts})`,
+      `, n=${s.attempts}` +
+      `, SM2: int=${s.sm2State.interval}d reps=${s.sm2State.reps})`,
   );
 
   const lines = [
     "",
-    "[Learning memory — skills / Bayesian Knowledge Tracing — USE AS REFERENCE]",
-    "Model: each skill has P(known) updated after turns (correct / incorrect / practice). Prefer this over guessing.",
+    "[Learning memory — skills / BKT + SM-2 spaced repetition — USE AS REFERENCE]",
+    "Model: each skill has P(known) updated after turns (correct / incorrect / practice). SM-2 interval tracks review spacing.",
     `Recent skills: ${skillBits.join("; ") || "—"}.`,
   ];
 
@@ -497,13 +722,25 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
   if (weak.length) {
     const tips = weak.map((s) => {
       const prereq = weakPrerequisites(m, s.id);
+      const zpd = zpdScore(s.pKnown);
       const extra = prereq.length
-        ? ` — check prerequisites first: ${prereq.join(", ")}`
+        ? ` — prereqs weak: ${prereq.join(", ")}`
         : "";
-      return `${s.label} ~${s.mastery}%${extra}`;
+      return `${s.label} ~${s.mastery}% (ZPD: ${zpd.toFixed(2)})${extra}`;
     });
     lines.push(`Focus / weaker skills (gentler scaffolds, more L0–L1): ${tips.join("; ")}.`);
   }
+
+  // ZPD warm-up suggestion (Phase 1.2 + 1.4)
+  const warmUps = zpdWarmUpSkills(m, 2);
+  if (warmUps.length) {
+    lines.push(
+      `ZPD warm-up suggestion (prereqs ready, closest to difficulty sweet spot): ${
+        warmUps.map((s) => `${s.label} (P≈${s.mastery}%)`).join(", ")
+      }.`,
+    );
+  }
+
   if (m.recentWins.length) {
     lines.push(`Recent wins: ${m.recentWins.join(" · ")}.`);
   }
@@ -516,6 +753,7 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
     "Adaptive difficulty: high P(known) → fewer L0 hints; low P(known) → tinier steps. Never shame.",
     "Self-assessment: after a harder win, you may ask confidence 1–3 once; store that feeling in the next turn.",
     "Progress celebration: occasionally mention a streak when engagement stats are provided — short and genuine.",
+    "SM-2 review: skills with interval overdue benefit most from a quick check-in (don't over-drill).",
   );
   return lines;
 }
@@ -557,12 +795,16 @@ export function serializeLearningMemoryForChat(
       incorrect: s.incorrect,
       confidence: s.confidence,
       lastSeen: s.lastSeen,
+      sm2State: s.sm2State,
+      eloState: { rating: s.eloState.rating, n: s.eloState.n, lastUpdate: s.eloState.lastUpdate },
     })),
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),
     updatedAt: m.updatedAt,
   };
 }
+
+// ── Server Sync ─────────────────────────────────────────────────────
 
 export async function hydrateLearningMemoryFromServer(): Promise<LearningMemory> {
   const local = loadLearningMemory();

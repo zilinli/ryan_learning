@@ -364,6 +364,20 @@ export type GeomShape =
       from: GeomPoint;
       to: GeomPoint;
       stroke?: string;
+    }
+  | {
+      /** Singapore bar model — horizontal or vertical bar with label. */
+      type: "bar";
+      from: GeomPoint;
+      /** Width × height of the bar. */
+      size: [number, number];
+      label?: string;
+      /** Label at top/left (quantity label). */
+      quantityLabel?: string;
+      fill?: string;
+      stroke?: string;
+      /** Dashed outline for unknown quantities. */
+      dashed?: boolean;
     };
 
 export type GeometrySpec = {
@@ -518,6 +532,39 @@ function renderShape(shape: GeomShape, idx: number): string {
 
   if (shape.type === "text") {
     return `<text x="${n(shape.at[0])}" y="${n(shape.at[1])}" font-size="${shape.size ?? 14}" fill="#163532" text-anchor="middle">${esc(shape.text)}</text>`;
+  }
+
+  if (shape.type === "bar") {
+    const barFill = shape.fill || "rgba(46,139,132,0.15)";
+    const barStroke = shape.stroke || stroke;
+    const dash = shape.dashed ? ' stroke-dasharray="6 4"' : "";
+    const [w, h] = shape.size;
+    const bw = Math.max(8, n(w));
+    const bh = Math.max(8, n(h));
+    const x = n(shape.from[0]);
+    const y = n(shape.from[1]);
+
+    let out = `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${barFill}" stroke="${barStroke}" stroke-width="2.5" rx="4"${dash}/>`;
+
+    // Label inside the bar (centred)
+    if (shape.label) {
+      const cx = x + bw / 2;
+      const cy = y + bh / 2;
+      out += `<text x="${n(cx)}" y="${n(cy)}" font-size="15" font-weight="600" fill="#163532" text-anchor="middle" dominant-baseline="middle">${esc(shape.label)}</text>`;
+    }
+
+    // Quantity label outside the bar (above for horizontal, left for narrow vertical)
+    if (shape.quantityLabel) {
+      if (bw >= bh * 0.6) {
+        // Horizontal / wide bar → label above
+        out += `<text x="${n(x + bw / 2)}" y="${y - 8}" font-size="12" fill="#5a6b68" text-anchor="middle">${esc(shape.quantityLabel)}</text>`;
+      } else {
+        // Narrow vertical bar → label to the right
+        out += `<text x="${x + bw + 10}" y="${n(y + bh / 2)}" font-size="12" fill="#5a6b68" dominant-baseline="middle">${esc(shape.quantityLabel)}</text>`;
+      }
+    }
+
+    return out;
   }
 
   return `<!-- unknown shape ${idx} -->`;

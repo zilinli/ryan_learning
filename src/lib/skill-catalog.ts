@@ -148,3 +148,70 @@ export function topicLabelForId(topicId: string): string {
   const hit = SKILL_CATALOG.find((s) => s.topicId === topicId);
   return hit?.label || topicId;
 }
+
+// ── Multi-lingual Word-problem Parsing (Phase 0.6) ─────────────────
+
+export type DetectedLanguage = "en" | "zh-CN" | "zh-HK" | "mixed";
+
+/**
+ * Detect the language of student input.
+ * Uses character-density heuristics: CJK block ranges for Chinese,
+ * Latin for English, with special treatment for code-switching.
+ */
+export function detectLanguage(text: string): DetectedLanguage {
+  if (!text || !text.trim()) return "en";
+  const t = text.trim();
+  const cjkCount = (t.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  const latinCount = (t.match(/[a-zA-Z]/g) || []).length;
+  const total = cjkCount + latinCount || 1;
+
+  if (cjkCount === 0) return "en";
+  if (latinCount === 0) {
+    // Check for 繁體 indicators (HK/TW specific chars)
+    if (/[嘅唔咁啲喺嗰嚟嘢嘅啱嘥]{2,}/.test(t)) return "zh-HK";
+    return "zh-CN";
+  }
+
+  // Mixed: determine dominant
+  if (cjkCount / total > 0.55) {
+    return /[嘅唔咁啲喺嗰嚟嘢嘅啱嘥]{2,}/.test(t) ? "zh-HK" : "zh-CN";
+  }
+  if (latinCount / total > 0.55) return "en";
+  return "mixed";
+}
+
+/**
+ * Detect if text contains word-problem phrasing (in any language).
+ */
+export function isWordProblem(text: string): boolean {
+  return /\b(word problem|story|how many|share|equally|一共|应用|應用|share)\b/i.test(
+    text,
+  );
+}
+
+/**
+ * Infer skills with language-aware regex — matches both EN and 中文 patterns.
+ * Also returns the detected language for downstream prompt hints.
+ */
+export function inferSkillsFromTextMultiLang(
+  text: string,
+): { skills: SkillDef[]; language: DetectedLanguage } {
+  const lang = detectLanguage(text);
+  const t = text || "";
+  const hits: SkillDef[] = [];
+
+  for (const skill of SKILL_CATALOG) {
+    if (skill.re.test(t)) hits.push(skill);
+  }
+
+  // Multi-lingual word-problem boost: detect fraction + story patterns
+  if (
+    /\b(fract|分数|分數)/i.test(t) &&
+    /\b(word problem|story|应用|應用|how many|一共)/i.test(t)
+  ) {
+    const wp = BY_ID.get("fraction-word-problems");
+    if (wp && !hits.some((h) => h.id === wp.id)) hits.push(wp);
+  }
+
+  return { skills: hits, language: lang };
+}

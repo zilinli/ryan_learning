@@ -6,6 +6,7 @@ import {
 } from "./voices";
 import {
   DEFAULT_STUDENT_PROFILE,
+  ENVISION_G5_PROMPT_HINT,
   studentProfilePromptLines,
   type StudentProfile,
 } from "./student-profile";
@@ -107,6 +108,46 @@ const RECALL_VS_CONCEPT = [
   "   Times-table singles stay in A. Fraction / word-problem reasoning stays in B.",
   "When unsure between B and C, prefer a tiny hint/check once — never leap to the final number on turn 1 for multi-digit work.",
 ].join("\n");
+
+function subjectCoachingLines(): string {
+  return [
+    "",
+    "[Subject-specific coaching — math / reading / science / writing]",
+    "",
+    "► MATH:",
+    "- Always use LaTeX for equations, numbers, and symbols.",
+    "- For word problems: restate given/asked, draw Singapore bar models when helpful.",
+    "- Hint ladder: (1) 「what do you know?」→ (2) 「what should we find?」→ (3) 「can you draw it?」→ (4) scaffold a similar-but-simpler problem.",
+    "- For mental math: offer estimation first, then precise calculation.",
+    "- Fractions: anchor to «same-size pieces», not just rules. Use food or sharing metaphors (G4–G5 accessible).",
+    "- Praise the process — not just the answer — especially when they self-correct.",
+    "",
+    "► READING / COMPREHENSION:",
+    "- Point to text with blockquotes. Never give an interpretation without the evidence.",
+    "- Ask: 「which sentence tells you that?」before any conclusion.",
+    "- When the answer is explicit in the text: confirm and ask 「can you find another clue?」",
+    "- When the answer requires inference: scaffold with 「what do you already know about…?」then 「what does the text add?」",
+    "- Vocabulary: define with context first, not a dictionary dump. Ask them to invent their own sentence.",
+    "",
+    "► SCIENCE:",
+    "- Connect to something they've seen or touched (「remember when you dropped both balls?」).",
+    "- Use «what if…?」 to probe understanding. Invite small predictions.",
+    "- Diagrams via draw_geometry for models / cycles / comparisons.",
+    "- Avoid jargon unless they've heard it — define in simple words first.",
+    "",
+    "► WRITING:",
+    "- Focus on one paragraph or one paragraph element at a time (topic sentence today, details tomorrow, conclusion next).",
+    "- Give a tiny specific tip (「start your sentence with the subject」), not a rewrite.",
+    "- Ask them to read their sentence aloud — catches many issues faster than rereading.",
+    "- Praise specific choices: 「nice verb here」, 「good detail about the dog's ears」.",
+    "",
+    "► MIXED / UNKNOWN:",
+    "- Ask 「is this math, reading, science, or writing?」then switch to the right mode.",
+    "Progressive disclosure: when showing step-by-step work, wrap each step in a",
+    "`~~~step` code fence (numbered), so the UI can reveal them one at a time.",
+    "",
+  ].join("\n");
+}
 
 function formatEngagementLines(engagement?: EngagementState | null): string[] {
   if (!engagement || engagement.totalSolves <= 0) return [];
@@ -278,6 +319,8 @@ export function buildTutorPrompt(params: {
     audienceLine(mode),
     styleLine(mode),
     ...studentProfilePromptLines(profile),
+    ENVISION_G5_PROMPT_HINT,
+    ...subjectCoachingLines(),
     ...learningMemoryPromptLines(params.learningMemory),
     ...formatEngagementLines(params.engagement),
     "You have lightweight tools: web_search, fetch_page, run_python, run_js, draw_geometry, recall_learner_skills. Use them silently when helpful; never narrate the tool call.",

@@ -14,6 +14,23 @@
   --foreground: var(--ink);
 }
 
+/* Dark mode — toggled via class on <html> */
+.dark,
+html.dark {
+  --ink: #d4e4ea;
+  --ink-muted: #8aa0a8;
+  --teal: #4ad1c0;
+  --coral: #f0887a;
+  --mist: rgba(30, 60, 65, 0.35);
+  --line: rgba(180, 210, 220, 0.15);
+  --bg0: #0f1a1e;
+  --bg1: rgba(20, 80, 90, 0.18);
+  --bg2: rgba(15, 70, 60, 0.14);
+  --background: var(--bg0);
+  --foreground: var(--ink);
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

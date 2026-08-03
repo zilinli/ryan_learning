@@ -103,6 +103,7 @@ describe("buildTutorPrompt", () => {
             lastSeen: Date.now(),
           },
         ],
+        skills: [],
         recentWins: ["Progress on fractions"],
         recentStruggles: [],
         updatedAt: Date.now(),

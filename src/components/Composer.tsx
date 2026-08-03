@@ -41,7 +41,6 @@ export function Composer({
   const [adding, setAdding] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const fileId = useId();
-  const photoId = useId();
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   attachmentsRef.current = attachments;
 
@@ -93,133 +92,133 @@ export function Composer({
   const pickDisabled = disabled || adding || atLimit;
 
   return (
-    <div className="safe-bottom mx-auto w-full max-w-3xl px-3 pt-2 sm:px-4">
+    <div className="safe-bottom mx-auto w-full max-w-2xl px-3 pt-1.5 sm:px-4">
       {attachments.length > 0 ? (
-        <div className="mb-2 flex flex-wrap items-center gap-2 animate-fade-up">
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5 animate-fade-up">
           {attachments.map((a) => (
             <div
               key={a.id}
-              className="relative flex items-center gap-2 rounded-xl border border-[var(--line)] bg-white/80 p-1.5 pr-2"
+              className="relative flex items-center gap-1.5 rounded-xl border border-[var(--line)] bg-white/85 p-1.5 pr-2"
             >
               {a.kind === "image" && a.dataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={a.dataUrl}
                   alt={a.name}
-                  className="h-12 w-12 rounded-lg object-cover ring-1 ring-[var(--line)]"
+                  className="h-10 w-10 rounded-lg object-cover ring-1 ring-[var(--line)]"
                 />
               ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--mist)] text-[10px] font-medium text-[var(--ink)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--mist)] text-[10px] font-medium text-[var(--ink)]">
                   FILE
                 </div>
               )}
-              <div className="max-w-[7rem]">
+              <div className="max-w-[6rem]">
                 <p className="truncate text-xs text-[var(--ink)]">{a.name}</p>
                 <button
                   type="button"
                   onClick={() => removeAttachment(a.id)}
-                  className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+                  className="text-[10px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
                 >
                   Remove
                 </button>
               </div>
             </div>
           ))}
-          <span className="text-xs text-[var(--ink-muted)]">
+          <span className="text-[11px] text-[var(--ink-muted)]">
             {attachments.length}/{MAX_ATTACHMENTS}
           </span>
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-2.5 shadow-[0_12px_40px_-24px_rgba(15,60,70,0.45)] backdrop-blur sm:p-3">
+      <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
         <textarea
           value={text}
           disabled={disabled}
-          rows={2}
-          placeholder="Ask anything — or photo homework / your scratch work…"
-          onChange={(e) => setText(e.target.value)}
+          rows={1}
+          placeholder="Ask anything about your homework…"
+          onChange={(e) => {
+            setText(e.target.value);
+            // Auto-expand height to a max of 4 lines
+            const el = e.target;
+            el.style.height = "auto";
+            el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+          }}
           onKeyDown={(e) => {
+            // Enter = send, Shift+Enter = newline
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               submit();
             }
           }}
-          className="w-full resize-none bg-transparent px-1 py-1 text-base text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50 sm:text-[15px]"
+          className="w-full min-h-[2.75rem] resize-none bg-transparent px-1 py-1 text-lg leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50 sm:text-base"
         />
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* label+input beats button.click() on many Android/Huawei WebViews */}
-            <input
-              id={fileId}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.txt,.md,.csv,application/pdf,text/plain,text/csv"
-              className="sr-only"
-              disabled={pickDisabled}
-              onChange={(e) => {
-                const files = e.target.files ? Array.from(e.target.files) : [];
-                e.target.value = "";
-                void addFiles(files);
-              }}
-            />
-            <input
-              id={photoId}
-              type="file"
-              multiple
-              accept="image/*"
-              className="sr-only"
-              disabled={pickDisabled}
-              onChange={(e) => {
-                const files = e.target.files ? Array.from(e.target.files) : [];
-                e.target.value = "";
-                void addFiles(files);
-              }}
-            />
-            <label
-              htmlFor={fileId}
-              aria-disabled={pickDisabled}
-              className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-[var(--line)] bg-[var(--mist)] px-3 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--teal)] ${
-                pickDisabled ? "pointer-events-none opacity-40" : ""
-              }`}
-            >
-              {adding ? "Adding…" : "Upload"}
-            </label>
-            <label
-              htmlFor={photoId}
-              aria-disabled={pickDisabled}
-              className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-[var(--line)] bg-white/80 px-3 py-2 text-sm text-[var(--ink)] transition hover:border-[var(--teal)] ${
-                pickDisabled ? "pointer-events-none opacity-40" : ""
-              }`}
-            >
-              Photos
-            </label>
-            <button
-              type="button"
-              disabled={pickDisabled}
-              onClick={() => {
-                setError("");
-                setCameraOpen(true);
-              }}
-              className={`min-h-11 rounded-full px-3 py-2 text-sm font-medium transition disabled:opacity-40 ${
-                cameraOpen
-                  ? "bg-[var(--coral)] text-white"
-                  : "bg-[var(--ink)] text-white hover:opacity-90"
-              }`}
-            >
-              Camera
-            </button>
-            <VoiceControls
-              disabled={disabled || adding}
-              voiceEnabled={voiceEnabled}
-              onVoiceEnabledChange={onVoiceEnabledChange}
-              onVoiceIdChange={onVoiceIdChange}
-              onSpeakApi={onSpeakApi}
-              onTranscript={(t) => {
-                setText(t);
-                window.setTimeout(() => submit(t), 0);
-              }}
-            />
-          </div>
+
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <input
+            id={fileId}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.txt,.md,.csv,application/pdf,text/plain,text/csv"
+            className="sr-only"
+            disabled={pickDisabled}
+            onChange={(e) => {
+              const files = e.target.files ? Array.from(e.target.files) : [];
+              e.target.value = "";
+              void addFiles(files);
+            }}
+          />
+          <label
+            htmlFor={fileId}
+            aria-disabled={pickDisabled}
+            className={`inline-flex min-h-[2.75rem] w-10 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
+              pickDisabled ? "pointer-events-none opacity-30" : ""
+            }`}
+            title="Upload file"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </label>
+
+          {/* Camera — primary photo-first action */}
+          <button
+            type="button"
+            disabled={pickDisabled}
+            onClick={() => {
+              setError("");
+              setCameraOpen(true);
+            }}
+            className={`flex min-h-[2.75rem] items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition disabled:opacity-40 ${
+              cameraOpen
+                ? "bg-[var(--coral)] text-white"
+                : "bg-[var(--ink)] text-white hover:opacity-90"
+            }`}
+            title="拍下题目，我来帮你"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            <span className="hidden sm:inline">
+              拍下题目，我来帮你
+            </span>
+            <span className="sm:hidden">Camera</span>
+          </button>
+
+          <VoiceControls
+            disabled={disabled || adding}
+            voiceEnabled={voiceEnabled}
+            onVoiceEnabledChange={onVoiceEnabledChange}
+            onVoiceIdChange={onVoiceIdChange}
+            onSpeakApi={onSpeakApi}
+            onTranscript={(t) => {
+              setText(t);
+              window.setTimeout(() => submit(t), 0);
+            }}
+          />
+
+          <div className="flex-1" />
+
           <button
             type="button"
             disabled={
@@ -228,13 +227,26 @@ export function Composer({
               (!text.trim() && attachments.length === 0)
             }
             onClick={() => submit()}
-            className="min-h-11 w-full rounded-full bg-[var(--teal)] px-5 py-2.5 text-sm font-medium text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            className="inline-flex min-h-[2.75rem] items-center gap-1 rounded-full bg-[var(--teal)] px-4 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {disabled ? "Thinking…" : "Send"}
+            {disabled ? (
+              "Thinking…"
+            ) : (
+              <>
+                <span>Send</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22,2 15,22 11,13 2,9" />
+                </svg>
+              </>
+            )}
           </button>
         </div>
       </div>
-      {error ? <p className="mt-2 text-sm text-[var(--coral)]">{error}</p> : null}
+
+      {error ? (
+        <p className="mt-1.5 text-sm text-[var(--coral)]">{error}</p>
+      ) : null}
       {adding ? (
         <p className="mt-1 text-xs text-[var(--teal)]">Processing files…</p>
       ) : null}

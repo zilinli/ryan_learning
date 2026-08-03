@@ -10,6 +10,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=junit --outputFile=test-results/junit.xml",
+    "coverage": "vitest run --coverage",
     "verify:voice": "node scripts/verify-voice.mjs",
     "verify:tts": "node scripts/verify-tts.mjs",
     "verify:stt": "node scripts/verify-stt.mjs",
@@ -41,6 +43,8 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "jsdom": "^30.0.1",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

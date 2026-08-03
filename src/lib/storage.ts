@@ -20,6 +20,29 @@ const MAX_TITLE_LEN = 42;
 
 export { MAX_TOTAL_MESSAGES };
 
+/** Read sessionId from URL query params (?session=xxx). */
+export function sessionIdFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("session") || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Update browser URL to reflect the active session (for sharing). */
+export function setUrlSession(sessionId: string): void {
+  if (typeof window === "undefined" || !sessionId) return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("session", sessionId);
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    // ignore
+  }
+}
+
 export function newSessionId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

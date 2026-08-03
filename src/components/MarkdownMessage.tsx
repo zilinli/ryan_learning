@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import "katex/dist/katex.min.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -37,6 +37,121 @@ function looksLikeSvg(text: string): boolean {
     /^svg<svg/i.test(t) ||
     /<svg[\s>/][\s\S]*<\/svg>/i.test(t) ||
     /<svgxmlns=/i.test(t)
+  );
+}
+
+// ── Progressive Disclosure (Phase 2.3) ────────────────────────────
+
+export function isStepLanguage(lang: string): boolean {
+  return lang === "step" || lang === "steps";
+}
+
+function parseSteps(body: string): { label: string; content: string }[] {
+  const lines = body.split("\n");
+  const steps: { label: string; content: string }[] = [];
+  let current: { label: string; content: string } | null = null;
+
+  for (const line of lines) {
+    const match = /^(\d+)[.)-]\s+(.+)/.exec(line.trim());
+    if (match) {
+      if (current) steps.push(current);
+      current = { label: `Step ${match[1]}: ${match[2]}`, content: "" };
+    } else if (current) {
+      current.content += (current.content ? "\n" : "") + line;
+    } else {
+      if (!current && line.trim()) {
+        current = { label: "Reveal", content: line };
+      }
+    }
+  }
+  if (current && current.content.trim()) steps.push(current);
+  return steps.length ? steps : [{ label: "Reveal step", content: body }];
+}
+
+type StepState = "hidden" | "revealing" | "revealed";
+
+function StepReveal({
+  steps,
+  variant,
+}: {
+  steps: { label: string; content: string }[];
+  variant: "assistant" | "user";
+}) {
+  const [states, setStates] = useState<StepState[]>(
+    () => steps.map(() => "hidden"),
+  );
+
+  const reveal = (i: number) => {
+    setStates((prev) => {
+      const next = [...prev];
+      next[i] = "revealed";
+      return next;
+    });
+  };
+
+  return (
+    <div
+      className={`my-2 rounded-xl border p-3 ${
+        variant === "user"
+          ? "border-white/30 bg-white/10"
+          : "border-[var(--line)] bg-[var(--mist)]"
+      }`}
+    >
+      <p
+        className={`mb-2 text-[11px] font-semibold uppercase tracking-wide ${
+          variant === "user" ? "text-white/70" : "text-[var(--teal)]"
+        }`}
+      >
+        Step-by-step
+      </p>
+      <p className="mb-2 text-[12px] text-[var(--ink-muted)]">
+        Click each step to reveal — one at a time.
+      </p>
+      {steps.map((step, i) => {
+        const st = states[i]!;
+        const isRevealed = st === "revealed";
+        return (
+          <div
+            key={i}
+            className={`mb-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
+              isRevealed
+                ? "border-[var(--teal)]/35 bg-white"
+                : "cursor-pointer border-[var(--line)] bg-white/60 hover:border-[var(--teal)]/50 hover:bg-white/80"
+            }`}
+            onClick={() => !isRevealed && reveal(i)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && !isRevealed) reveal(i);
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                  isRevealed
+                    ? "bg-[var(--teal)] text-white"
+                    : "bg-[var(--line)] text-[var(--ink-muted)]"
+                }`}
+              >
+                {isRevealed ? "\u2713" : i + 1}
+              </span>
+              <span
+                className={`text-[13px] font-medium ${
+                  isRevealed ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+            {isRevealed ? (
+              <div className="mt-2 ml-7 text-[14px] leading-6 text-[var(--ink)] whitespace-pre-wrap">
+                {step.content}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -121,6 +236,9 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     code: ({ className, children, ...props }) => {
       const lang = fenceLanguage(className);
       const text = nodeText(children).replace(/\n$/, "");
+      if (isStepLanguage(lang)) {
+        return <StepReveal steps={parseSteps(text)} variant="assistant" />;
+      }
       if (isDiagramLanguage(lang) || looksLikeSvg(text)) {
         return (
           <DiagramBlock
@@ -162,7 +280,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         ).props;
         const lang = fenceLanguage(props?.className);
         const body = nodeText(props?.children).replace(/\n$/, "");
-        if (isDiagramLanguage(lang) || looksLikeSvg(body)) {
+        if (isStepLanguage(lang) || isDiagramLanguage(lang) || looksLikeSvg(body)) {
           return <>{children}</>;
         }
       }

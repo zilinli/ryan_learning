@@ -40,6 +40,43 @@ export const BASIS_G4_CURRICULUM = [
   "ELA: reading comprehension with evidence, narrative writing, vocabulary",
 ].join("; ");
 
+/**
+ * Envision Mathematics Grade 5 topic list (BASIS G4 accelerated math).
+ * Reference: ISBN 978-1-4188-4685-5. Used to scope problem difficulty.
+ */
+export const ENVISION_G5_TOPICS = [
+  "Topic 1: Place value (whole numbers & decimals to thousandths)",
+  "Topic 2: Adding & subtracting decimals",
+  "Topic 3: Multiplying multi-digit whole numbers",
+  "Topic 4: Dividing by 1-digit divisors (long division intro)",
+  "Topic 5: Dividing by 2-digit divisors",
+  "Topic 6: Variables & expressions (intro to algebra)",
+  "Topic 7: Multiplying decimals",
+  "Topic 8: Dividing decimals",
+  "Topic 9: Adding & subtracting fractions",
+  "Topic 10: Adding & subtracting mixed numbers",
+  "Topic 11: Multiplying & dividing fractions and mixed numbers",
+  "Topic 12: Volume of solids",
+  "Topic 13: Units of measure",
+  "Topic 14: Data (line plots, mean/median/mode)",
+  "Topic 15: Classifying plane figures (triangles, quadrilaterals)",
+  "Topic 16: Coordinate geometry (graphing on a plane)",
+];
+
+/** Prompt fragment: Envision G5 topic context for difficulty calibration. */
+export const ENVISION_G5_PROMPT_HINT = [
+  "",
+  "[Envision Math G5 — textbook alignment]",
+  "Ryan's school uses Envision Mathematics Grade 5 (Savvas, ISBN 978-1-4188-4685-5).",
+  `G5 topics: ${ENVISION_G5_TOPICS.join(" · ")}.`,
+  "When generating practice problems or scaffolding, stay within G5-appropriate difficulty:",
+  "- Fraction denominators: 2,3,4,5,6,8,10,12,100 (Common Core G5 baseline).",
+  "- Multi-digit ÷: up to 4-digit ÷ 2-digit.",
+  "- Decimals: operations through thousandths.",
+  "- Word problems: multi-step with bar models expected (Singapore CPA method).",
+  "- Do NOT exceed G5 difficulty unless the student explicitly requests enrichment.",
+].join("\n");
+
 /** v2: Chinese preference defaults to 粤语 (old key may have stored 普通话). */
 const PROFILE_KEY = "spark.studentProfile.v2";
 

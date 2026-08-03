@@ -18,6 +18,7 @@ import {
   normalizeMemory,
   skillStrengths,
   skillWeaknesses,
+  storeRecallCache,
 } from "./learning-memory";
 import { readServerLearningMemory } from "./learning-memory-store";
 
@@ -576,7 +577,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
     },
     draw_geometry: {
       description:
-        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Prefer discovery marks (e.g. a side labeled '?') over revealing the final answer. After showing the figure, ask what they notice and invite a measuring/pointing move (ruler thought-experiment or “where is the right angle?”).",
+        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Prefer discovery marks (e.g. a side labeled \"?\") over revealing the final answer. After showing the figure, ask what they notice and invite a measuring/pointing move (ruler thought-experiment or \"where is the right angle?\"). Supports Singapore bar models for word problems: use bar shapes (horizontal/vertical) with labels for part-whole or comparison models.",
       inputSchema: {
         type: "object",
         properties: {
@@ -586,7 +587,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
           shapes: {
             type: "array",
             description:
-              "Shapes: triangle|polygon|line|segment|circle|point|angle|right_angle|text|arrow with coordinates in a ~320×240 canvas",
+              "Shapes: triangle|polygon|line|segment|circle|point|angle|right_angle|text|arrow|bar (horizontal/vertical bars with labels for Singapore bar models, part-whole & comparison) with coordinates in a ~320×240 canvas",
           },
         },
         required: ["shapes"],
@@ -653,8 +654,12 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
                   s.topicId.includes(focus),
               )
             : [];
+          const coachLines = learningMemoryPromptLines(mem);
+          // Store in recall cache so subsequent turns don't need to re-read (Phase 1.3)
+          storeRecallCache(coachLines);
+
           const payload = {
-            model: "BKT (Bayesian Knowledge Tracing)",
+            model: "BKT (Bayesian Knowledge Tracing) + SM-2 spaced repetition",
             strengths: strong.map((s) => ({
               skill: s.label,
               mastery: s.mastery,
@@ -677,7 +682,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
             })),
             wins: mem.recentWins,
             struggles: mem.recentStruggles,
-            coachNotes: learningMemoryPromptLines(mem).slice(2, 8),
+            coachNotes: coachLines.slice(2, 8),
           };
           return JSON.stringify(payload, null, 2);
         } catch (err) {
