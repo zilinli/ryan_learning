@@ -7,8 +7,15 @@ import {
   getAgentId,
   setAgentId,
 } from "./session-store";
+import { createTutorHarnessTools, statusLabelForTool } from "./tutor-harness";
+import {
+  ensureTutorDiagrams,
+  extractGeometryMarkdown,
+} from "./geometry-svg";
+import { preferCompleteTutorText } from "./tutor-text-filter";
 
 const TUTOR_CWD = path.join(process.cwd(), "tutor-workspace");
+const HARNESS_TOOLS = createTutorHarnessTools();
 
 function requireApiKey(): string {
   const key =
@@ -34,6 +41,7 @@ async function createTutorAgent(): Promise<SDKAgent> {
     local: {
       cwd: TUTOR_CWD,
       settingSources: [],
+      customTools: HARNESS_TOOLS,
     },
   });
 }
@@ -55,6 +63,7 @@ async function getOrCreateAgent(
         local: {
           cwd: TUTOR_CWD,
           settingSources: [],
+          customTools: HARNESS_TOOLS,
         },
       });
     } catch {
@@ -87,6 +96,7 @@ export async function streamTutorReply(params: {
   const agent = await getOrCreateAgent(params.sessionId, params.reset);
   let fullText = "";
   let emittedViaDelta = false;
+  const capturedDiagrams: string[] = [];
 
   const closeAgent = () => {
     try {
@@ -119,7 +129,21 @@ export async function streamTutorReply(params: {
       }
     };
 
+    const injectDiagram = (diagram: string) => {
+      if (!diagram || capturedDiagrams.includes(diagram)) return;
+      capturedDiagrams.push(diagram);
+      // Show the figure immediately — models often narrate drawing without pasting.
+      if (!fullText.includes("data:image/svg+xml")) {
+        const inject = fullText.trim()
+          ? `\n\n${diagram}\n\n`
+          : `${diagram}\n\n`;
+        fullText += inject;
+        params.handlers.onText(inject);
+      }
+    };
+
     const run = await agent.send(message, {
+      local: { customTools: HARNESS_TOOLS },
       onDelta: ({ update }) => {
         if (params.signal?.aborted) return;
         if (update.type === "text-delta" && update.text) {
@@ -149,8 +173,30 @@ export async function streamTutorReply(params: {
             }
           }
         }
+      } else if (event.type === "tool_call") {
+        if (event.status === "running" && event.name) {
+          const key = event.name.replace(/^.*\//, "");
+          params.handlers.onStatus?.(statusLabelForTool(key));
+        }
+        if (
+          (event.status === "completed" || event.status === "error") &&
+          event.name
+        ) {
+          const key = event.name.replace(/^.*\//, "");
+          if (key === "draw_geometry" || key.endsWith("draw_geometry")) {
+            const diagram = extractGeometryMarkdown(event.result);
+            if (diagram) injectDiagram(diagram);
+          }
+        }
+      } else if (event.type === "thinking") {
+        params.handlers.onStatus?.("Thinking…");
       } else if (event.type === "status" && event.message) {
-        params.handlers.onStatus?.(event.message);
+        const raw = String(event.message);
+        const toolish = raw.replace(/^.*\//, "").trim();
+        const label = statusLabelForTool(toolish);
+        params.handlers.onStatus?.(
+          label.startsWith("Using ") ? raw : label,
+        );
       }
     }
 
@@ -162,6 +208,9 @@ export async function streamTutorReply(params: {
     if (result.status === "error") {
       throw new Error(`Tutor run failed (${result.id}). Try again or start a new chat.`);
     }
+
+    fullText = preferCompleteTutorText(fullText, result.result);
+    fullText = ensureTutorDiagrams(fullText, capturedDiagrams);
 
     if (!fullText.trim()) {
       fullText =

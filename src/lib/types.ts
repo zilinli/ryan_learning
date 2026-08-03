@@ -21,8 +21,12 @@ export interface ChatAttachmentPayload {
   kind: AttachmentKind;
   /** Base64 (no data: prefix) for images / binary files */
   data?: string;
+  /** Full data URL — used as fallback when `data` is missing */
+  dataUrl?: string;
   /** Extracted or plain text for documents */
   textContent?: string;
+  /** Server media id (history) — server can re-extract text */
+  mediaId?: string;
 }
 
 /** @deprecated use ChatAttachment — kept for old localStorage sessions */

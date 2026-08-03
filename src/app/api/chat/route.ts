@@ -3,7 +3,8 @@ import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
 import { buildTutorPrompt } from "@/lib/prompts";
 import { DEFAULT_STUDENT_PROFILE } from "@/lib/student-profile";
-import { filterTutorDelta, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
+import { filterTutorDelta, preferCompleteTutorText, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
+import { statusLabelForTool } from "@/lib/tutor-harness";
 import {
   mergeLearningMemory,
   normalizeMemory,
@@ -25,6 +26,9 @@ function sseEncode(event: string, data: unknown): string {
 function friendlyStatus(raw: string): string | null {
   const s = (raw || "").trim();
   if (!s) return null;
+  const toolKey = s.replace(/^.*\//, "").replace(/^custom-user-tools[_:]?/i, "");
+  const toolLabel = statusLabelForTool(toolKey);
+  if (toolLabel && !toolLabel.startsWith("Using ")) return toolLabel;
   if (
     /tool|web_search|fetch_page|run_python|run_js|draw_geometry|harness|mcp|diagram tools/i.test(
       s,
@@ -201,7 +205,9 @@ export async function POST(req: Request) {
             },
           },
         });
-        const finalText = scrubTutorVisibleText(visible || fullText);
+        // Prefer SDK final text when stream filter / deltas lost spaces or figures.
+        const merged = preferCompleteTutorText(visible, fullText);
+        const finalText = scrubTutorVisibleText(merged);
         send("done", { agentId, text: finalText });
       } catch (err) {
         if (req.signal.aborted) return;

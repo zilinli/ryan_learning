@@ -34,7 +34,7 @@ export const TUTOR_VOICES: TutorVoice[] = [
     label: "Auto · 自动（中文默认粤语）",
     edgeVoice: "zh-HK-WanLungNeural",
     preview:
-      "Hi — 你好，我用广东话同你学 — Hola. Chinese defaults to Cantonese; pick 云希 for Mandarin.",
+      "Hi — 你好，我用广东话同你学 — Hola. Chinese defaults to Cantonese; pick 云希 for 普通话.",
     lang: "auto",
   },
   {
@@ -132,7 +132,7 @@ export function countYueSignals(text: string): number {
 
 /**
  * Detect dominant language of a TTS / Auto-reply chunk.
- * Chinese → 粤语 by default (family preference). Mandarin only when voice is locked to 云希.
+ * Chinese → Cantonese (粤语) by default; Mandarin only via the 云希 voice.
  */
 export function detectSpeechLang(text: string): SpeechLang {
   const t = text || "";
@@ -147,6 +147,7 @@ export function detectSpeechLang(text: string): SpeechLang {
   const isChinese =
     (han >= 1 && han * 2 >= Math.max(letters, 1)) || han >= 4;
   if (isChinese) {
+    // Family default: all Chinese speech uses Cantonese TTS (云希 locks Mandarin).
     return "yue";
   }
   if (spanishMarks >= 1 || strongEs) return "es";
@@ -254,7 +255,7 @@ export function replyLangFromVoice(
 
 /**
  * Resolve reply language for this turn.
- * Fixed voices lock language; Auto inspects the student message (普通话 vs 粤语).
+ * Fixed voices lock language; Auto inspects the student message (粤语 vs English…).
  */
 export function resolveReplyLanguage(
   voiceId: TutorVoiceId | string | null | undefined,
@@ -265,8 +266,23 @@ export function resolveReplyLanguage(
   if (locked !== "auto") return locked;
   const text = (userText || "").trim();
   if (!text) return "auto";
+  // Explicit ask for Chinese → prefer family dialect (粤语 by default)
+  if (
+    preferredChinese === "yue" &&
+    /(?:\bchinese\b|中文|粤语|粵語|广东话|廣東話|粤语|翻譯成中文|翻译成中文)/i.test(
+      text,
+    )
+  ) {
+    return "yue";
+  }
+  if (
+    preferredChinese === "zh" &&
+    /(?:\bmandarin\b|普通话|国语|國語)/i.test(text)
+  ) {
+    return "zh";
+  }
   const detected = detectSpeechLang(text);
-  if (detected === "yue") return "yue";
+  if (detected === "yue") return preferredChinese === "zh" ? "zh" : "yue";
   if (detected === "zh") return preferredChinese === "yue" ? "yue" : "zh";
   if (detected === "es") return "es";
   if (detected === "en") {
@@ -281,10 +297,10 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
   if (mode === "auto") {
     return [
       "",
-      "[Reply language — Auto — Chinese defaults to 粤语]",
+      "[Reply language — Auto — Chinese defaults to 粤语 / 广东话]",
       "- Match the student's language (English / 粤语 / 普通话 / Español).",
-      "- If the student writes Chinese (with or without Cantonese markers), reply in 【粤语】（广东话书面/口语）by default.",
-      "- Use 【简体中文普通话】only when the student clearly asks for 普通话/Mandarin, or the voice picker is locked to 云希.",
+      "- When producing Chinese (including translations), write in 【粤语 / 广东话】by default (口语自然，可用粤语书面语).",
+      "- Use 【简体中文普通话】only if the student clearly asks for 普通话/国语/Mandarin.",
       "- If the message mixes languages, follow the student's main language.",
       "- Homework photos may be in English even if the student chats in Chinese — still reply in the student's chat language, and quote the photo text exactly as written.",
     ];

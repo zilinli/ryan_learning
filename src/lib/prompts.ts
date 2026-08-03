@@ -55,7 +55,7 @@ function audienceLine(mode: ReplyLangMode): string {
   if (mode === "en") {
     return "Audience: international-school student; reply in English.";
   }
-  return "Audience: international-school student; follow their language (Auto mode — Chinese defaults to 粤语).";
+  return "Audience: international-school student; follow their language (Auto mode — Chinese defaults to 粤语 / 广东话).";
 }
 
 function styleLine(mode: ReplyLangMode): string {
@@ -182,7 +182,7 @@ export function buildTutorPrompt(params: {
     "- Maths: ALWAYS write formulas in LaTeX so they render clearly.",
     "  Inline: $x^2$, $\\frac{a}{b}$, $\\sqrt{2}$",
     "  Display: $$\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$$",
-    "- Geometry / figures: include a ```svg diagram (or use draw_geometry) with labels matching the problem; ask what they notice.",
+    "- Geometry / figures: call draw_geometry, then paste its markdown image (![](data:image/svg+xml,...)) UNCHANGED (no code fence). Ask what they notice.",
     "- Optional: short ```mermaid for processes; https images with ![alt](url) sparingly.",
     "- Reading comprehension / passage questions: ALWAYS show WHERE to look BEFORE asking:",
     "  Use a Markdown blockquote with Photo + location, then the exact quote, e.g.",

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildGeometrySvg,
+  ensureTutorDiagrams,
   geometrySpecToMarkdown,
   normalizeTutorMarkdown,
   sanitizeSvg,
+  svgToMarkdownImage,
 } from "./geometry-svg";
 
 describe("sanitizeSvg", () => {
@@ -26,48 +28,117 @@ describe("sanitizeSvg", () => {
   it("strips leading svg language glue", () => {
     const out = sanitizeSvg('svg<svg viewBox="0 0 1 1"></svg>');
     expect(out).toContain("<svg");
-    expect(out!.startsWith("svg")).toBe(false);
+    expect(out!.trim().startsWith("svg")).toBe(false);
+  });
+});
+
+describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {
+  it("emits a data-uri markdown image", () => {
+    const img = svgToMarkdownImage(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>',
+    );
+    expect(img).toMatch(/^!\[.*\]\(data:image\/svg\+xml,/);
+  });
+
+  it("converts fenced and glued svg to markdown images", () => {
+    const fenced = normalizeTutorMarkdown(
+      'see\n```svg\n<svg viewBox="0 0 10 10"></svg>\n```\nend',
+    );
+    expect(fenced).toContain("data:image/svg+xml");
+    expect(fenced).not.toContain("```svg");
+
+    const glued = normalizeTutorMarkdown(
+      'look\nsvg<svg viewBox="0 0 10 10"></svg>\nend',
+    );
+    expect(glued).toContain("data:image/svg+xml");
+    expect(glued).not.toMatch(/svg<svg/);
+  });
+
+  it("repairs the production bug: svg<svg…> shown as code", () => {
+    // Exact shape users saw in chat (language tag glued to markup, no fence)
+    const raw =
+      "好的，我画一个直角三角形 ABC，直角在 C。\n\n" +
+      'svg<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="100%" role="img" aria-label="直角三角形 ABC">' +
+      '<rect width="100%" height="100%" fill="#f7fbfa" rx="12"/>' +
+      '<polygon points="70 190 250 190 70 55" fill="rgba(46,139,132,0.12)" stroke="#1f4d4a" stroke-width="2"/>' +
+      '<polyline points="70 176 84 176 84 190" fill="none" stroke="#1f4d4a" stroke-width="1.5"/>' +
+      '<text x="58" y="42" font-size="16" fill="#1f4d4a">A</text>' +
+      '<text x="252" y="205" font-size="16" fill="#1f4d4a">B</text>' +
+      '<text x="52" y="210" font-size="16" fill="#1f4d4a">C</text>' +
+      "</svg>\n\n" +
+      "你注意到什么？";
+
+    const out = normalizeTutorMarkdown(raw);
+    expect(out).toContain("data:image/svg+xml");
+    expect(out).not.toMatch(/svg<svg/);
+    expect(out).toContain("你注意到什么");
+
+    const uri = out.match(/data:image\/svg\+xml,([^)\s]+)/)?.[1];
+    expect(uri).toBeTruthy();
+    const decoded = decodeURIComponent(uri!);
+    expect(decoded).toContain("<polygon");
+    expect(decoded).toContain(">A<");
+    expect(decoded).toContain(">C<");
+  });
+
+  it("converts mid-line bare svg (react-markdown would strip HTML)", () => {
+    const out = normalizeTutorMarkdown(
+      '睇吓呢个图：<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="2"/></svg>你睇到咩？',
+    );
+    expect(out).toContain("data:image/svg+xml");
+    expect(out).not.toMatch(/<svg\b/);
+    expect(out).toContain("睇吓呢个图");
+    expect(out).toContain("你睇到咩");
+  });
+
+  it("encodes periods in data URIs so TTS cannot split on them", () => {
+    const img = svgToMarkdownImage(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10.5 10"><circle cx="1.5" cy="2" r="1"/></svg>',
+    );
+    expect(img).toContain("%2E");
+    expect(img).not.toMatch(/data:image\/svg\+xml,[^)]*\./);
+  });
+
+  it("ensureTutorDiagrams inserts when model forgot to paste", () => {
+    const diagram = svgToMarkdownImage(
+      '<svg viewBox="0 0 10 10"><rect width="10" height="10"/></svg>',
+    )!;
+    const out = ensureTutorDiagrams("睇吓橙色嗰条边。你觉得佢有咩特别？", [
+      diagram,
+    ]);
+    expect(out).toContain("data:image/svg+xml");
+    expect(out).toContain("睇吓橙色");
   });
 });
 
 describe("buildGeometrySvg", () => {
-  it("renders a labeled triangle", () => {
-    const svg = buildGeometrySvg({
-      title: "Triangle ABC",
+  it("renders a labeled right triangle as markdown image", () => {
+    const md = geometrySpecToMarkdown({
+      title: "直角三角形 ABC",
       shapes: [
         {
           type: "triangle",
           points: [
-            [40, 200],
-            [160, 40],
-            [280, 200],
+            [70, 190],
+            [250, 190],
+            [70, 55],
           ],
-          labels: ["A", "B", "C"],
+          labels: ["C", "B", "A"],
         },
         {
           type: "right_angle",
-          at: [40, 200],
-          from: [280, 200],
-          to: [160, 40],
+          at: [70, 190],
+          from: [250, 190],
+          to: [70, 55],
         },
       ],
     });
-    expect(svg).toContain("<polygon");
-    expect(svg).toContain(">A<");
-    expect(svg).toContain("polyline");
-    expect(geometrySpecToMarkdown({ shapes: [{ type: "circle", center: [10, 10], r: 5 }] })).toContain(
-      "```svg",
-    );
-  });
-});
+    expect(md).toContain("data:image/svg+xml");
+    expect(md).toMatch(/^!\[/);
 
-describe("normalizeTutorMarkdown", () => {
-  it("repairs bare svg<svg blocks", () => {
-    const out = normalizeTutorMarkdown(
-      'look\nsvg<svg viewBox="0 0 10 10"></svg>\nend',
-    );
-    expect(out).toContain("```svg");
-    expect(out).toContain('<svg viewBox="0 0 10 10"></svg>');
-    expect(out).not.toMatch(/svg<svg/);
+    const svg = buildGeometrySvg({
+      shapes: [{ type: "circle", center: [10, 10], r: 5 }],
+    });
+    expect(svg).toContain("<circle");
   });
 });

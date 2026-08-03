@@ -54,7 +54,7 @@ import type {
   HistoryTurn,
 } from "@/lib/types";
 import type { SpeakStreamApi } from "./VoiceControls";
-import { preferCompleteTutorText } from "@/lib/tutor-text-filter";
+import { preferCompleteTutorText, hasTutorDiagram } from "@/lib/tutor-text-filter";
 
 function messageId() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -131,8 +131,12 @@ async function consumeChatStream(
         }
         // Always prefer the server's final text — streaming deltas often glue
         // English words ("Hello" + "world" → "Helloworld" if spaces were dropped).
+        // Never replace a streamed diagram with a diagram-less final.
         if (event === "done" && data.text) {
-          const preferred = preferCompleteTutorText(full, data.text);
+          let preferred = preferCompleteTutorText(full, data.text);
+          if (hasTutorDiagram(full) && !hasTutorDiagram(preferred)) {
+            preferred = full;
+          }
           if (!full) {
             full = preferred;
             onDelta(preferred);
@@ -535,19 +539,24 @@ export function TutorShell() {
       if (shouldSpeak) {
         speakApiRef.current?.finish(full);
       }
-      if (!full.trim()) {
-        setStore((prev) => {
-          if (!prev) return prev;
-          const cur = getActiveConversation(prev);
-          if (cur.sessionId !== sessionId) return prev;
-          const msgs = cur.messages.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: m.content || "(empty reply)" }
-              : m,
-          );
-          return upsertActive(prev, { messages: msgs });
-        });
-      }
+      // Always pin the merged final text so a streamed diagram cannot vanish
+      // after done/onReplace/storage races.
+      setStore((prev) => {
+        if (!prev) return prev;
+        const cur = getActiveConversation(prev);
+        if (cur.sessionId !== sessionId) return prev;
+        const msgs = cur.messages.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                content: full.trim()
+                  ? full
+                  : m.content || "(empty reply)",
+              }
+            : m,
+        );
+        return upsertActive(prev, { messages: msgs });
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Send failed";
       setError(msg);

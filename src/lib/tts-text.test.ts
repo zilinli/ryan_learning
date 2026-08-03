@@ -43,6 +43,27 @@ describe("cleanTutorSpeechText", () => {
     expect(out).toBe("先看这一句。你觉得什么意思？");
     expect(out).not.toMatch(/。\s/);
   });
+
+  it("does not speak SVG diagrams or data-URI images", () => {
+    const raw =
+      "睇吓呢个图。\n" +
+      "![直角三角形 ABC](data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpolygon%20points%3D%221%202%203%22%2F%3E%3C%2Fsvg%3E)\n" +
+      "你注意到直角喺边度？";
+    const out = cleanTutorSpeechText(raw);
+    expect(out).not.toMatch(/svg|polygon|xmlns|data:image/i);
+    expect(out).not.toContain("直角三角形 ABC");
+    expect(out).toContain("睇吓呢个图");
+    expect(out).toContain("你注意到直角喺边度");
+  });
+
+  it("strips bare svg markup from speech", () => {
+    const out = cleanTutorSpeechText(
+      '先睇图 svg<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="2"/></svg> 你睇到咩？',
+    );
+    expect(out).not.toMatch(/svg|circle|viewBox/i);
+    expect(out).toContain("先睇图");
+    expect(out).toContain("你睇到咩");
+  });
 });
 
 describe("chunkForNeuralTts", () => {

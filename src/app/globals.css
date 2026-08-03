@@ -140,6 +140,17 @@ input {
 }
 
 /* Chat Markdown + KaTeX */
+.tutor-md {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tutor-md p,
+.tutor-md li {
+  white-space: normal;
+}
+
 .tutor-md .katex-display {
   margin: 0.6rem 0;
   overflow-x: auto;

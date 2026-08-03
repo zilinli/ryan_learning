@@ -51,7 +51,51 @@ export function normalizeMime(mimeType: string, name: string): string {
 }
 
 export function stripDataUrlPrefix(data: string): string {
-  return data.replace(/^data:[^;]+;base64,/, "");
+  const raw = data || "";
+  // data:mime;base64,PAYLOAD  or  data:mime;charset=...;base64,PAYLOAD
+  const b64 = /^data:[^,]*=?base64,([\s\S]*)$/i.exec(raw);
+  if (b64) return b64[1] || "";
+  // Already raw base64 (no data: prefix)
+  if (!raw.startsWith("data:")) return raw;
+  // data:mime;charset=utf-8,urlencoded
+  const comma = raw.indexOf(",");
+  return comma >= 0 ? raw.slice(comma + 1) : raw;
+}
+
+/** Prefer explicit base64 `data`, else derive from a data URL. */
+export function attachmentBase64(att: {
+  data?: string;
+  dataUrl?: string;
+}): string {
+  if (att.data && String(att.data).trim().length > 0) {
+    return stripDataUrlPrefix(String(att.data));
+  }
+  if (att.dataUrl && att.dataUrl.startsWith("data:")) {
+    // Only return base64 payloads (binary files / images)
+    if (/;base64,/i.test(att.dataUrl)) {
+      return stripDataUrlPrefix(att.dataUrl);
+    }
+  }
+  return "";
+}
+
+/** Decode text from a charset data URL (non-base64). */
+export function textFromDataUrl(dataUrl: string): string {
+  if (!dataUrl?.startsWith("data:")) return "";
+  if (/;base64,/i.test(dataUrl)) {
+    try {
+      return Buffer.from(stripDataUrlPrefix(dataUrl), "base64").toString("utf8");
+    } catch {
+      return "";
+    }
+  }
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return "";
+  try {
+    return decodeURIComponent(dataUrl.slice(comma + 1));
+  } catch {
+    return dataUrl.slice(comma + 1);
+  }
 }
 
 /** Normalize request body: prefer attachments[], fall back to legacy image */

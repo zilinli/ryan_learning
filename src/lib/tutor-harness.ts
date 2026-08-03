@@ -569,7 +569,7 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
     },
     draw_geometry: {
       description:
-        "Build a simple geometry teaching SVG (triangle, polygon, circle, line, angle, right angle, labeled points). Returns a markdown ```svg fenced block to paste into your reply so the student sees the diagram. Use for geometry homework — highlight what to notice, not the final answer.",
+        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Use for geometry homework — highlight what to notice, not the final answer.",
       inputSchema: {
         type: "object",
         properties: {

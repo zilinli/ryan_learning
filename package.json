@@ -16,7 +16,8 @@
     "verify:history": "node scripts/verify-history.mjs",
     "verify:upload": "node scripts/verify-upload.mjs",
     "verify:system": "node scripts/verify-system.mjs",
-    "verify:all": "npm run test && npm run verify:history && npm run verify:upload && npm run verify:tts && npm run verify:stt && npm run verify:voice && npm run verify:system"
+    "verify:diagrams": "node --experimental-strip-types scripts/verify-diagrams.mjs",
+    "verify:all": "npm run test && npm run verify:history && npm run verify:upload && npm run verify:tts && npm run verify:stt && npm run verify:voice && npm run verify:diagrams && npm run verify:system"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.26",

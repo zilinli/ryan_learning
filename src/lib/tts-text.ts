@@ -26,11 +26,46 @@ export function joinSpeechParts(a: string, b: string): string {
   return `${left} ${right}`;
 }
 
+/** True if a chunk is mostly URI / SVG encoding soup (never speak). */
+function isEncodedJunk(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  const pct = (t.match(/%[0-9A-Fa-f]{2}/g) || []).length;
+  if (pct >= 6) return true;
+  if (/data:image\/svg\+xml/i.test(t)) return true;
+  if (/%3C\s*\/?\s*svg/i.test(t)) return true;
+  if (/xmlns%3D|viewBox%3D|stroke-width%3D|font-family%3D/i.test(t)) return true;
+  return false;
+}
+
 export function cleanTutorSpeechText(text: string): string {
   let t = text.replace(/\r\n/g, "\n").trim();
-  // Strip fenced / inline code and links
+  if (!t) return "";
+
+  // Never speak diagrams / SVG / mermaid payloads
+  t = t.replace(/!\[[^\]]*\]\(data:image\/[^)]*\)/gi, " ");
+  t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*$/gi, " ");
+  t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, " ");
+  t = t.replace(/\bsvg\s*(<svg\b[\s\S]*?<\/svg>)/gi, " ");
+  t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, " ");
+  t = t.replace(/\bsvg\s*<svg\b[\s\S]*$/gi, " ");
+  t = t.replace(/<svg\b[\s\S]*$/gi, " ");
+  t = t.replace(/```(?:svg|xml|mermaid)?\s*[\s\S]*$/gi, " ");
+  t = t.replace(/data:image\/svg\+xml,[^\s)]*/gi, " ");
+  // Percent-encoded SVG leftovers from mid-URI soft-breaks
+  t = t.replace(/(?:%[0-9A-Fa-f]{2}){4,}/g, " ");
+  t = t.replace(
+    /\b(?:xmlns|viewBox|polygon|polyline|stroke-width|font-size|text-anchor|dominant-baseline|aria-label|fill-opacity)\b[^\s]*/gi,
+    " ",
+  );
+
+  if (isEncodedJunk(t)) return "";
+
+  // Strip remaining fenced / inline code and links
   t = t.replace(/```[\s\S]*?```/g, " ");
   t = t.replace(/`([^`]+)`/g, "$1");
+  t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+  t = t.replace(/!\[[^\]]*\]\([^)]*$/g, " ");
   t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   // LaTeX → rough spoken form
   t = t.replace(/\$\$([\s\S]*?)\$\$/g, (_, expr: string) => latexToSpeech(expr));
@@ -44,7 +79,6 @@ export function cleanTutorSpeechText(text: string): string {
   t = t.replace(/^\s*\d+\.\s+/gm, "");
   t = t.replace(/[*_~]+/g, "");
 
-  // Paragraph / line breaks: Chinese joins tightly; English keeps sentence pauses
   if (isMostlyCjk(t)) {
     t = t.replace(/\n{2,}/g, "。");
     t = t.replace(/\n/g, "");
@@ -54,18 +88,15 @@ export function cleanTutorSpeechText(text: string): string {
   }
 
   t = t.replace(/\s+/g, " ").trim();
-
-  // LLM often inserts spaces between Chinese characters → edge-tts pauses on each gap
   t = t.replace(
     /([\u4e00-\u9fff\u3400-\u4dbf])\s+(?=[\u4e00-\u9fff\u3400-\u4dbf])/g,
     "$1",
   );
-  // Tighten spaces around CJK punctuation (avoid "字 ， 字" style hiccups)
   t = t.replace(/\s*([。！？，、；：])\s*/g, "$1");
-  // Keep a single space after Latin sentence enders when more Latin follows
   t = t.replace(/([.!?])([A-Za-z])/g, "$1 $2");
-  // Collapse any double spaces left from mixed cleanup
   t = t.replace(/\s{2,}/g, " ").trim();
+
+  if (isEncodedJunk(t)) return "";
   return t;
 }
 
@@ -97,7 +128,6 @@ export function chunkForNeuralTts(text: string, maxLen = 280): string[] {
   if (!cleaned) return [];
   if (cleaned.length <= maxLen) return [cleaned];
 
-  // Prefer sentence boundaries; Chinese often has no space after 。！？
   const sentences = cleaned.split(/(?<=[.!?。！？])\s*/).filter(Boolean);
   const parts: string[] = [];
   let buf = "";
@@ -122,11 +152,10 @@ export function chunkForNeuralTts(text: string, maxLen = 280): string[] {
       out.push(p);
       continue;
     }
-    // Soft-split long runs at clause punctuation, not mid-word
     let rest = p;
     while (rest.length > maxLen) {
       const windowEnd = Math.min(rest.length, maxLen);
-      let soft = findSoftBreak(rest, Math.floor(maxLen * 0.45), windowEnd);
+      let soft = findSoftBreak(rest, rest, Math.floor(maxLen * 0.45), windowEnd);
       if (soft < 0) soft = maxLen;
       out.push(rest.slice(0, soft).trim());
       rest = rest.slice(soft).trim();
@@ -136,36 +165,129 @@ export function chunkForNeuralTts(text: string, maxLen = 280): string[] {
   return out.filter((x) => x.length >= 2);
 }
 
-/** Prefer strong clause ends; avoid breaking on plain spaces when possible. */
-function findSoftBreak(text: string, minIdx: number, maxIdx: number): number {
+/**
+ * Soft-break only at positions that are real in `raw` (not blanked diagram masks).
+ * `masked` must be same length as `raw`.
+ */
+function findSoftBreak(
+  raw: string,
+  masked: string,
+  minIdx: number,
+  maxIdx: number,
+): number {
+  const real = (i: number) => masked[i] === raw[i];
   const strong = "。！？.!?;；";
   const medium = "，、,";
   for (let i = maxIdx - 1; i >= minIdx; i -= 1) {
-    if (strong.includes(text[i]!)) return i + 1;
+    if (real(i) && strong.includes(raw[i]!)) return i + 1;
   }
   for (let i = maxIdx - 1; i >= minIdx; i -= 1) {
-    if (medium.includes(text[i]!)) return i + 1;
+    if (real(i) && medium.includes(raw[i]!)) return i + 1;
   }
-  // Last resort: space (English), never split a CJK char (they're 1 code unit here)
   for (let i = maxIdx - 1; i >= minIdx; i -= 1) {
-    if (text[i] === " " && !CJK_CHAR.test(text[i + 1] ?? "")) return i + 1;
+    if (
+      real(i) &&
+      raw[i] === " " &&
+      !CJK_CHAR.test(raw[i + 1] ?? "")
+    ) {
+      return i + 1;
+    }
   }
   return -1;
+}
+
+/** Same-length mask so speech split indices stay aligned with the raw buffer. */
+function maskCompleteDiagrams(text: string): string {
+  let t = text;
+  const blank = (m: string) => " ".repeat(m.length);
+  t = t.replace(/!\[[^\]]*\]\(data:image\/[^)]*\)/gi, blank);
+  t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, blank);
+  t = t.replace(/\bsvg\s*<svg\b[\s\S]*?<\/svg>/gi, blank);
+  t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, blank);
+  return t;
+}
+
+/** Index where an incomplete diagram / data-URI begins, or -1. */
+function incompleteDiagramStart(buf: string): number {
+  const candidates: number[] = [];
+
+  // Incomplete markdown image: ![…](data:image… without closing )
+  for (const m of buf.matchAll(/!\[[^\]]*\]\(data:image\//gi)) {
+    if (m.index === undefined) continue;
+    const after = buf.slice(m.index);
+    if (!/^!\[[^\]]*\]\(data:image\/[^)]*\)/i.test(after)) {
+      candidates.push(m.index);
+    }
+  }
+
+  // Incomplete fenced diagram
+  for (const m of buf.matchAll(/```(?:svg|xml|mermaid)?[^\n]*\n?/gi)) {
+    if (m.index === undefined) continue;
+    const after = buf.slice(m.index + m[0].length);
+    if (!after.includes("```")) candidates.push(m.index);
+  }
+
+  // Incomplete bare SVG
+  for (const m of buf.matchAll(/(?:^|[\s\n])(?:svg\s*)?<svg\b/gi)) {
+    if (m.index === undefined) continue;
+    const from = m[0].startsWith("<") || m[0].startsWith("s")
+      ? m.index
+      : m.index + 1;
+    const after = buf.slice(from);
+    if (!/<\/svg>/i.test(after)) {
+      const local = after.search(/svg\s*<svg\b|<svg\b/i);
+      candidates.push(from + (local >= 0 ? local : 0));
+    }
+  }
+
+  // Mid-URI leftovers already in buffer (no ![ prefix) — hold from first %3Csvg / data:image
+  const mid = buf.search(/data:image\/svg\+xml,%3C|%3Csvg\b/i);
+  if (mid >= 0) {
+    const after = buf.slice(mid);
+    // If this isn't part of a complete markdown image earlier, hold it
+    const before = buf.slice(0, mid);
+    const openImg = before.lastIndexOf("![");
+    if (openImg < 0 || !/!\[[^\]]*\]\(data:image\/[^)]*$/i.test(buf.slice(openImg))) {
+      // Check complete image containing this point
+      let covered = false;
+      for (const m of buf.matchAll(/!\[[^\]]*\]\(data:image\/[^)]*\)/gi)) {
+        if (m.index === undefined) continue;
+        if (m.index <= mid && m.index + m[0].length > mid) {
+          covered = true;
+          break;
+        }
+      }
+      if (!covered) candidates.push(mid);
+    }
+  }
+
+  if (!candidates.length) return -1;
+  return Math.min(...candidates);
 }
 
 /**
  * Pull speakable phrases from a live streaming buffer.
  * Prefers full sentences; soft-breaks only when the buffer grows long.
+ * Never speaks SVG / data-URI diagram payloads (complete or partial).
  */
 export function pullSpeakableFromBuffer(
   buffer: string,
   opts: { force?: boolean; minChars?: number; maxWaitChars?: number } = {},
 ): { ready: string[]; rest: string } {
-  // Larger windows → fewer MP3 clips → smoother rhythm (less mid-phrase silence)
   const minChars = opts.minChars ?? 28;
   const maxWaitChars = opts.maxWaitChars ?? 160;
   let buf = buffer.replace(/\r\n/g, "\n");
   const ready: string[] = [];
+
+  // Keep incomplete diagram tails out of sentence splitting.
+  let held = "";
+  if (!opts.force) {
+    const cut = incompleteDiagramStart(buf);
+    if (cut >= 0) {
+      held = buf.slice(cut);
+      buf = buf.slice(0, cut);
+    }
+  }
 
   const take = (end: number) => {
     const raw = buf.slice(0, end);
@@ -175,10 +297,12 @@ export function pullSpeakableFromBuffer(
   };
 
   while (true) {
-    const m = buf.match(/[.!?。！？](?:["')\]]+)?(?:\s+|$)/);
-    if (!m || m.index === undefined) break;
-    const end = m.index + m[0].length;
-    // Avoid tiny fragments like "OK."
+    const liveMask = maskCompleteDiagrams(buf);
+    const mm = liveMask.match(/[.!?。！？](?:["')\]]+)?(?:\s+|$)/);
+    if (!mm || mm.index === undefined) break;
+    // Reject matches that only exist because we blanked a diagram (should not happen for 。.!?)
+    const end = mm.index + mm[0].length;
+    if (liveMask[mm.index] !== buf[mm.index]) break;
     if (
       cleanTutorSpeechText(buf.slice(0, end)).length < Math.min(10, minChars) &&
       !opts.force
@@ -188,28 +312,45 @@ export function pullSpeakableFromBuffer(
     take(end);
   }
 
-  if (opts.force && buf.trim()) {
-    take(buf.length);
+  if (opts.force) {
+    if (buf.trim()) take(buf.length);
+    if (held.trim()) {
+      const cleaned = cleanTutorSpeechText(held);
+      held = "";
+      if (cleaned.length >= 2) ready.push(cleaned);
+    }
   } else if (buf.length >= maxWaitChars) {
     const windowEnd = Math.min(buf.length, maxWaitChars + 40);
-    const soft = findSoftBreak(buf, minChars, windowEnd);
+    const masked = maskCompleteDiagrams(buf);
+    const soft = findSoftBreak(buf, masked, minChars, windowEnd);
     if (soft >= minChars) {
       take(soft);
     } else {
-      take(Math.min(buf.length, maxWaitChars));
+      // Prefer cutting before a complete diagram rather than mid-payload
+      const beforeDiag = buf.search(
+        /!\[[^\]]*\]\(data:image\/|<svg\b|```(?:svg|xml|mermaid)\b/i,
+      );
+      if (beforeDiag >= minChars) {
+        take(beforeDiag);
+      }
+      // else: wait — do not soft-break into diagram soup
     }
   }
 
-  // Merge consecutive tiny ready pieces so we don't speak 5-char clips
   const merged: string[] = [];
   for (const piece of ready) {
+    if (isEncodedJunk(piece)) continue;
     const prev = merged[merged.length - 1];
-    if (prev && (prev.length < 36 || piece.length < 20) && joinSpeechParts(prev, piece).length <= 200) {
+    if (
+      prev &&
+      (prev.length < 36 || piece.length < 20) &&
+      joinSpeechParts(prev, piece).length <= 200
+    ) {
       merged[merged.length - 1] = joinSpeechParts(prev, piece);
     } else {
       merged.push(piece);
     }
   }
 
-  return { ready: merged, rest: buf };
+  return { ready: merged, rest: buf + held };
 }

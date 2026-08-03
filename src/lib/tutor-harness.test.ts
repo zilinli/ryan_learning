@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  createTutorHarnessTools,
   mergeSearchHits,
   runJs,
   runPython,
   statusLabelForTool,
 } from "./tutor-harness";
+import { normalizeTutorMarkdown } from "./geometry-svg";
 
 describe("tutor-harness runners", () => {
   it("runs a simple python print", async () => {
@@ -28,6 +30,48 @@ describe("tutor-harness runners", () => {
   it("maps tool status labels", () => {
     expect(statusLabelForTool("web_search")).toMatch(/Search/i);
     expect(statusLabelForTool("run_python")).toMatch(/Python/i);
+    expect(statusLabelForTool("draw_geometry")).toMatch(/diagram|Drawing/i);
+  });
+});
+
+describe("draw_geometry harness tool", () => {
+  it("returns markdown image (not raw code fence)", async () => {
+    const tools = createTutorHarnessTools();
+    const result = await tools.draw_geometry!.execute!(
+      {
+        title: "直角三角形 ABC",
+        shapes: [
+          {
+            type: "triangle",
+            points: [
+              [70, 190],
+              [250, 190],
+              [70, 55],
+            ],
+            labels: ["C", "B", "A"],
+          },
+          {
+            type: "right_angle",
+            at: [70, 190],
+            from: [250, 190],
+            to: [70, 55],
+          },
+        ],
+      },
+      {} as never,
+    );
+    expect(typeof result).toBe("string");
+    const md = String(result);
+    expect(md).toContain("data:image/svg+xml");
+    expect(md).toMatch(/^!\[/);
+    const normalized = normalizeTutorMarkdown(`先睇图：\n${md}\n你注意到咩？`);
+    expect(normalized).toContain("data:image/svg+xml");
+  });
+
+  it("errors when shapes missing", async () => {
+    const tools = createTutorHarnessTools();
+    const result = await tools.draw_geometry!.execute!({ shapes: [] }, {} as never);
+    expect(result).toMatchObject({ isError: true });
   });
 });
 

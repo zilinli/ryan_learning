@@ -7,7 +7,7 @@ export type StudentProfile = {
   age: number;
   grade: string;
   school: string;
-  /** Auto Chinese: default Cantonese (粤语); pick 云希 for Mandarin */
+  /** Auto Chinese: default 粤语 / Cantonese (use 云希 for 普通话) */
   preferredChinese: ChineseDialectPref;
   stronger: string[];
   focusAreas: string[];
@@ -34,6 +34,7 @@ export const BASIS_G4_CURRICULUM = [
   "ELA: reading comprehension with evidence, narrative writing, vocabulary",
 ].join("; ");
 
+/** v2: Chinese preference defaults to 粤语 (old key may have stored 普通话). */
 const PROFILE_KEY = "spark.studentProfile.v2";
 
 export function loadStudentProfile(): StudentProfile {

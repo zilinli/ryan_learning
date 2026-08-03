@@ -8,7 +8,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
 import { DiagramBlock, isDiagramLanguage } from "./DiagramBlock";
-import { normalizeTutorMarkdown } from "@/lib/geometry-svg";
+import { nodeText, normalizeTutorMarkdown } from "@/lib/geometry-svg";
 
 type Props = {
   content: string;
@@ -26,8 +26,19 @@ function fenceLanguage(className?: string): string {
   return m?.[1] || "";
 }
 
+function looksLikeSvg(text: string): boolean {
+  const t = text.trim();
+  return (
+    /^<svg[\s>]/i.test(t) ||
+    /^svg\s*<svg\b/i.test(t) ||
+    /<svg[\s>][\s\S]*<\/svg>/i.test(t)
+  );
+}
+
 export function MarkdownMessage({ content, variant = "assistant" }: Props) {
   const user = variant === "user";
+  // Convert ```svg / bare svg<svg…> into markdown images before parse
+  const prepared = normalizeTutorMarkdown(content);
 
   const components: Components = {
     p: ({ children }) => (
@@ -67,7 +78,6 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     img: ({ src, alt }) => {
       const href = typeof src === "string" ? src : "";
       if (!href) return null;
-      // Allow https images and data URLs from tutor diagrams
       const ok =
         href.startsWith("https://") ||
         href.startsWith("http://") ||
@@ -78,8 +88,10 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         <img
           src={href}
           alt={alt || "illustration"}
-          className={`tutor-md-img my-2 max-h-72 w-auto max-w-full rounded-xl object-contain ${
-            user ? "border border-white/25" : "border border-[var(--line)] bg-white"
+          className={`tutor-md-img my-2 max-h-80 w-auto max-w-full rounded-xl object-contain ${
+            user
+              ? "border border-white/25"
+              : "border border-[var(--line)] bg-white"
           }`}
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -88,13 +100,11 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     },
     code: ({ className, children, ...props }) => {
       const lang = fenceLanguage(className);
-      const text = String(children).replace(/\n$/, "");
-      const svgish =
-        /^<svg[\s>]/i.test(text) || /^svg\s*<svg\b/i.test(text.trim());
-      if ((className && isDiagramLanguage(lang)) || svgish) {
+      const text = nodeText(children).replace(/\n$/, "");
+      if (isDiagramLanguage(lang) || looksLikeSvg(text)) {
         return (
           <DiagramBlock
-            language={lang || "svg"}
+            language={looksLikeSvg(text) ? "svg" : lang || "svg"}
             code={text}
             user={user}
           />
@@ -125,17 +135,16 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
       );
     },
     pre: ({ children }) => {
-      // DiagramBlock renders its own container — avoid double <pre>
       const child = Array.isArray(children) ? children[0] : children;
       if (child && typeof child === "object" && "props" in child) {
-        const props = (child as { props?: { className?: string; children?: unknown } }).props;
+        const props = (
+          child as { props?: { className?: string; children?: unknown } }
+        ).props;
         const lang = fenceLanguage(props?.className);
-        const body = String(props?.children ?? "").replace(/\n$/, "");
-        const svgish =
-          isDiagramLanguage(lang) ||
-          /^<svg[\s>]/i.test(body) ||
-          /^svg\s*<svg\b/i.test(body.trim());
-        if (svgish) return <>{children}</>;
+        const body = nodeText(props?.children).replace(/\n$/, "");
+        if (isDiagramLanguage(lang) || looksLikeSvg(body)) {
+          return <>{children}</>;
+        }
       }
       return <pre className="mb-2 overflow-x-auto last:mb-0">{children}</pre>;
     },
@@ -188,7 +197,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     ),
   };
 
-  if (!content.trim()) return null;
+  if (!prepared.trim()) return null;
 
   return (
     <div
@@ -203,7 +212,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         ]}
         components={components}
       >
-        {normalizeTutorMarkdown(content)}
+        {prepared}
       </ReactMarkdown>
     </div>
   );

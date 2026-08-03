@@ -10,8 +10,13 @@ type Props = {
 };
 
 export function DiagramBlock({ language, code, user }: Props) {
-  const lang = language.toLowerCase();
-  if (lang === "svg" || lang === "xml") {
+  const lang = (language || "").toLowerCase().replace(/^language-/, "");
+  const looksSvg =
+    /^<svg[\s>]/i.test(code.trim()) ||
+    /^svg\s*<svg\b/i.test(code.trim()) ||
+    /<svg[\s>][\s\S]*<\/svg>/i.test(code);
+
+  if (lang === "svg" || lang === "xml" || looksSvg) {
     return <SvgDiagram code={code} user={user} />;
   }
   if (lang === "mermaid") {
@@ -27,8 +32,7 @@ export function isDiagramLanguage(language: string | undefined): boolean {
 }
 
 function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
-  // Tolerate "svg<svg...>" glue from models / broken fences
-  const safe = sanitizeSvg(code.replace(/^svg\s*(?=<svg\b)/i, ""));
+  const safe = sanitizeSvg(code);
   if (!safe) {
     return (
       <pre
@@ -40,14 +44,27 @@ function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
       </pre>
     );
   }
+
+  // Prefer <img data-uri> — more reliable than inline SVG in some WebViews
+  const src = `data:image/svg+xml,${encodeURIComponent(safe)
+    .replace(/'/g, "%27")
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29")
+    .replace(/\./g, "%2E")}`;
+
   return (
     <div
       className={`tutor-diagram mb-2 overflow-x-auto rounded-xl p-2 last:mb-0 ${
         user ? "bg-white/15" : "bg-[var(--mist)]/80 ring-1 ring-[var(--line)]"
       }`}
-      // Tutor-authored SVG only (sanitized)
-      dangerouslySetInnerHTML={{ __html: safe }}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="diagram"
+        className="mx-auto max-h-80 w-auto max-w-full"
+      />
+    </div>
   );
 }
 
