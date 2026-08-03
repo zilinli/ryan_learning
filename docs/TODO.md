@@ -68,6 +68,56 @@
 
 ---
 
+## Phase 6: Testing Infrastructure & Coverage (🔴 — Quality Gate)
+
+> 目标: 每行代码都有测试守护。每个生产 bug 都有回归测试。
+
+### 6.1 Existing Coverage Gaps (🔴 — Critical)
+
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 6.1.1 | 🔴 Add unit tests for `cursor-agent.ts` (SDK wrapper) | 2d | `cursor-agent.ts`, vitest | Mock Cursor SDK; test agent creation, prompt invocation, error handling, retry, cancellation |
+| 6.1.2 | 🔴 Add unit tests for `speech-player.ts` (browser TTS queue) | 2d | `speech-player.ts`, jsdom | Mock Web Audio API; test queue management, abort/cancel, autoplay on mobile, fallback on error |
+| 6.1.3 | 🔴 Add unit tests for `history-sync.ts` (multi-device sync) | 1d | `history-sync.ts` | Test sync conflicts, merge resolution, partial sync, corrupted data recovery |
+| 6.1.4 | 🔴 Add unit tests for `chat/route.ts` (core SSE endpoint) | 2d | `app/api/chat/route.ts` | Mock Cursor Agent; test prompt assembly, memory merge in-route, error codes (400/500), streaming chunk validation |
+| 6.1.5 | 🔴 Add React component tests (TutorShell, Composer, MarkdownMessage) | 3d | `@testing-library/react`, jsdom | Test message send (Enter), photo upload (click camera), diagram rendering (img presence), mobile layout (375px), voice record toggle |
+| 6.1.6 | 🔴 Add unit tests for `engagement.ts` (streak/badge logic) | 1d | `engagement.ts` | Test streak continuity (consecutive days), streak reset (missed day), badge unlocking (3-day/7-day/10-turns/50-turns), daily reset at midnight |
+
+### 6.2 Coverage for Planned Features (🟡 — Write Tests Before/During Implementation)
+
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 6.2.1 | 🟡 Tests for SM-2 forgetting decay | 1d | `bkt.test.ts`, Phase 1.1 | Decay curve correctness, ease-factor clamping [1.3, ∞), days-since-review weighting, boundary: never-reviewed skill |
+| 6.2.2 | 🟡 Tests for ZPD-based scoring | 1d | `bkt.test.ts`, Phase 1.4 | P(solve) computation, geo-mean joint, closeness-to-target scoring, boundary: skills at 0%/100% |
+| 6.2.3 | 🟡 Tests for confidence-weighted BKT updates | 0.5d | `learning-memory.test.ts`, Phase 1.5 | High-conf + wrong → large penalty, low-conf + correct → small gain, confidence=null → default behavior |
+| 6.2.4 | 🟡 Tests for Elo-hybrid difficulty tracking | 1d | `bkt.test.ts`, Phase 1.6 | Elo update correctness, dynamic K-value, difficulty→BKT param mapping, boundary: new topic (default Elo) |
+| 6.2.5 | 🟡 Tests for Singapore bar-model diagrams | 1d | `geometry-svg.test.ts`, Phase 0.4 | Horizontal/vertical bars, comparison models, part-whole models, label positioning, overflow with many bars |
+| 6.2.6 | 🟡 Tests for multi-lingual word-problem parsing | 0.5d | `skill-catalog.test.ts`, Phase 0.6 | EN+ZH mixed detection, language preservation, code-switching in single message |
+| 6.2.7 | 🟡 Tests for photo-first workflow | 1d | `image-process.test.ts` (new), Phase 0.3 | Image resize to max dimensions, format conversion, MIME detection, corrupt image handling, IndexedDB read/write for photo cache |
+| 6.2.8 | 🟡 Tests for voice-only mode | 1d | `speech-player.test.ts`, Phase 4.1 | Full voice loop: STT→agent→TTS→STT, abort mid-conversation, silence detection (end of turn), mobile autoplay permission |
+| 6.2.9 | 🟡 Tests for progressive disclosure UI | 0.5d | Component test, Phase 2.3 | Click-to-reveal step transitions, reveal-all option, keyboard accessibility |
+| 6.2.10 | 🟡 Tests for PWA offline mode | 1d | E2E test, Phase 5.1 | Offline page load, cached chat history display, re-sync on reconnect, stale-data handling |
+
+### 6.3 API Route Tests (🟡)
+
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 6.3.1 | 🟡 Route unit tests for `learning/route.ts` | 0.5d | vitest, mock FS | Test GET (empty server), PUT (valid/invalid body), cross-session persistence, max memory size guard |
+| 6.3.2 | 🟡 Route unit tests for `history/route.ts` | 0.5d | vitest, mock FS | Test GET (list), PUT (upsert), DELETE, search, stats, max conversation limit enforcement |
+| 6.3.3 | 🟡 Route unit tests for `tts/route.ts` + `transcribe/route.ts` | 0.5d | vitest, mock Edge TTS | Test error responses, missing body, unsupported language, timeout handling |
+| 6.3.4 | 🟡 Route unit tests for `media/[mediaId]/route.ts` | 0.5d | vitest, mock FS | Test GET (valid/invalid mediaId), content-type header, missing file 404, path traversal guard |
+
+### 6.4 CI/CD (🟢)
+
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 6.4.1 | 🟢 GitHub Actions CI: unit + build | 1d | `.github/workflows/ci.yml` | Run `npm test` + `npm run build` on every push/PR; fail on lint errors |
+| 6.4.2 | 🟢 GitHub Actions CI: integration (self-hosted) | 1d | Self-hosted runner | Run `verify:all` on self-hosted runner with access to local STT/TTS services; nightly cron job |
+| 6.4.3 | 🟢 Vitest coverage reporter (text + html) | 0.5d | `vitest.config.ts` | Add `coverage: { provider: 'v8', reporter: ['text', 'html'] }`; enforce 70% threshold for CI |
+| 6.4.4 | 🟢 Pre-commit hook: lint + typecheck | 0.5d | husky, lint-staged | `tsc --noEmit` + `eslint` before each commit; skip on CI (already covered) |
+
+---
+
 ## Quick Wins (< 1 day each)
 
 - [ ] Add "last practiced" timestamp to SkillsPanel UI
@@ -79,3 +129,5 @@
 - [ ] Remove all unused UI elements from production bundle (tree-shake unused icons, fonts)
 - [ ] Reduce input box height on mobile to 44px touch target (single-line until multi-line expands)
 - [ ] Add 豆包爱学-style "拍题" hint on camera button: "拍下题目，我来帮你"
+- [ ] Run `vitest --coverage` and add HTML report to `.gitignore`; enforce >70% for `src/lib/`
+- [ ] Add `test:ci` script that runs vitest with junit reporter for CI integration

@@ -47,6 +47,7 @@ flowchart TB
 | **[subsystems/voice-tts-stt.md](subsystems/voice-tts-stt.md)** | Multi-language TTS/STT, speech player |
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/security-sanitization.md](subsystems/security-sanitization.md)** | Threat model, input sanitization, tool sandboxing |
+| **[subsystems/testing.md](subsystems/testing.md)** | 🧪 Test strategy, gap analysis, regression catalog |
 | **[synthesis.md](synthesis.md)** | Cross-cutting summary + design rationale |
 | **[TODO.md](TODO.md)** | Downstream development task list |
 
