@@ -103,6 +103,78 @@ export async function getPhotoFromVault(
   }
 }
 
+/** Attachment / legacy image keys stored in the vault for one chat. */
+export function vaultIdsFromConversation(
+  conversation: ConversationRecord,
+): string[] {
+  const ids: string[] = [];
+  for (const m of conversation.messages || []) {
+    for (const a of m.attachments || []) {
+      if (a.id) ids.push(a.id);
+    }
+    ids.push(`${m.id}-img`);
+  }
+  return ids;
+}
+
+export function vaultIdsFromStore(store: ConversationsStore): Set<string> {
+  const ids = new Set<string>();
+  for (const c of store.conversations || []) {
+    for (const id of vaultIdsFromConversation(c)) ids.add(id);
+  }
+  return ids;
+}
+
+/** Remove specific vault entries (call when a chat is deleted). */
+export async function deletePhotosFromVault(ids: string[]): Promise<number> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return 0;
+  let removed = 0;
+  try {
+    await withStore("readwrite", (store) => {
+      for (const id of unique) {
+        store.delete(id);
+        removed += 1;
+      }
+    });
+  } catch {
+    return 0;
+  }
+  return removed;
+}
+
+/**
+ * Drop vault photos that are no longer referenced by any local chat.
+ * Safe to run after hydrate / delete.
+ */
+export async function pruneVaultToStore(
+  store: ConversationsStore,
+): Promise<number> {
+  const keep = vaultIdsFromStore(store);
+  try {
+    const db = await openDb();
+    const allIds = await new Promise<string[]>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => {
+        resolve((req.result as IDBValidKey[]).map((k) => String(k)));
+      };
+      req.onerror = () => reject(req.error || new Error("getAllKeys failed"));
+      tx.onerror = () => reject(tx.error || new Error("idb tx failed"));
+    });
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+    const orphans = allIds.filter((id) => !keep.has(id));
+    if (!orphans.length) return 0;
+    return deletePhotosFromVault(orphans);
+  } catch {
+    return 0;
+  }
+}
+
 /** Save every attachment dataUrl found in a conversations store. */
 export async function ingestStorePhotos(
   store: ConversationsStore,

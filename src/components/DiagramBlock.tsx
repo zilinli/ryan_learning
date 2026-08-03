@@ -14,7 +14,9 @@ export function DiagramBlock({ language, code, user }: Props) {
   const looksSvg =
     /^<svg[\s>]/i.test(code.trim()) ||
     /^svg\s*<svg\b/i.test(code.trim()) ||
-    /<svg[\s>][\s\S]*<\/svg>/i.test(code);
+    /^svg<svg/i.test(code.trim()) ||
+    /<svg[\s>/][\s\S]*<\/svg>/i.test(code) ||
+    /<svgxmlns=/i.test(code);
 
   if (lang === "svg" || lang === "xml" || looksSvg) {
     return <SvgDiagram code={code} user={user} />;
@@ -46,11 +48,11 @@ function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
   }
 
   // Prefer <img data-uri> — more reliable than inline SVG in some WebViews
-  const src = `data:image/svg+xml,${encodeURIComponent(safe)
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29")
-    .replace(/\./g, "%2E")}`;
+  const src = `data:image/svg+xml;base64,${
+    typeof Buffer !== "undefined"
+      ? Buffer.from(safe, "utf8").toString("base64")
+      : btoa(unescape(encodeURIComponent(safe)))
+  }`;
 
   return (
     <div

@@ -1,6 +1,6 @@
 /** Sanitize tutor-emitted SVG so we can safely inline it. */
 export function sanitizeSvg(raw: string): string | null {
-  let s = raw.trim();
+  let s = repairCollapsedSvg(raw).trim();
   if (!s) return null;
   // Allow fenced content that includes xml prologue
   s = s.replace(/<\?xml[\s\S]*?\?>/i, "").trim();
@@ -26,6 +26,77 @@ export function sanitizeSvg(raw: string): string | null {
   return s;
 }
 
+/** Repair SVG that lost spaces in streaming (e.g. `<svgxmlns=` / `viewBox="00320240"`). */
+export function repairCollapsedSvg(raw: string): string {
+  let s = (raw || "").trim();
+  if (!s) return s;
+  s = s.replace(/^```svg\s*/i, "").replace(/```+$/i, "").trim();
+  s = s.replace(/^svg(?=<svg)/i, "");
+
+  // <svgxmlns= → <svg xmlns=
+  s = s.replace(
+    /<(svg|path|circle|line|polygon|polyline|rect|text|g|defs)(?=[a-zA-Z_])/gi,
+    "<$1 ",
+  );
+  // >rectwidth= → ><rect width=  (opening < lost after previous tag)
+  s = s.replace(
+    />(svg|path|circle|line|polygon|polyline|rect|text|g|defs)(?=[a-zA-Z_][\w:-]*=)/gi,
+    "><$1 ",
+  );
+
+  // xmlns value ate the next attributes: xmlns="http://wwww3.org2000svgviewBox="00…
+  s = s.replace(
+    /xmlns="http:\/\/w+w3\.org[^"]*?(?=viewBox|width|height|role|aria-|$)/gi,
+    'xmlns="http://www.w3.org/2000/svg" ',
+  );
+  s = s.replace(
+    /xmlns="http:\/\/wwww3\.org2000svg"/gi,
+    'xmlns="http://www.w3.org/2000/svg"',
+  );
+  s = s.replace(
+    /xmlns="http:\/\/w{3,}w3\.org\/?2000\/?svg"/gi,
+    'xmlns="http://www.w3.org/2000/svg"',
+  );
+
+  // viewBox="00320240" or viewBox="00320240width=…
+  s = s.replace(/viewBox="00(\d{3})(\d{3})(?="|[a-z])/gi, 'viewBox="0 0 $1 $2"');
+  s = s.replace(/viewBox="0 0 (\d{3})(\d{3})"/gi, 'viewBox="0 0 $1 $2"');
+
+  // Closing quote glued to next attr: "100%"role= → "100%" role=
+  // Do NOT match inside values (xmlns="http… would become xmlns=" http…).
+  s = s.replace(/"([a-zA-Z_][\w:-]*=)/g, '" $1');
+
+  // Closing fence glued: </svg```
+  s = s.replace(/<\/svg```+/gi, "</svg>");
+
+  // Restore a few frequent hyphenated attrs if glued
+  s = s.replace(
+    /\s(stroke|font|text|aria|fill|dominant)(width|size|anchor|label|opacity|baseline)=/gi,
+    " $1-$2=",
+  );
+
+  // Drop duplicate / broken xmlns leftovers — keep a single canonical one
+  s = s.replace(/\sxmlns="[^"]*"/gi, "");
+  s = s.replace(
+    /<svg\b/i,
+    '<svg xmlns="http://www.w3.org/2000/svg"',
+  );
+  if (!/viewBox=/i.test(s)) {
+    s = s.replace(/<svg\b/i, '<svg viewBox="0 0 320 240"');
+  }
+  return s;
+}
+
+function utf8ToBase64(text: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(text, "utf8").toString("base64");
+  }
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
 /** Extract plain text from react-markdown code children. */
 export function nodeText(children: unknown): string {
   if (children == null || typeof children === "boolean") return "";
@@ -40,18 +111,50 @@ export function nodeText(children: unknown): string {
   return "";
 }
 
-/** Turn sanitized SVG markup into a markdown image the chat can always show. */
+/**
+ * Turn sanitized SVG into a markdown image.
+ * Use base64 — percent-encoded data URIs often fail to render in react-markdown / mobile WebViews.
+ */
 export function svgToMarkdownImage(svg: string, alt = "diagram"): string | null {
   const safe = sanitizeSvg(svg);
   if (!safe) return null;
-  // Prefer URL-encoded SVG data URI (works in <img> without base64 deps on client).
-  // Encode "." too — otherwise TTS sentence-splitting cuts on float coords / w3.org.
-  const encoded = encodeURIComponent(safe)
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29")
-    .replace(/\./g, "%2E");
-  return `![${alt}](data:image/svg+xml,${encoded})`;
+  const b64 = utf8ToBase64(safe);
+  return `![${alt}](data:image/svg+xml;base64,${b64})`;
+}
+
+/** Match tutor diagram markdown images (percent-encoded or base64). */
+export const DIAGRAM_IMAGE_RE =
+  /!\[([^\]]*)\]\((data:image\/svg\+xml(?:;base64)?,[^)]+)\)/gi;
+
+export type TutorContentPart =
+  | { kind: "text"; text: string }
+  | { kind: "img"; src: string; alt: string };
+
+/**
+ * Split normalized tutor markdown so diagram images are rendered as real <img>
+ * nodes — never depend on react-markdown parsing multi-KB data URIs.
+ */
+export function splitTutorContent(content: string): TutorContentPart[] {
+  const prepared = normalizeTutorMarkdown(content || "");
+  const parts: TutorContentPart[] = [];
+  const re = new RegExp(DIAGRAM_IMAGE_RE.source, "gi");
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prepared))) {
+    if (m.index > last) {
+      parts.push({ kind: "text", text: prepared.slice(last, m.index) });
+    }
+    parts.push({
+      kind: "img",
+      alt: m[1] || "diagram",
+      src: m[2]!,
+    });
+    last = m.index + m[0].length;
+  }
+  if (last < prepared.length) {
+    parts.push({ kind: "text", text: prepared.slice(last) });
+  }
+  return parts.length ? parts : [{ kind: "text", text: prepared }];
 }
 
 /**
@@ -60,20 +163,56 @@ export function svgToMarkdownImage(svg: string, alt = "diagram"): string | null 
  * - bare svg<svg>...</svg> (including mid-line — react-markdown strips raw HTML)
  * Convert them to markdown images so rendering never depends on code-fence components.
  */
+/** Convert percent-encoded SVG data URIs to base64 (more reliable in <img>). */
+function reencodeDiagramDataUris(content: string): string {
+  return content.replace(
+    /!\[([^\]]*)\]\((data:image\/svg\+xml)(?!;base64),([^)]+)\)/gi,
+    (_m, alt: string, prefix: string, payload: string) => {
+      try {
+        let svg = payload;
+        if (/%[0-9A-Fa-f]{2}/.test(payload) || payload.startsWith("%")) {
+          svg = decodeURIComponent(payload.replace(/\+/g, " "));
+        } else if (payload.trimStart().startsWith("<")) {
+          svg = payload;
+        } else {
+          return _m;
+        }
+        const img = svgToMarkdownImage(svg, alt || "diagram");
+        return img || _m;
+      } catch {
+        return _m;
+      }
+    },
+  );
+}
+
 export function normalizeTutorMarkdown(content: string): string {
   let t = content || "";
 
-  // ```svg ... ```  (body may start with svg<svg or <svg)
+  // Prefer base64 for any existing percent-encoded diagram images
+  t = reencodeDiagramDataUris(t);
+
+  // ```svg ... ```  (body may start with svg<svg or <svg, possibly space-collapsed)
   t = t.replace(/```svg\s*\n?([\s\S]*?)```/gi, (_m, body: string) => {
-    const raw = String(body).trim().replace(/^svg\s*(?=<svg\b)/i, "");
+    const raw = repairCollapsedSvg(
+      String(body).trim().replace(/^svg\s*(?=<svg\b)/i, ""),
+    );
     const img = svgToMarkdownImage(raw);
+    return img ? `\n${img}\n` : _m;
+  });
+
+  // Collapsed fence without closing ``` properly: ```svg<svg...></svg```
+  t = t.replace(/```svg\s*(<svg\b[\s\S]*?<\/svg>)\s*```?/gi, (_m, body: string) => {
+    const img = svgToMarkdownImage(repairCollapsedSvg(body));
     return img ? `\n${img}\n` : _m;
   });
 
   // Generic fence whose body is clearly SVG
   t = t.replace(/```(\w*)\s*\n?([\s\S]*?)```/g, (m, lang: string, body: string) => {
     if (/^(svg|xml)$/i.test(lang || "")) return m; // already handled
-    const raw = String(body).trim().replace(/^svg\s*(?=<svg\b)/i, "");
+    const raw = repairCollapsedSvg(
+      String(body).trim().replace(/^svg\s*(?=<svg\b)/i, ""),
+    );
     if (!/^<svg[\s>]/i.test(raw)) return m;
     const img = svgToMarkdownImage(raw);
     return img ? `\n${img}\n` : m;
@@ -81,14 +220,24 @@ export function normalizeTutorMarkdown(content: string): string {
 
   // Bare: svg<svg ...></svg> anywhere (models glue the fence language to the tag)
   t = t.replace(/\bsvg\s*(<svg\b[\s\S]*?<\/svg>)/gi, (_m, svg: string) => {
-    const img = svgToMarkdownImage(svg);
+    const img = svgToMarkdownImage(repairCollapsedSvg(svg));
     return img ? `\n${img}\n` : _m;
   });
+
+  // Space-collapsed: svg<svgxmlns=...></svg```  (no spaces, broken close)
+  t = t.replace(
+    /\bsvg<svgxmlns=[\s\S]*?<\/svg```?/gi,
+    (m) => {
+      const raw = repairCollapsedSvg(m.replace(/\bsvg(?=<svg)/i, "").replace(/```$/i, ""));
+      const img = svgToMarkdownImage(raw);
+      return img ? `\n${img}\n` : m;
+    },
+  );
 
   // Bare <svg>...</svg> mid-prose (react-markdown strips raw HTML → invisible figure)
   t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, (m) => {
     if (m.includes("data:image/svg+xml")) return m;
-    const img = svgToMarkdownImage(m);
+    const img = svgToMarkdownImage(repairCollapsedSvg(m));
     return img ? `\n${img}\n` : m;
   });
 
@@ -117,7 +266,7 @@ export function extractGeometryMarkdown(result: unknown): string | null {
   };
   walk(result);
   for (const t of texts) {
-    const md = t.match(/!\[[^\]]*\]\(data:image\/svg\+xml,[^)]+\)/i);
+    const md = t.match(/!\[[^\]]*\]\(data:image\/svg\+xml(?:;base64)?,[^)]+\)/i);
     if (md?.[0]) return md[0];
   }
   for (const t of texts) {

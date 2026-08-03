@@ -5,6 +5,7 @@ import {
   geometrySpecToMarkdown,
   normalizeTutorMarkdown,
   sanitizeSvg,
+  splitTutorContent,
   svgToMarkdownImage,
 } from "./geometry-svg";
 
@@ -33,24 +34,29 @@ describe("sanitizeSvg", () => {
 });
 
 describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {
-  it("emits a data-uri markdown image", () => {
+  it("emits a base64 data-uri markdown image", () => {
     const img = svgToMarkdownImage(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>',
     );
-    expect(img).toMatch(/^!\[.*\]\(data:image\/svg\+xml,/);
+    expect(img).toMatch(/^!\[.*\]\(data:image\/svg\+xml;base64,/);
+    const b64 = img!.match(/base64,([^)]+)/)?.[1];
+    expect(b64).toBeTruthy();
+    const decoded = Buffer.from(b64!, "base64").toString("utf8");
+    expect(decoded).toContain("<svg");
+    expect(decoded).toContain("www.w3.org");
   });
 
   it("converts fenced and glued svg to markdown images", () => {
     const fenced = normalizeTutorMarkdown(
       'see\n```svg\n<svg viewBox="0 0 10 10"></svg>\n```\nend',
     );
-    expect(fenced).toContain("data:image/svg+xml");
+    expect(fenced).toContain("data:image/svg+xml;base64,");
     expect(fenced).not.toContain("```svg");
 
     const glued = normalizeTutorMarkdown(
       'look\nsvg<svg viewBox="0 0 10 10"></svg>\nend',
     );
-    expect(glued).toContain("data:image/svg+xml");
+    expect(glued).toContain("data:image/svg+xml;base64,");
     expect(glued).not.toMatch(/svg<svg/);
   });
 
@@ -69,34 +75,71 @@ describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {
       "你注意到什么？";
 
     const out = normalizeTutorMarkdown(raw);
-    expect(out).toContain("data:image/svg+xml");
+    expect(out).toContain("data:image/svg+xml;base64,");
     expect(out).not.toMatch(/svg<svg/);
     expect(out).toContain("你注意到什么");
 
-    const uri = out.match(/data:image\/svg\+xml,([^)\s]+)/)?.[1];
-    expect(uri).toBeTruthy();
-    const decoded = decodeURIComponent(uri!);
+    const b64 = out.match(/base64,([^)\s]+)/)?.[1];
+    expect(b64).toBeTruthy();
+    const decoded = Buffer.from(b64!, "base64").toString("utf8");
     expect(decoded).toContain("<polygon");
     expect(decoded).toContain(">A<");
     expect(decoded).toContain(">C<");
+  });
+
+  it("repairs space-collapsed SVG from streaming (real chat bug)", () => {
+    const collapsed =
+      '```svg<svgxmlns="http://wwww3.org2000svgviewBox="00320240width="100%"role="img">' +
+      'rectwidth="100%"height="100%"fill="#f7fbfa"/>' +
+      'polygonpoints="70,190 250,190 70,55"stroke="#1f4d4a"/>' +
+      "</svg```";
+    const out = normalizeTutorMarkdown(`图：${collapsed}\n你注意到咩？`);
+    expect(out).toContain("data:image/svg+xml;base64,");
+    const b64 = out.match(/base64,([^)\s]+)/)?.[1];
+    const decoded = Buffer.from(b64!, "base64").toString("utf8");
+    expect(decoded).toMatch(/<svg\s/i);
+    expect(decoded).toContain("www.w3.org");
+    expect(decoded).toContain("viewBox=");
   });
 
   it("converts mid-line bare svg (react-markdown would strip HTML)", () => {
     const out = normalizeTutorMarkdown(
       '睇吓呢个图：<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="2"/></svg>你睇到咩？',
     );
-    expect(out).toContain("data:image/svg+xml");
+    expect(out).toContain("data:image/svg+xml;base64,");
     expect(out).not.toMatch(/<svg\b/);
     expect(out).toContain("睇吓呢个图");
     expect(out).toContain("你睇到咩");
   });
 
-  it("encodes periods in data URIs so TTS cannot split on them", () => {
-    const img = svgToMarkdownImage(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10.5 10"><circle cx="1.5" cy="2" r="1"/></svg>',
+  it("re-encodes percent-encoded SVG data URIs to base64", () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="2"/></svg>';
+    const pct = `![直角三角形](data:image/svg+xml,${encodeURIComponent(svg)})`;
+    const out = normalizeTutorMarkdown(`图：\n${pct}\n继续`);
+    expect(out).toContain("data:image/svg+xml;base64,");
+    expect(out).not.toMatch(/data:image\/svg\+xml,%/);
+    const parts = splitTutorContent(out);
+    expect(parts.some((p) => p.kind === "img" && p.src.includes(";base64,"))).toBe(
+      true,
     );
-    expect(img).toContain("%2E");
-    expect(img).not.toMatch(/data:image\/svg\+xml,[^)]*\./);
+  });
+
+  it("splitTutorContent isolates images from markdown text", () => {
+    const md = svgToMarkdownImage(
+      '<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="2"/></svg>',
+    )!;
+    const parts = splitTutorContent(`先睇图：\n${md}\n你注意到咩？`);
+    expect(parts.some((p) => p.kind === "img")).toBe(true);
+    expect(parts.some((p) => p.kind === "text" && p.text.includes("先睇图"))).toBe(
+      true,
+    );
+    const img = parts.find((p) => p.kind === "img");
+    expect(
+      img &&
+        img.kind === "img" &&
+        img.src.startsWith("data:image/svg+xml;base64,"),
+    ).toBe(true);
   });
 
   it("ensureTutorDiagrams inserts when model forgot to paste", () => {
@@ -106,7 +149,7 @@ describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {
     const out = ensureTutorDiagrams("睇吓橙色嗰条边。你觉得佢有咩特别？", [
       diagram,
     ]);
-    expect(out).toContain("data:image/svg+xml");
+    expect(out).toContain("data:image/svg+xml;base64,");
     expect(out).toContain("睇吓橙色");
   });
 });

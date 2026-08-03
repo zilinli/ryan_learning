@@ -92,7 +92,7 @@ export function hasTutorDiagram(text: string): boolean {
 export function extractTutorDiagrams(text: string): string[] {
   const out: string[] = [];
   for (const m of (text || "").matchAll(
-    /!\[[^\]]*\]\(data:image\/svg\+xml,[^)]+\)/gi,
+    /!\[[^\]]*\]\(data:image\/svg\+xml(?:;base64)?,[^)]+\)/gi,
   )) {
     out.push(m[0]);
   }

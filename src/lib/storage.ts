@@ -57,7 +57,7 @@ export function truncateMessageContent(
   max = MAX_CONTENT_CHARS,
 ): string {
   if (content.length <= max) return content;
-  const diagramRe = /!\[[^\]]*\]\(data:image\/svg\+xml,[^)]+\)/gi;
+  const diagramRe = /!\[[^\]]*\]\(data:image\/svg\+xml(?:;base64)?,[^)]+\)/gi;
   const diagrams = [...content.matchAll(diagramRe)].map((m) => m[0]);
   if (diagrams.length > 0) {
     const without = content.replace(diagramRe, "\n");

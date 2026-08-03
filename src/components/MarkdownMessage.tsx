@@ -8,7 +8,10 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
 import { DiagramBlock, isDiagramLanguage } from "./DiagramBlock";
-import { nodeText, normalizeTutorMarkdown } from "@/lib/geometry-svg";
+import {
+  nodeText,
+  splitTutorContent,
+} from "@/lib/geometry-svg";
 
 type Props = {
   content: string;
@@ -31,14 +34,47 @@ function looksLikeSvg(text: string): boolean {
   return (
     /^<svg[\s>]/i.test(t) ||
     /^svg\s*<svg\b/i.test(t) ||
-    /<svg[\s>][\s\S]*<\/svg>/i.test(t)
+    /^svg<svg/i.test(t) ||
+    /<svg[\s>/][\s\S]*<\/svg>/i.test(t) ||
+    /<svgxmlns=/i.test(t)
+  );
+}
+
+function TutorImg({
+  src,
+  alt,
+  user,
+}: {
+  src: string;
+  alt: string;
+  user: boolean;
+}) {
+  const ok =
+    src.startsWith("https://") ||
+    src.startsWith("http://") ||
+    src.startsWith("data:image/");
+  if (!ok) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt || "diagram"}
+      className={`tutor-md-img my-2 max-h-80 w-auto max-w-full rounded-xl object-contain ${
+        user
+          ? "border border-white/25"
+          : "border border-[var(--line)] bg-white"
+      }`}
+      loading="eager"
+      decoding="async"
+      referrerPolicy="no-referrer"
+    />
   );
 }
 
 export function MarkdownMessage({ content, variant = "assistant" }: Props) {
   const user = variant === "user";
-  // Convert ```svg / bare svg<svg…> into markdown images before parse
-  const prepared = normalizeTutorMarkdown(content);
+  // Split diagrams out BEFORE react-markdown — long data URIs often fail to parse as images.
+  const parts = splitTutorContent(content);
 
   const components: Components = {
     p: ({ children }) => (
@@ -75,29 +111,13 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         {children}
       </a>
     ),
-    img: ({ src, alt }) => {
-      const href = typeof src === "string" ? src : "";
-      if (!href) return null;
-      const ok =
-        href.startsWith("https://") ||
-        href.startsWith("http://") ||
-        href.startsWith("data:image/");
-      if (!ok) return null;
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={href}
-          alt={alt || "illustration"}
-          className={`tutor-md-img my-2 max-h-80 w-auto max-w-full rounded-xl object-contain ${
-            user
-              ? "border border-white/25"
-              : "border border-[var(--line)] bg-white"
-          }`}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-        />
-      );
-    },
+    img: ({ src, alt }) => (
+      <TutorImg
+        src={typeof src === "string" ? src : ""}
+        alt={alt || "illustration"}
+        user={user}
+      />
+    ),
     code: ({ className, children, ...props }) => {
       const lang = fenceLanguage(className);
       const text = nodeText(children).replace(/\n$/, "");
@@ -197,7 +217,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     ),
   };
 
-  if (!prepared.trim()) return null;
+  if (!content.trim()) return null;
 
   return (
     <div
@@ -205,15 +225,22 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         user ? "text-white [&_.katex]:text-white" : "text-[var(--ink)]"
       }`}
     >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[
-          [rehypeKatex, { throwOnError: false, strict: "ignore" }],
-        ]}
-        components={components}
-      >
-        {prepared}
-      </ReactMarkdown>
+      {parts.map((part, i) =>
+        part.kind === "img" ? (
+          <TutorImg key={`img-${i}`} src={part.src} alt={part.alt} user={user} />
+        ) : part.text.trim() ? (
+          <ReactMarkdown
+            key={`md-${i}`}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[
+              [rehypeKatex, { throwOnError: false, strict: "ignore" }],
+            ]}
+            components={components}
+          >
+            {part.text}
+          </ReactMarkdown>
+        ) : null,
+      )}
     </div>
   );
 }

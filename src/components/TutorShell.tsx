@@ -42,9 +42,12 @@ import {
   type LearningMemory,
 } from "@/lib/learning-memory";
 import {
+  deletePhotosFromVault,
   ingestStorePhotos,
+  pruneVaultToStore,
   putPhotoInVault,
   restoreStorePhotosFromVault,
+  vaultIdsFromConversation,
 } from "@/lib/photo-vault";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
@@ -283,6 +286,7 @@ export function TutorShell() {
       const merged = await hydrateFromServer(loaded);
       const restored = await restoreStorePhotosFromVault(merged);
       await ingestStorePhotos(restored);
+      await pruneVaultToStore(restored);
       setStore(restored);
       saveConversations(restored);
       const withMedia = await pushStoreToServer(restored);
@@ -372,6 +376,7 @@ export function TutorShell() {
 
   const deleteConversation = (id: string) => {
     if (!store || busy) return;
+    const doomed = store.conversations.find((c) => c.sessionId === id);
     let conversations = store.conversations.filter((c) => c.sessionId !== id);
     let activeId = store.activeId;
     if (activeId === id) {
@@ -399,9 +404,15 @@ export function TutorShell() {
     }
     resetIdsRef.current.delete(id);
     speakApiRef.current?.stop();
-    setStore({ version: 3, activeId, conversations });
+    const nextStore = { version: 3 as const, activeId, conversations };
+    setStore(nextStore);
     setError("");
+    // Drop server JSON + data/media, and local IndexedDB photos for this chat
     void deleteServerChat(id);
+    if (doomed) {
+      void deletePhotosFromVault(vaultIdsFromConversation(doomed));
+    }
+    void pruneVaultToStore(nextStore);
   };
 
   const handleSend = async (payload: {

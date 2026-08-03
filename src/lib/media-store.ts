@@ -148,26 +148,98 @@ export async function deleteMediaForSession(sessionId: string): Promise<number> 
   return removed;
 }
 
-/** Drop media whose session is no longer in the keep set. */
+/** Collect mediaIds still referenced by conversation JSON. */
+export function collectReferencedMediaIds(
+  conversations: ConversationRecord[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const c of conversations || []) {
+    for (const m of c.messages || []) {
+      for (const a of m.attachments || []) {
+        if (a.mediaId) ids.add(a.mediaId);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Drop media whose session is gone, or whose mediaId is no longer referenced
+ * (e.g. messages trimmed by retention). Also removes stray .bin without meta.
+ *
+ * Fresh files (< 2 min) for unknown sessions are kept so an in-flight upsert
+ * that wrote media before the conversation JSON cannot race with prune.
+ */
 export async function pruneOrphanMedia(
   keepSessionIds: Set<string>,
+  keepMediaIds?: Set<string>,
 ): Promise<number> {
   await ensureMediaDir();
   const names = await fs.readdir(MEDIA_DIR);
   let removed = 0;
+  const seenBins = new Set<string>();
+  const GRACE_MS = 2 * 60 * 1000;
+  const now = Date.now();
+
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
+    const base = name.slice(0, -".json".length);
+    seenBins.add(`${base}.bin`);
+    const jsonFull = path.join(MEDIA_DIR, name);
     try {
       const meta = JSON.parse(
-        await fs.readFile(path.join(MEDIA_DIR, name), "utf8"),
+        await fs.readFile(jsonFull, "utf8"),
       ) as StoredMediaMeta;
-      if (keepSessionIds.has(meta.sessionId)) continue;
-      await deleteMedia(meta.mediaId);
-      removed += 1;
+      const sessionKept = keepSessionIds.has(meta.sessionId);
+      const unreferenced =
+        Boolean(keepMediaIds) &&
+        sessionKept &&
+        !keepMediaIds!.has(meta.mediaId);
+      const sessionGone = !sessionKept;
+
+      if (unreferenced) {
+        await deleteMedia(meta.mediaId);
+        removed += 1;
+        continue;
+      }
+      if (sessionGone) {
+        let mtime = now;
+        try {
+          mtime = (await fs.stat(jsonFull)).mtimeMs;
+        } catch {
+          // ignore
+        }
+        if (now - mtime < GRACE_MS) continue;
+        await deleteMedia(meta.mediaId);
+        removed += 1;
+      }
     } catch {
-      // skip corrupt
+      // Corrupt meta — remove pair
+      await Promise.allSettled([
+        fs.unlink(jsonFull),
+        fs.unlink(path.join(MEDIA_DIR, `${base}.bin`)),
+      ]);
+      removed += 1;
     }
   }
+
+  // Stray .bin files with no matching .json
+  for (const name of names) {
+    if (!name.endsWith(".bin")) continue;
+    if (seenBins.has(name)) continue;
+    const jsonSibling = name.slice(0, -".bin".length) + ".json";
+    if (names.includes(jsonSibling)) continue;
+    const binFull = path.join(MEDIA_DIR, name);
+    try {
+      const st = await fs.stat(binFull);
+      if (now - st.mtimeMs < GRACE_MS) continue;
+      await fs.unlink(binFull);
+      removed += 1;
+    } catch {
+      // ignore
+    }
+  }
+
   return removed;
 }
 

@@ -97,4 +97,44 @@ describe("history-store server persistence", () => {
       }),
     ).toBeNull();
   });
+
+  it("still cleans media if conversation json is already gone", async () => {
+    const id = `orphan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const saved = await upsertServerConversation({
+      sessionId: id,
+      title: "gone json",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "photo",
+          createdAt: 1,
+          attachments: [
+            {
+              id: "a1",
+              name: "p.jpg",
+              mimeType: "image/jpeg",
+              kind: "image",
+              dataUrl:
+                "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z",
+            },
+          ],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const mediaId = saved?.messages[0]?.attachments?.[0]?.mediaId;
+    expect(mediaId).toBeTruthy();
+    const file = path.join(
+      process.cwd(),
+      "data",
+      "conversations",
+      `${id}.json`,
+    );
+    await rm(file, { force: true });
+    expect(await deleteServerConversation(id)).toBe(true);
+    const { readMedia } = await import("./media-store");
+    expect(await readMedia(mediaId!)).toBeNull();
+  });
 });

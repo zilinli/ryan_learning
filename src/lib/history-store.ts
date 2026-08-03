@@ -12,6 +12,7 @@ import {
   type HistorySearchHit,
 } from "./history-retention";
 import {
+  collectReferencedMediaIds,
   deleteMediaForSession,
   persistConversationMedia,
   pruneOrphanMedia,
@@ -140,7 +141,8 @@ export async function enforceServerRetention(): Promise<{
     }
   }
 
-  await pruneOrphanMedia(keepIds);
+  // Drop media for deleted chats AND for messages trimmed out of kept chats
+  await pruneOrphanMedia(keepIds, collectReferencedMediaIds(kept));
 
   return {
     conversations: kept.length,
@@ -216,13 +218,15 @@ export async function deleteServerConversation(
 ): Promise<boolean> {
   const id = safeId(sessionId);
   if (!id) return false;
+  let removedJson = false;
   try {
     await fs.unlink(filePath(id));
-    await deleteMediaForSession(id);
-    return true;
+    removedJson = true;
   } catch {
-    return false;
+    // Already gone — still clean media below
   }
+  const removedMedia = await deleteMediaForSession(id);
+  return removedJson || removedMedia > 0;
 }
 
 export async function historyStats(): Promise<{
