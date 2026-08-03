@@ -46,6 +46,10 @@ yarn-error.log*
 /data/media/*
 !/data/media/.gitkeep
 
+# agent-chat build cache
+agent-chat/.next/
+agent-chat/.env.local
+
 # vercel
 .vercel
 
