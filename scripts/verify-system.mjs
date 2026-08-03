@@ -187,7 +187,7 @@ async function main() {
     ).json();
     ok(
       "history stats expose message budget",
-      stats.stats?.maxMessages === 10000,
+      stats.stats?.maxMessages === 1000,
       JSON.stringify(stats.stats),
     );
     await fetch(

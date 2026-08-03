@@ -8,8 +8,10 @@ export interface ChatAttachment {
   name: string;
   mimeType: string;
   kind: AttachmentKind;
-  /** Preview for images (and sometimes files) */
+  /** Local preview (base64 data URL) — kept in browser storage */
   dataUrl?: string;
+  /** Server-persisted homework photo id → GET /api/media/:id */
+  mediaId?: string;
 }
 
 /** Wire format for /api/chat */

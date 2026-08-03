@@ -35,6 +35,9 @@ export function mergeMessageAttachments(
         if (a.kind === "image" && !a.dataUrl && o?.dataUrl) {
           return { ...a, dataUrl: o.dataUrl } satisfies ChatAttachment;
         }
+        if (a.kind === "image" && !a.mediaId && o?.mediaId) {
+          return { ...a, mediaId: o.mediaId } satisfies ChatAttachment;
+        }
         if (!m.attachments?.length && o) return o;
         return a;
       });

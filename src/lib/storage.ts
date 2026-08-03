@@ -44,7 +44,7 @@ function slimAttachment(a: NonNullable<ChatMessage["attachments"]>[number]) {
     name: a.name,
     mimeType: a.mimeType,
     kind: a.kind,
-    // Drop heavy base64 / text for inactive storage (images kept separately)
+    ...(a.mediaId ? { mediaId: a.mediaId } : {}),
   };
 }
 
@@ -92,7 +92,7 @@ function pruneStore(store: ConversationsStore): ConversationsStore {
     (c) => c.sessionId === store.activeId || c.messages.length > 0,
   );
 
-  // Global message + size retention (keep newest ~10k messages)
+  // Global message + size retention (keep newest ~1k messages)
   list = enforceHistoryRetention(list, {
     maxMessages: MAX_TOTAL_MESSAGES,
   });

@@ -10,7 +10,7 @@ import {
 } from "./history-store";
 
 describe("history-store server persistence", () => {
-  it("sanitizeForServer strips attachment previews", () => {
+  it("sanitizeForServer strips base64 but keeps mediaId", () => {
     const clean = sanitizeForServer({
       sessionId: "abc123",
       title: "t",
@@ -27,6 +27,7 @@ describe("history-store server persistence", () => {
               mimeType: "image/jpeg",
               kind: "image",
               dataUrl: "data:image/jpeg;base64,AAAA",
+              mediaId: "sess_abc",
             },
           ],
         },
@@ -35,6 +36,7 @@ describe("history-store server persistence", () => {
       updatedAt: 2,
     });
     expect(clean.messages[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    expect(clean.messages[0]?.attachments?.[0]?.mediaId).toBe("sess_abc");
     expect(clean.messages[0]?.attachments?.[0]?.name).toBe("p.jpg");
   });
 

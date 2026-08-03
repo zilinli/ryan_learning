@@ -1,9 +1,9 @@
 import type { ConversationRecord } from "./types";
 
 /** Global retention: keep roughly the newest N messages across all chats. */
-export const MAX_TOTAL_MESSAGES = 10_000;
-/** Soft disk budget for server history JSON (bytes). */
-export const MAX_HISTORY_BYTES = 48 * 1024 * 1024;
+export const MAX_TOTAL_MESSAGES = 1_000;
+/** Soft disk budget for server history JSON only (photos live under data/media). */
+export const MAX_HISTORY_BYTES = 12 * 1024 * 1024;
 
 export type HistorySearchHit = {
   conversation: ConversationRecord;

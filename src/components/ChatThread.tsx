@@ -26,6 +26,13 @@ function messageAttachments(m: ChatMessage): ChatAttachment[] {
   return [];
 }
 
+/** Prefer local dataUrl; fall back to server media for history chats. */
+function attachmentImageSrc(a: ChatAttachment): string | null {
+  if (a.dataUrl) return a.dataUrl;
+  if (a.mediaId) return `/api/media/${encodeURIComponent(a.mediaId)}`;
+  return null;
+}
+
 export function ChatThread({ messages, streaming }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -71,45 +78,53 @@ export function ChatThread({ messages, streaming }: Props) {
             >
               {attachments.length > 0 ? (
                 <div className="mb-2 flex flex-wrap gap-2">
-                  {attachments.map((a, idx) =>
-                    a.kind === "image" && a.dataUrl ? (
-                      <button
-                        key={a.id}
-                        type="button"
-                        className="group relative block overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                        onClick={() =>
-                          setLightbox({
-                            src: a.dataUrl!,
-                            alt: a.name || `Photo ${idx + 1}`,
-                          })
-                        }
-                        aria-label={`View ${a.name || `photo ${idx + 1}`}`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={a.dataUrl}
-                          alt={a.name || `Photo ${idx + 1}`}
-                          className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
+                  {attachments.map((a, idx) => {
+                    const src =
+                      a.kind === "image" ? attachmentImageSrc(a) : null;
+                    if (src) {
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          className="group relative block overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                          onClick={() =>
+                            setLightbox({
+                              src,
+                              alt: a.name || `Photo ${idx + 1}`,
+                            })
+                          }
+                          aria-label={`View ${a.name || `photo ${idx + 1}`}`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={src}
+                            alt={a.name || `Photo ${idx + 1}`}
+                            className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
+                              isUser
+                                ? "border border-white/20"
+                                : "border border-[var(--line)]"
+                            } rounded-xl`}
+                            draggable={false}
+                          />
+                        </button>
+                      );
+                    }
+                    if (a.kind === "image") {
+                      return (
+                        <span
+                          key={a.id}
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
                             isUser
-                              ? "border border-white/20"
-                              : "border border-[var(--line)]"
-                          } rounded-xl`}
-                          draggable={false}
-                        />
-                      </button>
-                    ) : a.kind === "image" ? (
-                      <span
-                        key={a.id}
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
-                          isUser
-                            ? "bg-white/20 text-white"
-                            : "bg-[var(--mist)] text-[var(--ink)]"
-                        }`}
-                        title="Photo preview unavailable"
-                      >
-                        {a.name || "Photo"}
-                      </span>
-                    ) : (
+                              ? "bg-white/20 text-white"
+                              : "bg-[var(--mist)] text-[var(--ink)]"
+                          }`}
+                          title="Photo preview unavailable"
+                        >
+                          {a.name || "Photo"}
+                        </span>
+                      );
+                    }
+                    return (
                       <span
                         key={a.id}
                         className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
@@ -120,8 +135,8 @@ export function ChatThread({ messages, streaming }: Props) {
                       >
                         {a.name}
                       </span>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               ) : null}
               {m.content ? (

@@ -11,6 +11,11 @@ import {
   searchConversations,
   type HistorySearchHit,
 } from "./history-retention";
+import {
+  deleteMediaForSession,
+  persistConversationMedia,
+  pruneOrphanMedia,
+} from "./media-store";
 
 /** Server-side durable chat history (shared across browsers / devices). */
 const DATA_DIR = path.join(process.cwd(), "data", "conversations");
@@ -38,27 +43,27 @@ async function ensureDir(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
 
-/** Strip heavy previews before writing to disk. */
+/**
+ * Strip base64 from a conversation JSON record.
+ * Keeps mediaId so history photos can be loaded via /api/media/:id.
+ */
 export function sanitizeForServer(
   record: ConversationRecord,
 ): ConversationRecord {
   const messages = slimMessages(record.messages || [], false).map((m) => {
-    const attachments = m.attachments?.map((a) => {
-      if (!a.dataUrl && !("textContent" in a)) return a;
-      return {
-        id: a.id,
-        name: a.name,
-        mimeType: a.mimeType,
-        kind: a.kind,
-      };
-    });
+    const attachments = m.attachments?.map((a) => ({
+      id: a.id,
+      name: a.name,
+      mimeType: a.mimeType,
+      kind: a.kind,
+      ...(a.mediaId ? { mediaId: a.mediaId } : {}),
+    }));
     return {
       id: m.id,
       role: m.role,
       content: m.content,
       createdAt: m.createdAt,
       ...(attachments?.length ? { attachments } : {}),
-      // Never persist base64 photos on the shared server store
     };
   });
   return {
@@ -68,6 +73,14 @@ export function sanitizeForServer(
     createdAt: record.createdAt || Date.now(),
     updatedAt: record.updatedAt || Date.now(),
   };
+}
+
+/** Persist homework photos to disk, then return JSON-safe conversation. */
+export async function prepareConversationForServer(
+  record: ConversationRecord,
+): Promise<ConversationRecord> {
+  const withMedia = await persistConversationMedia(record);
+  return sanitizeForServer(withMedia);
 }
 
 async function readAllFromDisk(): Promise<ConversationRecord[]> {
@@ -90,8 +103,8 @@ async function readAllFromDisk(): Promise<ConversationRecord[]> {
 }
 
 /**
- * Drop oldest chats / trim messages so we stay under 10k messages and disk budget.
- * Deletes pruned conversation files from disk.
+ * Drop oldest chats / trim messages so we stay under the message budget.
+ * Deletes pruned conversation files and orphan media from disk.
  */
 export async function enforceServerRetention(): Promise<{
   conversations: number;
@@ -112,6 +125,7 @@ export async function enforceServerRetention(): Promise<{
     if (keepIds.has(c.sessionId)) continue;
     try {
       await fs.unlink(filePath(c.sessionId));
+      await deleteMediaForSession(c.sessionId);
       removed += 1;
     } catch {
       // ignore
@@ -125,6 +139,8 @@ export async function enforceServerRetention(): Promise<{
       await fs.writeFile(filePath(c.sessionId), JSON.stringify(c), "utf8");
     }
   }
+
+  await pruneOrphanMedia(keepIds);
 
   return {
     conversations: kept.length,
@@ -173,7 +189,7 @@ export async function upsertServerConversation(
     return null;
   }
   await ensureDir();
-  const clean = sanitizeForServer({ ...record, sessionId: id });
+  const clean = await prepareConversationForServer({ ...record, sessionId: id });
   await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
   await enforceServerRetention();
   return clean;
@@ -187,7 +203,7 @@ export async function upsertServerConversations(
   for (const rec of records) {
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
-    const clean = sanitizeForServer({ ...rec, sessionId: id });
+    const clean = await prepareConversationForServer({ ...rec, sessionId: id });
     await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
     saved += 1;
   }
@@ -202,6 +218,7 @@ export async function deleteServerConversation(
   if (!id) return false;
   try {
     await fs.unlink(filePath(id));
+    await deleteMediaForSession(id);
     return true;
   } catch {
     return false;

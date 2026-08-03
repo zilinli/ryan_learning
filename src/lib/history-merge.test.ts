@@ -115,6 +115,7 @@ describe("mergeConversationLists", () => {
               name: "p.jpg",
               mimeType: "image/jpeg",
               kind: "image",
+              mediaId: "hw_media1",
             },
           ],
         },
@@ -131,6 +132,7 @@ describe("mergeConversationLists", () => {
     const merged = mergeConversationLists([local], [remote], "hw");
     const att = merged.conversations[0]?.messages[0]?.attachments?.[0];
     expect(att?.dataUrl).toBe("data:image/jpeg;base64,LOCAL");
+    expect(att?.mediaId).toBe("hw_media1");
     expect(merged.conversations[0]?.messages).toHaveLength(2);
   });
 });
