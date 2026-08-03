@@ -8,9 +8,15 @@
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "prepare-env": "node scripts/ensure-env.mjs",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "verify:voice": "node scripts/verify-voice.mjs",
     "verify:tts": "node scripts/verify-tts.mjs",
-    "verify:stt": "node scripts/verify-stt.mjs"
+    "verify:stt": "node scripts/verify-stt.mjs",
+    "verify:history": "node --experimental-strip-types scripts/verify-history.mjs",
+    "verify:upload": "node scripts/verify-upload.mjs",
+    "verify:system": "node scripts/verify-system.mjs",
+    "verify:all": "npm run test && npm run verify:history && npm run verify:upload && npm run verify:tts && npm run verify:stt && npm run verify:voice && npm run verify:system"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.26",
@@ -30,9 +36,11 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

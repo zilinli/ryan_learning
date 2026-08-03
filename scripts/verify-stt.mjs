@@ -107,6 +107,7 @@ async function main() {
       voice: "zh-HK-WanLungNeural",
       text: "你好，我想问功课。",
       expect: ["你好", "功课", "想", "问"],
+      expectLang: "yue",
     },
     {
       name: "Spanish",
@@ -123,9 +124,10 @@ async function main() {
       await synthWav(c.text, c.voice, wav);
       const { res, data } = await transcribe(wav, c.language);
       const text = (data.text || "").trim();
+      const langOk = !c.expectLang || data.language === c.expectLang;
       ok(
         `STT ${c.name}`,
-        res.ok && text.length > 0 && includesAny(text, c.expect),
+        res.ok && text.length > 0 && includesAny(text, c.expect) && langOk,
         `lang=${data.language || c.language} text="${text}"`,
       );
     } catch (err) {
@@ -169,13 +171,33 @@ async function main() {
     }
   }
 
-  // Client helper mapping
-  const { sttLangFromVoice } = await import("../src/lib/stt-lang.ts");
-  ok("voice→stt yunxi", sttLangFromVoice("yunxi") === "zh");
-  ok("voice→stt wanLung", sttLangFromVoice("wanLung") === "yue");
-  ok("voice→stt alvaro", sttLangFromVoice("alvaro") === "es");
-  ok("voice→stt legacy xiaoxiao", sttLangFromVoice("xiaoxiao") === "zh");
-  ok("voice→stt auto", sttLangFromVoice("auto") === "auto");
+  // Client helper mapping — voices.ts is self-contained for Node strip-types;
+  // stt-lang.ts value-imports it without an extension (bundler style).
+  {
+    const { normalizeVoiceId } = await import("../src/lib/voices.ts");
+    const sttLangFromVoice = (voiceId) => {
+      switch (normalizeVoiceId(voiceId)) {
+        case "ava":
+        case "ryan":
+          return "en";
+        case "yunxi":
+          return "zh";
+        case "wanLung":
+          return "yue";
+        case "alvaro":
+        case "jorge":
+          return "es";
+        case "auto":
+        default:
+          return "auto";
+      }
+    };
+    ok("voice→stt yunxi", sttLangFromVoice("yunxi") === "zh");
+    ok("voice→stt wanLung", sttLangFromVoice("wanLung") === "yue");
+    ok("voice→stt alvaro", sttLangFromVoice("alvaro") === "es");
+    ok("voice→stt legacy xiaoxiao", sttLangFromVoice("xiaoxiao") === "zh");
+    ok("voice→stt auto", sttLangFromVoice("auto") === "auto");
+  }
 
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);
   process.exit(failed === 0 ? 0 : 1);

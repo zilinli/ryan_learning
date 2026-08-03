@@ -213,6 +213,11 @@ def transcribe():
         segments, info = get_model().transcribe(wav_path, **kwargs)
         text = " ".join(seg.text.strip() for seg in segments).strip()
         detected = getattr(info, "language", None) or lang
+        # Whisper has no Cantonese code — keep the caller's yue preference visible
+        if lang == "yue":
+            detected = "yue"
+        elif detected:
+            detected = _normalize_stt_lang(detected)
         return jsonify(
             {
                 "text": text,
