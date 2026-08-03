@@ -25,12 +25,22 @@ import {
   pushStoreToServer,
 } from "@/lib/history-sync";
 import {
+  engagementForPrompt,
   engagementSummary,
   loadEngagement,
   recordLearningTurn,
   type EngagementState,
 } from "@/lib/engagement";
 import { loadStudentProfile } from "@/lib/student-profile";
+import {
+  hydrateLearningMemoryFromServer,
+  learningMemorySummary,
+  loadLearningMemory,
+  pushLearningMemoryToServer,
+  recordLearningTurnMemory,
+  serializeLearningMemoryForChat,
+  type LearningMemory,
+} from "@/lib/learning-memory";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
   ChatMessage,
@@ -205,6 +215,9 @@ export function TutorShell() {
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
+  const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
+    null,
+  );
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
@@ -222,6 +235,8 @@ export function TutorShell() {
     setVoiceId(vid);
     voiceIdRef.current = vid;
     setEngagement(loadEngagement());
+    setLearningMemory(loadLearningMemory());
+    void hydrateLearningMemoryFromServer().then(setLearningMemory);
   }, []);
 
   useEffect(() => {
@@ -402,6 +417,8 @@ export function TutorShell() {
 
     try {
       const profile = loadStudentProfile();
+      const mem = learningMemory || loadLearningMemory();
+      const eng = engagement || loadEngagement();
       const recentTitles = store.conversations
         .filter((c) => c.sessionId !== sessionId && c.messages.length > 0)
         .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -416,6 +433,8 @@ export function TutorShell() {
           reset: needReset,
           history: needReset ? undefined : history,
           recentTitles,
+          learningMemory: serializeLearningMemoryForChat(mem),
+          engagement: engagementForPrompt(eng),
           voiceId: voiceIdRef.current,
           replyLanguage: resolveReplyLanguage(
             voiceIdRef.current,
@@ -451,6 +470,13 @@ export function TutorShell() {
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
       setEngagement(recordLearningTurn());
+      const nextMem = recordLearningTurnMemory(mem, {
+        userText: payload.text,
+        assistantText: full,
+        chatTitle: active?.title || titleFromMessages(messages),
+      });
+      setLearningMemory(nextMem);
+      void pushLearningMemoryToServer(nextMem);
       if (shouldSpeak) {
         speakApiRef.current?.finish(full);
       }
@@ -534,7 +560,16 @@ export function TutorShell() {
         activeId={store.activeId}
         disabled={busy}
         engagementLabel={
-          engagement ? engagementSummary(engagement) : undefined
+          engagement
+            ? [
+                engagementSummary(engagement),
+                learningMemory
+                  ? learningMemorySummary(learningMemory)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
         }
         onNew={startNewSession}
         onSelect={selectConversation}

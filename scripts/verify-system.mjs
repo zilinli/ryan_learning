@@ -196,6 +196,43 @@ async function main() {
     );
   }
 
+  // Learning memory (cross-session)
+  {
+    const put = await fetch("http://127.0.0.1:3000/api/learning", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        memory: {
+          topics: [
+            {
+              id: "fractions",
+              label: "fractions",
+              mastery: 70,
+              solves: 3,
+              lastSeen: Date.now(),
+            },
+          ],
+          recentWins: ["Progress on fractions"],
+          recentStruggles: [],
+          updatedAt: Date.now(),
+        },
+      }),
+    });
+    const putJ = await put.json();
+    ok(
+      "learning memory PUT",
+      put.ok && putJ.ok === true && putJ.memory?.topics?.length >= 1,
+      JSON.stringify(putJ.memory?.topics?.[0] || putJ),
+    );
+    const get = await (await fetch("http://127.0.0.1:3000/api/learning")).json();
+    ok(
+      "learning memory GET",
+      Array.isArray(get.memory?.topics) &&
+        get.memory.topics.some((t) => t.id === "fractions"),
+      `n=${get.memory?.topics?.length ?? 0}`,
+    );
+  }
+
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);
   process.exit(failed === 0 ? 0 : 1);
 }

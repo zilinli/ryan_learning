@@ -9,6 +9,11 @@ import {
   studentProfilePromptLines,
   type StudentProfile,
 } from "./student-profile";
+import {
+  learningMemoryPromptLines,
+  type LearningMemory,
+} from "./learning-memory";
+import type { EngagementState } from "./engagement";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
@@ -88,15 +93,38 @@ function defaultStudentLine(mode: ReplyLangMode, hasHomework: boolean): string {
 
 const RECALL_VS_CONCEPT = [
   "",
-  "[Recall vs conceptual — choose the right mode]",
+  "[Recall vs conceptual vs computation — choose the right mode]",
   "Classify the ask before coaching:",
-  "A) PURE RECALL facts: times tables (e.g. 7×8), single vocab translation, capitals, fixed dates, unit facts already taught as memorization.",
+  "A) PURE RECALL facts: single times-table facts (e.g. 7×8), single vocab translation, capitals, fixed dates, unit facts taught as memorization.",
   "   → Confirm the correct fact briefly and warmly. Encourage a memory trick / say-it-aloud. Do NOT run the full Socratic ladder.",
   "   Example: “Yes — 7×8=56. Want a quick way to remember it?”",
-  "B) CONCEPTUAL / multi-step / homework reasoning: word problems, proofs of understanding, reading evidence, science how/why.",
+  "B) CONCEPTUAL / multi-step / homework reasoning: fractions, word problems, proofs of understanding, reading evidence, science how/why.",
   "   → Use Think-first coaching (interactive, no spoilers).",
-  "When unsure, prefer a tiny check question once — then treat as conceptual if they need reasoning.",
+  "C) MEDIUM COMPUTATION (multi-digit ÷ or × that needs decomposition / place value — e.g. 256÷8, 432÷6, 48×17):",
+  "   → HINT FIRST on turn 1: one scaffold only (break into friendly parts / related fact). Do NOT dump the final quotient/product on the first reply.",
+  "   Example opener: “Can you break 256 into parts that 8 divides easily? (Hint: 8×30=240…) What is left?”",
+  "   → After the student tries — or is clearly stuck after that hint — confirm/correct with a short check and warm praise.",
+  "   Times-table singles stay in A. Fraction / word-problem reasoning stays in B.",
+  "When unsure between B and C, prefer a tiny hint/check once — never leap to the final number on turn 1 for multi-digit work.",
 ].join("\n");
+
+function formatEngagementLines(engagement?: EngagementState | null): string[] {
+  if (!engagement || engagement.totalSolves <= 0) return [];
+  const bits = [
+    `streak ${engagement.streak}d`,
+    `today ${engagement.solvesToday}`,
+    `total turns ${engagement.totalSolves}`,
+  ];
+  if (engagement.badges.length) {
+    bits.push(`badge: ${engagement.badges[engagement.badges.length - 1]}`);
+  }
+  return [
+    "",
+    "[Progress / celebration — use sparingly]",
+    `Engagement: ${bits.join(" · ")}.`,
+    "Occasionally celebrate cumulative progress in one short line (e.g. streak or topic win). Never interrupt a stuck moment with badges.",
+  ];
+}
 
 const OUTPUT_HYGIENE = [
   "",
@@ -114,6 +142,10 @@ export function buildTutorPrompt(params: {
   /** Titles of other recent chats for cross-session continuity */
   recentTitles?: string[];
   studentProfile?: StudentProfile;
+  /** Cross-session topic / mastery snapshot */
+  learningMemory?: LearningMemory | null;
+  /** Streak / daily solves for light celebration */
+  engagement?: EngagementState | null;
   /** Voice picker id or reply lang mode */
   replyLanguage?: ReplyLangMode | string;
   voiceId?: string;
@@ -197,7 +229,7 @@ export function buildTutorPrompt(params: {
         "4) ONE interactive move only (see Think-first coaching), then wait. Do not jump ahead.",
         "5) Reading: quote evidence location, then ask them to say what it means in their own words.",
         "6) Maths: restate given/asked with LaTeX; ask them for the next operation or intermediate value.",
-        "7) NEVER give the final answer / completed blanks first (unless pure recall — see Recall vs conceptual).",
+        "7) NEVER give the final answer / completed blanks first (unless pure recall A — or after a hint attempt for medium computation C).",
         "8) Keep replies short for phone + voice.",
         "9) If they only say “I don’t know”, stay on L0–L1 — do not leap to the answer.",
       ].join("\n")
@@ -213,6 +245,8 @@ export function buildTutorPrompt(params: {
     audienceLine(mode),
     styleLine(mode),
     ...studentProfilePromptLines(profile),
+    ...learningMemoryPromptLines(params.learningMemory),
+    ...formatEngagementLines(params.engagement),
     "You have lightweight tools: web_search, fetch_page, run_python, run_js, draw_geometry. Use them silently when helpful; never narrate the tool call.",
     "Visuals: the app renders LaTeX, ```svg diagrams, ```mermaid, and https images — use diagrams for geometry/science so the student can see the figure.",
     ...replyLanguageInstructions(mode),

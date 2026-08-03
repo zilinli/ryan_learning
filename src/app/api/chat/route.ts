@@ -4,7 +4,14 @@ import { buildFileSummaries } from "@/lib/extract-files";
 import { buildTutorPrompt } from "@/lib/prompts";
 import { DEFAULT_STUDENT_PROFILE } from "@/lib/student-profile";
 import { filterTutorDelta, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
+import {
+  mergeLearningMemory,
+  normalizeMemory,
+  type LearningMemory,
+} from "@/lib/learning-memory";
+import { readServerLearningMemory } from "@/lib/learning-memory-store";
 import type { ChatRequestBody } from "@/lib/types";
+import type { EngagementState } from "@/lib/engagement";
 import type { SDKImage } from "@cursor/sdk";
 
 export const runtime = "nodejs";
@@ -92,6 +99,34 @@ export async function POST(req: Request) {
         .slice(0, 5)
     : undefined;
 
+  const clientMemory = body.learningMemory
+    ? normalizeMemory(body.learningMemory as Partial<LearningMemory>)
+    : null;
+  let learningMemory: LearningMemory | null = clientMemory;
+  try {
+    const serverMem = await readServerLearningMemory();
+    if (clientMemory) {
+      learningMemory = mergeLearningMemory(serverMem, clientMemory);
+    } else if (serverMem.topics.length) {
+      learningMemory = serverMem;
+    }
+  } catch {
+    // keep client snapshot
+  }
+
+  const engagement: EngagementState | null =
+    body.engagement && typeof body.engagement === "object"
+      ? {
+          streak: Math.max(0, Number(body.engagement.streak) || 0),
+          lastActiveDay: "",
+          solvesToday: Math.max(0, Number(body.engagement.solvesToday) || 0),
+          totalSolves: Math.max(0, Number(body.engagement.totalSolves) || 0),
+          badges: Array.isArray(body.engagement.badges)
+            ? body.engagement.badges.filter((b): b is string => typeof b === "string").slice(-3)
+            : [],
+        }
+      : null;
+
   const prompt = buildTutorPrompt({
     userText: message ?? "",
     imageCount: imageAttachments.length,
@@ -99,6 +134,8 @@ export async function POST(req: Request) {
     history,
     recentTitles,
     studentProfile: DEFAULT_STUDENT_PROFILE,
+    learningMemory,
+    engagement,
     voiceId: typeof body.voiceId === "string" ? body.voiceId : undefined,
     replyLanguage:
       typeof body.replyLanguage === "string" ? body.replyLanguage : undefined,

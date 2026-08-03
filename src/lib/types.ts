@@ -79,6 +79,26 @@ export interface ChatRequestBody {
   replyLanguage?: string;
   /** Other chat titles for cross-session continuity */
   recentTitles?: string[];
+  /** Cross-session learning memory snapshot (topics / mastery) */
+  learningMemory?: {
+    topics?: Array<{
+      id: string;
+      label: string;
+      mastery: number;
+      solves?: number;
+      lastSeen?: number;
+    }>;
+    recentStruggles?: string[];
+    recentWins?: string[];
+    updatedAt?: number;
+  };
+  /** Engagement / streak snapshot for celebration cues */
+  engagement?: {
+    streak?: number;
+    solvesToday?: number;
+    totalSolves?: number;
+    badges?: string[];
+  };
   /** @deprecated legacy single image */
   image?: {
     data: string;

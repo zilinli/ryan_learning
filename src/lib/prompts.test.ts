@@ -49,6 +49,8 @@ describe("buildTutorPrompt", () => {
     expect(withImage).toContain("Hint ladder");
     expect(withImage).toContain("Anti-spoiler");
     expect(withImage).toContain("Recall vs conceptual");
+    expect(withImage).toContain("MEDIUM COMPUTATION");
+    expect(withImage).toContain("256÷8");
     expect(withImage).toContain("Ryan");
     expect(withImage).toContain("BASIS");
     expect(withImage).toMatch(/Interactive patterns|interactive/i);
@@ -84,6 +86,39 @@ describe("buildTutorPrompt", () => {
     });
     expect(p).toContain("Recent chats");
     expect(p).toContain("Fractions homework");
+  });
+
+  it("injects learning memory and engagement celebration cues", () => {
+    const p = buildTutorPrompt({
+      userText: "hi",
+      imageCount: 0,
+      voiceId: "auto",
+      learningMemory: {
+        topics: [
+          {
+            id: "fractions",
+            label: "fractions",
+            mastery: 72,
+            solves: 4,
+            lastSeen: Date.now(),
+          },
+        ],
+        recentWins: ["Progress on fractions"],
+        recentStruggles: [],
+        updatedAt: Date.now(),
+      },
+      engagement: {
+        streak: 3,
+        lastActiveDay: "2026-08-03",
+        solvesToday: 2,
+        totalSolves: 12,
+        badges: ["3-day streak"],
+      },
+    });
+    expect(p).toContain("Learning memory");
+    expect(p).toContain("fractions");
+    expect(p).toContain("Progress / celebration");
+    expect(p).toContain("streak 3d");
   });
 
   it("appends recent history (trimmed)", () => {

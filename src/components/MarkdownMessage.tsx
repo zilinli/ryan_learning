@@ -8,6 +8,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
 import { DiagramBlock, isDiagramLanguage } from "./DiagramBlock";
+import { normalizeTutorMarkdown } from "@/lib/geometry-svg";
 
 type Props = {
   content: string;
@@ -88,8 +89,16 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     code: ({ className, children, ...props }) => {
       const lang = fenceLanguage(className);
       const text = String(children).replace(/\n$/, "");
-      if (className && isDiagramLanguage(lang)) {
-        return <DiagramBlock language={lang} code={text} user={user} />;
+      const svgish =
+        /^<svg[\s>]/i.test(text) || /^svg\s*<svg\b/i.test(text.trim());
+      if ((className && isDiagramLanguage(lang)) || svgish) {
+        return (
+          <DiagramBlock
+            language={lang || "svg"}
+            code={text}
+            user={user}
+          />
+        );
       }
       const inline = !className;
       if (inline) {
@@ -118,17 +127,15 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
     pre: ({ children }) => {
       // DiagramBlock renders its own container — avoid double <pre>
       const child = Array.isArray(children) ? children[0] : children;
-      if (
-        child &&
-        typeof child === "object" &&
-        "props" in child &&
-        isDiagramLanguage(
-          fenceLanguage(
-            (child as { props?: { className?: string } }).props?.className,
-          ),
-        )
-      ) {
-        return <>{children}</>;
+      if (child && typeof child === "object" && "props" in child) {
+        const props = (child as { props?: { className?: string; children?: unknown } }).props;
+        const lang = fenceLanguage(props?.className);
+        const body = String(props?.children ?? "").replace(/\n$/, "");
+        const svgish =
+          isDiagramLanguage(lang) ||
+          /^<svg[\s>]/i.test(body) ||
+          /^svg\s*<svg\b/i.test(body.trim());
+        if (svgish) return <>{children}</>;
       }
       return <pre className="mb-2 overflow-x-auto last:mb-0">{children}</pre>;
     },
@@ -196,7 +203,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
         ]}
         components={components}
       >
-        {content}
+        {normalizeTutorMarkdown(content)}
       </ReactMarkdown>
     </div>
   );

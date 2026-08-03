@@ -101,8 +101,22 @@ export function engagementSummary(state: EngagementState): string {
     `🔥 ${state.streak}d`,
     `今日 ${state.solvesToday}/3`,
   ];
+  if (state.totalSolves >= 10) {
+    parts.push(`${state.totalSolves} turns`);
+  }
   if (state.badges.length) {
     parts.push(state.badges[state.badges.length - 1]!);
   }
   return parts.join(" · ");
+}
+
+/** Compact snapshot for tutor prompt / chat body */
+export function engagementForPrompt(state: EngagementState): EngagementState {
+  return {
+    streak: state.streak,
+    lastActiveDay: state.lastActiveDay,
+    solvesToday: state.solvesToday,
+    totalSolves: state.totalSolves,
+    badges: state.badges.slice(-3),
+  };
 }

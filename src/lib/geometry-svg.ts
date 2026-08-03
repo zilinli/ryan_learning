@@ -1,9 +1,30 @@
+
+/** Fix common broken SVG fences from the tutor so Markdown can render diagrams. */
+export function normalizeTutorMarkdown(content: string): string {
+  let t = content || "";
+  // ```svg<svg → ```svg\n<svg
+  t = t.replace(/```svg\s*(?=<svg\b)/gi, "```svg\n");
+  // Fenced block whose body starts with "svg<svg...>"
+  t = t.replace(
+    /```(?:svg)?\s*\n?svg\s*(<svg\b[\s\S]*?<\/svg>)\s*```/gi,
+    "```svg\n$1\n```",
+  );
+  // Bare "svg<svg...></svg>" not already fenced
+  t = t.replace(
+    /(^|\n)\s*svg\s*(<svg\b[\s\S]*?<\/svg>)\s*(?=\n|$)/gi,
+    "$1\n```svg\n$2\n```\n",
+  );
+  return t;
+}
+
 /** Sanitize tutor-emitted SVG so we can safely inline it. */
 export function sanitizeSvg(raw: string): string | null {
   let s = raw.trim();
   if (!s) return null;
   // Allow fenced content that includes xml prologue
   s = s.replace(/<\?xml[\s\S]*?\?>/i, "").trim();
+  // Models sometimes emit "svg<svg ...>" (language tag glued to markup)
+  s = s.replace(/^svg\s*(?=<svg\b)/i, "").trim();
   if (!/<svg[\s>]/i.test(s)) {
     // Wrap bare drawing commands if missing root (rare)
     if (/<(path|circle|line|polygon|polyline|rect|text|g)\b/i.test(s)) {
