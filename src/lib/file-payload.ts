@@ -104,13 +104,17 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
     };
   }
 
+  // Text docs: keep text for the tutor + a dataUrl so history can download
   const textContent = await readAsText(file);
+  const clipped = textContent.slice(0, 80_000);
+  const dataUrl = `data:${mimeType || "text/plain"};charset=utf-8,${encodeURIComponent(clipped)}`;
   return {
     id,
     name,
     mimeType,
     kind: "file",
-    textContent: textContent.slice(0, 80_000),
+    textContent: clipped,
+    dataUrl,
   };
 }
 

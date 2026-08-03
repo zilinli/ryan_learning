@@ -103,7 +103,7 @@ export async function getPhotoFromVault(
   }
 }
 
-/** Save every image dataUrl found in a conversations store. */
+/** Save every attachment dataUrl found in a conversations store. */
 export async function ingestStorePhotos(
   store: ConversationsStore,
 ): Promise<number> {
@@ -111,7 +111,7 @@ export async function ingestStorePhotos(
   for (const c of store.conversations || []) {
     for (const m of c.messages || []) {
       for (const a of m.attachments || []) {
-        if (a.kind === "image" && a.dataUrl) {
+        if (a.dataUrl) {
           await putPhotoInVault({
             id: a.id,
             dataUrl: a.dataUrl,
@@ -147,7 +147,7 @@ export async function restoreStorePhotosFromVault(
       if (attachments?.length) {
         const next: ChatAttachment[] = [];
         for (const a of attachments) {
-          if (a.kind === "image" && !a.dataUrl) {
+          if (!a.dataUrl) {
             const hit = await getPhotoFromVault(a.id);
             if (hit?.dataUrl) {
               next.push({ ...a, dataUrl: hit.dataUrl });

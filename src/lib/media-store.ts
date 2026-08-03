@@ -12,6 +12,9 @@ export type StoredMediaMeta = {
   messageId: string;
   attachmentId: string;
   bytes: number;
+  /** Original filename for downloads */
+  name?: string;
+  kind?: "image" | "file";
 };
 
 function safeSegment(s: string, max = 48): string {
@@ -64,12 +67,18 @@ export async function writeMediaFromDataUrl(
   mediaId: string,
   dataUrl: string,
   fallbackMime: string,
-  refs: { sessionId: string; messageId: string; attachmentId: string },
+  refs: {
+    sessionId: string;
+    messageId: string;
+    attachmentId: string;
+    name?: string;
+    kind?: "image" | "file";
+  },
 ): Promise<StoredMediaMeta | null> {
   const parsed = stripDataUrl(dataUrl);
   if (!parsed) return null;
   await ensureMediaDir();
-  const mime = parsed.mime || fallbackMime || "image/jpeg";
+  const mime = parsed.mime || fallbackMime || "application/octet-stream";
   await fs.writeFile(binPath(mediaId), parsed.buf);
   const meta: StoredMediaMeta = {
     mediaId,
@@ -78,6 +87,8 @@ export async function writeMediaFromDataUrl(
     messageId: refs.messageId,
     attachmentId: refs.attachmentId,
     bytes: parsed.buf.length,
+    ...(refs.name ? { name: refs.name.slice(0, 120) } : {}),
+    ...(refs.kind ? { kind: refs.kind } : {}),
   };
   await fs.writeFile(metaPath(mediaId), JSON.stringify(meta), "utf8");
   return meta;
@@ -85,21 +96,25 @@ export async function writeMediaFromDataUrl(
 
 export async function readMedia(
   mediaId: string,
-): Promise<{ buf: Buffer; mimeType: string } | null> {
+): Promise<{ buf: Buffer; mimeType: string; name?: string; kind?: string } | null> {
   const id = safeSegment(mediaId, 80);
   if (!id || id === "x") return null;
   try {
     const buf = await fs.readFile(binPath(id));
-    let mimeType = "image/jpeg";
+    let mimeType = "application/octet-stream";
+    let name: string | undefined;
+    let kind: string | undefined;
     try {
       const meta = JSON.parse(
         await fs.readFile(metaPath(id), "utf8"),
       ) as StoredMediaMeta;
       if (meta.mimeType) mimeType = meta.mimeType;
+      if (meta.name) name = meta.name;
+      if (meta.kind) kind = meta.kind;
     } catch {
       // ignore missing meta
     }
-    return { buf, mimeType };
+    return { buf, mimeType, name, kind };
   } catch {
     return null;
   }
@@ -167,8 +182,8 @@ function slimAttMeta(a: ChatAttachment): ChatAttachment {
 }
 
 /**
- * Persist homework photos to data/media and return a JSON-safe conversation
- * (no base64 dataUrls).
+ * Persist homework photos + uploaded files to data/media and return a
+ * JSON-safe conversation (no base64 dataUrls).
  */
 export async function persistConversationMedia(
   record: ConversationRecord,
@@ -179,22 +194,23 @@ export async function persistConversationMedia(
   for (const m of record.messages || []) {
     const attachments: ChatAttachment[] = [];
     for (const a of m.attachments || []) {
-      if (a.kind === "image" && a.dataUrl) {
-        const mediaId =
-          a.mediaId || buildMediaId(sessionId, m.id, a.id);
+      if (a.dataUrl) {
+        const mediaId = a.mediaId || buildMediaId(sessionId, m.id, a.id);
         await writeMediaFromDataUrl(mediaId, a.dataUrl, a.mimeType, {
           sessionId,
           messageId: m.id,
           attachmentId: a.id,
+          name: a.name,
+          kind: a.kind,
         });
         attachments.push({
           id: a.id,
           name: a.name,
           mimeType: a.mimeType,
-          kind: "image",
+          kind: a.kind,
           mediaId,
         });
-      } else if (a.kind === "image" && a.mediaId) {
+      } else if (a.mediaId) {
         attachments.push(slimAttMeta(a));
       } else {
         attachments.push(slimAttMeta(a));
@@ -209,6 +225,8 @@ export async function persistConversationMedia(
         sessionId,
         messageId: m.id,
         attachmentId: attId,
+        name: "photo.jpg",
+        kind: "image",
       });
       if (!attachments.some((x) => x.id === attId)) {
         attachments.push({

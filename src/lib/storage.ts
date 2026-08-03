@@ -15,7 +15,7 @@ const STORE_KEY = "spark-tutor-sessions-v3";
 /** Hard caps so localStorage + RAM stay small on phones */
 export const MAX_CONVERSATIONS = 100;
 export const MAX_MESSAGES_PER_CHAT = 80;
-const MAX_CONTENT_CHARS = 6_000;
+const MAX_CONTENT_CHARS = 32_000;
 const MAX_TITLE_LEN = 42;
 
 export { MAX_TOTAL_MESSAGES };
@@ -49,9 +49,34 @@ function slimAttachment(a: NonNullable<ChatMessage["attachments"]>[number]) {
 }
 
 /**
+ * Truncate prose but never cut through an SVG markdown image mid-URI.
+ * Truncating a data:image/svg+xml URI mid-stream makes the figure vanish after save.
+ */
+export function truncateMessageContent(
+  content: string,
+  max = MAX_CONTENT_CHARS,
+): string {
+  if (content.length <= max) return content;
+  const diagramRe = /!\[[^\]]*\]\(data:image\/svg\+xml,[^)]+\)/gi;
+  const diagrams = [...content.matchAll(diagramRe)].map((m) => m[0]);
+  if (diagrams.length > 0) {
+    const without = content.replace(diagramRe, "\n");
+    const diagramBlock = diagrams.join("\n\n");
+    const proseMax = Math.max(200, max - diagramBlock.length - 4);
+    const trimmedProse =
+      without.length > proseMax
+        ? `${without.slice(0, proseMax).trimEnd()}…`
+        : without.trim();
+    // Always keep full diagram URIs (append after truncated prose)
+    return `${trimmedProse}\n\n${diagramBlock}`.trim();
+  }
+  return `${content.slice(0, max)}…`;
+}
+
+/**
  * Trim message text / file payloads for storage.
- * Homework **image** dataUrls stay on the client so the student can reopen photos
- * after chatting (server sync still strips them via sanitizeForServer).
+ * Image **and file** dataUrls stay on the client so history can reopen / download
+ * attachments (server sync still strips base64 and keeps mediaId).
  */
 export function slimMessages(
   messages: ChatMessage[],
@@ -59,13 +84,10 @@ export function slimMessages(
 ): ChatMessage[] {
   const trimmed = messages.slice(-MAX_MESSAGES_PER_CHAT);
   return trimmed.map((m) => {
-    const content =
-      m.content.length > MAX_CONTENT_CHARS
-        ? `${m.content.slice(0, MAX_CONTENT_CHARS)}…`
-        : m.content;
+    const content = truncateMessageContent(m.content);
     const attachments = m.attachments?.map((a) => {
-      if (a.kind === "image" && a.dataUrl) return a;
-      return keepPreviews && a.dataUrl ? a : slimAttachment(a);
+      if (a.dataUrl) return a;
+      return keepPreviews ? a : slimAttachment(a);
     });
     const image =
       m.image?.dataUrl

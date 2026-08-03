@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChatAttachment, ChatMessage } from "@/lib/types";
+import { getPhotoFromVault } from "@/lib/photo-vault";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
 
@@ -26,11 +27,30 @@ function messageAttachments(m: ChatMessage): ChatAttachment[] {
   return [];
 }
 
-/** Prefer local dataUrl; fall back to server media for history chats. */
-function attachmentImageSrc(a: ChatAttachment): string | null {
+/** Prefer local dataUrl; then vault; then server media. */
+function attachmentHref(
+  a: ChatAttachment,
+  vaultSrc?: string | null,
+  opts?: { download?: boolean },
+): string | null {
   if (a.dataUrl) return a.dataUrl;
-  if (a.mediaId) return `/api/media/${encodeURIComponent(a.mediaId)}`;
+  if (vaultSrc) return vaultSrc;
+  if (a.mediaId) {
+    const q = opts?.download ? "?download=1" : "";
+    return `/api/media/${encodeURIComponent(a.mediaId)}${q}`;
+  }
   return null;
+}
+
+function triggerDownload(href: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename || "download";
+  a.rel = "noopener";
+  a.target = "_blank";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export function ChatThread({ messages, streaming }: Props) {
@@ -38,6 +58,33 @@ export function ChatThread({ messages, streaming }: Props) {
     src: string;
     alt: string;
   } | null>(null);
+  const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing: string[] = [];
+    for (const m of messages) {
+      for (const a of messageAttachments(m)) {
+        if (a.dataUrl || a.mediaId) continue;
+        if (vaultMap[a.id]) continue;
+        missing.push(a.id);
+      }
+    }
+    if (!missing.length) return;
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const id of missing) {
+        const hit = await getPhotoFromVault(id);
+        if (hit?.dataUrl) next[id] = hit.dataUrl;
+      }
+      if (!cancelled && Object.keys(next).length) {
+        setVaultMap((prev) => ({ ...prev, ...next }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, vaultMap]);
 
   if (messages.length === 0) {
     return (
@@ -79,37 +126,36 @@ export function ChatThread({ messages, streaming }: Props) {
               {attachments.length > 0 ? (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, idx) => {
-                    const src =
-                      a.kind === "image" ? attachmentImageSrc(a) : null;
-                    if (src) {
-                      return (
-                        <button
-                          key={a.id}
-                          type="button"
-                          className="group relative block overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                          onClick={() =>
-                            setLightbox({
-                              src,
-                              alt: a.name || `Photo ${idx + 1}`,
-                            })
-                          }
-                          aria-label={`View ${a.name || `photo ${idx + 1}`}`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={src}
-                            alt={a.name || `Photo ${idx + 1}`}
-                            className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
-                              isUser
-                                ? "border border-white/20"
-                                : "border border-[var(--line)]"
-                            } rounded-xl`}
-                            draggable={false}
-                          />
-                        </button>
-                      );
-                    }
                     if (a.kind === "image") {
+                      const src = attachmentHref(a, vaultMap[a.id]);
+                      if (src) {
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            className="group relative block overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                            onClick={() =>
+                              setLightbox({
+                                src,
+                                alt: a.name || `Photo ${idx + 1}`,
+                              })
+                            }
+                            aria-label={`View ${a.name || `photo ${idx + 1}`}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={src}
+                              alt={a.name || `Photo ${idx + 1}`}
+                              className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
+                                isUser
+                                  ? "border border-white/20"
+                                  : "border border-[var(--line)]"
+                              } rounded-xl`}
+                              draggable={false}
+                            />
+                          </button>
+                        );
+                      }
                       return (
                         <span
                           key={a.id}
@@ -118,10 +164,34 @@ export function ChatThread({ messages, streaming }: Props) {
                               ? "bg-white/20 text-white"
                               : "bg-[var(--mist)] text-[var(--ink)]"
                           }`}
-                          title="Photo preview unavailable"
+                          title="Photo unavailable — please upload again"
                         >
-                          {a.name || "Photo"}
+                          📷 {a.name || "Photo"}
                         </span>
+                      );
+                    }
+
+                    // PDF / text / other files — download
+                    const href = attachmentHref(a, vaultMap[a.id], {
+                      download: true,
+                    });
+                    if (href) {
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          className={`inline-flex max-w-[14rem] items-center gap-1 truncate rounded-full px-2.5 py-1 text-left text-xs underline-offset-2 hover:underline ${
+                            isUser
+                              ? "bg-white/20 text-white"
+                              : "bg-[var(--mist)] text-[var(--ink)]"
+                          }`}
+                          title={`Download ${a.name}`}
+                          onClick={() =>
+                            triggerDownload(href, a.name || "download")
+                          }
+                        >
+                          📄 {a.name || "File"} · download
+                        </button>
                       );
                     }
                     return (
@@ -132,8 +202,9 @@ export function ChatThread({ messages, streaming }: Props) {
                             ? "bg-white/20 text-white"
                             : "bg-[var(--mist)] text-[var(--ink)]"
                         }`}
+                        title="File not saved — please upload again"
                       >
-                        {a.name}
+                        📄 {a.name || "File"}
                       </span>
                     );
                   })}

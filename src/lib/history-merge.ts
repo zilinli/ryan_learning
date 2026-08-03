@@ -32,10 +32,10 @@ export function mergeMessageAttachments(
         : other.attachments || [];
       attachments = base.map((a) => {
         const o = otherAtt.get(a.id);
-        if (a.kind === "image" && !a.dataUrl && o?.dataUrl) {
+        if (!a.dataUrl && o?.dataUrl) {
           return { ...a, dataUrl: o.dataUrl } satisfies ChatAttachment;
         }
-        if (a.kind === "image" && !a.mediaId && o?.mediaId) {
+        if (!a.mediaId && o?.mediaId) {
           return { ...a, mediaId: o.mediaId } satisfies ChatAttachment;
         }
         if (!m.attachments?.length && o) return o;

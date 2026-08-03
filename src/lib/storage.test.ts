@@ -97,7 +97,7 @@ describe("slimMessages", () => {
     expect(slim[0]?.attachments?.[0]?.name).toBe("p.jpg");
   });
 
-  it("still strips non-image file payloads when keepPreviews is false", () => {
+  it("keeps PDF / file dataUrls so history downloads work", () => {
     const messages = [
       msg({
         role: "user",
@@ -114,17 +114,33 @@ describe("slimMessages", () => {
       }),
     ];
     const slim = slimMessages(messages, false);
-    expect(slim[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    expect(slim[0]?.attachments?.[0]?.dataUrl).toBe(
+      "data:application/pdf;base64,AAAA",
+    );
     expect(slim[0]?.attachments?.[0]?.name).toBe("a.pdf");
   });
 
   it("truncates oversized content", () => {
-    const huge = "x".repeat(7000);
+    const huge = "x".repeat(40_000);
     const slim = slimMessages(
       [msg({ role: "assistant", content: huge })],
       true,
     );
     expect(slim[0]!.content.length).toBeLessThan(huge.length);
     expect(slim[0]!.content.endsWith("…")).toBe(true);
+  });
+
+  it("preserves SVG markdown images when truncating long replies", () => {
+    const diagram =
+      "![直角三角形 ABC](data:image/svg+xml,%3Csvg%3E" +
+      "A".repeat(2000) +
+      "%3C%2Fsvg%3E)";
+    const content = `${"讲解。".repeat(20_000)}\n${diagram}\n你注意到咩？`;
+    const slim = slimMessages(
+      [msg({ role: "assistant", content })],
+      true,
+    );
+    expect(slim[0]!.content).toContain("data:image/svg+xml");
+    expect(slim[0]!.content).toContain("![直角三角形 ABC]");
   });
 });

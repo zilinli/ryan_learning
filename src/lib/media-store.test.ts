@@ -49,11 +49,50 @@ describe("media-store", () => {
     expect(hit!.buf.length).toBeGreaterThan(20);
     expect(hit!.mimeType).toMatch(/image\//);
 
-    // cleanup
     const dir = path.join(process.cwd(), "data", "media");
     const id = prepared.messages[0]!.attachments![0]!.mediaId!;
     await rm(path.join(dir, `${id}.bin`), { force: true });
     await rm(path.join(dir, `${id}.json`), { force: true });
     expect(mediaId).toContain("_");
+  });
+
+  it("persists PDF files for later download", async () => {
+    const sessionId = `pdf_${Date.now()}`;
+    const pdfB64 = Buffer.from(
+      "%PDF-1.1\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n",
+    ).toString("base64");
+    const prepared = await persistConversationMedia({
+      sessionId,
+      title: "pdf",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "see pdf",
+          createdAt: 1,
+          attachments: [
+            {
+              id: "a1",
+              name: "hw.pdf",
+              mimeType: "application/pdf",
+              kind: "file",
+              dataUrl: `data:application/pdf;base64,${pdfB64}`,
+            },
+          ],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const id = prepared.messages[0]?.attachments?.[0]?.mediaId;
+    expect(id).toBeTruthy();
+    const hit = await readMedia(id!);
+    expect(hit?.mimeType).toMatch(/pdf/);
+    expect(hit?.name).toBe("hw.pdf");
+    expect(hit!.buf.toString("utf8")).toContain("%PDF");
+
+    const dir = path.join(process.cwd(), "data", "media");
+    await rm(path.join(dir, `${id}.bin`), { force: true });
+    await rm(path.join(dir, `${id}.json`), { force: true });
   });
 });

@@ -414,6 +414,17 @@ export function TutorShell() {
     const history = buildHistoryPreview(messages);
     const shouldSpeak = voiceEnabledRef.current;
 
+    // Vault attachments immediately so history stays viewable / downloadable
+    for (const a of payload.attachments) {
+      if (a.dataUrl) {
+        void putPhotoInVault({
+          id: a.id,
+          dataUrl: a.dataUrl,
+          mimeType: a.mimeType,
+          name: a.name,
+        });
+      }
+    }
     const userMsg: ChatMessage = {
       id: messageId(),
       role: "user",
