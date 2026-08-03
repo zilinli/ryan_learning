@@ -1,120 +1,62 @@
-# Spark AI Tutor — Development TODO
+# 📋 Downstream Development TODO
 
-> Source: [Design Overview](/docs/DESIGN.md)  
-> Sprint foundation: 161 unit tests, full `verify:all` suite green.
-
----
-
-## How to use this list
-
-- **🔴 P0** = must-have before next release  
-- **🟡 P1** = important quality / UX  
-- **🟢 P2** = nice-to-have polish  
-
-Numbers are priority, not sequence. Pick top-down.
+> Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have
 
 ---
 
-## 🔴 P0 — Core Reliability
+## Phase 1: Memory Module Depth (🔴)
 
-| # | Task | Subsystem | Detail |
-|---|------|-----------|--------|
-| 1 | **BKT parameter tuning from real data** | [Memory](subsystems/learning-memory.md) | Log P(L) trajectories over 50+ turns; adjust `pInit`/`pLearn`/`pSlip`/`pGuess` per skill from outcomes. Current values are G4-educated defaults. |
-| 2 | **Stream abort recovery** | [Agent](subsystems/agent-prompt.md) | When SSE stream breaks mid-token (network blip), resume from last complete sentence instead of truncating. Current: reply saved as-is. |
-| 3 | **Tool error → student-friendly message** | [Agent](subsystems/agent-prompt.md) | `web_search` / `draw_geometry` failures currently return raw error. Map error codes to friendly messages per language. |
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 1.1 | 🔴 Add SM-2 forgetting decay to BKT skills | 3d | `bkt.ts`, `learning-memory.ts` | Reference: [x1ee7/sm2-spaced-repetition](https://github.com/x1ee7/sm2-spaced-repetition); decay `pKnown` by days since last review |
+| 1.2 | 🔴 Implement prerequisite-aware warm-up selection | 2d | `skill-catalog.ts` | When starting a new session, pick weakest skill whose prerequisites are ≥ 60% |
+| 1.3 | 🔴 Store `recall_learner_skills` tool results in prompt context snippet | 1d | `prompts.ts`, `tutor-harness.ts` | Cache the last tool call result in `learningMemoryPromptLines` so agent doesn't need to call the tool every turn |
+| 1.4 | 🔴 Add ZPD-based problem difficulty recommendation | 2d | `bkt.ts` | Compute `P(solve)` per skill; recommend skills closest to 0.7 (zone of proximal development). Reference: [bkt.tyche.institute pipeline](https://bkt.tyche.institute/en/06-reference/01-pipeline-overview/) |
+| 1.5 | 🟡 Confidence-weighted BKT updates | 1d | `learning-memory.ts` | High confidence + wrong answer → larger slip penalty; low confidence + correct → smaller gain |
+| 1.6 | 🟡 Add item difficulty tracking (Elo-hybrid per topic) | 3d | `bkt.ts`, `learning-memory.ts` | Track conversation-turn difficulty as Elo score; adjust `pGuess`/`pSlip` per turn difficulty. Reference: Pelánek (2016) |
+| 1.7 | 🟢 Memory visualization dashboard (parent view) | 5d | `SkillsPanel.tsx` | Standalone page showing: skill radar chart, mastery timeline, struggle heatmap |
 
----
+## Phase 2: Agent & Prompt Refinement (🟡)
 
-## 🟡 P1 — Quality & UX
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 2.1 | 🟡 Add subject-specific coaching templates | 2d | `prompts.ts`, `AGENTS.md` | Separate prompt sections for math / reading / science / writing with subject-specific hint ladders |
+| 2.2 | 🟡 Implement multi-turn task planning | 3d | Agent | When student uploads a worksheet, agent plans a sequence: Q1→Q2→Q3 before starting |
+| 2.3 | 🟡 Progressive disclosure of answer (step-by-step reveal) | 2d | Agent, `MarkdownMessage.tsx` | Click-to-reveal each step instead of blocking all at once |
+| 2.4 | 🟡 Capture and replay student reasoning chains | 3d | `learning-memory.ts` | Store "why" answers (L1.5 responses) as reasoning examples for future reference |
 
-| # | Task | Subsystem | Detail |
-|---|------|-----------|--------|
-| 4 | **Spaced repetition for vocabulary** | [Memory](subsystems/learning-memory.md) | Add a vocab skill type with Ebbinghaus-like interval decay. Surface "review 3 words from last week" at session start. |
-| 5 | **Skill prerequisite auto-suggest** | [Memory](subsystems/learning-memory.md) | When a skill is weak AND its prerequisite is also weak, prompt AI to review the prerequisite first. Current: hint in prompt text only; should be a structured suggestion. |
-| 6 | **Diagram annotation mode** | [Diagrams](subsystems/geometry-diagrams.md) | Allow the student to tap/click on a diagram to ask "what's this part?" — the agent then highlights and explains that element. Current: static images only. |
-| 7 | **TTS skip-long-reply button** | [Voice](subsystems/voice-tts.md) | Add a "stop speaking" button that aborts current TTS queue and leaves reply text visible. Current: only global speak-toggle. |
-| 8 | **Confidence trend in SkillsPanel** | [Memory](subsystems/learning-memory.md) | Show an up/down arrow next to each skill mastery when confidence changed across the last N turns. Current: mastery value only. |
-| 9 | **Photo rotate/crop before send** | [History](subsystems/history-storage.md) | Student photos of homework are often sideways. Add client-side rotate before upload. Current: raw photo sent. |
+## Phase 3: Geometry & Visualization (🟡)
 
----
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 3.1 | 🟡 Interactive geometry: drag to measure | 5d | `DiagramBlock.tsx`, SVG | Click/drag rulers, angle measures on geometry diagrams |
+| 3.2 | 🟡 Animated step-by-step geometry constructions | 3d | `geometry-svg.ts` | Animate triangle construction, angle bisector, perpendicular line |
+| 3.3 | 🟢 Add Desmos-like graphing for algebra | 5d | New component | Coordinate plane with point plotting, line drawing |
 
-## 🟢 P2 — Polish & Extend
+## Phase 4: Voice & Multi-Modal (🟢)
 
-| # | Task | Subsystem | Detail |
-|---|------|-----------|--------|
-| 10 | **Parent dashboard** | [History](subsystems/history-storage.md) | A separate view (password-gated) showing: time spent, topics practiced, mastery trends, recent struggles. Read-only. |
-| 11 | **Multi-modal input (handwriting)** | [Voice](subsystems/voice-tts.md) | Accept photo of handwritten math — send to STT with image → LaTeX conversion. Most G4 homework is handwritten. |
-| 12 | **Export chat as PDF** | [History](subsystems/history-storage.md) | "Save this conversation" button → PDF with embedded diagrams. Useful for parent review or school sharing. |
-| 13 | **Dark mode** | [Design Overview](DESIGN.md) | Toggle in settings; persist to `localStorage`. Current: light theme only (CSS custom properties ready). |
-| 14 | **i18n UI strings** | [Voice](subsystems/voice-tts.md) | Translate UI chrome (buttons, labels, errors) to 粤语/普通话/Español based on selected voice. Current: English chrome only. |
-| 15 | **Offline mode indicator** | [History](subsystems/history-storage.md) | Show a subtle banner when server sync fails ("Saved locally — sync when online"). Current: silent catch. |
-| 16 | **A/B prompt experiments** | [Agent](subsystems/agent-prompt.md) | Log which prompt variant was used per turn; measure student engagement (turns/session, struggle frequency). |
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 4.1 | 🟢 Voice-only mode (no screen needed) | 5d | `speech-player.ts`, `Composer.tsx` | Full voice conversation loop: STT→agent→TTS→STT |
+| 4.2 | 🟢 Arabic numerals read naturally in all languages | 1d | `tts-text.ts` | `$x^2$` → "x squared" in EN, "x 平方" in ZH/Yue |
+| 4.3 | 🟢 Parent voice note recording | 3d | New component | Parent records a voice message attached to chat for Ryan |
 
----
+## Phase 5: Platform & DevOps (🟢)
 
-## Documentation TODOs
-
-| # | Task |
-|---|------|
-| D1 | Add inline code comments where complex (BKT update, SVG repair regexes) |
-| D2 | Record a 3-minute demo video for the README |
-| D3 | Create a "How to extend the skill catalog" guide |
-
----
-
-## Test Gaps
-
-| # | Task |
-|---|------|
-| T1 | Fuzz-test `sanitizeSvg` with random byte sequences |
-| T2 | Performance test: 10 concurrent chat requests (simulated) |
-| T3 | TTS voice quality regression: compare audio bytes before/after prompt changes |
-| T4 | Memory stress: fill localStorage to quota, verify graceful degradation |
+| # | Task | Effort | Dependencies | Notes |
+|---|------|--------|-------------|-------|
+| 5.1 | 🟢 PWA install + offline mode | 3d | `layout.tsx`, service worker | Cache app shell, offline-capable chat history |
+| 5.2 | 🟢 Docker deployment | 2d | Dockerfile | Single-container deploy with health check |
+| 5.3 | 🟢 Automated BKT parameter tuning from logs | 3d | `bkt.ts` | Batch-fit `pLearn`, `pSlip`, `pGuess` from history JSON |
+| 5.4 | 🟢 Error telemetry (Sentry or custom) | 2d | Agent, API | Track agent failures, TTS timeouts, STT errors |
 
 ---
 
-## Dependency Map (for sequencing)
+## Quick Wins (< 1 day each)
 
-```mermaid
-flowchart LR
-    subgraph Block A["Memory improvements"]
-        A1["#1 · BKT tuning"]
-        A2["#4 · Spaced repetition"]
-        A3["#5 · Prereq auto-suggest"]
-        A4["#8 · Confidence trend"]
-    end
-    subgraph Block B["Reliability"]
-        B1["#2 · Stream recovery"]
-        B2["#3 · Tool error messages"]
-    end
-    subgraph Block C["Visual / Input"]
-        C1["#6 · Annotation mode"]
-        C2["#9 · Photo rotate"]
-        C3["#11 · Handwriting"]
-    end
-
-    A1 --> A2
-    A1 --> A3
-    A1 --> A4
-    B1 --> C1
-    C2 --> C3
-```
-
-Blocks are independent of each other. Within a block, top items unlock bottom items.
-
----
-
-## Contribution Workflow
-
-1. Branch from `main`: `feature/bkt-tuning` or `fix/stream-recovery`  
-2. Implement + add/modify tests in `src/lib/*.test.ts`  
-3. Run `npm test` (161 tests must pass)  
-4. Run relevant `npm run verify:*` script  
-5. Rebuild: `npm run build`  
-6. Restart service: `systemctl restart spark-tutor`  
-7. Smoke-test at `https://65.49.201.123/`  
-8. PR with description + screenshot/screencap if UI changed  
-
----
-
-*Last updated: 2026-08-03 · aligned with v0.2.0 design docs*
+- [ ] Add "last practiced" timestamp to SkillsPanel UI
+- [ ] Export learning memory as printable PDF for parent review
+- [ ] Add "suggest a topic" button based on weakest skill
+- [ ] Inline skill tag display on each message (which skill was practiced)
+- [ ] Keyboard shortcut: `Ctrl+Enter` to send (already Enter; add `Shift+Enter` for newline → swap)
+- [ ] Add dark mode support

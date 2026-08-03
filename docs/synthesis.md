@@ -1,170 +1,122 @@
-# Spark AI Tutor — Design Synthesis
+# 🔗 Synthesis: Cross-Cutting Design Rationale
 
-> Parent: [Design Overview](/docs/DESIGN.md)  
-> After: [Agent](subsystems/agent-prompt.md) · [Memory](subsystems/learning-memory.md) · [Diagrams](subsystems/geometry-diagrams.md) · [Voice](subsystems/voice-tts.md) · [History](subsystems/history-storage.md) · [Security](subsystems/security.md)
-
----
-
-## Cross-Cutting Data Flow
-
-```mermaid
-flowchart TB
-    subgraph Inputs
-        A["Student types / speaks / photos"]
-        B["Voice preference + language"]
-    end
-
-    subgraph Context["Context Assembly"]
-        C1["Student Profile · Ryan G4"]
-        C2["Learning Memory · BKT skills"]
-        C3["Engagement · streaks/badges"]
-        C4["Recent History · last 8 turns"]
-        A --> C4
-    end
-
-    subgraph Core["Core Pipeline"]
-        D1["buildTutorPrompt · ~4000 chars"]
-        D2["Cursor SDK Agent"]
-        D3["Tutor Harness · 6 tools"]
-    end
-
-    subgraph Outputs
-        E1["Markdown + LaTeX reply"]
-        E2["Geometry SVG diagram"]
-        E3["TTS audio stream"]
-        E4["Updated BKT skills"]
-        E5["Saved conversation"]
-    end
-
-    subgraph Feedback["Feedback Loop"]
-        F1["recordLearningTurnMemory · BKT update"]
-        F2["syncProfileFromSkills · refresh strengths"]
-        F3["pushLearningMemoryToServer · sync"]
-    end
-
-    Inputs --> Context --> Core --> Outputs
-    Outputs --> Feedback --> Context
-```
+> **总** — read after [DESIGN.md](DESIGN.md) and subsystem docs
 
 ---
 
-## Interaction Matrix
+## Why This Architecture
 
-| | Agent | Memory | Diagrams | Voice | History | Security |
-|---|-------|--------|----------|-------|---------|----------|
-| **Agent** | — | Reads BKT skills via `recall_learner_skills` | Calls `draw_geometry` tool | Prompt includes TTS audience hint | Reads history for context | Uses sanitized inputs |
-| **Memory** | Reads before prompt; writes after turn | — | — | — | Stores to JSON file | Validates on normalize |
-| **Diagrams** | Agent emits SVG | — | — | Stripped from TTS text | Saved in message content | Sanitized for XSS |
-| **Voice** | Prompt includes "short for phone + TTS" | — | SVG stripped | — | — | — |
-| **History** | Prompt includes last 8 turns | — | — | — | — | Truncation caps |
-| **Security** | Sanitizes model output | Normalizes inputs | SVG sanitize | — | — | — |
+Spark is designed for a **single learner** (Ryan, age 9) with **no training data**, running on a **single server**. These constraints drove every architectural decision.
 
----
+### Single-Learner → BKT, Not DKT or Elo
 
-## Key Design Principles
+Deep Knowledge Tracing needs thousands of student logs to train neural networks. The Elo rating system was designed for ranking multiple players — it has no meaningful interpretation of "mastery" for a single person.
 
-| Principle | Implementation |
-|-----------|---------------|
-| **No final answers first** | Hint ladder L0 → L3 + L1.5/L2.5 in every prompt |
-| **Probabilistic mastery** | BKT replaces fixed deltas; guess/slip modeled |
-| **Single learner** | No auth; every prompt is for Ryan |
-| **Degrade gracefully** | SVG repair → fallback code block; TTS → skip empty; sync → local-only offline |
-| **Local-first** | Browser storage primary; server is cache + cross-device sync |
-| **Mobile-friendly** | Short replies, TTS-first, no WebGL dependencies |
-| **Observe, don't narrate** | Tool calls are silent; status filtered from student view |
+BKT models **mastery as a latent binary variable** updated by observations. This maps naturally to tutoring: "did Ryan understand fractions today?" The 4 parameters (pInit, pLearn, pSlip, pGuess) are interpretable by parents and teachers.
 
----
+### Free-Form Tutoring → Soft Outcome Layer
 
-## Component Ownership
+Standard BKT assumes binary quiz items (correct/incorrect). Spark conversations are free-form Socratic dialogues. We bridge this gap with `softBktUpdate`: a 3-way outcome classifier (win/struggle/practice) that maps conversational signals to BKT observations.
+
+### Streaming SSE → Repair + Sanitize + Base64
+
+Models can emit malformed SVG in streaming mode (spaces collapse, tags glue). Our pipeline:
+1. Repairs structural damage
+2. Sanitizes dangerous content
+3. Converts to base64 data URIs
+4. Renders as `<img>` outside markdown parsers
+
+This three-layer defense ensures diagrams always render, even from broken streams.
+
+### Cantonese Default → Language Detection Heuristics
+
+Ryan's family speaks 粤语. `detectSpeechLang` uses CJK density + 粤语-specific character signals (`嘅`, `唔`, `係`) to default to Cantonese. The Yunxi (云希) voice is the only path to 普通话 — preserving the family default.
+
+### TypeScript-Only → No Python Runtime
+
+Every subsystem (BKT, SVG, prompts, harness, storage, sync, STT proxy) is TypeScript. The only Python is the local STT server (`scripts/stt_server.py`). This keeps deployment a single `npm run build` with no pip/conda dependency chains.
+
+## Data Flow Summary
 
 ```mermaid
 flowchart TD
-    subgraph Frontend["Frontend · React 19"]
-        F1["TutorShell · Orchestrator"]
-        F2["MarkdownMessage · Render"]
-        F3["Composer · Input"]
-        F4["HistorySidebar · Navigation + SkillsPanel"]
-        F5["SpeechPlayer · TTS"]
+    subgraph Inputs
+        U["User message"]
+        A["Attachments"]
+        L["Language pref"]
     end
 
-    subgraph Backend["Backend · Next.js API"]
-        B1["Chat · SSE stream"]
-        B2["TTS · Edge Neural"]
-        B3["STT · Whisper + SenseVoice"]
-        B4["History · CRUD"]
-        B5["Learning · Memory sync"]
+    subgraph Context
+        P["Student Profile"]
+        M["Learning Memory (BKT)"]
+        E["Engagement"]
+        H["History"]
     end
 
-    subgraph Lib["Shared Libraries"]
-        L1["prompts.ts · 4000 chars"]
-        L2["learning-memory.ts · BKT"]
-        L3["geometry-svg.ts · SVG pipeline"]
-        L4["tutor-harness.ts · Tools"]
-        L5["bkt.ts · Core algorithm"]
+    subgraph Processing
+        PR["Prompt Builder"]
+        AG["Cursor Agent"]
+        TO["Tools"]
     end
 
-    F1 --> B1
-    F1 --> L1
-    F1 --> L2
-    F2 --> L3
-    B1 --> L1
-    B1 --> L2
-    B1 --> L3
-    B1 --> L4
-    L2 --> L5
+    subgraph Outputs
+        TX["Text reply"]
+        DG["Diagrams"]
+        SP["Speech"]
+    end
+
+    subgraph Storage
+        CL["Client (localStorage)"]
+        SV["Server (FS)"]
+    end
+
+    U --> PR
+    A --> PR
+    L --> PR
+    P --> PR
+    M --> PR
+    E --> PR
+    H --> PR
+    PR --> AG
+    AG --> TO
+    TO --> AG
+    AG --> TX
+    AG --> DG
+    TX --> CL
+    TX --> SV
+    M --> CL
+    M --> SV
+    TX --> SP
 ```
 
----
+## Test Coverage
 
-## Performance & Scalability
+| Layer | Tests | Files |
+|-------|-------|-------|
+| Unit (Vitest) | 161 tests | 23 files |
+| System verify | 8 scripts | `verify:*` |
+| Build check | `next build` | CI |
 
-| Metric | Current | Ceiling | Notes |
-|--------|---------|---------|-------|
-| Prompt size | ~4000 chars | ~8000 chars (SDK) | Headroom for more context |
-| Chat stream latency | ~2-5s first token | <1s TTFB | Depends on Cursor model |
-| TTS chunk latency | ~500ms per 280-char chunk | — | Edge CDN proximity |
-| Messages total | ~200 (dev) | 1000 | Oldest-trim after cap |
-| SVG diagrams per reply | 1-2 | 5 | Each ~8KB base64 |
-| BKT skills | 14 defined | 50+ | Skill catalog extensible |
-| Browser storage | ~2MB (typical) | 5MB (localStorage limit) | Photo vault in IndexedDB |
+Full suite: `npm run verify:all` (unit + history/upload/tts/stt/voice/diagrams/system).
 
----
+## Key Files to Understand First
 
-## Known Limitations
+For new contributors, read in this order:
 
-| Limitation | Impact | Mitigation |
-|------------|--------|------------|
-| Single voice per reply | If reply mixes EN + ZH, only one voice used | Rare; accepted tradeoff |
-| Mermaid on mobile WebViews | Older WebKit lacks full SVG support | Fallback to raw code block |
-| BKT parameters static | Not tuned from real data | Conservative defaults; G4-appropriate |
-| No undo for skill updates | Wrong turn outcome skews mastery | Merge prefers higher mastery; low impact |
-| TTS reads LaTeX as audio (e.g. "square root of 2") | Sometimes reads both LaTeX + speech version | Prompt asks AI to include plain-word alongside LaTeX |
-| Server sync is eventual | Offline turns update local only; merge on next online | Merge logic handles conflicts |
+1. `src/lib/bkt.ts` — Bayesian knowledge tracing core (50 lines)
+2. `src/lib/skill-catalog.ts` — Skill definitions (150 lines)
+3. `src/lib/learning-memory.ts` — Memory lifecycle (400 lines)
+4. `src/lib/prompts.ts` — Prompt assembly (270 lines)
+5. `src/lib/geometry-svg.ts` — SVG pipeline (500 lines)
+6. `src/components/TutorShell.tsx` — Main orchestrator (700 lines)
 
----
+## Design Principles
 
-## Evolution Path
-
-```mermaid
-timeline
-    title Spark Evolution
-    v0.1 : Basic chat + homework photos
-         : Fixed-delta mastery
-         : SVG rendering
-    v0.2 : BKT skill mastery
-         : Hint ladder L1.5/L2.5
-         : recall_learner_skills
-         : SkillsPanel UI
-         : Design docs
-    Future : BKT parameter tuning
-           : Skill prerequisite auto-suggest
-           : Multi-modal (diagram + voice + hand-writing)
-           : Parent dashboard
-           : Spaced repetition for vocabulary
-```
-
----
-
-## Summary
-
-Spark's design centers on a single constraint: **Ryan must think before the tutor answers**. Every subsystem — the hint ladder, the BKT skill model, the geometry tool, the voice pipeline — serves that goal. The architecture is local-first, probabilistically grounded, and mobile-tolerant. With the v0.2 BKT integration, it now tracks not just what topics Ryan has seen, but how likely he is to _know_ each skill — and uses that to adapt every interaction.
+1. **No early answers** — Socratic hint ladder before solution
+2. **Explain your reasoning** — L1.5 asks WHY before right/wrong
+3. **Second chances** — L2.5 allows self-correction
+4. **粤语 first** — Cantonese default, 普通话 only on explicit voice choice
+5. **Diagrams always render** — Triple defense repair pipeline
+6. **TTS never reads markup** — `cleanTutorSpeechText` strips everything non-speech
+7. **Client-first, server-safe** — localStorage primary, server for cross-device sync
+8. **No Python in production path** — TypeScript-only (except optional STT server)
