@@ -40,6 +40,8 @@ yarn-error.log*
 
 # local runtime
 /tmp/
+/data/conversations/*.json
+!/data/conversations/.gitkeep
 
 # vercel
 .vercel

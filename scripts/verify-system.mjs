@@ -111,6 +111,47 @@ async function main() {
     ok("home page has app shell", /Spark|tutor|html/i.test(html));
   }
 
+  // Global history API
+  {
+    const id = `syshist_${Date.now()}`;
+    const put = await fetch("http://127.0.0.1:3000/api/history", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversation: {
+          sessionId: id,
+          title: "System history check",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              content: "Remember this globally",
+              createdAt: Date.now(),
+            },
+          ],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      }),
+    });
+    const putBody = await put.json();
+    ok("history PUT saves chat", put.ok && putBody.ok, JSON.stringify(putBody));
+
+    const list = await (await fetch("http://127.0.0.1:3000/api/history")).json();
+    ok(
+      "history GET lists chat",
+      Array.isArray(list.conversations) &&
+        list.conversations.some((c) => c.sessionId === id),
+      `n=${list.conversations?.length ?? 0}`,
+    );
+
+    const del = await fetch(
+      `http://127.0.0.1:3000/api/history?sessionId=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    );
+    ok("history DELETE removes chat", del.ok);
+  }
+
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);
   process.exit(failed === 0 ? 0 : 1);
 }

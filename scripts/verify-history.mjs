@@ -24,7 +24,7 @@ async function main() {
     newSessionId,
   } = mod;
 
-  ok("MAX_CONVERSATIONS capped", MAX_CONVERSATIONS <= 30, String(MAX_CONVERSATIONS));
+  ok("MAX_CONVERSATIONS capped", MAX_CONVERSATIONS <= 100, String(MAX_CONVERSATIONS));
   ok("MAX_MESSAGES capped", MAX_MESSAGES_PER_CHAT <= 120, String(MAX_MESSAGES_PER_CHAT));
   ok("session id", typeof newSessionId() === "string" && newSessionId().length > 8);
 

@@ -19,6 +19,11 @@ import {
   saveConversations,
   titleFromMessages,
 } from "@/lib/storage";
+import {
+  deleteServerChat,
+  hydrateFromServer,
+  pushStoreToServer,
+} from "@/lib/history-sync";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
   ChatMessage,
@@ -221,21 +226,31 @@ export function TutorShell() {
     setStore(loaded);
     setReady(true);
 
+    // Overlay shared server history so every browser sees the same chats
+    void hydrateFromServer(loaded).then((merged) => {
+      setStore(merged);
+      saveConversations(merged);
+      // Upload any local-only chats the server does not have yet
+      void pushStoreToServer(merged);
+    });
+
     fetch("/api/setup")
       .then(async (r) => {
         const data = (await r.json()) as { configured?: boolean };
-        setKeyMissing(!data.configured);
+        // 仅在明确未配置时才弹出输入；网络失败不挡小孩使用（服务端有默认 Key）
+        setKeyMissing(data.configured === false);
       })
-      .catch(() => setKeyMissing(true));
+      .catch(() => setKeyMissing(false));
   }, []);
 
-  // Debounce localStorage while streaming — sync writes freeze the UI on iPad
+  // Debounce localStorage + server sync while streaming — sync writes freeze the UI on iPad
   useEffect(() => {
     if (!ready || !store) return;
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    const delay = busy ? 1500 : 200;
+    const delay = busy ? 1500 : 280;
     saveTimerRef.current = window.setTimeout(() => {
       saveConversations(store);
+      if (!busy) void pushStoreToServer(store);
     }, delay);
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
@@ -320,6 +335,7 @@ export function TutorShell() {
     speakApiRef.current?.stop();
     setStore({ version: 3, activeId, conversations });
     setError("");
+    void deleteServerChat(id);
   };
 
   const handleSend = async (payload: {
@@ -496,9 +512,9 @@ export function TutorShell() {
               type="button"
               onClick={() => setSidebarOpen(true)}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--line)] bg-white/80 px-3 text-sm text-[var(--ink)] lg:hidden"
-              aria-label="Open chat history"
+              aria-label="Open all chat history"
             >
-              Chats
+              All chats
             </button>
             <div className="min-w-0 lg:pl-1">
               <p className="font-[family-name:var(--font-display)] text-2xl tracking-wide text-[var(--ink)] sm:text-4xl lg:text-5xl">

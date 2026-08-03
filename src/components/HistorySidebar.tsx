@@ -46,7 +46,7 @@ export function HistorySidebar({
             Spark
           </p>
           <p className="text-[11px] text-[var(--ink-muted)]">
-            History · max {MAX_CONVERSATIONS}
+            All chats · synced · max {MAX_CONVERSATIONS}
           </p>
         </div>
         <button

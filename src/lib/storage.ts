@@ -9,7 +9,7 @@ const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = "spark-tutor-sessions-v3";
 
 /** Hard caps so localStorage + RAM stay small on phones */
-export const MAX_CONVERSATIONS = 20;
+export const MAX_CONVERSATIONS = 50;
 export const MAX_MESSAGES_PER_CHAT = 80;
 const MAX_CONTENT_CHARS = 6_000;
 const MAX_TITLE_LEN = 42;
