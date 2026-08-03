@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { ChatAttachment, ChatMessage } from "@/lib/types";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { ImageLightbox } from "./ImageLightbox";
 
 type Props = {
   messages: ChatMessage[];
@@ -10,7 +12,7 @@ type Props = {
 
 function messageAttachments(m: ChatMessage): ChatAttachment[] {
   if (m.attachments?.length) return m.attachments;
-  if (m.image) {
+  if (m.image?.dataUrl) {
     return [
       {
         id: `${m.id}-img`,
@@ -25,6 +27,11 @@ function messageAttachments(m: ChatMessage): ChatAttachment[] {
 }
 
 export function ChatThread({ messages, streaming }: Props) {
+  const [lightbox, setLightbox] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
+
   if (messages.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center animate-fade-up">
@@ -66,17 +73,42 @@ export function ChatThread({ messages, streaming }: Props) {
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, idx) =>
                     a.kind === "image" && a.dataUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <button
                         key={a.id}
-                        src={a.dataUrl}
-                        alt={a.name || `Photo ${idx + 1}`}
-                        className={`max-h-44 max-w-[9rem] rounded-xl object-contain sm:max-w-[11rem] ${
+                        type="button"
+                        className="group relative block overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                        onClick={() =>
+                          setLightbox({
+                            src: a.dataUrl!,
+                            alt: a.name || `Photo ${idx + 1}`,
+                          })
+                        }
+                        aria-label={`View ${a.name || `photo ${idx + 1}`}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={a.dataUrl}
+                          alt={a.name || `Photo ${idx + 1}`}
+                          className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
+                            isUser
+                              ? "border border-white/20"
+                              : "border border-[var(--line)]"
+                          } rounded-xl`}
+                          draggable={false}
+                        />
+                      </button>
+                    ) : a.kind === "image" ? (
+                      <span
+                        key={a.id}
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
                           isUser
-                            ? "border border-white/20"
-                            : "border border-[var(--line)]"
+                            ? "bg-white/20 text-white"
+                            : "bg-[var(--mist)] text-[var(--ink)]"
                         }`}
-                      />
+                        title="Photo preview unavailable"
+                      >
+                        {a.name || "Photo"}
+                      </span>
                     ) : (
                       <span
                         key={a.id}
@@ -107,6 +139,13 @@ export function ChatThread({ messages, streaming }: Props) {
           </article>
         );
       })}
+      {lightbox ? (
+        <ImageLightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          onClose={() => setLightbox(null)}
+        />
+      ) : null}
     </div>
   );
 }

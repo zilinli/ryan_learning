@@ -75,4 +75,62 @@ describe("mergeConversationLists", () => {
     );
     expect(merged.conversations.some((c) => c.sessionId === "old")).toBe(true);
   });
+
+  it("restores local photo dataUrls when server copy is newer but stripped", () => {
+    const local: ConversationRecord = {
+      sessionId: "hw",
+      title: "Homework",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "help",
+          createdAt: 100,
+          attachments: [
+            {
+              id: "a1",
+              name: "p.jpg",
+              mimeType: "image/jpeg",
+              kind: "image",
+              dataUrl: "data:image/jpeg;base64,LOCAL",
+            },
+          ],
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 100,
+    };
+    const remote: ConversationRecord = {
+      sessionId: "hw",
+      title: "Homework",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "help",
+          createdAt: 100,
+          attachments: [
+            {
+              id: "a1",
+              name: "p.jpg",
+              mimeType: "image/jpeg",
+              kind: "image",
+            },
+          ],
+        },
+        {
+          id: "m2",
+          role: "assistant",
+          content: "What do you notice?",
+          createdAt: 200,
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 200,
+    };
+    const merged = mergeConversationLists([local], [remote], "hw");
+    const att = merged.conversations[0]?.messages[0]?.attachments?.[0];
+    expect(att?.dataUrl).toBe("data:image/jpeg;base64,LOCAL");
+    expect(merged.conversations[0]?.messages).toHaveLength(2);
+  });
 });

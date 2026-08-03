@@ -44,11 +44,15 @@ function slimAttachment(a: NonNullable<ChatMessage["attachments"]>[number]) {
     name: a.name,
     mimeType: a.mimeType,
     kind: a.kind,
-    // Drop heavy base64 previews for inactive / pruned storage
+    // Drop heavy base64 / text for inactive storage (images kept separately)
   };
 }
 
-/** Keep UI preview for the active chat; strip dataUrls elsewhere to save quota */
+/**
+ * Trim message text / file payloads for storage.
+ * Homework **image** dataUrls stay on the client so the student can reopen photos
+ * after chatting (server sync still strips them via sanitizeForServer).
+ */
 export function slimMessages(
   messages: ChatMessage[],
   keepPreviews: boolean,
@@ -59,15 +63,18 @@ export function slimMessages(
       m.content.length > MAX_CONTENT_CHARS
         ? `${m.content.slice(0, MAX_CONTENT_CHARS)}…`
         : m.content;
-    const attachments = m.attachments?.map((a) =>
-      keepPreviews && a.dataUrl ? a : slimAttachment(a),
-    );
+    const attachments = m.attachments?.map((a) => {
+      if (a.kind === "image" && a.dataUrl) return a;
+      return keepPreviews && a.dataUrl ? a : slimAttachment(a);
+    });
     const image =
-      keepPreviews && m.image
+      m.image?.dataUrl
         ? m.image
-        : m.image
-          ? { dataUrl: "", mimeType: m.image.mimeType }
-          : undefined;
+        : keepPreviews && m.image
+          ? m.image
+          : m.image
+            ? { dataUrl: "", mimeType: m.image.mimeType }
+            : undefined;
     return {
       id: m.id,
       role: m.role,

@@ -42,7 +42,25 @@ async function ensureDir(): Promise<void> {
 export function sanitizeForServer(
   record: ConversationRecord,
 ): ConversationRecord {
-  const messages = slimMessages(record.messages || [], false);
+  const messages = slimMessages(record.messages || [], false).map((m) => {
+    const attachments = m.attachments?.map((a) => {
+      if (!a.dataUrl && !("textContent" in a)) return a;
+      return {
+        id: a.id,
+        name: a.name,
+        mimeType: a.mimeType,
+        kind: a.kind,
+      };
+    });
+    return {
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      createdAt: m.createdAt,
+      ...(attachments?.length ? { attachments } : {}),
+      // Never persist base64 photos on the shared server store
+    };
+  });
   return {
     sessionId: record.sessionId,
     title: record.title || titleFromMessages(messages),

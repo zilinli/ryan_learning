@@ -74,7 +74,7 @@ describe("slimMessages", () => {
     expect(slim[0]?.id).toBe(`m${25}`);
   });
 
-  it("strips attachment previews when keepPreviews is false", () => {
+  it("keeps homework image dataUrls even when keepPreviews is false", () => {
     const messages = [
       msg({
         role: "user",
@@ -91,8 +91,31 @@ describe("slimMessages", () => {
       }),
     ];
     const slim = slimMessages(messages, false);
-    expect(slim[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    expect(slim[0]?.attachments?.[0]?.dataUrl).toBe(
+      "data:image/jpeg;base64,AAAA",
+    );
     expect(slim[0]?.attachments?.[0]?.name).toBe("p.jpg");
+  });
+
+  it("still strips non-image file payloads when keepPreviews is false", () => {
+    const messages = [
+      msg({
+        role: "user",
+        content: "notes",
+        attachments: [
+          {
+            id: "f1",
+            name: "a.pdf",
+            mimeType: "application/pdf",
+            kind: "file",
+            dataUrl: "data:application/pdf;base64,AAAA",
+          },
+        ],
+      }),
+    ];
+    const slim = slimMessages(messages, false);
+    expect(slim[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    expect(slim[0]?.attachments?.[0]?.name).toBe("a.pdf");
   });
 
   it("truncates oversized content", () => {

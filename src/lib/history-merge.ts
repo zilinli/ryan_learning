@@ -1,4 +1,9 @@
-import type { ConversationRecord, ConversationsStore } from "./types";
+import type {
+  ChatAttachment,
+  ChatMessage,
+  ConversationRecord,
+  ConversationsStore,
+} from "./types";
 import {
   MAX_CONVERSATIONS,
   newSessionId,
@@ -6,9 +11,77 @@ import {
   titleFromMessages,
 } from "./storage";
 
+/** Prefer attachment copies that still have homework photo dataUrls. */
+export function mergeMessageAttachments(
+  preferred: ChatMessage[],
+  fallback: ChatMessage[],
+): ChatMessage[] {
+  if (!fallback.length) return preferred;
+  const byId = new Map(fallback.map((m) => [m.id, m]));
+  return preferred.map((m) => {
+    const other = byId.get(m.id);
+    if (!other) return m;
+
+    let attachments = m.attachments;
+    if (m.attachments?.length || other.attachments?.length) {
+      const otherAtt = new Map(
+        (other.attachments || []).map((a) => [a.id, a]),
+      );
+      const base = m.attachments?.length
+        ? m.attachments
+        : other.attachments || [];
+      attachments = base.map((a) => {
+        const o = otherAtt.get(a.id);
+        if (a.kind === "image" && !a.dataUrl && o?.dataUrl) {
+          return { ...a, dataUrl: o.dataUrl } satisfies ChatAttachment;
+        }
+        if (!m.attachments?.length && o) return o;
+        return a;
+      });
+    }
+
+    const image =
+      m.image?.dataUrl
+        ? m.image
+        : other.image?.dataUrl
+          ? other.image
+          : m.image || other.image;
+
+    return {
+      ...m,
+      ...(attachments?.length ? { attachments } : {}),
+      ...(image ? { image } : {}),
+    };
+  });
+}
+
+function pickRicherConversation(
+  a: ConversationRecord,
+  b: ConversationRecord,
+): ConversationRecord {
+  // Newer updatedAt wins for text/history; then restore any photo bytes from the other.
+  let winner = a;
+  let loser = b;
+  if (b.updatedAt > a.updatedAt) {
+    winner = b;
+    loser = a;
+  } else if (
+    b.updatedAt === a.updatedAt &&
+    (b.messages?.length || 0) > (a.messages?.length || 0)
+  ) {
+    winner = b;
+    loser = a;
+  }
+  return {
+    ...winner,
+    messages: mergeMessageAttachments(winner.messages || [], loser.messages || []),
+  };
+}
+
 /**
  * Merge local + server conversations into one global list.
  * Newer updatedAt wins; ties prefer more messages.
+ * Photo dataUrls from either side are kept so homework stays viewable.
  */
 export function mergeConversationLists(
   local: ConversationRecord[],
@@ -24,16 +97,7 @@ export function mergeConversationLists(
       map.set(c.sessionId, c);
       return;
     }
-    if (c.updatedAt > prev.updatedAt) {
-      map.set(c.sessionId, c);
-      return;
-    }
-    if (
-      c.updatedAt === prev.updatedAt &&
-      (c.messages?.length || 0) > (prev.messages?.length || 0)
-    ) {
-      map.set(c.sessionId, c);
-    }
+    map.set(c.sessionId, pickRicherConversation(prev, c));
   };
 
   // Remote first, then local (local can override when newer)
