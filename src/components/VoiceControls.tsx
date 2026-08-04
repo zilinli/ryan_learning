@@ -394,7 +394,7 @@ export function VoiceControls({
 
   return (
     <>
-      {/* Mic button — inline in toolbar */}
+      {/* Mic — large fixed tap target on phones (Chrome Android misses shifting targets) */}
       <button
         type="button"
         disabled={disabled || !supported || busy}
@@ -407,7 +407,7 @@ export function VoiceControls({
             void stopListening();
           }
         }}
-        className={`inline-flex min-h-[3.25rem] min-w-[3.25rem] shrink-0 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:min-h-[2.75rem] sm:min-w-0 sm:px-3 ${
+        className={`relative inline-flex h-16 w-16 shrink-0 touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-full text-sm font-medium transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:h-auto sm:min-h-[2.75rem] sm:w-auto sm:min-w-0 sm:flex-row sm:gap-1 sm:px-3 sm:active:scale-100 ${
           listening
             ? "bg-[var(--coral)] text-white"
             : busy
@@ -422,14 +422,20 @@ export function VoiceControls({
         }
         aria-pressed={listening}
       >
-        <svg className="h-5 w-5 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg className="h-7 w-7 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
           <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
           <line x1="12" y1="19" x2="12" y2="23" />
           <line x1="8" y1="23" x2="16" y2="23" />
         </svg>
-        {/* Mobile: icon-only when idle; show Done/... while active. Desktop: full label. */}
-        <span className={listening || busy ? "inline" : "hidden sm:inline"}>
+        {/* Mobile: status under icon inside fixed box (no layout shift). Desktop: side label. */}
+        <span
+          className={
+            listening || busy
+              ? "text-[10px] leading-none sm:text-sm sm:leading-normal"
+              : "hidden sm:inline"
+          }
+        >
           {busy ? "..." : listening ? "Done" : "Hold to talk"}
         </span>
       </button>
