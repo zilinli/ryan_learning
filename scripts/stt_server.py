@@ -289,10 +289,11 @@ def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
             " ¿Puedes explicarme cómo se resuelve este problema?"
         )
         # Higher beam for Spanish — small model needs more decoding alternatives
-        base["beam_size"] = 5
-        base["best_of"] = 5
-        base["temperature"] = (0.0, 0.2, 0.4, 0.6, 0.8)
-        base["patience"] = 1.2
+        # beam=3 balances accuracy vs memory/time (5 causes CPU deadlock on small model)
+        base["beam_size"] = 3
+        base["best_of"] = 3
+        base["temperature"] = (0.0, 0.2, 0.4)
+        base["patience"] = 1.0
         # Even more relaxed for Spanish small-model decode
         base["compression_ratio_threshold"] = 3.5
         base["log_prob_threshold"] = -1.6
