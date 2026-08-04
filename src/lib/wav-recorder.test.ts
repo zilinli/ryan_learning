@@ -15,9 +15,20 @@ describe("wav-recorder helpers", () => {
     expect(out.length).toBe(16000);
   });
 
+  it("downsamples with anti-aliasing preserves low frequencies", () => {
+    // 1 kHz tone at 48k → should survive 16k downsample cleanly
+    const input = new Float32Array(48000);
+    for (let i = 0; i < input.length; i += 1) input[i] = Math.sin(2 * Math.PI * 1000 * i / 48000);
+    const out = downsampleTo16k(input, 48000);
+    // Signal should still have meaningful energy (not killed by the filter)
+    const rms = pcmRms(out);
+    expect(rms).toBeGreaterThan(0.3);
+  });
+
   it("normalizes quiet peaks", () => {
+    // Input peak 0.05 → gain 0.85/0.05=17 (under 20x cap) → output peak ≈0.85
     const quiet = new Float32Array(1000);
-    for (let i = 0; i < quiet.length; i += 1) quiet[i] = 0.02 * Math.sin(i / 5);
+    for (let i = 0; i < quiet.length; i += 1) quiet[i] = 0.05 * Math.sin(i / 5);
     const out = normalizePeak(quiet, 0.85);
     expect(pcmRms(out)).toBeGreaterThan(pcmRms(quiet));
     let peak = 0;
