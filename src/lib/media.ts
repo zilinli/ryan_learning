@@ -118,7 +118,10 @@ export function chunkSpeechText(text: string, maxLen = 160): string[] {
 
 export function isCoarsePointer(): boolean {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(pointer: coarse)").matches;
+  // Prefer tap-to-talk on phones/tablets. Some Android Chrome builds report
+  // pointer:fine even with a finger — maxTouchPoints catches those.
+  if (window.matchMedia("(pointer: coarse)").matches) return true;
+  return navigator.maxTouchPoints > 1;
 }
 
 export function pickRecorderMimeType(): string {

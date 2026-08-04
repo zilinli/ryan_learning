@@ -45,6 +45,12 @@ type Props = {
   onVoiceIdChange?: (id: TutorVoiceId) => void;
   onTranscript: (text: string) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
+  /** Surface mic status/errors outside the toolbar flex row */
+  onFeedback?: (feedback: {
+    status: string;
+    hint: string;
+    httpsLink: string;
+  }) => void;
 };
 
 type RecorderSession = {
@@ -523,6 +529,24 @@ export function VoiceControls({
           </>
         ) : null}
       </div>
+
+      {/* Status/errors must stay visible — toolbar is flex-wrap so basis-full drops to next line */}
+      {status ? (
+        <p className="basis-full w-full text-xs text-[var(--teal)]">{status}</p>
+      ) : null}
+      {hint ? (
+        <p className="basis-full w-full text-xs leading-snug text-[var(--ink-muted)]">
+          {hint}
+        </p>
+      ) : null}
+      {httpsLink ? (
+        <a
+          href={httpsLink}
+          className="basis-full w-full text-xs font-medium text-[var(--teal)] underline underline-offset-2"
+        >
+          Open secure page (HTTPS)
+        </a>
+      ) : null}
     </>
   );
 }

@@ -153,7 +153,7 @@ export function Composer({
           className="w-full min-h-[2.75rem] resize-none bg-transparent px-1 py-1 text-lg leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50 sm:text-base"
         />
 
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <input
             id={fileId}
             type="file"
