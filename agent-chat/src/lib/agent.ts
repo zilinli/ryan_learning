@@ -1,5 +1,5 @@
 import { Agent } from "@cursor/sdk";
-import type { SDKAgent, SDKMessage } from "@cursor/sdk";
+import type { SDKAgent, SDKMessage, SDKUserMessage } from "@cursor/sdk";
 import { buildSystemPrompt, getOSInfo, DEFAULT_WORKSPACE } from "./prompts";
 import { buildAttachmentLines } from "./attachments";
 import type { ChatAttachment } from "./types";
@@ -103,7 +103,20 @@ export async function* streamAgentResponse(
       ? `${sysPrompt}\n\n---\n\n**User request**: ${userMessage}`
       : userMessage;
 
-    const run = await agent.send(fullMessage, {
+    // Convert image attachments into SDK image blocks so the model can see them.
+    const imageAtts = (attachments ?? []).filter((a) => a.kind === "image" && a.data);
+    const images = imageAtts.map((a) => {
+      const mimeMatch = /^data:([^;]+);base64,(.*)$/.exec(a.data!);
+      return mimeMatch
+        ? { data: mimeMatch[2], mimeType: mimeMatch[1] }
+        : { data: a.data!, mimeType: "image/jpeg" };
+    });
+
+    const userMsg: SDKUserMessage = images.length
+      ? { text: fullMessage, images }
+      : { text: fullMessage };
+
+    const run = await agent.send(userMsg, {
       onDelta: ({ update }) => {
         if (update.type === "text-delta" && update.text) {
           // We'll capture these through stream() instead for consistency

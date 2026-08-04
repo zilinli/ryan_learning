@@ -104,8 +104,8 @@ async function summarizeOne(
   const header = `--- File ${index} (${att.name}) [${att.kind === "image" ? "image" : att.mimeType || "file"}] ---\n`;
 
   if (att.kind === "image") {
-    // Images are passed as data URLs in the message itself; summary notes context.
-    return header + "(Image attachment — see data URL in user message.)";
+    // Images are sent to the model as image blocks via SDKUserMessage.
+    return header + "(Image attached — sent to the model as an image block.)";
   }
 
   if (att.textContent) {
