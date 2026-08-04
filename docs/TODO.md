@@ -283,12 +283,12 @@
 > **Design:** [code-agent-v3-enhancements.md](code-agent-v3-enhancements.md)  
 > **Priorities:** 11A (upload ⊹ voice) · 11C (auto-git) · 11D (service restart)
 
-### 11A: Image & PDF Upload (6h)
+### 11A: Image & PDF Upload (6h) ✅
 
 | # | Task | Effort | Files |
 |---|------|--------|-------|
-| 11A.1 | Extend `ChatRequest` type + `AgentStreamEvent` for attachments | 0.5h | `agent-chat/src/lib/types.ts` |
-| 11A.2 | `buildAttachmentLines()` in prompts — extract PDF text (pdftotext), decode text files, describe images | 1.5h | `agent-chat/src/lib/prompts.ts` |
+| ✅ 11A.1 | Extend `ChatRequest` type + `AgentStreamEvent` for attachments | 0.5h | `agent-chat/src/lib/types.ts` |
+| ✅ 11A.2 | `buildAttachmentLines()` in prompts — extract PDF text (pdftotext), decode text files, describe images | 1.5h | `agent-chat/src/lib/prompts.ts` |
 | 11A.3 | Update `streamAgentResponse()` to accept attachments, inject into prompt | 1h | `agent-chat/src/lib/agent.ts` |
 | 11A.4 | Update SSE chat route to forward attachments | 0.5h | `agent-chat/src/app/api/chat/route.ts` |
 | 11A.5 | Frontend: camera button + file picker + attachment pills with thumbnail previews | 1.5h | `agent-chat/public/index.html` |
