@@ -39,14 +39,31 @@ export function isWebSpeechAvailable(): boolean {
 }
 
 /**
+ * Minimal Web Speech API surface used by this module.
+ */
+interface WebSpeechRecognition {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: { results: Array<Array<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  onend: (() => void) | null;
+}
+
+/**
  * Create a Web Speech API recognition instance.
  */
-export function createWebSpeechRecognition(lang: string): SpeechRecognition | null {
+export function createWebSpeechRecognition(
+  lang: string
+): WebSpeechRecognition | null {
   if (!isWebSpeechAvailable()) return null;
   const SpeechRecognition =
     (window as unknown as Record<string, unknown>).SpeechRecognition ||
     (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
-  const recognition = new (SpeechRecognition as new () => SpeechRecognition)();
+  const recognition = new (SpeechRecognition as new () => WebSpeechRecognition)();
   recognition.lang = lang;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;

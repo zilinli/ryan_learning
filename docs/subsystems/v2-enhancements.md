@@ -23,55 +23,60 @@ Items 6.5 (G5 hint) and 6.6 (dynamic geometry) are deferred as lower priority.
 
 ## 2. Design: 6.1 Learning Dashboard
 
-### 2.1 Current State
+> **Layout revision (Aug 2026):** The first ship put a full dashboard **above** chat history, which crowded the sidebar and hid conversations. Spec now follows [ui-architecture.md](ui-architecture.md) §5.4–5.5: **chat-first**, dashboard as a **collapsed strip below** the list.
 
-`SkillsPanel.tsx` shows:
-- "Ryan · skill map" header
-- Weakest skill badge (🔍 Focus)
-- Stronger list (up to 3)
-- Focus/weak list (up to 3)
-- All from BKT/SM-2 data
+### 2.1 Current State (pre-fix)
 
-**Missing:** ZPD recommendations, topic grouping, "today's challenge", review alerts.
+`SkillsPanel.tsx` expands fully at the **top** of `HistorySidebar`:
+- Header + ZPD card + topic pills + Stronger/Focus lists + PIN footer
+- Occupies ~60% of sidebar height → only ~1 chat visible
 
 ### 2.2 Target UX
 
+**Sidebar order:** Header → New chat → Search → **Chat list (flex-1)** → SkillsPanel strip → Footer
+
 ```
-┌──────────────────────────────────┐
-│ Ryan · learning dashboard         │
-│ BKT + SM-2 · updates each chat   │
-│                                  │
-│ 📊 You're getting stronger at…  │
-│   ▸ Fractions 🟢 92% (peer!)    │
-│   ▸ Multiplication 🟢 88%       │
-│                                  │
-│ 📝 Keep practicing               │
-│   ▸ Decimals 🟡 68%             │
-│   ▸ Division 🟡 61%             │
-│                                  │
-│ 🎯 Today's challenge             │
-│   Try: Equivalent Fractions      │
-│   (you're in the zone — ZPD!)   │
-│                                  │
-│ 🔔 Review needed                 │
-│   ▸ Geometry angles (12d)       │
-│   ▸ Place value (8d)            │
-└──────────────────────────────────┘
+Collapsed (default, ~36px):
+┌────────────────────────────────────┐
+│ ▸ Learning · Try: fractions · 3 focus │
+└────────────────────────────────────┘
+
+Expanded (tap, max ~40% sidebar height, internal scroll):
+┌────────────────────────────────────┐
+│ ▾ Learning · BKT + SM-2            │
+│                                    │
+│ Today's challenge                  │
+│   Try: Equivalent Fractions        │
+│                                    │
+│ Stronger (≤2)                      │
+│   ▸ Fractions 92%                  │
+│ Focus (≤2)                         │
+│   ▸ Place value 45%                │
+│                                    │
+│ Parent PIN status                  │
+└────────────────────────────────────┘
 ```
+
+**What we cut from the expanded view (vs. first ship):**
+- Topic overview pills
+- Review-needed block (data still available via `needsReviewSkills` for agent prompts)
+- Stronger/Focus capped at 2 each (was 3)
+- Emoji section headers → plain text labels
 
 ### 2.3 Implementation
 
-**`SkillsPanel.tsx` changes:**
-- Rename header to "Ryan · learning dashboard"
-- Add ZPD recommendation section using `zpdWarmUpSkills(mem, 3)`
-- Add SM-2 review alerts: skills with high mastery but decayed below threshold
-- Add `zpdSkill` as the single best ZPD recommendation
-- Group skills by topic using `skill-catalog.ts` topic labels
-- Use colored bars instead of just percentages for visual clarity
+**`HistorySidebar.tsx`:**
+- Move `<SkillsPanel />` from above New chat to **below** the conversation list, above Code Agent footer
+- Ensure chat list keeps `flex-1 min-h-0 overflow-y-auto`
 
-**`learning-memory.ts` additions:**
-- Export `zpdWarmUpSkills` (already exists) — ensure it works well
-- Add `needsReviewSkills(mem, limit)` helper: finds skills where SM-2 decay has dropped pKnown significantly
+**`SkillsPanel.tsx`:**
+- Collapsible: default closed; toggle on header row click
+- Collapsed row: chevron + "Learning" + truncated ZPD label + focus count
+- Expanded: ZPD challenge + Stronger≤2 + Focus≤2 + PIN status; `max-h-[40vh]` + `overflow-y-auto`
+- Persist open state in `sessionStorage` (`spark.skillsPanelOpen`); default closed on new session
+
+**`learning-memory.ts`:** (already done)
+- `zpdWarmUpSkills`, `needsReviewSkills` — keep exports; review list not shown in UI by default
 
 ---
 
@@ -161,9 +166,11 @@ Add a small "Parent PIN" indicator at the bottom of `SkillsPanel` (sidebar area)
 
 | File | Change | Risk |
 |------|--------|------|
-| `src/components/SkillsPanel.tsx` | ZPD section, review alerts, topic grouping, PIN indicator | Low — additive changes |
+| `src/components/HistorySidebar.tsx` | Chat-first order: SkillsPanel below conversation list | Low — reorder only |
+| `src/components/SkillsPanel.tsx` | Collapsible strip (default closed); trim expanded density | Low — UI only |
 | `src/lib/prompts.ts` | Cross-discipline lines, confidence mismatch injection | Low — prompt-only, no logic changes |
 | `src/lib/learning-memory.ts` | `detectConfidenceMismatch()`, `needsReviewSkills()` | Low — new exports only |
+| `docs/subsystems/ui-architecture.md` | §5.4–5.5 chat-first + collapsible SkillsPanel | None |
 | `docs/DESIGN.md` | Add `v2-enhancements.md` to document map | None |
 
 ---
@@ -172,7 +179,10 @@ Add a small "Parent PIN" indicator at the bottom of `SkillsPanel` (sidebar area)
 
 - `npm test` — existing BKT/SM-2 tests must still pass
 - TypeScript check — no new type errors
-- Manual: open sidebar → verify ZPD recommendation appears after a few chat turns
+- Manual: open sidebar → chat list fills most of the height; SkillsPanel is a one-line strip at bottom
+- Manual: tap SkillsPanel → expands ≤40% height; history remains scrollable
+- Manual: reload → SkillsPanel starts collapsed again (sessionStorage cleared on new tab)
+- Manual: verify ZPD recommendation appears after a few chat turns when expanded
 - Manual: send a chat → verify no regression in tutor behavior
 - Manual: check prompts.ts output → cross-discipline lines should appear
 - Manual: open CodeAgentPanel → verify PIN gate still works

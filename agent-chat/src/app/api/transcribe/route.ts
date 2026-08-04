@@ -13,6 +13,10 @@ export async function POST(req: NextRequest) {
 
     const sttFormData = new FormData();
     sttFormData.append("audio", audioFile, "recording.wav");
+    const language = formData.get("language");
+    if (typeof language === "string" && language) {
+      sttFormData.append("language", language);
+    }
 
     // Forward to local STT server
     const controller = new AbortController();

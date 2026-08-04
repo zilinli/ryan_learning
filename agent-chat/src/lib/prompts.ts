@@ -8,6 +8,8 @@ export interface PromptContext {
   workspacePath: string;
   osInfo: string;
   userMessage: string;
+  attachmentLines?: string;
+  voiceLang?: string;
 }
 
 function getFileTreeSummary(workspacePath: string): string {
@@ -85,7 +87,7 @@ ${treeSummary}
 - Follow existing project conventions (TypeScript, ESLint, etc.)
 - Explain what you're doing concisely — show the key code, not every line
 - Prefer creating new files over editing large existing ones when possible
-- Respond in the same language as the user (Chinese → Chinese, English → English)
+- Respond in the same language as the user (Chinese → Chinese, English → English)${ctx.voiceLang ? `\n- User's voice input language: ${ctx.voiceLang} — if the user dictated via voice, prefer replying in the same language.` : ""}${ctx.attachmentLines ? `\n\n## User Attachments\n${ctx.attachmentLines}` : ""}
 
 ## Current Request
 ${ctx.userMessage}`;

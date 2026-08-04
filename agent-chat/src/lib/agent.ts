@@ -1,7 +1,8 @@
-import path from "node:path";
 import { Agent } from "@cursor/sdk";
 import type { SDKAgent, SDKMessage } from "@cursor/sdk";
 import { buildSystemPrompt, getOSInfo, DEFAULT_WORKSPACE } from "./prompts";
+import { buildAttachmentLines } from "./attachments";
+import type { ChatAttachment } from "./types";
 
 const API_KEY = process.env.CURSOR_API_KEY?.trim() || "";
 
@@ -21,6 +22,10 @@ export interface AgentStreamEvent {
   output?: string;
   code?: string;
   sessionId?: string;
+  commitSha?: string;
+  commitMessage?: string;
+  testResult?: "pass" | "fail" | "skipped";
+  testDetail?: string;
 }
 
 const ACC_WORKSPACE = "/root/codes/ryan_learning";
@@ -41,7 +46,9 @@ async function createLocalAgent(): Promise<SDKAgent> {
 export async function* streamAgentResponse(
   userMessage: string,
   sessionId: string | undefined,
-  workspacePath: string = DEFAULT_WORKSPACE
+  workspacePath: string = DEFAULT_WORKSPACE,
+  attachments?: ChatAttachment[],
+  voiceLang?: string,
 ): AsyncGenerator<AgentStreamEvent> {
   let agent: SDKAgent;
 
@@ -78,11 +85,17 @@ export async function* streamAgentResponse(
   yield { type: "status", message: "正在执行..." };
 
   try {
+    const attachmentLines = attachments?.length
+      ? await buildAttachmentLines(attachments)
+      : "";
+
     // Include system prompt context in the message
     const sysPrompt = buildSystemPrompt({
       workspacePath,
       osInfo: getOSInfo(),
       userMessage,
+      attachmentLines: attachmentLines || undefined,
+      voiceLang,
     });
 
     // For the first message with a new agent, include context
@@ -98,8 +111,7 @@ export async function* streamAgentResponse(
       },
     });
 
-    let capturedAgentId = agent.agentId;
-    sessionId = capturedAgentId;
+    const capturedAgentId = agent.agentId;
 
     for await (const event of run.stream()) {
       const msg = event as SDKMessage;
@@ -120,8 +132,8 @@ export async function* streamAgentResponse(
           yield {
             type: "tool_call",
             tool: toolName,
-            input: msg.input,
-            output: msg.result,
+            input: msg.args,
+            output: msg.result === undefined ? undefined : String(msg.result),
           };
         }
       } else if (msg.type === "thinking") {

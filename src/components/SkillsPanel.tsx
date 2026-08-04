@@ -1,16 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LearningMemory } from "@/lib/learning-memory";
 import {
   normalizeMemory,
   skillStrengths,
   skillWeaknesses,
   zpdWarmUpSkills,
-  needsReviewSkills,
 } from "@/lib/learning-memory";
 import { hasParentPin } from "./PinGate";
 import type { SkillMastery } from "@/lib/learning-memory";
+
+const STORAGE_KEY = "spark.skillsPanelOpen";
 
 type Props = {
   memory: LearningMemory | null;
@@ -25,17 +26,6 @@ function daysAgo(ts: number): string {
   if (days <= 6) return `${days}d ago`;
   if (days <= 30) return `${Math.floor(days / 7)}w ago`;
   return `${Math.floor(days / 30)}mo ago`;
-}
-
-function MasteryBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <span className="ml-1 inline-flex h-1.5 w-10 rounded-full bg-[var(--line)] align-baseline">
-      <span
-        className={`h-full rounded-full ${color}`}
-        style={{ width: `${Math.min(100, pct)}%` }}
-      />
-    </span>
-  );
 }
 
 function SkillRow({ skill, color }: { skill: SkillMastery; color: string }) {
@@ -53,168 +43,167 @@ function SkillRow({ skill, color }: { skill: SkillMastery; color: string }) {
 }
 
 export function SkillsPanel({ memory }: Props) {
-  if (!memory) return null;
-  const mem = normalizeMemory(memory);
-  if (!mem.skills.length) return null;
+  const [open, setOpen] = useState(false);
 
-  const strong = useMemo(() => skillStrengths(mem, 3), [mem]);
-  const weak = useMemo(() => skillWeaknesses(mem, 3), [mem]);
-  const zpd = useMemo(() => zpdWarmUpSkills(mem, 3), [mem]);
-  const review = useMemo(() => needsReviewSkills(mem, 2), [mem]);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(STORAGE_KEY) === "1") setOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
-  const weakest = useMemo(
-    () => [...mem.skills].sort((a, b) => a.mastery - b.mastery)[0] ?? null,
-    [mem.skills],
+  const mem = useMemo(
+    () => (memory ? normalizeMemory(memory) : null),
+    [memory],
   );
 
-  // Topic grouping: count mastered (≥80%) and developing (40–79%) skills
-  const topicSummary = useMemo(() => {
-    const map = new Map<string, { mastered: number; developing: number; total: number }>();
-    for (const s of mem.skills) {
-      if (s.attempts === 0) continue;
-      const entry = map.get(s.topicId) || { mastered: 0, developing: 0, total: 0 };
-      entry.total++;
-      if (s.mastery >= 80) entry.mastered++;
-      else if (s.mastery >= 40) entry.developing++;
-      map.set(s.topicId, entry);
-    }
-    return [...map.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 4);
-  }, [mem]);
-
+  const strong = useMemo(
+    () => (mem?.skills.length ? skillStrengths(mem, 2) : []),
+    [mem],
+  );
+  const weak = useMemo(
+    () => (mem?.skills.length ? skillWeaknesses(mem, 2) : []),
+    [mem],
+  );
+  const zpdSingle = useMemo(
+    () => (mem?.skills.length ? zpdWarmUpSkills(mem, 1)[0] ?? null : null),
+    [mem],
+  );
   const pinSet = useMemo(() => hasParentPin(), []);
 
-  const zpdSingle = zpd[0] ?? null;
+  if (!mem?.skills.length) return null;
+
+  const toggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        sessionStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const zpdHint = zpdSingle?.label
+    ? zpdSingle.label.length > 18
+      ? `${zpdSingle.label.slice(0, 16)}…`
+      : zpdSingle.label
+    : null;
 
   return (
-    <div className="mx-3 mb-2 rounded-xl border border-[var(--line)] bg-white/70 px-3 py-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-        Ryan · learning dashboard
-      </p>
-      <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">
-        BKT + SM-2 · updates each chat
-      </p>
+    <div
+      className={`mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 ${
+        open ? "max-h-[min(40%,18rem)]" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full shrink-0 items-center gap-2 px-3 py-2 text-left transition hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--teal)]"
+      >
+        <span
+          className="shrink-0 text-[10px] text-[var(--ink-muted)]"
+          aria-hidden
+        >
+          {open ? "▾" : "▸"}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+          Learning
+          {!open && zpdHint ? (
+            <span className="font-normal normal-case tracking-normal text-[var(--ink-muted)]">
+              {" "}
+              · Try: {zpdHint}
+            </span>
+          ) : null}
+        </span>
+        {!open && weak.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-[var(--coral)]/10 px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--coral)]">
+            {weak.length} focus
+          </span>
+        ) : null}
+      </button>
 
-      {/* ZPD recommendation */}
-      {zpdSingle ? (
-        <div className="mt-2 rounded-lg border border-[var(--teal)]/25 bg-[var(--teal)]/5 px-2.5 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-            🎯 Today's challenge
-          </p>
-          <p className="mt-0.5 text-[12px] font-medium text-[var(--ink)]">
-            Try: {zpdSingle.label}
-          </p>
+      {open ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--line)]/50 px-3 pb-2.5 pt-1.5">
           <p className="text-[10px] text-[var(--ink-muted)]">
-            You're in the zone — ZPD target
+            BKT + SM-2 · updates each chat
           </p>
-          <MasteryBar pct={zpdSingle.mastery} color="bg-[var(--teal)]" />
-        </div>
-      ) : null}
 
-      {/* Topic overview */}
-      {topicSummary.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-[10px] font-medium text-[var(--ink-muted)]">
-            📊 Topic overview
-          </p>
-          <div className="mt-0.5 flex flex-wrap gap-1">
-            {topicSummary.map(([topicId, { mastered, developing, total }]) => (
-              <span
-                key={topicId}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white px-1.5 py-0.5 text-[10px] text-[var(--ink)]"
-              >
-                <span className="truncate max-w-[70px]">{topicId === "math" ? "Math" : topicId === "ela" ? "Reading" : topicId === "science" ? "Science" : topicId === "humanities" ? "Humanities" : topicId}</span>
-                <span className="tabular-nums text-[var(--teal)]">{mastered}</span>
-                {developing > 0 ? (
-                  <span className="tabular-nums text-[var(--coral)]">·{developing}</span>
-                ) : null}
-                {total > mastered + developing ? (
-                  <span className="tabular-nums text-[var(--ink-muted)]">·{total - mastered - developing}</span>
-                ) : null}
-              </span>
-            ))}
+          {zpdSingle ? (
+            <div className="mt-1.5 rounded-lg border border-[var(--teal)]/25 bg-[var(--teal)]/5 px-2.5 py-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+                Today&apos;s challenge
+              </p>
+              <p className="mt-0.5 text-[12px] font-medium text-[var(--ink)]">
+                Try: {zpdSingle.label}
+              </p>
+              <p className="text-[10px] text-[var(--ink-muted)]">
+                You&apos;re in the zone — ZPD target
+              </p>
+            </div>
+          ) : null}
+
+          {strong.length > 0 ? (
+            <div className="mt-2">
+              <p className="text-[10px] font-medium text-[var(--ink-muted)]">
+                Stronger
+              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {strong.map((s) => (
+                  <SkillRow key={s.id} skill={s} color="text-[var(--teal)]" />
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {weak.length > 0 ? (
+            <div className="mt-2">
+              <p className="text-[10px] font-medium text-[var(--ink-muted)]">
+                Focus
+              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {weak.map((s) => (
+                  <SkillRow key={s.id} skill={s} color="text-[var(--coral)]" />
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {!strong.length && !weak.length ? (
+            <ul className="mt-2 space-y-0.5">
+              {[...mem.skills]
+                .sort((a, b) => b.lastSeen - a.lastSeen)
+                .slice(0, 3)
+                .map((s) => (
+                  <SkillRow
+                    key={s.id}
+                    skill={s}
+                    color="text-[var(--ink-muted)]"
+                  />
+                ))}
+            </ul>
+          ) : null}
+
+          <div className="mt-2 border-t border-[var(--line)]/60 pt-1.5">
+            <p className="text-[10px] text-[var(--ink-muted)]">
+              {pinSet ? (
+                <span>Parent PIN active</span>
+              ) : (
+                <span>
+                  Parent PIN not set
+                  <span className="text-[var(--teal)]">
+                    {" "}
+                    — open Code Agent to configure
+                  </span>
+                </span>
+              )}
+            </p>
           </div>
         </div>
       ) : null}
-
-      {/* SM-2 review alerts */}
-      {review.length > 0 ? (
-        <div className="mt-2 rounded-lg border border-[var(--yellow)]/30 bg-[var(--yellow)]/5 px-2 py-1.5">
-          <p className="text-[10px] font-medium text-[var(--yellow)]">
-            🔔 Review needed
-          </p>
-          <ul className="mt-0.5 space-y-0">
-            {review.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-2 text-[11px] text-[var(--ink)]"
-              >
-                <span className="truncate">{s.label}</span>
-                <span className="shrink-0 tabular-nums text-[var(--ink-muted)]">
-                  {s.mastery}% · {daysAgo(s.lastSeen)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Strong skills */}
-      {strong.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-[10px] font-medium text-[var(--ink-muted)]">
-            Stronger
-          </p>
-          <ul className="mt-0.5 space-y-0.5">
-            {strong.map((s) => (
-              <SkillRow key={s.id} skill={s} color="text-[var(--teal)]" />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Weak skills */}
-      {weak.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-[10px] font-medium text-[var(--ink-muted)]">
-            Focus
-          </p>
-          <ul className="mt-0.5 space-y-0.5">
-            {weak.map((s) => (
-              <SkillRow key={s.id} skill={s} color="text-[var(--coral)]" />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Fallback: recent skills */}
-      {!strong.length && !weak.length ? (
-        <ul className="mt-2 space-y-0.5">
-          {[...mem.skills]
-            .sort((a, b) => b.lastSeen - a.lastSeen)
-            .slice(0, 4)
-            .map((s) => (
-              <SkillRow key={s.id} skill={s} color="text-[var(--ink-muted)]" />
-            ))}
-        </ul>
-      ) : null}
-
-      {/* Parent PIN status */}
-      <div className="mt-2.5 border-t border-[var(--line)]/60 pt-1.5">
-        <p className="text-[10px] text-[var(--ink-muted)]">
-          {pinSet ? (
-            <span className="inline-flex items-center gap-1">
-              🔒 Parent PIN active
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              🔓 Parent PIN not set
-              <span className="text-[var(--teal)]">
-                — open Code Agent to configure
-              </span>
-            </span>
-          )}
-        </p>
-      </div>
     </div>
   );
 }

@@ -56,10 +56,23 @@ export interface FileContent {
   language: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  kind: "image" | "file";
+  /** Base64 payload (images / pdfs) */
+  data?: string;
+  /** Plain text content (text files) */
+  textContent?: string;
+}
+
 export interface ChatRequest {
   message: string;
   sessionId?: string;
   workspacePath?: string;
+  attachments?: ChatAttachment[];
+  voiceLang?: string;
 }
 
 export interface SSEEvent {
@@ -69,4 +82,14 @@ export interface SSEEvent {
   code?: string;
   sessionId?: string;
   messageCount?: number;
+}
+
+export type TestResult = "pass" | "fail" | "skipped";
+
+export interface CommitInfo {
+  sha?: string;
+  message?: string;
+  testResult?: TestResult;
+  testDetail?: string;
+  skippedReason?: string;
 }

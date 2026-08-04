@@ -32,6 +32,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font:15px/1.6 "Sour
 .msg.agent{align-items:flex-start}
 .msg.agent .bubble{background:var(--card);color:var(--text);border-bottom-left-radius:4px}
 .msg.agent .tools{margin-top:6px;border-top:1px solid #45475a;padding-top:4px;font-size:11px;color:var(--text2)}
+.msg.agent .commit-badge{margin-top:6px;border-top:1px solid #45475a;padding-top:4px;font-size:11px;color:var(--green);background:rgba(166,227,161,0.08);border-radius:6px;padding:4px 8px}
 .msg.agent .tools span{display:block}
 .streaming .bubble{background:var(--card);border-bottom-left-radius:4px}
 .streaming .status{font-size:11px;color:var(--text2);margin-bottom:4px}
@@ -48,6 +49,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font:15px/1.6 "Sour
 .btn-send:disabled{background:transparent;color:var(--text3);cursor:not-allowed;opacity:0.4}
 .btn-voice{font-size:16px;padding:4px 8px;color:var(--text2)}
 .btn-voice.recording{background:var(--red);color:#fff;animation:pulse 1.2s infinite}
+.btn-lang{font-size:11px;padding:4px 7px;color:var(--teal);border:1px solid rgba(137,180,250,0.35);background:rgba(137,180,250,0.08)}
+.btn-file,.btn-cam{font-size:15px;padding:4px 7px;color:var(--text2)}
+.btn-file:hover,.btn-cam:hover,.btn-lang:hover{color:var(--blue)}
+#attachments{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 6px}
+#attachments.hidden{display:none}
+.att-pill{display:inline-flex;align-items:center;gap:5px;max-width:180px;background:var(--card);border:1px solid #45475a;border-radius:8px;padding:2px 6px 2px 3px;font-size:11px;color:var(--text)}
+.att-pill img{width:26px;height:26px;object-fit:cover;border-radius:5px}
+.att-pill .att-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-pill .att-x{cursor:pointer;color:var(--text3);font-size:13px;padding:0 2px}
+.att-pill .att-x:hover{color:var(--red)}
 .btn-header{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:6px 8px;border-radius:4px}
 .btn-new{background:var(--card);border:none;color:var(--text);cursor:pointer;font-size:12px;padding:4px 12px;border-radius:6px}
 #hint{display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:#585b70;padding-left:2px}
@@ -83,8 +94,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font:15px/1.6 "Sour
     </div>
     <div id="msgs"><div class="empty"><div class="icon">🤖</div><h2>Agent Chat Console</h2><p>输入命令让 Cursor 帮你写代码 · 支持语音输入</p></div></div>
     <div id="input-bar">
+      <div id="attachments" class="hidden"></div>
       <div id="input-row">
         <button class="btn btn-voice" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
+        <button class="btn btn-lang" id="langBtn" onclick="toggleVoiceLang()" title="切换语言">zh</button>
+        <button class="btn btn-file" onclick="document.getElementById('fileInput').click()" title="上传文件/PDF">📎</button>
+        <button class="btn btn-cam" onclick="document.getElementById('camInput').click()" title="拍照">📷</button>
+        <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.log" multiple style="display:none" onchange="onFilesChosen(this)">
+        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none" onchange="onCameraCapture(this)">
         <textarea id="input" rows="1" placeholder="输入命令，让 Cursor 帮你写代码..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="btn btn-send" id="sendBtn" onclick="send()" disabled>发送</button>
       </div>
@@ -111,17 +128,23 @@ let wsTree=null, expanded=new Set(['/root/codes/ryan_learning']);
 let selFile=null;
 let recorder=null, recordStream=null, recording=false;
 let renderRafId=null; // rAF throttle for streaming renders
+let attachments=[];   // ClientAttachment[] pending before send
+let voiceLang='zh-CN';
 
 //========== DOM REFS ==========
 const $msgs=document.getElementById('msgs');
 const $input=document.getElementById('input');
 const $send=document.getElementById('sendBtn');
 const $voice=document.getElementById('voiceBtn');
+const $lang=document.getElementById('langBtn');
 const $tree=document.getElementById('file-tree');
 const $fp=document.getElementById('file-preview');
 const $fpName=document.getElementById('fp-name');
 const $fpInfo=document.getElementById('fp-info');
 const $fpBody=document.getElementById('fp-body');
+const $att=document.getElementById('attachments');
+const $fileInput=document.getElementById('fileInput');
+const $camInput=document.getElementById('camInput');
 
 //========== INIT ==========
 loadWorkspace();
@@ -184,11 +207,14 @@ async function loadFile(path){
 function closePreview(){selFile=null;$fp.style.display='none';renderTree()}
 
 //========== CHAT ==========
-function newChat(){msgs=[];sessId='';streamingContent='';statusText='';busy=false;$input.disabled=false;$send.disabled=true;renderMsgs()}
+function newChat(){msgs=[];sessId='';streamingContent='';statusText='';busy=false;attachments=[];renderAttachments();$input.disabled=false;$send.disabled=true;renderMsgs()}
 
 async function send(){
   const text=$input.value.trim();
-  if(!text||busy)return;
+  if((!text&&!attachments.length)||busy)return;
+  const payloadAttachments=attachments;
+  attachments=[];
+  renderAttachments();
   $input.value='';$input.style.height='auto';
   $send.disabled=true;
   busy=true;
@@ -197,7 +223,7 @@ async function send(){
   renderMsgs();
 
   // Add user message
-  msgs.push({id:genId(),role:'user',content:text,time:new Date().toISOString()});
+  msgs.push({id:genId(),role:'user',content:text||'📎 '+payloadAttachments.length+' 个附件',time:new Date().toISOString()});
   renderMsgs();
   scrollBottom();
 
@@ -205,12 +231,21 @@ async function send(){
   const asstId=genId();
   let fullContent='';
   let tools=[];
+  let lastCommit=null;
 
   try{
     const resp=await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,sessionId:sessId||undefined})
+      body:JSON.stringify({
+        message:text,
+        sessionId:sessId||undefined,
+        attachments:payloadAttachments.map(a=>({
+          id:a.id,name:a.name,mimeType:a.mimeType,kind:a.kind,
+          data:a.data,textContent:a.textContent
+        })),
+        voiceLang:voiceLang
+      })
     });
     if(!resp.ok)throw new Error('HTTP '+resp.status);
 
@@ -237,7 +272,10 @@ async function send(){
               tools.push({tool:d.tool||'?',input:d.input,output:d.output,status:d.output?'success':'running',time:new Date().toISOString()});
               break;
             case'error':statusText='❌ '+d.message;break;
-            case'done':if(d.sessionId)sessId=d.sessionId;break;
+            case'done':
+              if(d.sessionId)sessId=d.sessionId;
+              if(d.commitSha||d.commitMessage)lastCommit={sha:d.commitSha,message:d.commitMessage,testResult:d.testResult,testDetail:d.testDetail};
+              break;
           }
           scheduleRender();
         }catch(e){}
@@ -249,7 +287,7 @@ async function send(){
     fullContent='**Error**: '+e.message;
   }
 
-  msgs.push({id:asstId,role:'agent',content:fullContent||'(no output)',tools:tools,hasTools:tools.length>0,time:new Date().toISOString()});
+  msgs.push({id:asstId,role:'agent',content:fullContent||'(no output)',tools:tools,hasTools:tools.length>0,commit:lastCommit,time:new Date().toISOString()});
   streamingContent='';
   statusText='';
   busy=false;
@@ -272,6 +310,12 @@ function renderMsgs(){
       html+='<div class="tools">';
       for(const t of m.tools)html+='<span>🔧 '+escHtml(t.tool)+' '+(t.status==='success'?'✅':'⏳')+'</span>';
       html+='</div>';
+    }
+    if(m.commit&&m.commit.sha){
+      const tr=m.commit.testResult;
+      const badge=tr==='pass'?'✅':'❌';
+      html+='<div class="commit-badge">'+badge+' <b>'+escHtml((m.commit.sha||'').slice(0,7))+'</b> '+
+        escHtml(m.commit.message||'')+(m.commit.testDetail?' · '+escHtml(m.commit.testDetail):'')+'</div>';
     }
     html+='</div>';
   }
@@ -346,16 +390,127 @@ function handleKey(e){
 
 function autoResize(el){
   el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';
-  $send.disabled=!el.value.trim()||busy;
+  $send.disabled=(!el.value.trim()&&!attachments.length)||busy;
+}
+
+//========== ATTACHMENTS ==========
+const MAX_ATT=9, MAX_BYTES=12*1024*1024;
+const IMG_TYPES=['image/png','image/jpeg','image/gif','image/webp','image/heic'];
+const TEXT_TYPES=['text/plain','text/markdown','text/csv','application/json','text/json','application/xml'];
+const TEXT_EXT=['.txt','.md','.csv','.json','.log','.ts','.tsx','.js','.jsx','.py','.xml'];
+const ALLOW_EXT=['.png','.jpg','.jpeg','.gif','.webp','.heic','.pdf',...TEXT_EXT];
+
+function isAllowedFile(name,mime){
+  const ext=(name||'').split('.').pop().toLowerCase();
+  return ALLOW_EXT.includes('.'+ext)||IMG_TYPES.includes(mime);
+}
+
+function onFilesChosen(input){
+  const files=[...input.files||[]];
+  input.value='';
+  for(const f of files)addFileAttachment(f);
+}
+
+function onCameraCapture(input){
+  const files=[...input.files||[]];
+  input.value='';
+  for(const f of files)addFileAttachment(f);
+}
+
+async function addFileAttachment(file){
+  if(attachments.length>=MAX_ATT){alert('最多上传 '+MAX_ATT+' 个附件');return}
+  if(!isAllowedFile(file.name,file.type)){alert('不支持的文件类型: '+file.name);return}
+  if(file.size>MAX_BYTES){alert('文件过大 (限 '+fmtSize(MAX_BYTES)+'): '+file.name);return}
+  const att=await fileToAttachment(file);
+  if(att){attachments.push(att);renderAttachments();$send.disabled=!$input.value.trim()||busy}
+}
+
+// 11A.6 — read file → base64; compress images; clip text.
+async function fileToAttachment(file){
+  const isImg=IMG_TYPES.includes(file.type)||/\.(png|jpe?g|gif|webp|heic)$/i.test(file.name);
+  const id=genId();
+  try{
+    if(isImg){
+      const compressed=await compressImage(file,1200,0.8);
+      return{id,name:file.name,mimeType:compressed.type||'image/jpeg',kind:'image',data:compressed.dataUrl};
+    }
+    if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+      const dataUrl=await readAsDataURL(file);
+      return{id,name:file.name,mimeType:'application/pdf',kind:'file',data:dataUrl};
+    }
+    if((file.type.startsWith('text/')||TEXT_EXT.includes(('.'+file.name.split('.').pop()).toLowerCase()))&&file.size<1024*1024){
+      const text=await file.text();
+      return{id,name:file.name,mimeType:file.type||'text/plain',kind:'file',textContent:text.slice(0,12000)};
+    }
+    const dataUrl=await readAsDataURL(file);
+    return{id,name:file.name,mimeType:file.type||'application/octet-stream',kind:'file',data:dataUrl};
+  }catch(e){
+    console.warn('Failed to read file',file.name,e);
+    return null;
+  }
+}
+
+function readAsDataURL(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>res(fr.result);
+    fr.onerror=()=>rej(fr.error);
+    fr.readAsDataURL(file);
+  });
+}
+
+function compressImage(file,maxDim=1200,quality=0.8){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        let{width:w,height:h}=img;
+        const scale=Math.min(1,maxDim/Math.max(w,h));
+        if(scale<1){w=Math.round(w*scale);h=Math.round(h*scale)}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        const dataUrl=canvas.toDataURL('image/jpeg',quality);
+        res({dataUrl,type:'image/jpeg',width:w,height:h});
+      };
+      img.onerror=()=>rej(new Error('decode failed'));
+      img.src=fr.result;
+    };
+    fr.onerror=()=>rej(fr.error);
+    fr.readAsDataURL(file);
+  });
+}
+
+function renderAttachments(){
+  $att.classList.toggle('hidden',attachments.length===0);
+  $att.innerHTML=attachments.map((a,i)=>
+    '<span class="att-pill">'+
+      (a.kind==='image'?'<img src="'+a.data+'" alt="">':'<span>📄</span>')+
+      '<span class="att-name">'+escHtml(a.name)+'</span>'+
+      '<span class="att-x" onclick="removeAttachment('+i+')">✕</span>'+
+    '</span>'
+  ).join('');
+}
+
+function removeAttachment(i){
+  attachments.splice(i,1);
+  renderAttachments();
+  $send.disabled=!$input.value.trim()||busy;
 }
 
 //========== VOICE ==========
+function toggleVoiceLang(){
+  voiceLang=voiceLang==='zh-CN'?'en-US':'zh-CN';
+  $lang.textContent=voiceLang==='zh-CN'?'zh':'en';
+}
+
 async function toggleVoice(){
   if(recording){stopRecording();return}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SR){
-    const r=new SR();r.lang='zh-CN';r.interimResults=false;
-    r.onresult=e=>{$input.value=e.results[0][0].transcript;$send.disabled=false;stopRecording()};
+    const r=new SR();r.lang=voiceLang;r.interimResults=false;
+    r.onresult=e=>{$input.value=e.results[0][0].transcript;$send.disabled=false;stopRecording();$input.focus()};
     r.onerror=stopRecording;r.onend=stopRecording;
     r.start();recording=true;$voice.classList.add('recording');
   }else{
@@ -370,6 +525,7 @@ async function toggleVoice(){
         stopRecording();
         const blob=new Blob(chunks,{type:'audio/webm'});
         const fd=new FormData();fd.append('audio',blob,'rec.webm');
+        if(voiceLang)fd.append('language',voiceLang);
         try{
           const r=await fetch('/api/transcribe',{method:'POST',body:fd});
           const d=await r.json();

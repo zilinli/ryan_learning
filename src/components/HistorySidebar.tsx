@@ -83,9 +83,7 @@ export function HistorySidebar({
         </button>
       </div>
 
-      <SkillsPanel memory={learningMemory ?? null} />
-
-      <div className="flex flex-col gap-2 px-3 pb-2">
+      <div className="flex shrink-0 flex-col gap-2 px-3 pb-2">
         <button
           type="button"
           disabled={disabled}
@@ -93,7 +91,7 @@ export function HistorySidebar({
             onNew();
             onClose();
           }}
-          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--ink)] px-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--ink)] px-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
           New chat
         </button>
@@ -105,7 +103,7 @@ export function HistorySidebar({
             disabled={disabled}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search chats…"
-            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-white/80 px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] disabled:opacity-50"
+            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-white/80 px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-50"
             enterKeyHint="search"
             autoComplete="off"
           />
@@ -122,7 +120,7 @@ export function HistorySidebar({
         </label>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
         {hits.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-2 py-10 text-center">
             <p className="text-2xl">💬</p>
@@ -148,7 +146,7 @@ export function HistorySidebar({
                       onSelect(c.sessionId);
                       onClose();
                     }}
-                    className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition disabled:opacity-50 ${
+                    className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
                       active
                         ? "bg-white shadow-sm ring-1 ring-[var(--line)]"
                         : "hover:bg-white/70"
@@ -200,8 +198,35 @@ export function HistorySidebar({
         ) : null}
       </div>
 
+      <SkillsPanel memory={learningMemory ?? null} />
+
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
-        {onOpenCodeAgent ? <button type="button" disabled={disabled} onClick={() => { onOpenCodeAgent(); onClose(); }} className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 disabled:opacity-40"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Code Agent</button> : null}
+        {onOpenCodeAgent ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              onOpenCodeAgent();
+              onClose();
+            }}
+            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            Code Agent
+          </button>
+        ) : null}
         <a
           href={SPARK_GITHUB_URL}
           target="_blank"

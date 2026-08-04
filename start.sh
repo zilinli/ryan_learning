@@ -11,6 +11,14 @@ LOG="logs/last-start.txt"
   npm -v
 } >"$LOG"
 
+# ---- If systemd units are installed, delegate to restart-services.sh ----
+if [[ "${SPARK_USE_SYSTEMD:-1}" == "1" ]] && [[ -f /etc/systemd/system/spark-tutor.service ]] && systemctl list-unit-files spark-tutor.service >/dev/null 2>&1; then
+  echo "[Spark] Delegating to restart-services.sh (systemd)..." | tee -a "$LOG"
+  bash scripts/restart-services.sh full
+  echo "[Spark] Services restarted and verified." | tee -a "$LOG"
+  exit 0
+fi
+
 if [[ ! -d node_modules/next ]]; then
   echo "[Spark] Installing dependencies..."
   npm install --registry https://registry.npmmirror.com >>"$LOG" 2>&1

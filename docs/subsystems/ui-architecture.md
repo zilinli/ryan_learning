@@ -101,9 +101,10 @@ Target devices Ryan & family actually use:
 ├─────────────────────────────────────────────┤
 │ sidebar (overlay, ~300px, translateX)        │
 │ ┌─────────────────────────────────────────┐ │
-│ │ [Recent chats list]                      │ │
-│ │ [SkillsPanel — BKT strengths/weaknesses] │ │
-│ │ [New chat button]                        │ │
+│ │ New chat + Search                        │ │
+│ │ Recent chats list  ← flex-1, primary     │ │
+│ │ SkillsPanel strip  ← collapsed, bottom   │ │
+│ │ Code Agent / GitHub                      │ │
 │ └─────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────┤
 │ main (flex-1, overflow-y-auto)               │
@@ -284,26 +285,54 @@ User (student):                 Agent (tutor):
 
 **States:** closed (translateX:-100%), open (translateX:0)
 
-**Content:**
-1. **Header:** "Conversations" + close button
-2. **New Chat button:** prominent, teal accent
-3. **Conversation list:** scrollable, grouped by day
-   - Each item: title, timestamp, first-message preview
-   - Active conversation: highlighted border-left
-   - Long-press/swipe: delete (mobile); hover: delete icon (desktop)
-4. **SkillsPanel:** collapsed section at bottom
-   - BKT skill strengths/weaknesses
-   - Parent-only visibility option
+**Vertical order (top → bottom) — chat-first:**
+1. **Header:** brand + close (mobile)
+2. **New Chat button:** prominent
+3. **Search:** "Search chats…"
+4. **Conversation list:** `flex-1 min-h-0 overflow-y-auto` — the primary surface
+   - Each item: title, timestamp, optional snippet
+   - Active conversation: highlighted
+   - Hover/tap: delete affordance
+5. **SkillsPanel:** collapsed strip above footer (see §5.5)
+6. **Footer:** Code Agent + GitHub link
 
-### 5.5 SkillsPanel (sidebar subsection)
+**Anti-pattern (fixed Aug 2026):** Do **not** place an expanded Learning Dashboard above New chat / history. That pushes the conversation list off-screen and violates “zero cognitive noise.”
 
-**Content:**
-- Today's stats: turns, streak, badges earned
-- Strengths: skills ≥65% mastery (teal badges)
-- Focus areas: skills ≤50% mastery (coral badges)
-- "Last practiced" timestamps per skill
+### 5.5 SkillsPanel (sidebar subsection — collapsible)
 
-**Design rule:** Always hidden behind a toggle; BKT data is for the agent, not the child.
+**Default:** collapsed to a **single summary row** (~36px). Expanded only on explicit tap/click.
+
+```
+Collapsed (default):
+┌────────────────────────────────────┐
+│ ▸ Learning · Try: fractions · 3 focus │
+└────────────────────────────────────┘
+
+Expanded (on tap, max ~40% of sidebar height, own scroll):
+┌────────────────────────────────────┐
+│ ▾ Learning · BKT + SM-2            │
+│ Today's challenge: Equivalent Frac │
+│ Stronger (≤2) · Focus (≤2)         │
+│ Parent PIN status                  │
+└────────────────────────────────────┘
+```
+
+**Collapsed row shows:**
+- Chevron + "Learning"
+- One ZPD hint (truncated) if available
+- Focus-count badge if weak skills exist
+
+**Expanded content (trimmed vs. full dashboard):**
+- Single ZPD "Today's challenge" line (no topic overview pills)
+- Stronger ≤2, Focus ≤2 (no review-needed block by default — keep density low)
+- Parent PIN status footer
+
+**Layout rules:**
+- Lives **below** the chat list, above Code Agent footer
+- `shrink-0` when collapsed; when expanded use `max-h-[40%]` + internal scroll so history stays browsable
+- Persist expand state in `sessionStorage` key `spark.skillsPanelOpen` (session only — default closed on fresh load)
+
+**Design rule:** BKT data is for the agent/parent, not the child’s primary view. Always behind a toggle; never compete with chat history for vertical space.
 
 ### 5.6 VoiceControls (embedded in Composer toolbar)
 

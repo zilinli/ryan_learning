@@ -21,6 +21,7 @@
     "verify:diagrams": "node --experimental-strip-types scripts/verify-diagrams.mjs",
     "verify:sse": "node scripts/verify-sse-reliability.mjs",
     "verify:file-locking": "node scripts/verify-file-locking.mjs",
+    "verify:restart": "node scripts/verify-service-restart.mjs",
     "verify:reliability": "npm run test && npm run verify:sse && npm run verify:file-locking",
     "verify:all": "npm run test && npm run verify:history && npm run verify:upload && npm run verify:tts && npm run verify:stt && npm run verify:voice && npm run verify:diagrams && npm run verify:system && npm run verify:sse && npm run verify:file-locking"
   },
