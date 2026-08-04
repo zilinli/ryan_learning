@@ -27,15 +27,17 @@ function messageAttachments(m: ChatMessage): ChatAttachment[] {
   return [];
 }
 
-/** Prefer local dataUrl; then vault; then server media. */
+/** Prefer local dataUrl; then vault; then server media (after vault miss). */
 function attachmentHref(
   a: ChatAttachment,
   vaultSrc?: string | null,
-  opts?: { download?: boolean },
+  opts?: { download?: boolean; vaultChecked?: boolean },
 ): string | null {
   if (a.dataUrl) return a.dataUrl;
   if (vaultSrc) return vaultSrc;
-  if (a.mediaId) {
+  // Wait for vault before hitting /api/media — data/media may be empty while
+  // IndexedDB still has the homework photo (avoids a broken <img> flash).
+  if (a.mediaId && opts?.vaultChecked) {
     const q = opts?.download ? "?download=1" : "";
     return `/api/media/${encodeURIComponent(a.mediaId)}${q}`;
   }
@@ -59,6 +61,8 @@ export function ChatThread({ messages, streaming }: Props) {
     alt: string;
   } | null>(null);
   const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
+  const [vaultChecked, setVaultChecked] = useState<Record<string, true>>({});
+  const [loadFailed, setLoadFailed] = useState<Record<string, true>>({});
   const [userScrolled, setUserScrolled] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -69,26 +73,32 @@ export function ChatThread({ messages, streaming }: Props) {
     const missing: string[] = [];
     for (const m of messages) {
       for (const a of messageAttachments(m)) {
-        if (a.dataUrl || a.mediaId) continue;
-        if (vaultMap[a.id]) continue;
+        // Always try the vault when dataUrl is gone — mediaId alone can 404
+        // if data/media was wiped, and vault still has the homework photo.
+        if (a.dataUrl) continue;
+        if (vaultMap[a.id] || vaultChecked[a.id]) continue;
         missing.push(a.id);
       }
     }
     if (!missing.length) return;
     void (async () => {
       const next: Record<string, string> = {};
+      const checked: Record<string, true> = {};
       for (const id of missing) {
         const hit = await getPhotoFromVault(id);
         if (hit?.dataUrl) next[id] = hit.dataUrl;
+        checked[id] = true;
       }
-      if (!cancelled && Object.keys(next).length) {
+      if (cancelled) return;
+      if (Object.keys(next).length) {
         setVaultMap((prev) => ({ ...prev, ...next }));
       }
+      setVaultChecked((prev) => ({ ...prev, ...checked }));
     })();
     return () => {
       cancelled = true;
     };
-  }, [messages, vaultMap]);
+  }, [messages, vaultMap, vaultChecked]);
 
   // Auto-scroll to bottom when new messages arrive.
   // Throttled to one scroll per animation frame; instant during streaming to
@@ -183,7 +193,11 @@ export function ChatThread({ messages, streaming }: Props) {
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, idx) => {
                     if (a.kind === "image") {
-                      const src = attachmentHref(a, vaultMap[a.id]);
+                      const src = loadFailed[a.id]
+                        ? null
+                        : attachmentHref(a, vaultMap[a.id], {
+                            vaultChecked: Boolean(vaultChecked[a.id]),
+                          });
                       if (src) {
                         return (
                           <button
@@ -208,8 +222,30 @@ export function ChatThread({ messages, streaming }: Props) {
                                   : "border border-[var(--line)]"
                               } rounded-xl`}
                               draggable={false}
+                              onError={() => {
+                                // dataUrl/vault misses + empty data/media → 404;
+                                // swap to unavailable chip instead of a broken <img>.
+                                if (a.dataUrl || vaultMap[a.id]) return;
+                                setLoadFailed((prev) => ({ ...prev, [a.id]: true }));
+                              }}
                             />
                           </button>
+                        );
+                      }
+                      // Still resolving vault — keep a calm placeholder (no broken img)
+                      if (!a.dataUrl && !vaultChecked[a.id] && !loadFailed[a.id]) {
+                        return (
+                          <span
+                            key={a.id}
+                            className={`inline-flex h-20 w-20 animate-pulse items-center justify-center rounded-xl text-xs ${
+                              isUser
+                                ? "bg-white/20 text-white"
+                                : "bg-[var(--mist)] text-[var(--ink-muted)]"
+                            }`}
+                            aria-label="Loading photo"
+                          >
+                            📷
+                          </span>
                         );
                       }
                       return (
@@ -230,6 +266,7 @@ export function ChatThread({ messages, streaming }: Props) {
                     // PDF / text / other files — download
                     const href = attachmentHref(a, vaultMap[a.id], {
                       download: true,
+                      vaultChecked: Boolean(vaultChecked[a.id]),
                     });
                     if (href) {
                       return (

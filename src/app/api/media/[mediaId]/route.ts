@@ -56,18 +56,23 @@ export async function GET(req: Request, ctx: Ctx) {
   const url = new URL(req.url);
   const forceDownload = url.searchParams.get("download") === "1";
   const isImage = (hit.mimeType || "").startsWith("image/");
-  const disposition = buildContentDisposition(hit.name, hit.mimeType, {
-    download: forceDownload,
-    inlineImage: isImage,
-  });
+  // Inline <img> does not need Content-Disposition. Skipping it avoids
+  // ByteString crashes on Chinese homework filenames (history imgs 500).
+  const headers: Record<string, string> = {
+    "Content-Type": hit.mimeType || "application/octet-stream",
+    "Cache-Control": "private, max-age=86400",
+    "Content-Length": String(hit.buf.length),
+  };
+  if (forceDownload || !isImage) {
+    headers["Content-Disposition"] = buildContentDisposition(
+      hit.name,
+      hit.mimeType,
+      { download: forceDownload, inlineImage: isImage },
+    );
+  }
 
   return new Response(new Uint8Array(hit.buf), {
     status: 200,
-    headers: {
-      "Content-Type": hit.mimeType || "application/octet-stream",
-      "Content-Disposition": disposition,
-      "Cache-Control": "private, max-age=86400",
-      "Content-Length": String(hit.buf.length),
-    },
+    headers,
   });
 }

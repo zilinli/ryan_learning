@@ -46,4 +46,28 @@ describe("buildContentDisposition", () => {
       }),
     ).toMatch(/^attachment;/);
   });
+
+  it("Response accepts Chinese download headers and bare inline image responses", () => {
+    const name = "屏幕截图.png";
+    const download = buildContentDisposition(name, "image/png", {
+      download: true,
+      inlineImage: true,
+    });
+    expect(
+      () =>
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "Content-Disposition": download },
+        }),
+    ).not.toThrow();
+    // Inline history <img> should omit Content-Disposition entirely
+    expect(
+      () =>
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: {
+            "Content-Type": "image/png",
+            "Cache-Control": "private, max-age=86400",
+          },
+        }),
+    ).not.toThrow();
+  });
 });
