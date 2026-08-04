@@ -407,12 +407,12 @@ export function VoiceControls({
             void stopListening();
           }
         }}
-        className={`inline-flex min-h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:min-w-0 sm:px-3 ${
+        className={`inline-flex min-h-[3.25rem] min-w-[3.25rem] shrink-0 items-center justify-center gap-1 rounded-full px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:min-h-[2.75rem] sm:min-w-0 sm:px-3 ${
           listening
             ? "bg-[var(--coral)] text-white"
             : busy
               ? "bg-[var(--teal)] text-white"
-              : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+              : "bg-[var(--mist)] text-[var(--ink)] hover:bg-[var(--mist)] hover:text-[var(--ink)] sm:bg-transparent sm:text-[var(--ink-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
         title={touchMode ? "Tap to talk \u00B7 tap again to send" : "Hold to talk"}
         aria-label={
@@ -422,7 +422,7 @@ export function VoiceControls({
         }
         aria-pressed={listening}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg className="h-5 w-5 sm:h-[18px] sm:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
           <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
           <line x1="12" y1="19" x2="12" y2="23" />
