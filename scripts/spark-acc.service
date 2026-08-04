@@ -1,0 +1,25 @@
+[Unit]
+Description=Spark Agent Chat Console (Next.js, port 3001)
+After=network.target spark-tutor.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/codes/ryan_learning/agent-chat
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=HOSTNAME=0.0.0.0
+Environment=ACC_PORT=3001
+ExecStartPre=/usr/bin/bash -c 'if [[ ! -e node_modules/next ]]; then rm -f node_modules && [[ -d ../node_modules ]] && ln -sf ../node_modules node_modules; fi'
+ExecStart=/usr/bin/npx next dev -H 0.0.0.0 -p 3001
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+KillMode=control-group
+StandardOutput=append:/root/codes/ryan_learning/logs/agent-chat.log
+StandardError=append:/root/codes/ryan_learning/logs/agent-chat.log
+
+[Install]
+WantedBy=multi-user.target
