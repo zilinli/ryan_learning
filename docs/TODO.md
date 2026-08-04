@@ -75,6 +75,9 @@
 | 0.10b | Sidebar: empty state ("No conversations yet"), delete confirmation | 0.25d | `HistorySidebar.tsx` |
 | 0.10c | Header: hamburger ↔ X icon toggle; brand "✨ Spark" | 0.25d | `TutorShell.tsx` |
 | 0.10d | Header: 48px fixed height on all devices | 0.25d | `TutorShell.tsx` |
+| 0.10e | **Chat-first sidebar:** move SkillsPanel below chat list; collapsible strip (default closed, max 40% when open) | 0.5d | `HistorySidebar.tsx`, `SkillsPanel.tsx`, [ui-architecture §5.4–5.5](subsystems/ui-architecture.md) |
+
+> **0.10e status (2026-08-04):** Implemented — SkillsPanel is a collapsed strip under the chat list; expand on tap.
 
 ### 🔴 0.11 Chat UX (1d)
 
@@ -275,6 +278,57 @@
 
 ---
 
+## 🔴 Phase 11: Code Agent v3 — Multi-Modal, Auto-Git, Service Resilience (22h)
+
+> **Design:** [code-agent-v3-enhancements.md](code-agent-v3-enhancements.md)  
+> **Priorities:** 11A (upload ⊹ voice) · 11C (auto-git) · 11D (service restart)
+
+### 11A: Image & PDF Upload (6h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 11A.1 | Extend `ChatRequest` type + `AgentStreamEvent` for attachments | 0.5h | `agent-chat/src/lib/types.ts` |
+| 11A.2 | `buildAttachmentLines()` in prompts — extract PDF text (pdftotext), decode text files, describe images | 1.5h | `agent-chat/src/lib/prompts.ts` |
+| 11A.3 | Update `streamAgentResponse()` to accept attachments, inject into prompt | 1h | `agent-chat/src/lib/agent.ts` |
+| 11A.4 | Update SSE chat route to forward attachments | 0.5h | `agent-chat/src/app/api/chat/route.ts` |
+| 11A.5 | Frontend: camera button + file picker + attachment pills with thumbnail previews | 1.5h | `agent-chat/public/index.html` |
+| 11A.6 | Frontend: `fileToAttachment()` — read file → base64, compress images, clip text | 1h | `agent-chat/public/index.html` |
+
+### 11B: Chinese/English Voice Input (3h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 11B.1 | Voice lang toggle button ("zh"↔"en") in input bar; `voiceLang` state | 1h | `agent-chat/public/index.html` |
+| 11B.2 | Wire lang into Web Speech API `recognition.lang` and server STT `language` param | 0.5h | `agent-chat/public/index.html` |
+| 11B.3 | Visual feedback: recording pulse per language, auto-reset after transcription, re-focus input | 1h | `agent-chat/public/index.html` |
+| 11B.4 | Update system prompt: note user's voice language preference for reply language | 0.5h | `agent-chat/src/lib/prompts.ts` |
+
+### 11C: Auto Commit + Push to Develop (6h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 11C.1 | `git-ops.ts` — `runTests(workspace)` with 120s timeout, exitCode + stderr capture | 1.5h | `agent-chat/src/lib/git-ops.ts` 🆕 |
+| 11C.2 | `git-ops.ts` — `stageAndCommit(workspace, message)` with empty-diff guard | 1h | `agent-chat/src/lib/git-ops.ts` |
+| 11C.3 | `git-ops.ts` — `pushBranch(workspace, branch)` with auth-failure detection | 0.5h | `agent-chat/src/lib/git-ops.ts` |
+| 11C.4 | `git-ops.ts` — `detectFileChanges(events)` from tool_call stream events | 1h | `agent-chat/src/lib/git-ops.ts` |
+| 11C.5 | Post-stream git hook in chat route — if `AUTO_GIT_ENABLED` and changes detected, run test gate → commit → push | 1h | `agent-chat/src/app/api/chat/route.ts` |
+| 11C.6 | Extend SSE "done" event — include `commitSha`, `commitMessage`, `testResult` | 0.5h | `agent-chat/src/lib/types.ts`, `agent.ts` |
+| 11C.7 | Frontend: display commit SHA + test result badge in final message | 0.5h | `agent-chat/public/index.html` |
+
+### 11D: Service Restart with Verification (7h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 11D.1 | `/api/setup` health endpoint for ACC | 0.5h | `agent-chat/src/app/api/setup/route.ts` 🆕 |
+| 11D.2 | `systemd` unit for ACC (`spark-acc.service`) | 0.5h | `/etc/systemd/system/spark-acc.service` 🆕 |
+| 11D.3 | `restart-services.sh` — ordered stop → start → health-check gate with timeout + retry per service | 2h | `scripts/restart-services.sh` 🆕 |
+| 11D.4 | `health-check.mjs` — standalone checker: 3 services × health endpoint, JSON output, exit 0/1 | 1h | `scripts/health-check.mjs` 🆕 |
+| 11D.5 | Health matrix: STT (8765/health 60s), Spark (3000/api/setup 30s), Spark page (3000/ 15s), ACC (3001/ 15s) | 1h | `scripts/restart-services.sh`, `scripts/health-check.mjs` |
+| 11D.6 | Update `start.sh` to call `restart-services.sh` post-launch | 1h | `start.sh` |
+| 11D.7 | Integration test: kill all services, run restart script, verify all health checks pass | 1h | `scripts/verify-service-restart.mjs` 🆕 |
+
+---
+
 ## 📊 Summary
 
 | Phase | Priority | Sub-tasks | Est. |
@@ -285,6 +339,7 @@
 | **Phase 8** Mini Window UI | 🔴 Critical | 9 (8.1–8.9) | **10h** |
 | **Phase 9** STT Reliability | 🔴 Critical | 6 (9.1–9.6) | **4h** |
 | **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
+| **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
 | **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
 | **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
 | **Phase 4** Voice | 🟡 Important | 3 | **9d** |
@@ -294,9 +349,9 @@
 
 **Total new critical work (Phases 7–10):** ~38 hours (~5 days)
 
-**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 0 UI (6d) → Phase 6 tests (10d)
+**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → **Phase 11** (Code Agent v3 22h) → Phase 0 UI (6d) → Phase 6 tests (10d)
 
 **Next immediate steps:**
-1. **Phase 7.1** — Pre-flight port check in `start.sh` (0.5h, prevents EADDRINUSE crash)
-2. **Phase 7.2** — SDK version pin + unhandledRejection safety net (1h, prevents process crash)
-3. **Phase 8.1** — Wire `MiniConsoleShell` → replace `AgentConsolePanel` (2h, enables vibe coding)
+1. **Phase 11A.1** — Extend `ChatRequest` type for attachments (0.5h, foundation for upload)
+2. **Phase 11D.2** — Create `spark-acc.service` systemd unit (0.5h, stability)
+3. **Phase 11C.1** — Build `git-ops.ts` test runner (1.5h, auto-git foundation)

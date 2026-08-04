@@ -59,6 +59,7 @@ flowchart TB
 | **[subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)** | 🎙️ STT/TTS service robustness, systemd supervision, crash recovery |
 | **[code-agent-reliability-design.md](code-agent-reliability-design.md)** | 📐 Code agent reliability architecture design (literature-backed) |
 | **[code-agent-test-design.md](code-agent-test-design.md)** | 🧪 Reliability test plan: unit, integration, chaos, E2E |
+| **[code-agent-v3-enhancements.md](code-agent-v3-enhancements.md)** | 🚀 Code Agent v3 — multi-modal upload, zh/en voice, auto-git, service verification |
 | **[synthesis.md](synthesis.md)** | Cross-cutting summary + design rationale |
 | **[TODO.md](TODO.md)** | Downstream development task list |
 
