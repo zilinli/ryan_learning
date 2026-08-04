@@ -247,6 +247,7 @@ export function TutorShell() {
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
+  const [agentPanelMinimized, setAgentPanelMinimized] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
@@ -353,12 +354,6 @@ export function TutorShell() {
   const sessionId = active?.sessionId ?? "";
   const messages = active?.messages ?? [];
 
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, busy]);
-
   // Esc closes sidebar
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -369,7 +364,7 @@ export function TutorShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
 
-  const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); }, []);
+  const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
 
   const startNewSession = () => {
     if (!store || busy) return;
@@ -560,22 +555,39 @@ export function TutorShell() {
             textContent: a.textContent,
           })),
         },
-        (delta) => {
-          setAgentStatus("");
-          // Paint text immediately as SSE chunks arrive
-          setStore((prev) => {
-            if (!prev) return prev;
-            const cur = getActiveConversation(prev);
-            if (cur.sessionId !== sessionId) return prev;
-            const msgs = cur.messages.map((m) =>
-              m.id === assistantId ? { ...m, content: m.content + delta } : m,
-            );
-            return upsertActive(prev, { messages: msgs });
-          });
-          if (shouldSpeak) {
-            speakApiRef.current?.push(delta);
-          }
-        },
+        // rAF-batched onDelta: group SSE deltas into one React state update
+        // per animation frame to cut re-renders from 100+/sec to 60/sec
+        // and eliminate screen flicker during streaming.
+        (() => {
+          let pendingDelta = "";
+          let pendingRafId: number | undefined;
+          return (delta: string) => {
+            setAgentStatus("");
+            // Feed every raw delta to TTS immediately for fluid speech
+            if (shouldSpeak) {
+              speakApiRef.current?.push(delta);
+            }
+            pendingDelta += delta;
+            if (pendingRafId !== undefined) return; // already scheduled
+            pendingRafId = requestAnimationFrame(() => {
+              pendingRafId = undefined;
+              const batch = pendingDelta;
+              pendingDelta = "";
+              if (!batch) return;
+              setStore((prev) => {
+                if (!prev) return prev;
+                const cur = getActiveConversation(prev);
+                if (cur.sessionId !== sessionId) return prev;
+                const msgs = cur.messages.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: m.content + batch }
+                    : m,
+                );
+                return upsertActive(prev, { messages: msgs });
+              });
+            });
+          };
+        })(),
         (status) => setAgentStatus(status),
         (text) => {
           // Replace glued streaming text with the corrected final reply
@@ -799,7 +811,24 @@ export function TutorShell() {
         </div>
       </div>
 
-      <CodeAgentPanel open={agentPanelOpen} onClose={() => setAgentPanelOpen(false)} />
+      <CodeAgentPanel
+        open={agentPanelOpen && !agentPanelMinimized}
+        onClose={() => { setAgentPanelOpen(false); setAgentPanelMinimized(false); }}
+        onMinimize={() => setAgentPanelMinimized(true)}
+      />
+
+      {/* Floating bubble when minimized — click to restore */}
+      {agentPanelOpen && agentPanelMinimized && (
+        <button
+          type="button"
+          onClick={() => setAgentPanelMinimized(false)}
+          className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--teal)] text-white shadow-lg hover:brightness-110 transition-all animate-fade-up"
+          aria-label="Restore code agent"
+          title="Code Agent"
+        >
+          <span className="text-lg">🤖</span>
+        </button>
+      )}
     </div>
   );
 }

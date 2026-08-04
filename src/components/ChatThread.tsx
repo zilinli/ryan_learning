@@ -62,6 +62,7 @@ export function ChatThread({ messages, streaming }: Props) {
   const [userScrolled, setUserScrolled] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +90,26 @@ export function ChatThread({ messages, streaming }: Props) {
     };
   }, [messages, vaultMap]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive.
+  // Throttled to one scroll per animation frame; instant during streaming to
+  // avoid competing with the next delta update.
   useEffect(() => {
-    if (!userScrolled) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, userScrolled]);
+    let rafId: number | undefined;
+    const scrollOnce = () => {
+      if (!userScrolled && bottomRef.current) {
+        bottomRef.current.scrollIntoView({
+          behavior: streaming ? "instant" : "smooth",
+        });
+      }
+    };
+    rafId = requestAnimationFrame(() => {
+      rafId = undefined;
+      scrollOnce();
+    });
+    return () => {
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+    };
+  }, [messages, userScrolled, streaming]);
 
   // Detect manual scroll-up to disable auto-scroll
   useEffect(() => {
@@ -126,7 +141,7 @@ export function ChatThread({ messages, streaming }: Props) {
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--ink-muted)]">
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
-            📷 Photo homework
+            📷 Photo
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
             🎤 Voice question
@@ -141,12 +156,18 @@ export function ChatThread({ messages, streaming }: Props) {
       {messages.map((m) => {
         const attachments = messageAttachments(m);
         const isUser = m.role === "user";
+        const wasSeen = seenIdsRef.current.has(m.id);
+        if (!wasSeen) seenIdsRef.current.add(m.id);
+        const animateIn =
+          !wasSeen &&
+          m.content.length < 120 &&
+          !(m.role === "assistant" && m.content.length > 0 && streaming);
         return (
           <article
             key={m.id}
-            className={`animate-fade-up flex flex-col gap-2 ${
-              isUser ? "items-end" : "items-start"
-            }`}
+            className={`flex flex-col gap-2 ${
+              animateIn ? "animate-fade-up" : ""
+            } ${isUser ? "items-end" : "items-start"}`}
           >
             <span className="text-xs tracking-wide text-[var(--ink-muted)]">
               {isUser ? "You" : "Spark"}

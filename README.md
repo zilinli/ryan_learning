@@ -35,6 +35,45 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Learning memory** — topic mastery, streaks, light badges (never interrupt a stuck moment)
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
+- **Code Agent** — vibe-coding mini window for live edits to Spark itself
+
+---
+
+## Code Agent (Vibe Coding)
+
+Spark includes a built-in code agent for modifying the app itself — change colors, layout, features, or fix bugs without leaving the browser.
+
+### Opening
+
+Click **"Code Agent"** in the sidebar header to open the panel. On desktop it slides in from the right; on mobile it appears as a bottom sheet.
+
+### What you can ask
+
+The code agent reads your project files, searches code, makes edits, and runs tests. Example prompts:
+
+- "Make the text bigger"
+- "Add a dark orange accent color"
+- "Fix the photo button on mobile"
+- "Show math steps one by one"
+- "Add a new subject filter"
+
+### Window controls
+
+| Control | How |
+|---------|-----|
+| **Minimize** | Click the **−** (dash) button in the header — panel collapses to a floating 🤖 bubble at bottom-right. Click the bubble to restore. |
+| **Close** | Click the **×** button in the header, or press **Escape**. On mobile, tap the backdrop or swipe down. |
+| **New session** | Click **+ New** next to the panel title to start fresh. |
+| **Full ACC** | Click **↗ ACC** (if running) to open the Agent Chat Console in a separate tab. |
+
+### Diff review & apply
+
+When the agent proposes code changes, it shows a diff block with file name, added (+) and removed (−) line counts. Click **Apply** to accept (requires PIN gate confirmation) or **Cancel** to discard. After applying, a ✓ banner confirms the changes.
+
+### Requirements
+
+- Agent Chat Console must be running on port 3001: `cd agent-chat && npm run dev`
+- The code agent uses the same `CURSOR_API_KEY` as the tutor
 
 ---
 

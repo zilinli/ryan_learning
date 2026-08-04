@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import "katex/dist/katex.min.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -186,7 +186,10 @@ function TutorImg({
   );
 }
 
-export function MarkdownMessage({ content, variant = "assistant" }: Props) {
+export const MarkdownMessage = memo(function MarkdownMessage({
+  content,
+  variant = "assistant",
+}: Props) {
   const user = variant === "user";
   // Split diagrams out BEFORE react-markdown — long data URIs often fail to parse as images.
   const parts = splitTutorContent(content);
@@ -361,7 +364,7 @@ export function MarkdownMessage({ content, variant = "assistant" }: Props) {
       )}
     </div>
   );
-}
+});
 
 function collectText(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";

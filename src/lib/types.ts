@@ -133,9 +133,10 @@ export interface ChatRequestBody {
 }
 
 export interface DiffBlock { filepath: string; hunks: string; added: number; removed: number; }
+export interface ToolCall { tool: string; input?: string; output?: string; status: "running" | "success" | "error"; time: string; }
 export interface TestResult { passed: number; failed: number; output: string; }
 export type PendingAction = "apply" | "revert" | null;
-export interface ConsoleMessage { id: string; role: "user" | "assistant" | "system"; content: string; diffs?: DiffBlock[]; testResults?: TestResult; pendingAction?: PendingAction; actionApplied?: boolean; status?: string; createdAt: number; }
+export interface ConsoleMessage { id: string; role: "user" | "assistant" | "system"; content: string; diffs?: DiffBlock[]; testResults?: TestResult; pendingAction?: PendingAction; actionApplied?: boolean; status?: string; tools?: ToolCall[]; createdAt: number; }
 export interface ConsoleSessionState { sessionId: string; messages: ConsoleMessage[]; fileChangeCount: number; hasUncommittedChanges: boolean; }
 export interface ConsoleChatRequestBody { sessionId: string; message: string; pin?: string; pinHash?: string; action?: string; }
 export interface MiniConsoleState { open: boolean; sessionId: string; phase: "idle" | "thinking" | "diff" | "applied" | "error"; userMessage: string; agentMessage: string; diff?: DiffBlock; testResults?: TestResult; error?: string; }
