@@ -244,16 +244,38 @@ async function startScriptProcessorSession(
   };
 }
 
+export type StartWavRecorderOptions = {
+  /**
+   * Prefer MediaRecorder containers (webm/mp4). Use on mobile WebViews where
+   * ScriptProcessor is flaky. Desktop/Mac should keep false — short WebM from
+   * Chrome often fails ffmpeg EBML parse; 16 kHz WAV is reliable.
+   */
+  preferContainer?: boolean;
+};
+
 /**
- * Record mic audio for STT. Prefers MediaRecorder on mobile WebViews;
- * falls back to 16 kHz WAV via ScriptProcessor.
+ * Record mic audio for STT.
+ * Desktop: 16 kHz WAV via ScriptProcessor (stable for STT).
+ * Mobile: MediaRecorder first, then ScriptProcessor fallback.
  */
-export async function startWavRecorder(): Promise<MicRecorderHandles> {
+export async function startWavRecorder(
+  options?: StartWavRecorderOptions,
+): Promise<MicRecorderHandles> {
   const stream = await getMicStream();
+  const preferContainer = Boolean(options?.preferContainer);
   try {
-    const media = await startMediaRecorderSession(stream);
-    if (media) return media;
-    return await startScriptProcessorSession(stream);
+    if (preferContainer) {
+      const media = await startMediaRecorderSession(stream);
+      if (media) return media;
+      return await startScriptProcessorSession(stream);
+    }
+    try {
+      return await startScriptProcessorSession(stream);
+    } catch {
+      const media = await startMediaRecorderSession(stream);
+      if (media) return media;
+      throw new Error("Recording failed");
+    }
   } catch (err) {
     stream.getTracks().forEach((t) => t.stop());
     throw err;

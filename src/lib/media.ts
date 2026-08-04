@@ -120,8 +120,12 @@ export function isCoarsePointer(): boolean {
   if (typeof window === "undefined") return false;
   // Prefer tap-to-talk on phones/tablets. Some Android Chrome builds report
   // pointer:fine even with a finger — maxTouchPoints catches those.
+  // Require (hover: none) so Mac trackpads (multi-touch + hover) stay hold-to-talk.
   if (window.matchMedia("(pointer: coarse)").matches) return true;
-  return navigator.maxTouchPoints > 1;
+  return (
+    navigator.maxTouchPoints > 1 &&
+    window.matchMedia("(hover: none)").matches
+  );
 }
 
 export function pickRecorderMimeType(): string {

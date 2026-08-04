@@ -296,7 +296,8 @@ export function VoiceControls({
     setHint("");
     setStatus("Listening… speak now");
     try {
-      const session = await startWavRecorder();
+      // Mobile WebViews: MediaRecorder. Desktop/Mac: WAV (avoids broken WebM).
+      const session = await startWavRecorder({ preferContainer: touchMode });
       recorderRef.current = session;
       setListening(true);
     } catch {
@@ -305,7 +306,7 @@ export function VoiceControls({
       setStatus("");
       setHint("Microphone blocked — allow mic in browser address bar");
     }
-  }, [busy, disabled, stopSpeaking]);
+  }, [busy, disabled, stopSpeaking, touchMode]);
 
   const stopListening = useCallback(async () => {
     const session = recorderRef.current;
