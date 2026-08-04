@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CodeAgentThread } from "./CodeAgentThread";
-import { ConsoleComposer } from "./ConsoleComposer";
+import { ConsoleComposer, type ComposerSubmit } from "./ConsoleComposer";
 import { PinGate } from "./PinGate";
 import { getConsoleSessionId } from "@/lib/mini-console-store";
+import type { ClientAttachment } from "@/lib/file-payload";
 import type { ConsoleMessage, DiffBlock, ToolCall } from "@/lib/types";
 
 type Props = { open: boolean; onClose: () => void; onMinimize: () => void };
@@ -74,10 +75,14 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     return () => window.removeEventListener("keydown", k);
   }, [open, onClose]);
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async ({ text, attachments, voiceLang }: ComposerSubmit) => {
     setPhase("thinking"); setError(""); setDiff(null);
     setStreamingContent(""); setStatusText("Starting…"); setRunningTools([]);
-    setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "user", content: text, createdAt: Date.now() }]);
+    setMsgs(p => [...p, {
+      id: "cm_" + Date.now(), role: "user", content: text,
+      attachments: attachments.map((a: ClientAttachment) => ({ name: a.name, kind: a.kind })),
+      createdAt: Date.now(),
+    }]);
     ab.current?.abort();
     const c = new AbortController(); ab.current = c;
 
@@ -85,7 +90,13 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     const streamRequest = async (isRetry: boolean): Promise<string> => {
       const res = await fetch("/api/console/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid.current, message: text }),
+        body: JSON.stringify({
+          sessionId: sid.current, message: text, voiceLang,
+          attachments: attachments.map((a: ClientAttachment) => ({
+            name: a.name, mimeType: a.mimeType, kind: a.kind,
+            data: a.data, dataUrl: a.dataUrl, textContent: a.textContent,
+          })),
+        }),
         signal: c.signal,
         cache: "no-store",
       });
@@ -251,7 +262,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
       <div className="flex flex-col gap-1.5 mt-1">
         <p className="text-[10px] font-semibold text-[var(--ink-muted)] uppercase tracking-wide">Try:</p>
         {HINT_EXAMPLES.map(ex => (
-          <button key={ex} type="button" onClick={() => send(ex)}
+          <button key={ex} type="button" onClick={() => send({ text: ex, attachments: [] })}
             className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] transition text-left">• {ex}</button>
         ))}
       </div>

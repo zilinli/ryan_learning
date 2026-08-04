@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MiniDiffViewer } from "./MiniDiffViewer";
 import { MiniConsoleThread } from "./MiniConsoleThread";
-import { ConsoleComposer } from "./ConsoleComposer";
+import { ConsoleComposer, type ComposerSubmit } from "./ConsoleComposer";
 import { PinGate } from "./PinGate";
 import { getConsoleSessionId } from "@/lib/mini-console-store";
+import type { ClientAttachment } from "@/lib/file-payload";
 import type { ConsoleMessage, DiffBlock } from "@/lib/types";
 type Props={open:boolean;onClose:()=>void;onOpenFullConsole?:()=>void};
 export function MiniConsoleShell({open,onClose,onOpenFullConsole}:Props){
@@ -16,12 +17,12 @@ export function MiniConsoleShell({open,onClose,onOpenFullConsole}:Props){
   const sid=useRef(getConsoleSessionId());
   const ab=useRef<AbortController|null>(null);
   useEffect(()=>{if(!open)return;const k=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose()};window.addEventListener("keydown",k);return()=>window.removeEventListener("keydown",k)},[open,onClose]);
-  const send=useCallback(async(text:string)=>{
+  const send=useCallback(async({text,attachments,voiceLang}:ComposerSubmit)=>{
     setPhase("thinking");setError("");setDiff(null);
-    setMsgs(p=>[...p,{id:"cm_"+Date.now(),role:"user",content:text,createdAt:Date.now()}]);
+    setMsgs(p=>[...p,{id:"cm_"+Date.now(),role:"user",content:text,attachments:attachments.map((a:ClientAttachment)=>({name:a.name,kind:a.kind})),createdAt:Date.now()}]);
     const c=new AbortController();ab.current=c;
     try{
-      const res=await fetch("/api/console/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sid.current,message:text}),signal:c.signal});
+      const res=await fetch("/api/console/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sid.current,message:text,voiceLang,attachments:attachments.map((a:ClientAttachment)=>({name:a.name,mimeType:a.mimeType,kind:a.kind,data:a.data,dataUrl:a.dataUrl,textContent:a.textContent}))}),signal:c.signal});
       if(!res.ok)throw new Error(((await res.json().catch(()=>({}))) as {error?:string}).error||"Error "+res.status);
       let full="";const r=res.body!.getReader();const d=new TextDecoder();let buf="";
       while(true){const{done,value}=await r.read();if(done)break;buf+=d.decode(value,{stream:true});const parts=buf.split("\n\n");buf=parts.pop()??"";for(const p of parts){const ls=p.split("\n");let ev="message",dl="";for(const l of ls){if(l.startsWith("event:"))ev=l.slice(6).trim();if(l.startsWith("data:"))dl+=l.slice(5).trim()}if(!dl)continue;try{const data=JSON.parse(dl) as {text?:string;error?:string};if(ev==="delta"&&data.text)full+=data.text;if(ev==="error"&&data.error)throw new Error(data.error);if(ev==="done")full=data.text||full}catch(e){if(e instanceof SyntaxError)continue;throw e}}}

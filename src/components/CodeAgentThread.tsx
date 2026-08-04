@@ -100,6 +100,17 @@ function MessageBubble({ m }: { m: ConsoleMessage }) {
       </span>
 
       <div className={"max-w-full rounded-xl px-3 py-2 text-sm" + (isUser ? " bg-[var(--teal)]/10" : " bg-[var(--mist)]")}>
+        {m.attachments && m.attachments.length > 0 && (
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            {m.attachments.map((a, i) => (
+              <span key={`${a.name}-${i}`}
+                className="inline-flex max-w-[140px] items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-[var(--ink-muted)]">
+                {a.kind === "image" ? "🖼" : "📄"}
+                <span className="truncate">{a.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
         <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
           {m.content.length > 800 ? m.content.slice(0, 800) + "…" : m.content}
         </p>

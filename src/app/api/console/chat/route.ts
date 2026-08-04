@@ -1,8 +1,10 @@
 import { Agent, CursorAgentError } from "@cursor/sdk";
-import type { SDKAgent } from "@cursor/sdk";
+import type { SDKAgent, SDKImage, SDKUserMessage } from "@cursor/sdk";
 import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { createConsoleHarnessTools } from "@/lib/console-harness";
 import { readConsoleSession, writeConsoleSession } from "@/lib/console-session-store";
+import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachments";
+import { buildFileSummaries } from "@/lib/extract-files";
 import type { ConsoleChatRequestBody, ConsoleMessage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,21 +28,45 @@ export async function POST(req: Request) {
   try { body = await req.json() as ConsoleChatRequestBody; } catch {
     return Response.json({ error: "Bad JSON" }, { status: 400 });
   }
-  const { sessionId, message } = body;
-  if (!sessionId || !message?.trim()) {
+  const { sessionId, message, voiceLang } = body;
+  const attachments = normalizeIncomingAttachments(body);
+  if (!sessionId || (!message?.trim() && attachments.length === 0)) {
     return Response.json({ error: "Missing fields" }, { status: 400 });
   }
+
+  for (const a of attachments) {
+    if (a.kind === "image" && a.data != null && String(a.data).trim().length < 8) {
+      return Response.json(
+        { error: `Photo "${a.name}" looks empty — try Camera / Photos again.` },
+        { status: 400 },
+      );
+    }
+  }
+
+  const imageAttachments = attachments.filter((a) => a.kind === "image" && a.data);
+  const fileSummaries = await buildFileSummaries(attachments);
+  const images: SDKImage[] | undefined =
+    imageAttachments.length > 0
+      ? imageAttachments.map((img) => ({
+          data: stripDataUrlPrefix(img.data || ""),
+          mimeType: img.mimeType.startsWith("image/")
+            ? img.mimeType
+            : "image/jpeg",
+        }))
+      : undefined;
 
   const tools = createConsoleHarnessTools();
   const enc = new TextEncoder();
 
-  let sess = await readConsoleSession(sessionId) ?? {
+  const sess = await readConsoleSession(sessionId) ?? {
     sessionId, messages: [] as ConsoleMessage[],
     fileChangeCount: 0, hasUncommittedChanges: false,
   };
   sess.messages.push({
     id: `cm_${Date.now()}`, role: "user",
-    content: message.trim(), createdAt: Date.now(),
+    content: (message?.trim() || "See attachments."),
+    attachments: attachments.map((a) => ({ name: a.name, kind: a.kind })),
+    createdAt: Date.now(),
   });
 
   const stream = new ReadableStream({
@@ -76,7 +102,20 @@ export async function POST(req: Request) {
         });
 
         snd("status", { status: "Thinking…" });
-        const run = await agent.send(`${SYS}\n\n[Request]\n${message.trim()}`, {
+        const promptText = [
+          SYS,
+          fileSummaries.length
+            ? `\n[User attachments — text extracted from uploaded files]\n${fileSummaries.join("\n\n")}`
+            : "",
+          voiceLang ? `\n[User's voice language: ${voiceLang} — reply in this language when the request was dictated.]` : "",
+          `\n[Request]\n${message?.trim() || "Please review the attached file(s)."}`,
+        ].join("\n");
+
+        const userMsg: SDKUserMessage = images?.length
+          ? { text: promptText, images }
+          : { text: promptText };
+
+        const run = await agent.send(userMsg, {
           local: { customTools: tools },
           onDelta: ({ update }) => {
             if (update.type === "text-delta" && update.text) {
@@ -102,7 +141,7 @@ export async function POST(req: Request) {
             } else if (ev.status === "completed" || ev.status === "error") {
               snd("tool_call", {
                 tool: toolName,
-                input: ev.input,
+                input: ev.args,
                 output: ev.result,
                 error: ev.status === "error",
               });

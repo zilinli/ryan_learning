@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConsoleThread } from "./ConsoleThread";
-import { ConsoleComposer } from "./ConsoleComposer";
+import { ConsoleComposer, type ComposerSubmit } from "./ConsoleComposer";
 import { getConsoleSessionId } from "@/lib/mini-console-store";
+import type { ClientAttachment } from "@/lib/file-payload";
 import type { ConsoleMessage } from "@/lib/types";
 export function ConsoleShell(){
   const[phase,setPhase]=useState<"idle"|"thinking"|"applied"|"error">("idle");
@@ -11,12 +12,12 @@ export function ConsoleShell(){
   const sid=useRef(getConsoleSessionId());
   const scroller=useRef<HTMLDivElement>(null);
   useEffect(()=>{const el=scroller.current;if(el)el.scrollTop=el.scrollHeight},[msgs]);
-  const send=useCallback(async(text:string)=>{
+  const send=useCallback(async({text,attachments,voiceLang}:ComposerSubmit)=>{
     setPhase("thinking");setError("");
     const aid="cm_"+(Date.now()+1);
-    setMsgs(p=>[...p,{id:"cm_"+Date.now(),role:"user",content:text,createdAt:Date.now()},{id:aid,role:"assistant",content:"",createdAt:Date.now()}]);
+    setMsgs(p=>[...p,{id:"cm_"+Date.now(),role:"user",content:text,attachments:attachments.map((a:ClientAttachment)=>({name:a.name,kind:a.kind})),createdAt:Date.now()},{id:aid,role:"assistant",content:"",createdAt:Date.now()}]);
     try{
-      const res=await fetch("/api/console/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sid.current,message:text})});
+      const res=await fetch("/api/console/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:sid.current,message:text,voiceLang,attachments:attachments.map((a:ClientAttachment)=>({name:a.name,mimeType:a.mimeType,kind:a.kind,data:a.data,dataUrl:a.dataUrl,textContent:a.textContent}))})});
       if(!res.ok)throw new Error(((await res.json().catch(()=>({}))) as {error?:string}).error||"Error "+res.status);
       let full="";const r=res.body!.getReader();const d=new TextDecoder();let buf="";
       while(true){const{done,value}=await r.read();if(done)break;buf+=d.decode(value,{stream:true});const parts=buf.split("\n\n");buf=parts.pop()??"";for(const p of parts){const ls=p.split("\n");let ev="message",dl="";for(const l of ls){if(l.startsWith("event:"))ev=l.slice(6).trim();if(l.startsWith("data:"))dl+=l.slice(5).trim()}if(!dl)continue;try{const d2=JSON.parse(dl) as {text?:string;error?:string};if(ev==="delta"&&d2.text){full+=d2.text;setMsgs(p=>p.map(m=>m.id===aid?{...m,content:m.content+d2.text}:m))}if(ev==="error"&&d2.error)throw new Error(d2.error);if(ev==="done"){full=d2.text||full;setMsgs(p=>p.map(m=>m.id===aid?{...m,content:full}:m))}}catch(e){if(e instanceof SyntaxError)continue;throw e}}}
