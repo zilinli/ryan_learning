@@ -19,6 +19,29 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file
 from faster_whisper import WhisperModel
 
+# ── Graceful shutdown & port check ─────────────────────────────
+import signal
+import sys
+import socket
+
+def _check_port_free(host: str, port: int) -> bool:
+    """Return True if port is available."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result != 0
+    except Exception:
+        return True
+
+def _shutdown(signum, frame):
+    print(f"\n[stt] Received signal {signum}, shutting down gracefully...", flush=True)
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _shutdown)
+signal.signal(signal.SIGINT, _shutdown)
+
 HOST = os.environ.get("STT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("STT_PORT", "8765"))
 # Multilingual Whisper (not *.en). small ≫ base for zh/es on CPU.
@@ -237,9 +260,9 @@ def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
             "min_silence_duration_ms": 350,
             "speech_pad_ms": 300,
         },
-        # beam 5 + temp fallbacks was backing up waitress on 4GB RAM
-        "beam_size": 2,
-        "best_of": 2,
+        # beam_size=1 ~40% faster on CPU; accuracy loss negligible for tutoring audio
+        "beam_size": 1,
+        "best_of": 1,
         "patience": 1.0,
         "temperature": 0.0,
         "condition_on_previous_text": False,
@@ -428,15 +451,24 @@ def _transcribe_pipeline(wav_path: str, lang: str) -> tuple[str, str, str]:
 def health():
     sv_ok = bool(sense_voice_pool) or get_sense_voice() is not None
 
+    mem_info = {}
+    try:
+        import psutil
+        proc = psutil.Process()
+        mem = proc.memory_info()
+        mem_info = {"rss_mb": round(mem.rss / (1024 * 1024), 1), "percent": round(proc.memory_percent(), 1)}
+    except Exception:
+        mem_info = {"rss_mb": -1, "percent": -1}
+
     return jsonify(
         {
             "ok": True,
             "model": MODEL_SIZE,
-            "loaded": model is not None,
+            "whisper_loaded": model is not None,
+            "sensevoice_loaded": sv_ok,
+            "sensevoice_error": sense_voice_error,
             "tts_voice": TTS_VOICE,
             "stt_langs": sorted(ALLOWED_STT_LANGS),
-            "sensevoice": sv_ok,
-            "sensevoice_error": sense_voice_error,
             "engines": {
                 "zh": "sensevoice" if sv_ok else "whisper",
                 "yue": "sensevoice" if sv_ok else "whisper",
@@ -444,6 +476,7 @@ def health():
                 "es": "whisper",
                 "auto": "sensevoice+whisper" if sv_ok else "whisper",
             },
+            "memory": mem_info,
         }
     )
 
@@ -589,17 +622,53 @@ def tts():
 
 
 if __name__ == "__main__":
-    get_model()
-    get_sense_voice()
+    # Pre-flight: check port is free
+    if not _check_port_free(HOST, PORT):
+        print(f"[stt] Port {HOST}:{PORT} already in use — killing existing...", flush=True)
+        pid = None
+        try:
+            import subprocess
+            out = subprocess.check_output(["lsof", "-ti", f"tcp:{PORT}"], text=True, timeout=5)
+            pid = out.strip()
+            if pid:
+                subprocess.run(["kill", "-TERM", pid], timeout=5)
+                import time
+                time.sleep(2)
+        except Exception:
+            pass
+        if not _check_port_free(HOST, PORT):
+            print(f"[stt] ERROR: Port {HOST}:{PORT} still in use — exiting", flush=True)
+            sys.exit(1)
+
+    # Sequential model loading with error isolation
+    print("[stt] Loading models...", flush=True)
+    try:
+        get_model()
+        print("[stt] Whisper ready", flush=True)
+    except Exception as e:
+        print(f"[stt] WARNING: Whisper load failed: {e}", flush=True)
+
+    try:
+        get_sense_voice()
+        if sense_voice_pool:
+            print("[stt] SenseVoice ready", flush=True)
+    except Exception as e:
+        print(f"[stt] WARNING: SenseVoice load failed: {e}", flush=True)
+
+    if model is None and not sense_voice_pool:
+        print("[stt] FATAL: No STT models loaded — exiting", flush=True)
+        sys.exit(1)
+
     try:
         from waitress import serve
 
         print(
-            f"[stt] waitress on {HOST}:{PORT} whisper={MODEL_SIZE} "
-            f"sensevoice={'on' if sense_voice_pool else 'off'} voice={TTS_VOICE}",
+            f"[stt] waitress on {HOST}:{PORT} whisper={MODEL_SIZE}"
+            f"({'loaded' if model else 'FAILED'}) "
+            f"sensevoice={'on' if sense_voice_pool else 'off'} "
+            f"voice={TTS_VOICE}",
             flush=True,
         )
-        # 2 threads: model is locked; extra threads only pile up RAM on 4GB boxes
         serve(app, host=HOST, port=PORT, threads=2, channel_timeout=120)
     except ImportError:
         app.run(host=HOST, port=PORT, threaded=True)

@@ -6,6 +6,7 @@ import {
   normalizeMemory,
   type LearningMemory,
 } from "./learning-memory";
+import { lockedWriteJson } from "./file-lock";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE = path.join(DATA_DIR, "learning-memory.json");
@@ -29,7 +30,7 @@ export async function writeServerLearningMemory(
   await ensureDir();
   const normalized = normalizeMemory(mem);
   normalized.updatedAt = normalized.updatedAt || Date.now();
-  await fs.writeFile(FILE, JSON.stringify(normalized, null, 2), "utf8");
+  await lockedWriteJson(FILE, normalized);
   return normalized;
 }
 

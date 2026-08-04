@@ -1,0 +1,49 @@
+[Unit]
+Description=Spark STT/TTS Server (Whisper + SenseVoice + edge-tts)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/codes/ryan_learning
+
+# Environment
+Environment=STT_HOST=127.0.0.1
+Environment=STT_PORT=8765
+Environment=STT_MODEL=small
+Environment=SENSEVOICE_THREADS=2
+Environment=PYTHONUNBUFFERED=1
+
+# Start command with pre-flight port check
+ExecStartPre=/usr/bin/bash -c 'lsof -ti tcp:8765 | xargs -r kill -TERM 2>/dev/null; sleep 1'
+ExecStart=/usr/bin/python3 scripts/stt_server.py
+
+# Restart policy — prevents crash-loop
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=6
+
+# Resource limits for 4GB box
+MemoryMax=2G
+MemoryHigh=1.8G
+CPUQuota=150%
+TasksMax=32
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/root/codes/ryan_learning/scripts
+ReadWritePaths=/tmp
+PrivateTmp=false
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=spark-stt
+
+[Install]
+WantedBy=multi-user.target

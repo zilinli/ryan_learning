@@ -159,9 +159,13 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
+      let eventId = 0;
+      let lastActivity = Date.now();
+
       const close = () => {
         if (closed) return;
         closed = true;
+        clearInterval(heartbeatTimer);
         try {
           controller.close();
         } catch {
@@ -169,16 +173,34 @@ export async function POST(req: Request) {
         }
       };
 
+      // Heartbeat: keep proxy connections alive during LLM thinking pauses
+      const heartbeatTimer = setInterval(() => {
+        if (closed || req.signal.aborted) {
+          clearInterval(heartbeatTimer);
+          return;
+        }
+        if (Date.now() - lastActivity > 25_000) {
+          try {
+            controller.enqueue(encoder.encode(":hb\n\n"));
+          } catch {
+            clearInterval(heartbeatTimer);
+          }
+        }
+      }, 15_000);
+
       const send = (event: string, data: unknown) => {
         if (closed || req.signal.aborted) return;
+        eventId += 1;
+        lastActivity = Date.now();
         try {
-          controller.enqueue(encoder.encode(sseEncode(event, data)));
+          controller.enqueue(encoder.encode(`id: ${eventId}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         } catch {
           closed = true;
+          clearInterval(heartbeatTimer);
         }
       };
 
-      const onAbort = () => close();
+      const onAbort = () => { clearInterval(heartbeatTimer); close(); };
       req.signal.addEventListener("abort", onAbort);
 
       try {
@@ -214,6 +236,7 @@ export async function POST(req: Request) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         send("error", { error: msg });
       } finally {
+        clearInterval(heartbeatTimer);
         req.signal.removeEventListener("abort", onAbort);
         close();
       }
@@ -226,6 +249,8 @@ export async function POST(req: Request) {
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
       "Content-Encoding": "identity",
+      "Connection": "keep-alive",
+      "Keep-Alive": "timeout=300",
     },
   });
 }

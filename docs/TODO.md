@@ -174,6 +174,93 @@
 
 ---
 
+## 🔴 Phase 7: Code Agent Reliability (10h)
+
+> **Design:** [code-agent-reliability-design.md](code-agent-reliability-design.md)  
+> **Spec:** [subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)  
+> **Current state:** Service crashes due to: port conflicts, SDK unhandledRejection, stale agent sessions, file write races, SSE silent drops.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 7.1 | **Port pre-flight check in `start.sh`** — kill existing on 3000/3001/8765 before launch | 0.5h | `start.sh` |
+| 7.2 | **Pin `@cursor/sdk` ≥ 1.0.19** + add `process.on('unhandledRejection')` safety net | 1h | `package.json`, `cursor-agent.ts` |
+| 7.3 | **Stale session detection + retry** — on bare `run.wait()` status:error, clear → resume fresh once | 2h | `cursor-agent.ts` |
+| 7.4 | **Agent retry wrapper** — `executeWithRetry()` with exponential backoff (1s→2s→4s) + jitter for `CursorAgentError(isRetryable)` | 2h | new `src/lib/agent-retry.ts`, `cursor-agent.ts` |
+| 7.5 | **Agent run log (JSONL)** — record agentId, runId, status, durationMs per call | 1h | new `src/lib/run-log.ts` |
+| 7.6 | **Atomic file writes** — `lockedWriteJson()` with tmp+rename for `history-store.ts` and `learning-memory-store.ts` | 2h | new `src/lib/file-lock.ts`, `history-store.ts`, `learning-memory-store.ts` |
+| 7.7 | **SSE heartbeat + event IDs** — 15s heartbeat during streaming + `id:` field for reconnect recovery | 1.5h | `chat/route.ts`, `agent-chat/.../chat/route.ts` |
+
+---
+
+## 🔴 Phase 8: Code Agent Mini Window UI (10h)
+
+> **Design:** [subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)  
+> **Current state:** "Code Agent" button opens iframe to port 3001 → blank when service down; cannot close; no vibe coding. Real `MiniConsoleShell` component is orphaned (never wired).
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 8.1 | **Wire `MiniConsoleShell` → replace `AgentConsolePanel`** — rename to `CodeAgentPanel`, import in `TutorShell.tsx`, remove iframe approach | 2h | `MiniConsoleShell.tsx` → `CodeAgentPanel.tsx`, `TutorShell.tsx` |
+| 8.2 | **Fix slide animation** — change `animate-slide-in-left` → `animate-slide-in-right` for right-side panels; add keyframe to `globals.css` | 0.5h | `CodeAgentPanel.tsx`, `globals.css` |
+| 8.3 | **Close button always visible** — X button rendered in header unconditionally; body scroll lock when panel open; mobile backdrop tap + swipe-down close | 1.5h | `CodeAgentPanel.tsx` |
+| 8.4 | **Empty state with guided hints** — show example prompts: "Make text bigger", "Add dark mode color", "Fix photo on mobile" | 1h | `CodeAgentPanel.tsx`, `MiniConsoleThread.tsx` |
+| 8.5 | **Loading skeleton + tool status** — pulsing dots while agent initializes; badges for "Reading…", "Editing…", "Testing…" | 1.5h | `CodeAgentPanel.tsx`, `MiniConsoleThread.tsx` |
+| 8.6 | **Error states** — friendly messages for: service down (retry), agent timeout, network error, no API key | 1h | `CodeAgentPanel.tsx` |
+| 8.7 | **Thread improvements** — increase message truncation 300→500 chars; show 5 messages not 3; auto-scroll to bottom | 1h | `MiniConsoleThread.tsx` |
+| 8.8 | **Session resume** — load previous messages from server session store on open; "New session" button | 1h | `CodeAgentPanel.tsx`, `console-session-store.ts` |
+| 8.9 | **ACC "Open in tab" as fallback** — if port 3001 is reachable, show secondary link; otherwise hide | 0.5h | `CodeAgentPanel.tsx` |
+
+---
+
+## 🔴 Phase 9: STT Service Reliability (4h)
+
+> **Design:** [subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)  
+> **Current state:** STT server crashes in loop (EADDRINUSE 6x consecutive); no process supervision; task queue depth warnings.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 9.1 | **systemd unit for STT server** — `Restart=on-failure`, `RestartSec=5`, `MemoryMax=2G`, `StartLimitBurst=6` | 1h | `/etc/systemd/system/spark-stt.service` |
+| 9.2 | **Pre-flight port check + SIGTERM handler in Python** — kill existing on 8765; graceful shutdown on SIGTERM/SIGINT | 1h | `scripts/stt_server.py`, `start.sh` |
+| 9.3 | **Sequential model loading with error isolation** — load Whisper first, then SenseVoice; continue if one fails | 0.5h | `scripts/stt_server.py` |
+| 9.4 | **Enhanced /health endpoint** — add memory RSS, queue depth, model status per engine | 0.5h | `scripts/stt_server.py` |
+| 9.5 | **STT health check script** — `health-stt.sh` for monitoring + startup dependency | 0.5h | new `scripts/health-stt.sh`, `start.sh` |
+| 9.6 | **Whisper CPU perf tuning** — `beam_size=1` (single beam ~40% faster on CPU) | 0.5h | `scripts/stt_server.py` |
+
+---
+
+## 🔴 Phase 10: Reliability Tests (14h)
+
+> **Design:** [code-agent-test-design.md](code-agent-test-design.md)  
+> **Current state:** 0% test coverage on agent reliability paths, file concurrency, SSE encoding.
+
+### 10.1 Unit Tests (6h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 10.1a | Agent session recovery tests — stale detection, retry count, backoff timing, TTL eviction | 2h | new `src/lib/__tests__/cursor-agent-reliability.test.ts` |
+| 10.1b | Atomic file write tests — concurrency safety, crash recovery, tmp cleanup | 1.5h | new `src/lib/__tests__/history-store-atomic.test.ts` |
+| 10.1c | Agent run log tests — append, getLast, replay, error rate calculation | 1h | new `src/lib/__tests__/run-log.test.ts` |
+| 10.1d | SSE encode tests — event+data format, id field, heartbeat, special chars | 1h | new `src/lib/__tests__/sse-encode.test.ts` |
+| 10.1e | File lock tests — serialized writes, different-file concurrency | 0.5h | `src/lib/__tests__/history-store-atomic.test.ts` |
+
+### 10.2 Integration Tests (5h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 10.2a | Agent session recovery integration — stale session retry, rate limit backoff | 1.5h | new `scripts/verify-agent-recovery.mjs` |
+| 10.2b | SSE reliability integration — heartbeat timing, reconnect with Last-Event-ID, proxy headers | 1h | new `scripts/verify-sse-reliability.mjs` |
+| 10.2c | File locking integration — concurrent history writes, concurrent learning memory, corrupt JSON skip | 1h | new `scripts/verify-file-locking.mjs` |
+| 10.2d | STT reliability integration — health check, restart recovery, concurrent transcription | 1.5h | new `scripts/verify-stt-reliability.mjs` |
+
+### 10.3 E2E + Chaos Tests (3h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 10.3a | Code agent mini window E2E — open, send prompt, verify SSE reply, check diff display, close window | 1.5h | new `scripts/verify-code-agent-e2e.mjs` |
+| 10.3b | Graceful degradation E2E — stop STT, verify text chat still works; stop ACC, verify mini window error | 1h | new `scripts/verify-e2e-reliability.mjs` |
+| 10.3c | Setup CI pipeline (GitHub Actions) — unit on push/PR, integration on self-hosted | 0.5h | `.github/workflows/reliability.yml` |
+
+---
+
 ## 🟢 Nice-to-Have
 
 | # | Task | Effort | Notes |
@@ -182,20 +269,34 @@
 | N1 | Export learning memory as printable PDF | 1d | For parent review |
 | N2 | Inline skill tag on each message (agent-only) | 0.5d | Which skill was practiced |
 | N3 | Tree-shake unused UI from production bundle | 0.5d | |
+| N4 | Code agent: support `/fix`, `/explain`, `/add` slash commands | 1d | Quick vibe coding shortcuts |
+| N5 | Code agent: "Undo last change" button in mini window | 0.5d | Uses git revert |
+| N6 | Code agent: syntax-highlighted code blocks in thread | 1d | Prism.js or Shiki in MiniConsoleThread |
 
 ---
 
 ## 📊 Summary
 
-| Phase | Priority | Remaining | Est. |
+| Phase | Priority | Sub-tasks | Est. |
 |-------|----------|-----------|------|
-| **Phase 0** Full UI | 🔴 Critical | 13 sub-tasks (0.8–0.14) | **6d** |
-| **Phase 6** Testing gaps | 🔴 Critical | 5 items (6.1.1–6.1.5) | **10d** |
-| **Phase 2** Agent | 🟡 Important | 2 items (2.2, 2.4) | **6d** |
-| **Phase 3** Geometry | 🟡 Important | 3 items | **13d** |
-| **Phase 4** Voice | 🟡 Important | 3 items | **9d** |
-| **Phase 5** Platform | 🟢 Nice | 4 items | **9d** |
-| **Phase 6** Add-ons | 🟢 Nice | 7 items | **7.5d** |
+| **Phase 0** Full UI | 🔴 Critical | 13 (0.8–0.14) | **6d** |
+| **Phase 6** Testing gaps | 🔴 Critical | 5 (6.1.1–6.1.5) | **10d** |
+| **Phase 7** Code Agent Reliability | 🔴 Critical | 7 (7.1–7.7) | **10h** |
+| **Phase 8** Mini Window UI | 🔴 Critical | 9 (8.1–8.9) | **10h** |
+| **Phase 9** STT Reliability | 🔴 Critical | 6 (9.1–9.6) | **4h** |
+| **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
+| **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
+| **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
+| **Phase 4** Voice | 🟡 Important | 3 | **9d** |
+| **Phase 5** Platform | 🟢 Nice | 4 | **9d** |
+| **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
+| **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
 
-**Critical path:** 0.8 Composer layout (2d) → 0.9 English chrome (1d) → 0.10 Shell polish (1d) → 0.11 Chat UX (1d) → 0.12–0.14 (1d) → Phase 6 gaps (10d)  
-**Next immediate step:** 0.8a (flatten VoiceControls fragment)
+**Total new critical work (Phases 7–10):** ~38 hours (~5 days)
+
+**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 0 UI (6d) → Phase 6 tests (10d)
+
+**Next immediate steps:**
+1. **Phase 7.1** — Pre-flight port check in `start.sh` (0.5h, prevents EADDRINUSE crash)
+2. **Phase 7.2** — SDK version pin + unhandledRejection safety net (1h, prevents process crash)
+3. **Phase 8.1** — Wire `MiniConsoleShell` → replace `AgentConsolePanel` (2h, enables vibe coding)

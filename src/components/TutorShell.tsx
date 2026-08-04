@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
-import { AgentConsolePanel } from "./AgentConsolePanel";
+import { CodeAgentPanel } from "./CodeAgentPanel";
 import { SetupPanel } from "./SetupPanel";
 import {
   loadSpeakEnabled,
@@ -799,7 +799,7 @@ export function TutorShell() {
         </div>
       </div>
 
-      <AgentConsolePanel open={agentPanelOpen} onClose={() => setAgentPanelOpen(false)} />
+      <CodeAgentPanel open={agentPanelOpen} onClose={() => setAgentPanelOpen(false)} />
     </div>
   );
 }

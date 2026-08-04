@@ -19,21 +19,46 @@ fi
 echo "[Spark] Preparing env..."
 node scripts/ensure-env.mjs >>"$LOG" 2>&1
 
+# ---- Pre-flight: kill any existing processes on our ports ----
+preflight_kill_port() {
+  local port=$1 label=$2
+  local pid
+  pid=$(lsof -ti "tcp:${port}" 2>/dev/null || true)
+  if [[ -n "$pid" ]]; then
+    echo "[Spark] Killing existing ${label} on port ${port} (PID ${pid})..."
+    kill -TERM "$pid" 2>/dev/null || true
+    sleep 2
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+}
+preflight_kill_port 3000 "Spark Tutor"
+preflight_kill_port 3001 "Agent Chat Console"
+preflight_kill_port 8765 "STT Server"
+
 # ---- Agent Chat Console (port 3001) ----
 ACC_DIR="agent-chat"
 ACC_PORT="${ACC_PORT:-3001}"
 if [[ -d "$ACC_DIR" ]]; then
   echo "[Spark] Launching Agent Chat Console on port ${ACC_PORT}..."
   cd "$ACC_DIR"
-  # Symlink parent node_modules if needed
-  [[ -d ../node_modules ]] && [[ ! -e node_modules ]] && ln -sf ../node_modules node_modules
-  mkdir -p logs data/conversations
-  nohup npx next dev -H 0.0.0.0 -p "${ACC_PORT}" >../logs/agent-chat.log 2>&1 &
-  ACC_PID=$!
-  cd ..
-  echo "[Spark] Agent Chat Console PID: ${ACC_PID}  → http://0.0.0.0:${ACC_PORT}"
-  # Cleanup ACC on exit
-  trap "kill ${ACC_PID} 2>/dev/null; echo '[Spark] Stopped Agent Chat Console'" EXIT
+  # Validate / fix node_modules symlink
+  if [[ ! -e node_modules/next ]]; then
+    rm -f node_modules
+    [[ -d ../node_modules ]] && ln -sf ../node_modules node_modules
+  fi
+  if [[ ! -e node_modules/next ]]; then
+    echo "[Spark] ❌ Agent Chat Console dependencies missing — skipping ACC" >&2
+    cd ..
+  else
+    mkdir -p logs data/conversations
+    nohup npx next dev -H 0.0.0.0 -p "${ACC_PORT}" >../logs/agent-chat.log 2>&1 &
+    ACC_PID=$!
+    echo "[Spark] Agent Chat Console PID: ${ACC_PID} → http://0.0.0.0:${ACC_PORT}"
+    trap "kill ${ACC_PID} 2>/dev/null; echo '[Spark] Stopped Agent Chat Console'" EXIT
+    cd ..
+  fi
+else
+  true  # ACC_DIR not present
 fi
 # --------------------------------
 

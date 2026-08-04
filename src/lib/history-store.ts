@@ -17,6 +17,7 @@ import {
   persistConversationMedia,
   pruneOrphanMedia,
 } from "./media-store";
+import { lockedWriteJson } from "./file-lock";
 
 /** Server-side durable chat history (shared across browsers / devices). */
 const DATA_DIR = path.join(process.cwd(), "data", "conversations");
@@ -137,7 +138,7 @@ export async function enforceServerRetention(): Promise<{
   for (const c of kept) {
     const prev = before.find((x) => x.sessionId === c.sessionId);
     if (prev && prev.messages.length !== c.messages.length) {
-      await fs.writeFile(filePath(c.sessionId), JSON.stringify(c), "utf8");
+      await lockedWriteJson(filePath(c.sessionId), c);
     }
   }
 
@@ -186,13 +187,12 @@ export async function upsertServerConversation(
 ): Promise<ConversationRecord | null> {
   const id = safeId(record.sessionId);
   if (!id) return null;
-  // Skip empty drafts so the global list stays useful
   if (!record.messages?.length) {
     return null;
   }
   await ensureDir();
   const clean = await prepareConversationForServer({ ...record, sessionId: id });
-  await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
+  await lockedWriteJson(filePath(id), clean);
   await enforceServerRetention();
   return clean;
 }
@@ -206,7 +206,7 @@ export async function upsertServerConversations(
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
     const clean = await prepareConversationForServer({ ...rec, sessionId: id });
-    await fs.writeFile(filePath(id), JSON.stringify(clean), "utf8");
+    await lockedWriteJson(filePath(id), clean);
     saved.push(clean);
   }
   if (saved.length > 0) await enforceServerRetention();

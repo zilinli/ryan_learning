@@ -13,9 +13,21 @@ import {
   extractGeometryMarkdown,
 } from "./geometry-svg";
 import { preferCompleteTutorText } from "./tutor-text-filter";
+import { appendRunLog } from "./run-log";
 
 const TUTOR_CWD = path.join(process.cwd(), "tutor-workspace");
 const HARNESS_TOOLS = createTutorHarnessTools();
+
+// Safety net: catch unhandled rejections that bypass application try/catch
+// (e.g., SDK internal gRPC errors)
+if (typeof process !== "undefined") {
+  process.on("unhandledRejection", (reason) => {
+    console.error(
+      "[Spark] Unhandled Rejection (safety net):",
+      reason instanceof Error ? reason.message : String(reason),
+    );
+  });
+}
 
 function requireApiKey(): string {
   const key =
@@ -66,7 +78,8 @@ async function getOrCreateAgent(
           customTools: HARNESS_TOOLS,
         },
       });
-    } catch {
+    } catch (err) {
+      // Clear stale mapping — fall through to create fresh
       clearAgentId(sessionId);
     }
   }
@@ -88,6 +101,8 @@ export async function streamTutorReply(params: {
   reset?: boolean;
   signal?: AbortSignal;
   handlers: StreamHandlers;
+  /** Internal: set by retry to prevent infinite recursion. */
+  _staleRetried?: boolean;
 }): Promise<{ agentId: string; fullText: string }> {
   if (params.signal?.aborted) {
     throw new Error("Request cancelled");
@@ -97,6 +112,8 @@ export async function streamTutorReply(params: {
   let fullText = "";
   let emittedViaDelta = false;
   const capturedDiagrams: string[] = [];
+  const startTime = Date.now();
+  let runId = "";
 
   const closeAgent = () => {
     try {
@@ -132,7 +149,6 @@ export async function streamTutorReply(params: {
     const injectDiagram = (diagram: string) => {
       if (!diagram || capturedDiagrams.includes(diagram)) return;
       capturedDiagrams.push(diagram);
-      // Show the figure immediately — models often narrate drawing without pasting.
       if (!fullText.includes("data:image/svg+xml")) {
         const inject = fullText.trim()
           ? `\n\n${diagram}\n\n`
@@ -153,13 +169,12 @@ export async function streamTutorReply(params: {
         }
       },
     });
+    runId = run.id;
 
     for await (const event of run.stream()) {
       if (params.signal?.aborted) {
         throw new Error("Request cancelled");
       }
-      // Always try to surface progressive assistant text (covers SDKs that
-      // batch deltas or only emit full assistant snapshots).
       if (event.type === "assistant") {
         for (const block of event.message.content) {
           if (block.type === "text" && block.text) {
@@ -205,6 +220,26 @@ export async function streamTutorReply(params: {
     }
 
     const result = await run.wait();
+
+    // Log every run for audit / reliability tracking
+    appendRunLog({
+      timestamp: new Date().toISOString(),
+      sessionId: params.sessionId,
+      agentId: agent.agentId,
+      runId: result.id,
+      status: result.status === "error" ? "error" : result.status === "cancelled" ? "cancelled" : "completed",
+      durationMs: result.durationMs ?? (Date.now() - startTime),
+      model: result.model,
+      errorMessage: result.status === "error" ? (result as Record<string,unknown>).error as string : undefined,
+    }).catch(() => {});
+
+    // Stale-session bare error: retry ONCE with fresh agent
+    if (result.status === "error" && !(result as Record<string,unknown>).error && !params._staleRetried) {
+      clearAgentId(params.sessionId);
+      closeAgent();
+      return streamTutorReply({ ...params, _staleRetried: true });
+    }
+
     if (result.status === "error") {
       throw new Error(`Tutor run failed (${result.id}). Try again or start a new chat.`);
     }
@@ -220,6 +255,17 @@ export async function streamTutorReply(params: {
 
     return { agentId: agent.agentId, fullText };
   } catch (err) {
+    // Log error runs
+    appendRunLog({
+      timestamp: new Date().toISOString(),
+      sessionId: params.sessionId,
+      agentId: agent.agentId,
+      runId: runId || "unknown",
+      status: "error",
+      durationMs: Date.now() - startTime,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    }).catch(() => {});
+
     if (params.signal?.aborted) {
       throw new Error("Request cancelled");
     }
