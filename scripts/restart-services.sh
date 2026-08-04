@@ -12,7 +12,7 @@ exec >>"$LOG" 2>&1
 log() { echo "[$(date -Iseconds)] $*"; }
 
 HEALTH_TIMEOUT_MS="${HEALTH_TIMEOUT_MS:-120000}"
-HEALTH_RETRIES="${HEALTH_RETRIES:-6}"
+STT_HEALTH_TIMEOUT_MS="${STT_HEALTH_TIMEOUT_MS:-180000}"
 HEALTH_RETRY_DELAY="${HEALTH_RETRY_DELAY:-10}"
 MAX_BUILD_WAIT="${MAX_BUILD_WAIT:-900}"
 
@@ -38,9 +38,10 @@ stop_service() {
   return 0
 }
 
-# wait_healthy <service> <timeout_ms> <retries> <delay> — poll a single service.
+# wait_healthy <service> <timeout_ms> <delay> — poll a single service until healthy or deadline.
+# Retries are derived from the timeout so the deadline is the binding constraint.
 wait_healthy() {
-  local service="$1" timeout_ms="$2" retries="$3" delay="$4"
+  local service="$1" timeout_ms="$2" delay="$3"
   local deadline=$((SECONDS + timeout_ms / 1000))
   local attempt=0
   while (( SECONDS < deadline )); do
@@ -49,15 +50,15 @@ wait_healthy() {
       log "healthy ${service} (attempt ${attempt})"
       return 0
     fi
-    if (( attempt >= retries )); then
-      log "retries exhausted for ${service} (${attempt})"
-      return 1
-    fi
     sleep "$delay"
   done
-  log "TIMEOUT waiting for ${service} (${timeout_ms}ms)"
+  log "TIMEOUT waiting for ${service} (${timeout_ms}ms, ${attempt} attempts)"
   return 1
 }
+
+# Per-service health timeout (ms). STT model load can take 60–180s on first boot.
+stt_timeout() { echo "${STT_HEALTH_TIMEOUT_MS:-180000}"; }
+app_timeout()  { echo "${HEALTH_TIMEOUT_MS:-120000}"; }
 
 run() {
   local mode="${1:-full}"
@@ -73,17 +74,17 @@ run() {
 
   # ---- STT (8765) — start first, health via /health ----
   start_service spark-stt.service || { log "❌ STT failed to start"; return 1; }
-  wait_healthy "stt" "$HEALTH_TIMEOUT_MS" "$HEALTH_RETRIES" "$HEALTH_RETRY_DELAY" || { log "❌ STT unhealthy"; return 1; }
+  wait_healthy "stt" "$(stt_timeout)" "$HEALTH_RETRY_DELAY" || { log "❌ STT unhealthy"; return 1; }
   log "✅ STT healthy (http://127.0.0.1:8765/health)"
 
   # ---- Spark Tutor (3000) — may need build ----
   start_service spark-tutor.service || { log "❌ Spark failed to start"; return 1; }
-  wait_healthy "spark" "$HEALTH_TIMEOUT_MS" "$HEALTH_RETRIES" "$HEALTH_RETRY_DELAY" || { log "❌ Spark unhealthy"; return 1; }
+  wait_healthy "spark" "$(app_timeout)" "$HEALTH_RETRY_DELAY" || { log "❌ Spark unhealthy"; return 1; }
   log "✅ Spark healthy (http://127.0.0.1:3000/api/setup)"
 
   # ---- Agent Chat Console (3001) ----
   start_service spark-acc.service || { log "❌ ACC failed to start"; return 1; }
-  wait_healthy "acc" "$HEALTH_TIMEOUT_MS" "$HEALTH_RETRIES" "$HEALTH_RETRY_DELAY" || { log "❌ ACC unhealthy"; return 1; }
+  wait_healthy "acc" "$(app_timeout)" "$HEALTH_RETRY_DELAY" || { log "❌ ACC unhealthy"; return 1; }
   log "✅ ACC healthy (http://127.0.0.1:3001/api/setup)"
 
   log "==== all services healthy ===="
