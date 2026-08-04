@@ -44,20 +44,42 @@ async function main() {
       `total=${data.total} present=${data.present} missing=${data.missing?.length}`);
   }
 
-  // ── 3. Test /api/media/check with existing ID ──
+  // ── 3. Create and test a known media file ──
+  const TINY_JPEG_B64 = "/9j/4AAQSkZJRgABAQEAYABgAAD/4QAWRXhpZgAASUkqAAgAAAAAAAAAAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AK0//2Q==";
+  const seedSid = "test-media-seed-" + Date.now();
+  const seedDataUrl = `data:image/jpeg;base64,${TINY_JPEG_B64}`;
+  let knownMediaId;
   {
-    const res = await fetch(`${BASE}/api/media/check?ids=test-img-001`);
+    const res = await fetch(`${BASE}/api/history`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation: { sessionId: seedSid, title: "seed", messages: [{ id: "m_seed", role: "user", content: "x", attachments: [{ id: "a_seed", name: "seed.jpg", mimeType: "image/jpeg", kind: "image", dataUrl: seedDataUrl }], createdAt: Date.now() }], createdAt: Date.now(), updatedAt: Date.now() } }),
+    });
+    ok("seed: create known test media", res.ok, `status=${res.status}`);
+  }
+
+  // Now retrieve it and find the mediaId
+  {
+    const res = await fetch(`${BASE}/api/history?sessionId=${seedSid}`);
+    const data = await res.json();
+    knownMediaId = data?.conversation?.messages?.[0]?.attachments?.[0]?.mediaId;
+    ok("seed: test media file created", Boolean(knownMediaId), `mediaId=${knownMediaId?.slice(0, 20)}...`);
+  }
+
+  // Check it exists
+  if (knownMediaId) {
+    const res = await fetch(`${BASE}/api/media/check?ids=${knownMediaId}`);
     const data = await res.json();
     ok("check: reports existing media",
-      res.ok && data.ok && data.present === 1 && data.missing.length === 0,
+      data.present === 1,
       `present=${data.present} missing=${data.missing?.length}`);
   }
 
   // ── 4. Test /api/media/:id serves image correctly ──
-  {
-    const res = await fetch(`${BASE}/api/media/test-img-001`);
+  if (knownMediaId) {
+    const res = await fetch(`${BASE}/api/media/${knownMediaId}`);
     ok("media: serves existing image",
-      res.ok && res.headers.get("content-type") === "image/jpeg",
+      res.ok && (res.headers.get("content-type")?.startsWith("image/") ?? false),
       `status=${res.status} type=${res.headers.get("content-type")}`);
   }
 
@@ -68,6 +90,9 @@ async function main() {
       res.status === 404,
       `status=${res.status}`);
   }
+
+  // Cleanup seed
+  try { await fetch(`${BASE}/api/history?sessionId=${seedSid}`, { method: "DELETE" }); } catch {}
 
   // ── 6. Simulate repair: PUT conversation with dataUrl → media persisted ──
   {

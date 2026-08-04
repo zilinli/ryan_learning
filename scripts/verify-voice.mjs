@@ -236,16 +236,30 @@ async function main() {
   const newResult = await speakPreview();
   ok("fixed Speak-on sets wantSpeak first", newResult === "played");
 
-  // WAV upload path still accepts audio
+  // WAV upload path still accepts audio (use real speech, not a pure tone)
   {
-    const wav = join(tmpdir(), "tone.wav");
-    spawnSync("ffmpeg", ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-ar", "16000", "-ac", "1", wav], { stdio: "ignore" });
-    const form = new FormData();
-    form.append("audio", new Blob([readFileSync(wav)], { type: "audio/wav" }), "speech.wav");
-    const res = await fetch("http://127.0.0.1:3000/api/transcribe", { method: "POST", body: form });
-    const j = await res.json();
-    // sine may yield empty text — endpoint must not 500
-    ok("transcribe WAV does not 500", res.status === 200 || res.status === 422, `status=${res.status} body=${JSON.stringify(j)}`);
+    const wav = join(tmpdir(), "transcribe-test.wav");
+    // Synthesize real speech via TTS, then convert to WAV
+    const ttsRes = await fetch("http://127.0.0.1:8765/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Hello", voice: "en-US-AvaNeural" }),
+    });
+    if (ttsRes.ok) {
+      const mp3 = join(tmpdir(), "transcribe-test.mp3");
+      writeFileSync(mp3, Buffer.from(await ttsRes.arrayBuffer()));
+      spawnSync("ffmpeg", ["-y", "-i", mp3, "-ac", "1", "-ar", "16000", wav], { stdio: "ignore" });
+      const form = new FormData();
+      form.append("audio", new Blob([readFileSync(wav)], { type: "audio/wav" }), "speech.wav");
+      form.append("language", "en");
+      const res = await fetch("http://127.0.0.1:3000/api/transcribe", { method: "POST", body: form });
+      const j = await res.json();
+      ok("transcribe WAV does not 500", res.status === 200 || res.status === 422, `status=${res.status} body=${JSON.stringify(j)}`);
+      try { unlinkSync(mp3); } catch {}
+    } else {
+      ok("transcribe WAV does not 500", false, `TTS failed: ${ttsRes.status}`);
+    }
+    try { unlinkSync(wav); } catch {}
   }
 
   console.log(`\n=== ${failed === 0 ? "ALL PASSED" : `${failed} FAILED`} ===`);

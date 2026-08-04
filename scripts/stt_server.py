@@ -278,8 +278,6 @@ def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
     if lang == "en":
         base["language"] = "en"
         base["initial_prompt"] = "Hello. I need help with my homework today."
-        base["beam_size"] = 2
-        base["best_of"] = 2
         return base
     if lang == "es":
         base["language"] = "es"
