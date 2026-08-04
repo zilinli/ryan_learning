@@ -810,6 +810,87 @@ export function zpdWarmUpSkills(
     .map((x) => x.skill);
 }
 
+// ── SM-2 Review Alerts (Phase 2.1) ──────────────────────────────────
+
+/**
+ * Find skills that are past their SM-2 review interval and need refreshing.
+ * Sorted by how overdue they are (days past interval).
+ */
+export function needsReviewSkills(
+  mem: LearningMemory,
+  limit = 3,
+): SkillMastery[] {
+  const decayed = applyMemoryDecay(normalizeMemory(mem));
+  const now = Date.now();
+  const overdue = decayed.skills
+    .filter((s) => {
+      if (!s.sm2State.prevReview || s.sm2State.interval <= 0) return false;
+      const daysSince = (now - s.sm2State.prevReview) / 86_400_000;
+      return daysSince >= s.sm2State.interval * 0.8;
+    })
+    .map((s) => {
+      const daysSince = (now - s.sm2State.prevReview) / 86_400_000;
+      const overdueDays = daysSince - s.sm2State.interval;
+      return { skill: s, overdueDays };
+    })
+    .sort((a, b) => b.overdueDays - a.overdueDays)
+    .slice(0, limit)
+    .map((x) => x.skill);
+  return overdue;
+}
+
+// ── Confidence-BKT Mismatch Detection (Phase 2.4) ────────────────────
+
+export type ConfidenceMismatch = {
+  skillId: string;
+  label: string;
+  type: "underconfident" | "overconfident";
+  pKnown: number;
+  confidence: number;
+};
+
+/**
+ * Detect significant gaps between BKT estimate (pKnown) and student
+ * self-reported confidence (1-3). Gaps suggest either lack of confidence
+ * in a known skill, or overconfidence on a shaky one.
+ *
+ * Returns the highest-priority mismatch or null if none found.
+ */
+export function detectConfidenceMismatch(
+  mem: LearningMemory,
+): ConfidenceMismatch | null {
+  const normalized = normalizeMemory(mem);
+  let best: ConfidenceMismatch | null = null;
+  let bestScore = 0;
+
+  for (const s of normalized.skills) {
+    if (s.confidence == null || s.attempts < 2) continue;
+
+    const bktPct = s.pKnown * 100;
+    const confScaled = s.confidence / 3 * 100;
+
+    // Underconfident: BKT ≥ 75%, confidence ≤ 1
+    if (bktPct >= 75 && s.confidence <= 1) {
+      const gap = bktPct - confScaled;
+      if (gap > bestScore) {
+        bestScore = gap;
+        best = { skillId: s.id, label: s.label, type: "underconfident", pKnown: s.pKnown, confidence: s.confidence };
+      }
+    }
+
+    // Overconfident: BKT ≤ 35%, confidence ≥ 3
+    if (bktPct <= 35 && s.confidence >= 3) {
+      const gap = confScaled - bktPct;
+      if (gap > bestScore) {
+        bestScore = gap;
+        best = { skillId: s.id, label: s.label, type: "overconfident", pKnown: s.pKnown, confidence: s.confidence };
+      }
+    }
+  }
+
+  return best;
+}
+
 // ── Prompt Lines ────────────────────────────────────────────────────
 
 /** Compact lines for the tutor system prompt */

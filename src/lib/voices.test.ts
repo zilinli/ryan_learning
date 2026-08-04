@@ -58,9 +58,10 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   it("keeps fixed non-English voices even for English text", () => {
     expect(resolveEdgeVoice("yunxi", "Hello")).toBe("zh-CN-YunxiNeural");
     expect(resolveEdgeVoice("jorge", "Hello")).toBe("es-MX-JorgeNeural");
+    expect(resolveEdgeVoice("henri", "Hello")).toBe("fr-FR-HenriNeural");
   });
 
-  it("switches English fixed voice when chunk is Chinese/Spanish", () => {
+  it("switches English fixed voice when chunk is Chinese/Spanish/French", () => {
     expect(resolveEdgeVoice("ava", "请用中文解释")).toBe(
       "zh-HK-WanLungNeural",
     );
@@ -69,6 +70,9 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     );
     expect(resolveEdgeVoice("ryan", "¿Qué significa esto?")).toBe(
       "es-ES-AlvaroNeural",
+    );
+    expect(resolveEdgeVoice("ryan", "Bonjour, comment ça va ?")).toBe(
+      "fr-FR-HenriNeural",
     );
   });
 
@@ -99,6 +103,11 @@ describe("detectSpeechLang", () => {
     expect(detectSpeechLang("Muchas gracias por la ayuda")).toBe("es");
   });
 
+  it("detects French via accents and common words", () => {
+    expect(detectSpeechLang("Bonjour, comment ça va ?")).toBe("fr");
+    expect(detectSpeechLang("Merci beaucoup pour l'aide")).toBe("fr");
+  });
+
   it("defaults to English", () => {
     expect(detectSpeechLang("Find the evidence in paragraph two.")).toBe("en");
   });
@@ -111,6 +120,7 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(replyLangFromVoice("yunxi")).toBe("zh");
     expect(replyLangFromVoice("wanLung")).toBe("yue");
     expect(replyLangFromVoice("alvaro")).toBe("es");
+    expect(replyLangFromVoice("henri")).toBe("fr");
     expect(replyLangFromVoice("xiaoxiao")).toBe("zh");
   });
 

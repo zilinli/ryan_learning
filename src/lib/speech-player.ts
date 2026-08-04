@@ -444,6 +444,7 @@ function mapEdgeToId(edge: string): TutorVoiceId {
   if (edge.startsWith("zh-")) return "yunxi";
   if (edge.startsWith("es-MX")) return "jorge";
   if (edge.startsWith("es-")) return "alvaro";
+  if (edge.startsWith("fr-")) return "henri";
   if (edge.includes("Ryan") || edge.includes("en-GB")) return "ryan";
   return "ava";
 }

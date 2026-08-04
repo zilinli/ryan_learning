@@ -1,7 +1,7 @@
 import { normalizeVoiceId, type TutorVoiceId } from "./voices";
 
 /** Languages the STT backend understands */
-export type SttLang = "auto" | "en" | "zh" | "yue" | "es";
+export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr";
 
 /** Map tutor voice preference → recognition language hint */
 export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang {
@@ -16,6 +16,8 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
     case "alvaro":
     case "jorge":
       return "es";
+    case "henri":
+      return "fr";
     case "auto":
     default:
       return "auto";

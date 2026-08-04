@@ -6,7 +6,7 @@ export const maxDuration = 120;
 
 const STT_URL = process.env.STT_URL || "http://127.0.0.1:8765/transcribe";
 
-const ALLOWED = new Set(["auto", "en", "zh", "yue", "es"]);
+const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr"]);
 
 function pickFilename(audio: Blob): string {
   const named = (audio as File).name;

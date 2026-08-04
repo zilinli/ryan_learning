@@ -10,6 +10,7 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromVoice("wanLung")).toBe("yue");
     expect(sttLangFromVoice("alvaro")).toBe("es");
     expect(sttLangFromVoice("jorge")).toBe("es");
+    expect(sttLangFromVoice("henri")).toBe("fr");
   });
 
   it("honors legacy voice ids via normalizeVoiceId", () => {

@@ -318,6 +318,18 @@ def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
     return base
 
 
+def _wav_duration(wav_path: str) -> float:
+    """Return WAV duration in seconds; 0 if unreadable."""
+    try:
+        import wave
+        with wave.open(wav_path, "rb") as wf:
+            frames = wf.getnframes()
+            rate = wf.getframerate()
+            return frames / max(rate, 1)
+    except Exception:
+        return 0.0
+
+
 def _wav_rms(wav_path: str) -> float:
     """Rough RMS of a 16-bit WAV; 0 if unreadable."""
     try:
@@ -341,12 +353,13 @@ def _text_usable(text: str) -> bool:
         return False
     # Strip light punctuation for length checks
     core = re.sub(r"[\s.,!?;:。！？、…\"'“”]+", "", t)
-    if len(core) < 2:
+    if len(core) < 1:
         return False
-    # Single-token Latin hallucinations on noise ("I", "te", "a.")
+    # Single-token Latin hallucinations on noise: reject "I", "te", "a." etc
+    # but accept plausible short answers like "Yes", "No", "Sí", "Hola"
     if not _CJK_RE.search(t):
         words = _LATIN_WORD_RE.findall(t)
-        if len(words) <= 1 and len(core) <= 4:
+        if len(words) <= 1 and len(core) <= 2:
             return False
     return True
 
@@ -430,16 +443,24 @@ def _transcribe_whisper(
 def _transcribe_pipeline(wav_path: str, lang: str) -> tuple[str, str, str]:
     """Return (text, detected_lang, engine)."""
     rms = _wav_rms(wav_path)
-    if rms < 0.004:
+    # Much lower gate — phone mics, quiet speakers, and peak-normalized clips
+    # commonly land at 0.001–0.008 RMS. 0.0015 catches real speech while still
+    # rejecting dead-air captures.
+    if rms < 0.0015:
         return "", lang, "silence"
 
     # Spanish is Whisper-only; SenseVoice coverage is zh/yue/en/ja/ko
     use_sv = lang in SENSEVOICE_LANGS and get_sense_voice(lang) is not None
     if lang == "es":
         use_sv = False
-    if lang == "en" and get_sense_voice(lang) is not None:
-        # SenseVoice handles English well and is much faster on CPU
-        use_sv = True
+    if lang == "en":
+        # SenseVoice auto-LID on English short clips (under 4s) is unreliable —
+        # it can produce garbled Latin text or mis-detect as ja/ko. Prefer
+        # Whisper for English on short audio (the common tutoring case).
+        # Only use SenseVoice for English if it's explicitly requested AND the
+        # WAV is long enough for the LID to work reliably.
+        _wav_dur = _wav_duration(wav_path)
+        use_sv = _wav_dur > 4.0 and get_sense_voice(lang) is not None
 
     if use_sv:
         try:
@@ -457,6 +478,12 @@ def _transcribe_pipeline(wav_path: str, lang: str) -> tuple[str, str, str]:
         # VAD sometimes eats short tutoring clips — retry raw
         text2, detected2 = _transcribe_whisper(wav_path, lang, vad=False)
         if _text_usable(text2):
+            return text2, detected2, "whisper"
+        # Both failed — if VAD text is non-empty but short, return it anyway
+        if text and text.strip() and len(text.strip()) >= 1:
+            return text, detected, "whisper"
+        # Give text2 a chance too if it has something
+        if text2 and text2.strip() and len(text2.strip()) >= 1:
             return text2, detected2, "whisper"
         return text, detected, "whisper"
     return text, detected, "whisper"

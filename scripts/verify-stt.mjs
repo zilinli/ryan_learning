@@ -93,8 +93,8 @@ async function main() {
   );
   ok(
     "SenseVoice enabled for zh/yue",
-    health.sensevoice === true,
-    `sensevoice=${health.sensevoice} err=${health.sensevoice_error || ""}`,
+    health.sensevoice_loaded === true,
+    `sensevoice=${health.sensevoice_loaded} err=${health.sensevoice_error || ""}`,
   );
 
   const cases = [

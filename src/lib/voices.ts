@@ -5,9 +5,10 @@ export type TutorVoiceId =
   | "yunxi"
   | "wanLung"
   | "alvaro"
-  | "jorge";
+  | "jorge"
+  | "henri";
 
-export type SpeechLang = "en" | "zh" | "yue" | "es";
+export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr";
 
 export type TutorVoice = {
   id: TutorVoiceId;
@@ -79,6 +80,13 @@ export const TUTOR_VOICES: TutorVoice[] = [
     preview: "Hola, soy Spark. Leeré las respuestas en español de México.",
     lang: "es",
   },
+  {
+    id: "henri",
+    label: "Henri (French)",
+    edgeVoice: "fr-FR-HenriNeural",
+    preview: "Bonjour, je suis Spark. Je lirai les réponses en français.",
+    lang: "fr",
+  },
 ];
 
 /** All edge-tts ShortNames we allow through the API */
@@ -96,6 +104,8 @@ export const ALLOWED_EDGE_VOICES = [
   "es-MX-DaliaNeural",
   "es-MX-JorgeNeural",
   "es-US-PalomaNeural",
+  "fr-FR-HenriNeural",
+  "fr-FR-DeniseNeural",
 ] as const;
 
 const VOICE_IDS = new Set<string>(TUTOR_VOICES.map((v) => v.id));
@@ -137,10 +147,15 @@ export function countYueSignals(text: string): number {
 export function detectSpeechLang(text: string): SpeechLang {
   const t = text || "";
   const han = (t.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
-  const letters = (t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g) || []).length;
+  const letters = (t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñÀÂÄÈÊËÏÎÔÙÛÜŸÇàâäèêëïîôùûüÿç]/g) || []).length;
   const spanishMarks = (t.match(/[ñÑ¿¡]/g) || []).length;
+  const frenchMarks = (t.match(/[àâäèêëïîôùûüÿçÀÂÄÈÊËÏÎÔÙÛÜŸÇœŒæÆ]/g) || []).length;
   const strongEs =
     /\b(hola|gracias|porque|también|niño|niña|señor|señora|usted|está|están|qué|cómo|cuándo|dónde|buenos|días|mucho|gusto|español|lectura|pregunta)\b/i.test(
+      t,
+    );
+  const strongFr =
+    /\b(bonjour|bonsoir|merci|parce|aussi|français|francais|s'il|vous|nous|avec|pour|dans|cette|comment|pourquoi|aujourd'hui|élève|devoirs|lecture|question)\b/i.test(
       t,
     );
 
@@ -157,6 +172,15 @@ export function detectSpeechLang(text: string): SpeechLang {
   ) {
     return "es";
   }
+  if (frenchMarks >= 1 || strongFr) return "fr";
+  if (
+    /[àâäèêëïîôùûüÿçÀÂÄÈÊËÏÎÔÙÛÜŸÇ]/.test(t) &&
+    /\b(le|la|les|de|des|un|une|est|et|pour|dans|avec|que|qui|je|tu|il|elle|nous|vous)\b/i.test(
+      t,
+    )
+  ) {
+    return "fr";
+  }
   return "en";
 }
 
@@ -164,6 +188,7 @@ function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "yue") return "zh-HK-WanLungNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
+  if (lang === "fr") return "fr-FR-HenriNeural";
   return "en-US-AvaNeural";
 }
 
@@ -178,13 +203,13 @@ export function resolveEdgeVoice(
     return edgeVoiceForLang(detectSpeechLang(text));
   }
 
-  // Fixed voice — but if English voice + Chinese/Spanish text, switch so TTS isn't garbled
+  // Fixed voice — but if English voice + Chinese/Spanish/French text, switch so TTS isn't garbled
   const fixed = getTutorVoice(id);
   if (fixed.lang === "en") {
     const lang = detectSpeechLang(text);
     if (lang !== "en") return edgeVoiceForLang(lang);
   }
-  // Cantonese / Mandarin / Spanish fixed voices: always use them
+  // Cantonese / Mandarin / Spanish / French fixed voices: always use them
   return fixed.edgeVoice;
 }
 
@@ -231,7 +256,7 @@ export function saveSpeakEnabled(enabled: boolean) {
 }
 
 /** Reply language locked by the voice picker (Auto = follow the student). */
-export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es";
+export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr";
 
 export function replyLangFromVoice(
   voiceId: TutorVoiceId | string | null | undefined,
@@ -247,6 +272,8 @@ export function replyLangFromVoice(
     case "alvaro":
     case "jorge":
       return "es";
+    case "henri":
+      return "fr";
     case "auto":
     default:
       return "auto";
@@ -285,6 +312,7 @@ export function resolveReplyLanguage(
   if (detected === "yue") return preferredChinese === "zh" ? "zh" : "yue";
   if (detected === "zh") return preferredChinese === "yue" ? "yue" : "zh";
   if (detected === "es") return "es";
+  if (detected === "fr") return "fr";
   if (detected === "en") {
     // Pure English → stay Auto so agent can still match if later turns switch
     return "auto";
@@ -298,7 +326,7 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
     return [
       "",
       "[Reply language — Auto — Chinese defaults to 粤语 / 广东话]",
-      "- Match the student's language (English / 粤语 / 普通话 / Español).",
+      "- Match the student's language (English / 粤语 / 普通话 / Español / Français).",
       "- When producing Chinese (including translations), write in 【粤语 / 广东话】by default (口语自然，可用粤语书面语).",
       "- Use 【简体中文普通话】only if the student clearly asks for 普通话/国语/Mandarin.",
       "- If the message mixes languages, follow the student's main language.",
@@ -334,6 +362,17 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
       "- 英文只用于引用题目原文；引用要照抄。",
       "- 提问同提示都用粤语，例如：「你睇吓呢一句，你觉得系咩意思？」",
       "- 数学用 LaTeX；解释用粤语。",
+    ];
+  }
+  if (mode === "fr") {
+    return [
+      "",
+      "[Reply language — Français — REQUIRED]",
+      "- Réponds presque entièrement en français naturel et clair (priorité absolue).",
+      "- N'explique pas en anglais sauf pour citer le texte original de l'exercice.",
+      "- Les citations de photos/PDF doivent rester dans la langue d'origine.",
+      "- Questions et indices aussi en français, p. ex. : « Regarde cette phrase : qu'est-ce que tu penses que ça veut dire ? »",
+      "- Les formules peuvent rester en LaTeX ; les explications en français.",
     ];
   }
   // es

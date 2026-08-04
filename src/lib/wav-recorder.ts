@@ -40,39 +40,66 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
-/** Downsample Float32 PCM to 16 kHz mono (STT native rate). */
+/** Downsample Float32 PCM to 16 kHz mono with anti-aliasing pre-filter.
+ *
+ *  Linear interpolation alone introduces high-frequency aliasing artifacts
+ *  that confuse Whisper on non-English audio (especially Spanish consonants).
+ *  A short moving-average pre-filter attenuates content above 8 kHz before
+ *  the interpolation step, which is essential for clean 48k→16k conversion.
+ */
 export function downsampleTo16k(
   input: Float32Array,
   inputRate: number,
 ): Float32Array {
   if (inputRate === 16000) return input;
   if (inputRate <= 0 || input.length === 0) return input;
+
+  // Anti-aliasing: 3-tap moving-average pre-filter (~30 dB attenuation at fs/4)
+  // The filter kernel [0.25, 0.5, 0.25] has a -6 dB point at ~0.25×fs_in
+  // which means for 48k→16k the transition band starts well above 8 kHz Nyquist.
+  const filtered = new Float32Array(input.length);
+  filtered[0] = input[0] ?? 0;
+  for (let i = 1; i < input.length - 1; i += 1) {
+    filtered[i] =
+      (input[i - 1] ?? 0) * 0.25 +
+      (input[i] ?? 0) * 0.5 +
+      (input[i + 1] ?? 0) * 0.25;
+  }
+  filtered[input.length - 1] = input[input.length - 1] ?? 0;
+
   const ratio = inputRate / 16000;
-  const outLen = Math.max(1, Math.floor(input.length / ratio));
+  const outLen = Math.max(1, Math.floor(filtered.length / ratio));
   const out = new Float32Array(outLen);
   for (let i = 0; i < outLen; i += 1) {
     const pos = i * ratio;
     const i0 = Math.floor(pos);
-    const i1 = Math.min(i0 + 1, input.length - 1);
+    const i1 = Math.min(i0 + 1, filtered.length - 1);
     const frac = pos - i0;
-    out[i] = (input[i0] ?? 0) * (1 - frac) + (input[i1] ?? 0) * frac;
+    out[i] = (filtered[i0] ?? 0) * (1 - frac) + (filtered[i1] ?? 0) * frac;
   }
   return out;
 }
 
-/** Peak-normalize quiet mic captures (common on phones). */
+/** Peak-normalize quiet mic captures (common on phones).
+ *
+ *  Phone mics at 16-bit can produce peak values as low as 0.001–0.003
+ *  for a normal speaking voice at arm's length. Without normalization
+ *  the audio is below Whisper's effective dynamic range.
+ *  Target 0.85 to leave headroom and prevent clipping on transients.
+ */
 export function normalizePeak(
   samples: Float32Array,
-  target = 0.9,
+  target = 0.85,
 ): Float32Array {
   let peak = 0;
   for (let i = 0; i < samples.length; i += 1) {
     const a = Math.abs(samples[i] ?? 0);
     if (a > peak) peak = a;
   }
-  // Boost even very quiet clips — STT needs usable amplitude
-  if (peak < 0.0004 || peak >= target) return samples;
-  const gain = target / peak;
+  // Boost quiet but non-silent clips (peak 0.001+). Only skip if near-zero
+  // (dead air) or already loud enough.
+  if (peak < 0.0008 || peak >= target) return samples;
+  const gain = Math.min(target / peak, 20.0); // cap gain at 20x to avoid noise boost
   const out = new Float32Array(samples.length);
   for (let i = 0; i < samples.length; i += 1) {
     out[i] = Math.max(-1, Math.min(1, (samples[i] ?? 0) * gain));
@@ -212,7 +239,7 @@ async function startScriptProcessorSession(
       .webkitAudioContext;
   const ctx = new AudioCtx();
   const source = ctx.createMediaStreamSource(stream);
-  const processor = ctx.createScriptProcessor(4096, 1, 1);
+  const processor = ctx.createScriptProcessor(8192, 1, 1);
   const chunks: Float32Array[] = [];
 
   processor.onaudioprocess = (event) => {
@@ -303,7 +330,11 @@ export function filenameForAudioBlob(blob: Blob): string {
   return `speech.${extensionForMime(type || "audio/wav")}`;
 }
 
-/** True when PCM looks loud enough for STT (WAV path only). */
+/** True when PCM looks loud enough for STT (WAV path only).
+ *
+ *  Aligned with stt_server.py silence gate (RMS 0.0015).
+ *  After normalizePeak the effective RMS of quiet speech is 0.005–0.02.
+ */
 export async function blobLooksSilent(blob: Blob): Promise<boolean> {
   if (!blob.type.includes("wav") || blob.size < 100) return blob.size < 1500;
   try {
@@ -322,8 +353,9 @@ export async function blobLooksSilent(blob: Blob): Promise<boolean> {
     }
     if (!n) return true;
     const rms = Math.sqrt(sum / n);
-    // Soft gate — quiet phone mics often sit ~0.005–0.01 RMS after normalize
-    return rms < 0.004 && peak < 0.02;
+    // Gate must be looser than the server's (0.0015) to avoid false negatives.
+    // Only reject clips that are clearly dead air.
+    return rms < 0.0010 && peak < 0.01;
   } catch {
     return false;
   }

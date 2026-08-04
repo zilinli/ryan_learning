@@ -12,6 +12,7 @@ import {
 } from "./student-profile";
 import {
   learningMemoryPromptLines,
+  detectConfidenceMismatch,
   type LearningMemory,
 } from "./learning-memory";
 import type { EngagementState } from "./engagement";
@@ -53,6 +54,9 @@ function audienceLine(mode: ReplyLangMode): string {
   if (mode === "es") {
     return "Audience: student who wants tutoring mainly in Spanish.";
   }
+  if (mode === "fr") {
+    return "Audience: student who wants tutoring mainly in French.";
+  }
   if (mode === "en") {
     return "Audience: international-school student; reply in English.";
   }
@@ -69,6 +73,9 @@ function styleLine(mode: ReplyLangMode): string {
   if (mode === "es") {
     return "Style: profesor paciente en español — socrático e interactivo; el alumno piensa primero; breve, apto para móvil y voz.";
   }
+  if (mode === "fr") {
+    return "Style: professeur patient en français — socratique et interactif ; l'élève réfléchit d'abord ; court, adapté au téléphone et à la voix.";
+  }
   return "Style: warm AI teacher — Socratic and interactive; student thinks first; short enough for phone + TTS.";
 }
 
@@ -76,6 +83,7 @@ function findThisCue(mode: ReplyLangMode): string {
   if (mode === "zh") return "**找到这里**";
   if (mode === "yue") return "**睇呢度**";
   if (mode === "es") return "**Mira aquí**";
+  if (mode === "fr") return "**Regarde ici**";
   return "**Find this**";
 }
 
@@ -84,11 +92,13 @@ function defaultStudentLine(mode: ReplyLangMode, hasHomework: boolean): string {
     if (mode === "zh") return "请帮帮我。";
     if (mode === "yue") return "请帮吓我。";
     if (mode === "es") return "Ayúdame por favor.";
+    if (mode === "fr") return "Aide-moi s'il te plaît.";
     return "Please help me.";
   }
   if (mode === "zh") return "请看我的作业，一步一步教我。";
   if (mode === "yue") return "请睇吓我嘅功课，一步一步教我。";
   if (mode === "es") return "Por favor mira mi tarea y ayúdame paso a paso.";
+  if (mode === "fr") return "S'il te plaît, regarde mon devoir et aide-moi étape par étape.";
   return "Please look at my homework and help me understand it step by step.";
 }
 
@@ -149,6 +159,37 @@ function subjectCoachingLines(): string {
   ].join("\n");
 }
 
+function crossDisciplineLines(): string {
+  return [
+    "",
+    "[Cross-discipline connections — build lateral thinking]",
+    "- When a topic naturally bridges subjects, connect them:",
+    "  • Ancient Egypt, Rome, etc. → weave in fractions, measurement, or scaling (math + humanities)",
+    "  • Reading a science passage → the same evidence skills apply as in reading comprehension",
+    "  • Writing about ecosystems or space → combine science facts + narrative structure",
+    "  • Word problems about animals or history → reading comprehension meets math reasoning",
+    "- If the student shows curiosity about a cross-subject link, lean into it — this is BASIS-style interdisciplinary thinking.",
+    "- Do NOT force a connection if the topic is clearly single-subject and the student is focused.",
+    "",
+  ].join("\n");
+}
+
+function confidenceMismatchPromptLines(mem?: LearningMemory | null): string[] {
+  if (!mem) return [];
+  const mismatch = detectConfidenceMismatch(mem);
+  if (!mismatch) return [];
+  if (mismatch.type === "underconfident") {
+    return [
+      "",
+      `[Confidence note: Ryan rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT shows ~${Math.round(mismatch.pKnown * 100)}%. He may know more than he thinks — encourage him gently if this topic comes up.]`,
+    ];
+  }
+  return [
+    "",
+    `[Confidence note: Ryan rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT tracks ~${Math.round(mismatch.pKnown * 100)}%. If this topic comes up, gently check his reasoning — celebrate his enthusiasm while confirming understanding.]`,
+  ];
+}
+
 function formatEngagementLines(engagement?: EngagementState | null): string[] {
   if (!engagement || engagement.totalSolves <= 0) return [];
   const bits = [
@@ -200,7 +241,8 @@ export function buildTutorPrompt(params: {
     params.replyLanguage === "en" ||
     params.replyLanguage === "zh" ||
     params.replyLanguage === "yue" ||
-    params.replyLanguage === "es"
+    params.replyLanguage === "es" ||
+    params.replyLanguage === "fr"
       ? params.replyLanguage
       : replyLangFromVoice(params.voiceId || params.replyLanguage);
 
@@ -321,7 +363,9 @@ export function buildTutorPrompt(params: {
     ...studentProfilePromptLines(profile),
     ENVISION_G5_PROMPT_HINT,
     ...subjectCoachingLines(),
+    ...crossDisciplineLines(),
     ...learningMemoryPromptLines(params.learningMemory),
+    ...confidenceMismatchPromptLines(params.learningMemory),
     ...formatEngagementLines(params.engagement),
     "You have lightweight tools: web_search, fetch_page, run_python, run_js, draw_geometry, recall_learner_skills. Use them silently when helpful; never narrate the tool call.",
     "Skill memory: the prompt already includes Ryan’s BKT strengths/weaknesses — use that when asking questions. Call recall_learner_skills if you need a fresh snapshot.",

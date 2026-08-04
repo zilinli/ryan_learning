@@ -79,9 +79,9 @@ export interface ChatRequestBody {
   attachments?: ChatAttachmentPayload[];
   /** Recent text turns (no images) — keeps context if agent was recreated */
   history?: HistoryTurn[];
-  /** Voice picker id: auto | ava | yunxi | wanLung | alvaro … */
+  /** Voice picker id: auto | ava | yunxi | wanLung | alvaro | henri … */
   voiceId?: string;
-  /** Explicit reply language: auto | en | zh | yue | es */
+  /** Explicit reply language: auto | en | zh | yue | es | fr */
   replyLanguage?: string;
   /** Other chat titles for cross-session continuity */
   recentTitles?: string[];

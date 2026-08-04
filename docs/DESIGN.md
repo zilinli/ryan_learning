@@ -48,6 +48,7 @@ flowchart TB
 | **[subsystems/ui-architecture.md](subsystems/ui-architecture.md)** | 🎨 Full-page UI — shell, chat, composer, sidebar, responsive, accessibility, animation |
 | **[subsystems/ui-composer.md](subsystems/ui-composer.md)** | Composer input chrome spec (merged into ui-architecture §4) |
 | **[subsystems/streaming-render-fix.md](subsystems/streaming-render-fix.md)** | ⚡ Streaming render stability — fix for screen flicker during model output |
+| **[subsystems/v2-enhancements.md](subsystems/v2-enhancements.md)** | 📊 V2 analysis report enhancements — Learning Dashboard, cross-discipline, BKT+confidence |
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |
 | **[subsystems/agent-console-panel.md](subsystems/agent-console-panel.md)** | 🖥 Agent Chat Console (port 3001) embedded into Spark sidebar |
