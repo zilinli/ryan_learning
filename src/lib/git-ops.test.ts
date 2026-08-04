@@ -1,10 +1,23 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   detectFileChanges,
   stageAndCommit,
   runTests,
   autoGitPipeline,
 } from "../../agent-chat/src/lib/git-ops";
+
+function makeCleanRepo(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gitops-"));
+  execFileSync("git", ["init", "-q"], { cwd: dir });
+  fs.writeFileSync(path.join(dir, "a.txt"), "hello");
+  execFileSync("git", ["add", "-A"], { cwd: dir });
+  execFileSync("git", ["commit", "-q", "-m", "init", "--no-verify"], { cwd: dir });
+  return dir;
+}
 
 describe("git-ops", () => {
   it("detects file changes from tool_call events", () => {
@@ -28,8 +41,17 @@ describe("git-ops", () => {
   });
 
   it("stageAndCommit guards empty diffs", async () => {
-    const res = await stageAndCommit("/root/codes/ryan_learning", "noop");
+    const dir = makeCleanRepo();
+    const res = await stageAndCommit(dir, "noop");
     expect(res.committed).toBe(false);
+  });
+
+  it("stageAndCommit commits staged changes", async () => {
+    const dir = makeCleanRepo();
+    fs.writeFileSync(path.join(dir, "b.txt"), "world");
+    const res = await stageAndCommit(dir, "feat: add b");
+    expect(res.committed).toBe(true);
+    expect(res.sha).toMatch(/^[0-9a-f]{40}$/);
   });
 
   it("runTests executes npm test with timeout", async () => {
