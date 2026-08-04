@@ -1,6 +1,6 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.2.1 · August 2026  
+> Version 0.3.0 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---
@@ -11,29 +11,44 @@
 flowchart TB
     subgraph Browser["Browser (React SPA)"]
         UI["Chat UI + Composer"]
+        CodeAgent["Code Agent Panel"]
         TTS["Speech Player"]
     end
 
     subgraph Next["Next.js 16 Server"]
-        API["API Routes"]
+        ChatAPI["/api/chat (Tutor)"]
+        ConsoleAPI["/api/console/chat (Code Agent)"]
         Agent["Cursor SDK Agent"]
         Harness["Tutor Harness"]
         Memory["Learning Memory (BKT)"]
         Store["History Store"]
+        GitOps["Auto-Git Pipeline"]
+    end
+
+    subgraph Ops["Systemd Supervision"]
+        Health["health-check.mjs"]
+        Restart["restart-services.sh"]
     end
 
     subgraph External["External Services"]
         Cursor["Cursor Cloud"]
         Edge["Edge Neural TTS"]
         STT["Local STT (8765)"]
+        GitHub["GitHub (develop)"]
     end
 
-    UI --> API
-    API --> Agent --> Cursor
+    UI --> ChatAPI
+    ChatAPI --> Agent --> Cursor
     Agent --> Harness
-    API --> Memory --> Store
+    ChatAPI --> Memory --> Store
     UI --> TTS --> Edge
     UI --> STT
+    CodeAgent --> ConsoleAPI --> Agent
+    ConsoleAPI --> GitOps --> GitHub
+    Health --> ChatAPI
+    Health --> ConsoleAPI
+    Health --> STT
+    Restart --> Health
 ```
 
 ## document map
@@ -219,18 +234,28 @@ graph LR
 ## Deployment
 
 ```
-┌─────────────────────────────────────┐
-│            Nginx (TLS)              │
-│         proxy → localhost:3000      │
-└─────────────┬───────────────────────┘
+┌─────────────────────────────────────────┐
+│            Nginx (TLS)                  │
+│         proxy → localhost:3000          │
+└─────────────┬───────────────────────────┘
               │
     ┌─────────┴──────────┐
     │                    │
-┌───▼──────────┐  ┌──────▼──────────┐
-│ spark-tutor  │  │   spark-stt     │
-│ Next.js :3000│  │ Whisper :8765   │
-└──────────────┘  └─────────────────┘
+┌───▼──────────┐  ┌──────▼──────────┐  ┌──────▼──────────┐
+│ spark-tutor  │  │   spark-stt     │  │   spark-acc     │
+│ Next.js :3000│  │ Whisper :8765   │  │ Next.js :3001   │
+└──────┬───────┘  └──────┬──────────┘  └──────┬──────────┘
+       │                 │                    │
+       └─────────┬───────┘────────────────────┘
+                 │
+     ┌───────────▼────────────┐
+     │  Health Check Gate     │
+     │  health-check.mjs      │
+     │  restart-services.sh   │
+     └────────────────────────┘
 ```
+
+Three `systemd` units (`spark-tutor.service`, `spark-stt.service`, `spark-acc.service`) supervise each process. `restart-services.sh` performs ordered stop → start → health-verify cycles. Each service starts only after its dependency is verified healthy.
 
 ## Key Design Decisions
 
