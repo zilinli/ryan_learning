@@ -37,7 +37,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   it("returns matching voice metadata", () => {
     expect(getTutorVoice("yunxi").edgeVoice).toBe("zh-CN-YunxiNeural");
     expect(getTutorVoice("wanLung").lang).toBe("yue");
-    expect(getTutorVoice("auto").label).toMatch(/Cantonese/);
+    expect(getTutorVoice("auto").label).toMatch(/粤语优先/);
   });
 
   it("auto picks Cantonese TTS for Chinese by default", () => {

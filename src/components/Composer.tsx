@@ -189,7 +189,7 @@ export function Composer({
               setError("");
               setCameraOpen(true);
             }}
-            className={`flex min-h-[2.75rem] items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+            className={`inline-flex min-h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-sm font-semibold transition disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:px-4 ${
               cameraOpen
                 ? "bg-[var(--coral)] text-white"
                 : "bg-[var(--ink)] text-white hover:opacity-90"
@@ -201,7 +201,7 @@ export function Composer({
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
-            <span>Camera</span>
+            <span className="hidden sm:inline">Camera</span>
           </button>
 
           <VoiceControls

@@ -407,15 +407,19 @@ export function VoiceControls({
             void stopListening();
           }
         }}
-        className={`inline-flex min-h-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-full text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+        className={`inline-flex min-h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center gap-1 rounded-full px-2.5 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:min-w-0 sm:px-3 ${
           listening
-            ? "bg-[var(--coral)] px-3 text-white"
+            ? "bg-[var(--coral)] text-white"
             : busy
-              ? "bg-[var(--teal)] px-3 text-white"
-              : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] px-2"
+              ? "bg-[var(--teal)] text-white"
+              : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
         title={touchMode ? "Tap to talk \u00B7 tap again to send" : "Hold to talk"}
-        aria-label="Mic \u2014 hold to talk"
+        aria-label={
+          touchMode
+            ? "Mic \u2014 tap to talk, tap again to send"
+            : "Mic \u2014 hold to talk"
+        }
         aria-pressed={listening}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -424,8 +428,9 @@ export function VoiceControls({
           <line x1="12" y1="19" x2="12" y2="23" />
           <line x1="8" y1="23" x2="16" y2="23" />
         </svg>
-        <span className="hidden sm:inline">
-          {busy ? "..." : listening ? "Done" : touchMode ? "Mic" : "Hold to talk"}
+        {/* Mobile: icon-only when idle; show Done/... while active. Desktop: full label. */}
+        <span className={listening || busy ? "inline" : "hidden sm:inline"}>
+          {busy ? "..." : listening ? "Done" : "Hold to talk"}
         </span>
       </button>
 

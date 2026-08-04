@@ -31,7 +31,7 @@ export const DEFAULT_VOICE_ID: TutorVoiceId = "auto";
 export const TUTOR_VOICES: TutorVoice[] = [
   {
     id: "auto",
-    label: "Auto (Cantonese default)",
+    label: "Auto (粤语优先)",
     edgeVoice: "zh-HK-WanLungNeural",
     preview:
       "Hi — I'll match your language. Chinese defaults to Cantonese.",

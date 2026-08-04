@@ -182,6 +182,8 @@ const lastMessageId = useRef("");
 
 ## 4. Component Interactions (After Fix)
 
+### 4.1 Main Spark App (React, port 3000)
+
 ```
 SSE delta stream (50-200/sec)
   │
@@ -206,6 +208,28 @@ scrollIntoView({ behavior: "instant" })
 MarkdownMessage (only the last one) re-renders
 ```
 
+### 4.2 Agent Chat Console (Vanilla JS, port 3001)
+
+```
+SSE delta stream (50-200/sec)
+  │
+  ▼
+send()'s SSE parsing loop
+  │  updates streamingContent/statusText in-place
+  │
+  ▼  scheduleRender() batched to 60/sec via rAF
+requestAnimationFrame
+  │
+  ▼  fastUpdateStreaming()
+  │  ┌─ msg count unchanged? → target .streaming .bubble's innerHTML only
+  │  └─ msg count changed?   → full renderMsgs() innerHTML rebuild
+  │
+  ▼
+.streaming .bubble content updated (fadeIn animation NOT re-triggered)
+```
+
+Key difference from previous approach: `renderMsgs()` is no longer called on every delta. Instead, `fastUpdateStreaming()` does a **targeted DOM update** — it updates only the `.streaming > .bubble` innerHTML, avoiding recreating the `.streaming` element and re-triggering its `fadeIn` CSS animation. A full `renderMsgs()` rebuild only occurs when the message count changes (new message added) or on the first streaming frame.
+
 ---
 
 ## 5. Files Changed
@@ -215,6 +239,7 @@ MarkdownMessage (only the last one) re-renders
 | `src/components/TutorShell.tsx` | Throttle `onDelta` → `setStore` via rAF; remove competing scroll effect | Core fix — reduces re-renders |
 | `src/components/ChatThread.tsx` | Throttle scroll, use instant scroll during streaming, conditional animation | Eliminates scroll jitter |
 | `src/components/MarkdownMessage.tsx` | Wrap with `React.memo` | Prevents unnecessary re-renders |
+| `agent-chat/public/index.html` | rAF-batched `scheduleRender()` + targeted `fastUpdateStreaming()` DOM updates | Eliminates innerHTML full-rebuild flash on every SSE delta |
 
 ---
 

@@ -110,6 +110,7 @@ let msgs=[], sessId='', busy=false, streamingContent='', statusText='';
 let wsTree=null, expanded=new Set(['/root/codes/ryan_learning']);
 let selFile=null;
 let recorder=null, recordStream=null, recording=false;
+let renderRafId=null; // rAF throttle for streaming renders
 
 //========== DOM REFS ==========
 const $msgs=document.getElementById('msgs');
@@ -238,10 +239,12 @@ async function send(){
             case'error':statusText='❌ '+d.message;break;
             case'done':if(d.sessionId)sessId=d.sessionId;break;
           }
-          renderMsgs();
+          scheduleRender();
         }catch(e){}
       }
     }
+    // Flush any pending render before finalizing
+    flushRender();
   }catch(e){
     fullContent='**Error**: '+e.message;
   }
@@ -280,6 +283,57 @@ function renderMsgs(){
     html+='</div></div>';
   }
   $msgs.innerHTML=html;
+}
+
+// rAF-batched render: groups rapid SSE deltas into one DOM update per frame,
+// eliminating screen flicker from repeated innerHTML rebuilds.
+function scheduleRender(){
+  if(renderRafId!==null)return;
+  renderRafId=requestAnimationFrame(()=>{
+    renderRafId=null;
+    fastUpdateStreaming();
+  });
+}
+
+function flushRender(){
+  if(renderRafId!==null){
+    cancelAnimationFrame(renderRafId);
+    renderRafId=null;
+  }
+  fastUpdateStreaming();
+}
+
+// Targeted DOM update — only touches the streaming bubble content,
+// avoiding a full innerHTML rebuild that re-triggers CSS fadeIn.
+function fastUpdateStreaming(){
+  if(msgs.length===0&&!busy){
+    $msgs.innerHTML='<div class="empty"><div class="icon">🤖</div><h2>Agent Chat Console</h2><p>输入命令让 Cursor 帮你写代码 · 支持语音输入</p></div>';
+    return;
+  }
+  // Ensure completed messages are rendered (only rebuild when msg count changes)
+  const renderedCount=$msgs.querySelectorAll('.msg').length;
+  if(renderedCount!==msgs.length){
+    renderMsgs();
+    return;
+  }
+  // Fast path: update only the streaming bubble
+  let el=$msgs.querySelector('.streaming');
+  if(!el&&busy){
+    // First streaming frame — need to create the streaming element
+    renderMsgs();
+    return;
+  }
+  if(!busy){
+    if(el){el.remove();scrollBottom()}
+    return;
+  }
+  const bubble=el.querySelector('.bubble');
+  if(!bubble)return;
+  let html='';
+  if(statusText)html+='<div class="status">'+escHtml(statusText)+'</div>';
+  if(streamingContent)html+=escHtml(streamingContent)+'<span class="cursor"></span>';
+  else html+='<div class="dots"><span></span><span></span><span></span></div>';
+  bubble.innerHTML=html;
 }
 
 function scrollBottom(){
