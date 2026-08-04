@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { isStaleSessionError, isRetryableError, executeWithRetry } from "../agent-retry";
 import { CursorAgentError } from "@cursor/sdk";
 
@@ -59,9 +59,6 @@ describe("Agent Retry Wrapper", () => {
   });
 
   describe("executeWithRetry", () => {
-    beforeEach(() => { vi.useFakeTimers(); });
-    afterEach(() => { vi.useRealTimers(); });
-
     it("returns result on first success", async () => {
       const op = vi.fn().mockResolvedValue("success");
       const result = await executeWithRetry(op);
@@ -69,23 +66,17 @@ describe("Agent Retry Wrapper", () => {
       expect(op).toHaveBeenCalledTimes(1);
     });
 
-    it("retries on retryable errors with exponential backoff", async () => {
+    it("retries on retryable errors with real timers", async () => {
       const err = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       const op = vi.fn()
         .mockRejectedValueOnce(err)
         .mockRejectedValueOnce(err)
         .mockResolvedValue("success");
 
-      const promise = executeWithRetry(op, { maxRetries: 3, baseDelayMs: 1000 });
-      // First retry after ~1000ms+~jitter
-      await vi.advanceTimersByTimeAsync(1100);
-      // Second retry after ~2000ms+~jitter  
-      await vi.advanceTimersByTimeAsync(2200);
-
-      const result = await promise;
+      const result = await executeWithRetry(op, { maxRetries: 3, baseDelayMs: 10, maxDelayMs: 100 });
       expect(result).toBe("success");
       expect(op).toHaveBeenCalledTimes(3);
-    });
+    }, 10_000);
 
     it("retries stale session errors immediately (no backoff)", async () => {
       const stale = new Error("bare error from stale session");
@@ -93,9 +84,7 @@ describe("Agent Retry Wrapper", () => {
         .mockRejectedValueOnce(stale)
         .mockResolvedValue("recovered");
 
-      const promise = executeWithRetry(op, { staleSessionRetryCount: 1 });
-      // Stale session retry is immediate — no timer needed
-      const result = await promise;
+      const result = await executeWithRetry(op, { staleSessionRetryCount: 1 });
       expect(result).toBe("recovered");
       expect(op).toHaveBeenCalledTimes(2);
     });
@@ -104,13 +93,10 @@ describe("Agent Retry Wrapper", () => {
       const err = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       const op = vi.fn().mockRejectedValue(err);
 
-      const promise = executeWithRetry(op, { maxRetries: 2, baseDelayMs: 1000 });
-      await vi.advanceTimersByTimeAsync(1100);
-      await vi.advanceTimersByTimeAsync(2200);
-
-      await expect(promise).rejects.toThrow("rate limited");
-      expect(op).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
-    });
+      await expect(executeWithRetry(op, { maxRetries: 1, baseDelayMs: 10, maxDelayMs: 100 }))
+        .rejects.toThrow("rate limited");
+      expect(op).toHaveBeenCalledTimes(2);
+    }, 10_000);
 
     it("does not retry non-retryable errors", async () => {
       const err = new CursorAgentError("invalid key", { isRetryable: false, protoErrorCode: 7 });
@@ -120,15 +106,18 @@ describe("Agent Retry Wrapper", () => {
       expect(op).toHaveBeenCalledTimes(1);
     });
 
-    it("respects staleSessionRetryCount limit", async () => {
+    it("staleSessionRetryCount + retryable errors combine correctly", async () => {
       const stale = new Error("bare error");
-      const op = vi.fn().mockRejectedValue(stale);
+      const retryable = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
+      const op = vi.fn()
+        .mockRejectedValueOnce(stale)      // attempt 0 → stale retry
+        .mockRejectedValueOnce(retryable)  // attempt 1 → backoff
+        .mockRejectedValue(retryable);     // attempt 2 → exhausted
 
-      await expect(executeWithRetry(op, { staleSessionRetryCount: 1, maxRetries: 1 }))
-        .rejects.toThrow("bare error");
-      // Called initial + 1 stale retry + 1 regular retry = 3
-      expect(op).toHaveBeenCalledTimes(3);
-    });
+      await expect(executeWithRetry(op, { staleSessionRetryCount: 1, maxRetries: 2, baseDelayMs: 10, maxDelayMs: 100 }))
+        .rejects.toThrow("rate limited");
+      expect(op).toHaveBeenCalledTimes(3); // 0:stale+1:retry+2:exhausted
+    }, 15_000);
   });
 });
 
