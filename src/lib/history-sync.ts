@@ -9,6 +9,98 @@ export async function fetchServerHistory(): Promise<ConversationRecord[]> {
   return Array.isArray(data.conversations) ? data.conversations : [];
 }
 
+/** Collect all mediaIds referenced in conversations. */
+export function collectStoreMediaIds(store: ConversationsStore): string[] {
+  const ids = new Set<string>();
+  for (const c of store.conversations) {
+    for (const m of c.messages) {
+      for (const a of m.attachments || []) {
+        if (a.mediaId) ids.add(a.mediaId);
+      }
+    }
+  }
+  return [...ids];
+}
+
+/** Query /api/media/check to find which mediaIds are missing on server. */
+export async function checkMissingMedia(mediaIds: string[]): Promise<Set<string>> {
+  if (!mediaIds.length) return new Set();
+  try {
+    const qs = mediaIds.slice(0, 500).join(",");
+    const res = await fetch(`/api/media/check?ids=${encodeURIComponent(qs)}`);
+    if (!res.ok) return new Set();
+    const data = (await res.json()) as { missing?: string[] };
+    return new Set(data.missing || []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Re-persist conversations where attachments have dataUrl but media files
+ * are missing on the server. This repairs orphaned media references after a
+ * server rebuild or data/media wipe.
+ */
+export async function repairMissingMedia(
+  store: ConversationsStore,
+): Promise<{ repaired: number; store: ConversationsStore }> {
+  // Collect conversations that have dataUrl attachments with mediaIds
+  const candidates: ConversationRecord[] = [];
+  for (const c of store.conversations) {
+    let hasDataUrl = false;
+    for (const m of c.messages) {
+      for (const a of m.attachments || []) {
+        if (a.mediaId && a.dataUrl) {
+          hasDataUrl = true;
+        }
+      }
+    }
+    if (hasDataUrl) {
+      candidates.push(c);
+    }
+  }
+
+  if (!candidates.length) return { repaired: 0, store };
+
+  // Check which mediaIds are missing on the server
+  const allIds = collectStoreMediaIds(store);
+  const missing = await checkMissingMedia(allIds);
+
+  if (!missing.size) return { repaired: 0, store };
+
+  // Filter to only conversations that have missing media files
+  const toRepair = candidates.filter((c) =>
+    c.messages.some((m) =>
+      (m.attachments || []).some(
+        (a) => a.mediaId && a.dataUrl && missing.has(a.mediaId),
+      ),
+    ),
+  );
+
+  if (!toRepair.length) return { repaired: 0, store };
+
+  try {
+    const res = await fetch("/api/history", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversations: toRepair }),
+    });
+    if (!res.ok) return { repaired: 0, store };
+    const data = (await res.json()) as {
+      conversations?: ConversationRecord[];
+    };
+    const repaired = Array.isArray(data.conversations)
+      ? data.conversations.length
+      : 0;
+    const updated = repaired
+      ? applyServerMediaIds(store, data.conversations!)
+      : store;
+    return { repaired, store: updated };
+  } catch {
+    return { repaired: 0, store };
+  }
+}
+
 /** Merge server list into the local store (server is shared across devices). */
 export async function hydrateFromServer(
   local: ConversationsStore,

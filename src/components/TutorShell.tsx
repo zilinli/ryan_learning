@@ -26,6 +26,7 @@ import {
   deleteServerChat,
   hydrateFromServer,
   pushStoreToServer,
+  repairMissingMedia,
 } from "@/lib/history-sync";
 import {
   engagementForPrompt,
@@ -301,16 +302,20 @@ export function TutorShell() {
 
     // Keep homework photos in IndexedDB, then merge server history, then
     // restore any photos the server JSON no longer carries as base64.
+    // Repair missing media files on the server by re-persisting from vault.
     void (async () => {
       await ingestStorePhotos(loaded);
       const merged = await hydrateFromServer(loaded);
       const restored = await restoreStorePhotosFromVault(merged);
-      await ingestStorePhotos(restored);
-      await pruneVaultToStore(restored);
-      setStore(restored);
-      saveConversations(restored);
-      const withMedia = await pushStoreToServer(restored);
-      if (withMedia !== restored) {
+      // Re-persist images whose server files were lost (rebuild / deploy wipe)
+      const { store: repaired } = await repairMissingMedia(restored);
+      const final = repaired !== restored ? repaired : restored;
+      await ingestStorePhotos(final);
+      await pruneVaultToStore(final);
+      setStore(final);
+      saveConversations(final);
+      const withMedia = await pushStoreToServer(final);
+      if (withMedia !== final) {
         setStore(withMedia);
         saveConversations(withMedia);
       }
