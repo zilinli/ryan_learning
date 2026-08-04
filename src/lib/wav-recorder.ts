@@ -63,14 +63,15 @@ export function downsampleTo16k(
 /** Peak-normalize quiet mic captures (common on phones). */
 export function normalizePeak(
   samples: Float32Array,
-  target = 0.85,
+  target = 0.9,
 ): Float32Array {
   let peak = 0;
   for (let i = 0; i < samples.length; i += 1) {
     const a = Math.abs(samples[i] ?? 0);
     if (a > peak) peak = a;
   }
-  if (peak < 0.001 || peak >= target) return samples;
+  // Boost even very quiet clips — STT needs usable amplitude
+  if (peak < 0.0004 || peak >= target) return samples;
   const gain = target / peak;
   const out = new Float32Array(samples.length);
   for (let i = 0; i < samples.length; i += 1) {
@@ -99,15 +100,30 @@ async function getMicStream(): Promise<MediaStream> {
   if (!devices?.getUserMedia) {
     throw new Error("Microphone is not available");
   }
-  return devices.getUserMedia({
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-      channelCount: 1,
-    },
-    video: false,
-  });
+  // Prefer clean mono capture; AGC + noise suppression help quiet phone mics.
+  // Ideal 48 kHz is downsampled to 16 kHz for STT (native Whisper/SenseVoice rate).
+  try {
+    return await devices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: { ideal: 1 },
+        sampleRate: { ideal: 48000 },
+      },
+      video: false,
+    });
+  } catch {
+    return devices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+      video: false,
+    });
+  }
 }
 
 function extensionForMime(mime: string): string {
@@ -246,17 +262,17 @@ async function startScriptProcessorSession(
 
 export type StartWavRecorderOptions = {
   /**
-   * Prefer MediaRecorder containers (webm/mp4). Use on mobile WebViews where
-   * ScriptProcessor is flaky. Desktop/Mac should keep false — short WebM from
-   * Chrome often fails ffmpeg EBML parse; 16 kHz WAV is reliable.
+   * Prefer MediaRecorder containers (webm/mp4). Avoid when possible — short
+   * WebM from Chrome often fails ffmpeg EBML parse; 16 kHz WAV is more
+   * reliable for STT. Kept for rare WebViews where ScriptProcessor is broken.
    */
   preferContainer?: boolean;
 };
 
 /**
  * Record mic audio for STT.
- * Desktop: 16 kHz WAV via ScriptProcessor (stable for STT).
- * Mobile: MediaRecorder first, then ScriptProcessor fallback.
+ * Default: 16 kHz peak-normalized WAV via ScriptProcessor (best for STT).
+ * MediaRecorder is fallback (or first if preferContainer).
  */
 export async function startWavRecorder(
   options?: StartWavRecorderOptions,
@@ -289,7 +305,7 @@ export function filenameForAudioBlob(blob: Blob): string {
 
 /** True when PCM looks loud enough for STT (WAV path only). */
 export async function blobLooksSilent(blob: Blob): Promise<boolean> {
-  if (!blob.type.includes("wav") || blob.size < 100) return blob.size < 2000;
+  if (!blob.type.includes("wav") || blob.size < 100) return blob.size < 1500;
   try {
     const buf = await blob.arrayBuffer();
     const view = new DataView(buf);
@@ -306,7 +322,8 @@ export async function blobLooksSilent(blob: Blob): Promise<boolean> {
     }
     if (!n) return true;
     const rms = Math.sqrt(sum / n);
-    return rms < 0.008 && peak < 0.04;
+    // Soft gate — quiet phone mics often sit ~0.005–0.01 RMS after normalize
+    return rms < 0.004 && peak < 0.02;
   } catch {
     return false;
   }

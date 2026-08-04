@@ -296,8 +296,9 @@ export function VoiceControls({
     setHint("");
     setStatus("Listening… speak now");
     try {
-      // Mobile WebViews: MediaRecorder. Desktop/Mac: WAV (avoids broken WebM).
-      const session = await startWavRecorder({ preferContainer: touchMode });
+      // Always prefer 16 kHz WAV (ScriptProcessor) for STT accuracy.
+      // MediaRecorder WebM often fails ffmpeg EBML parse on short clips.
+      const session = await startWavRecorder();
       recorderRef.current = session;
       setListening(true);
     } catch {

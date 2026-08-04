@@ -253,51 +253,66 @@ def _normalize_stt_lang(raw: str | None) -> str:
 
 
 def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
-    """Build faster-whisper options. Keep CPU decode light to avoid queue/OOM."""
+    """Build faster-whisper options. Beam=1 for speed on CPU; Spanish/escalated."""
     base = {
         "vad_filter": vad,
         "vad_parameters": {
-            "min_silence_duration_ms": 350,
-            "speech_pad_ms": 300,
+            "min_silence_duration_ms": 300,
+            "speech_pad_ms": 500,       # wider padding around speech = fewer cut-offs
         },
-        # beam_size=1 ~40% faster on CPU; accuracy loss negligible for tutoring audio
         "beam_size": 1,
         "best_of": 1,
         "patience": 1.0,
         "temperature": 0.0,
         "condition_on_previous_text": False,
         "without_timestamps": True,
-        "compression_ratio_threshold": 2.6,
-        "log_prob_threshold": -1.2,
-        "no_speech_threshold": 0.55,
+        # Relaxed compression threshold — Spanish long vowels trigger this
+        "compression_ratio_threshold": 3.2,
+        "log_prob_threshold": -1.4,    # slightly more permissive for non-English
+        "no_speech_threshold": 0.35,   # stricter: fewer noise hallucinations
     }
     if lang == "auto":
         base["language"] = None
+        base["vad_parameters"]["min_silence_duration_ms"] = 400
         return base
     if lang == "en":
         base["language"] = "en"
+        base["initial_prompt"] = "Hello. I need help with my homework today."
+        base["beam_size"] = 2
+        base["best_of"] = 2
         return base
     if lang == "es":
         base["language"] = "es"
+        # Rich Spanish prompt helps model converge on correct vocabulary
         base["initial_prompt"] = (
-            "Hola. Esto es español. Necesito ayuda con la tarea."
+            "Hola. Esto es español. Necesito ayuda con la tarea de matemáticas."
+            " ¿Puedes explicarme cómo se resuelve este problema?"
         )
-        base["beam_size"] = 3
-        base["best_of"] = 3
+        # Higher beam for Spanish — small model needs more decoding alternatives
+        base["beam_size"] = 5
+        base["best_of"] = 5
+        base["temperature"] = (0.0, 0.2, 0.4, 0.6, 0.8)
+        base["patience"] = 1.2
+        # Even more relaxed for Spanish small-model decode
+        base["compression_ratio_threshold"] = 3.5
+        base["log_prob_threshold"] = -1.6
+        base["no_speech_threshold"] = 0.30
         return base
     if lang == "zh":
         base["language"] = "zh"
-        base["initial_prompt"] = "你好。这是普通话。请帮我看一下这道题。"
+        base["initial_prompt"] = "你好。这是普通话。请帮我看一下这道数学题。"
+        base["beam_size"] = 2
+        base["best_of"] = 2
         return base
     if lang == "yue":
         if _model_supports_yue():
             base["language"] = "yue"
             base["initial_prompt"] = "你好。呢段係廣東話。我想问功课。"
+            base["beam_size"] = 2
+            base["best_of"] = 2
         else:
             base["language"] = "zh"
-            base["initial_prompt"] = (
-                "以下係廣東話口述。請用中文寫出粤语内容。"
-            )
+            base["initial_prompt"] = "以下係廣東話口述。請用中文寫出粤语内容。"
         return base
     base["language"] = None
     return base
