@@ -80,24 +80,46 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "user", content: text, createdAt: Date.now() }]);
     ab.current?.abort();
     const c = new AbortController(); ab.current = c;
-    try {
+
+    /** Read SSE stream with watchdog — retries once on network drop. */
+    const streamRequest = async (isRetry: boolean): Promise<string> => {
       const res = await fetch("/api/console/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: sid.current, message: text }),
         signal: c.signal,
+        cache: "no-store",
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Error " + res.status);
-      let full = "";
-      const tools: ToolCall[] = [];
-      const r = res.body!.getReader(); const d = new TextDecoder(); let buf = "";
+
+      let full = ""; const tools: ToolCall[] = [];
+      const reader = res.body!.getReader(); const dec = new TextDecoder(); let buf = "";
+
       while (true) {
-        const { done, value } = await r.read();
+        // watchdog: if no bytes arrive in 45s, assume connection dropped
+        let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+        let dataArrived = false;
+        const readWithWatchdog = Promise.race([
+          reader.read().then(v => { dataArrived = true; return v; }),
+          new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+            watchdogTimer = setTimeout(() => reject(new Error("watchdog")), 45_000);
+          }),
+        ]);
+
+        let done: boolean, value: Uint8Array | undefined;
+        try {
+          ({ done, value } = await readWithWatchdog);
+          clearTimeout(watchdogTimer);
+        } catch (e) {
+          clearTimeout(watchdogTimer);
+          if ((e as Error).message === "watchdog") throw new Error("watchdog");
+          throw e;
+        }
+
         if (done) break;
-        buf += d.decode(value, { stream: true });
+        buf += dec.decode(value, { stream: true });
         const parts = buf.split("\n\n"); buf = parts.pop() ?? "";
         for (const p of parts) {
-          const ls = p.split("\n");
-          let ev = "message", dl = "";
+          const ls = p.split("\n"); let ev = "message", dl = "";
           for (const l of ls) {
             if (l.startsWith("event:")) ev = l.slice(6).trim();
             if (l.startsWith("data:")) dl += l.slice(5).trim();
@@ -105,7 +127,8 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
           if (!dl) continue;
           try {
             const data = JSON.parse(dl) as Record<string,unknown>;
-            if (ev === "delta" && typeof data.text === "string") {
+            if (ev === "hb") { /* heartbeat — ignore */ }
+            else if (ev === "delta" && typeof data.text === "string") {
               full += data.text; setStreamingContent(full);
             } else if (ev === "status" && typeof data.status === "string") {
               setStatusText(data.status);
@@ -132,31 +155,47 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
           } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
         }
       }
-      setStreamingContent(""); setStatusText("");
-      const hasDiff = /\+\+\+|diff --git/i.test(full);
-      setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "assistant", content: full || "Done!", createdAt: Date.now(), tools: tools.length ? tools : undefined }]);
-      if (hasDiff) {
-        const m = full.match(/```diff\n?([\s\S]*?)```/);
-        const raw = m ? m[1] : full;
-        setDiff({
-          filepath: (full.match(/file[:\s]+([a-z0-9_/. -]+\.(tsx?|css|js|json|md))/i)?.[1]) || "file",
-          hunks: raw, added: (raw.match(/^\+/gm) || []).length, removed: (raw.match(/^-/gm) || []).length,
-        });
-        setPhase("diff");
-      } else { setPhase("applied"); setTimeout(() => setPhase("idle"), 4000); }
-    } catch (e) {
-      if ((e as Error).name === "AbortError") return;
-      const msg = e instanceof Error ? e.message : "Error";
-      const friendly: Record<string, string> = {
-        "Failed to fetch": "Connection lost — check network and try again",
-        "Error 503": "Service starting up — try again in a moment",
-        "Error 502": "Service is restarting — try again shortly",
-      };
-      setError(friendly[msg] || friendly[msg.split(" ").slice(0, 2).join(" ")] || msg);
-      setPhase("error"); setStreamingContent(""); setStatusText("");
-      setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "system", content: "Error: " + msg, createdAt: Date.now() }]);
+      return full;
+    };
+
+    let retries = 0;
+    while (retries <= 1) {
+      try {
+        retries++;
+        const full = await streamRequest(retries > 1);
+        setStreamingContent(""); setStatusText("");
+        const hasDiff = /\+\+\+|diff --git/i.test(full);
+        setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "assistant", content: full || "Done!", createdAt: Date.now(), tools: runningTools.length ? runningTools : undefined }]);
+        if (hasDiff) {
+          const m = full.match(/```diff\n?([\s\S]*?)```/);
+          const raw = m ? m[1] : full;
+          setDiff({
+            filepath: (full.match(/file[:\s]+([a-z0-9_/. -]+\.(tsx?|css|js|json|md))/i)?.[1]) || "file",
+            hunks: raw, added: (raw.match(/^\+/gm) || []).length, removed: (raw.match(/^-/gm) || []).length,
+          });
+          setPhase("diff");
+        } else { setPhase("applied"); setTimeout(() => setPhase("idle"), 4000); }
+        return;
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        const msg = e instanceof Error ? e.message : "Error";
+        // If watchdog or network drop and haven't retried yet — retry once
+        if ((msg === "watchdog" || msg.includes("network") || msg.includes("fetch")) && retries < 2) {
+          setStatusText("Reconnecting…");
+          continue;
+        }
+        const friendly: Record<string, string> = {
+          "Failed to fetch": "Connection lost — check network and try again",
+          "Error 503": "Service starting up — try again in a moment",
+          "Error 502": "Service is restarting — try again shortly",
+        };
+        setError(friendly[msg] || friendly[msg.split(" ").slice(0, 2).join(" ")] || msg);
+        setPhase("error"); setStreamingContent(""); setStatusText("");
+        setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "system", content: "Error: " + msg, createdAt: Date.now() }]);
+        return;
+      }
     }
-  }, []);
+  }, [runningTools]);
 
   const clearSession = useCallback(() => {
     setMsgs([]); setPhase("idle"); setDiff(null); setError("");
@@ -269,7 +308,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   return (
     <>
       <div className="hidden lg:block">
-        <div className="fixed right-0 top-0 z-30 flex h-dvh w-[min(420px,42vw)] flex-col border-l border-[var(--line)] bg-[var(--bg0)] shadow-2xl animate-slide-in-right">
+        <div className="fixed right-0 top-0 z-30 flex h-dvh w-[min(480px,48vw)] flex-col border-l border-[var(--line)] bg-[var(--bg0)] shadow-2xl animate-slide-in-right">
           {panelContent}
         </div>
       </div>

@@ -58,7 +58,7 @@ export function HistorySidebar({
   const searching = query.trim().length > 0;
 
   const panel = (
-    <aside className="flex h-full w-[min(18rem,85vw)] flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg0)_94%,white)]">
+    <aside className="flex h-full w-[min(26rem,85vw)] flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg0)_94%,white)]">
       <div className="safe-top flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">

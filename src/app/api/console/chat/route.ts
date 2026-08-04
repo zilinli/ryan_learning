@@ -56,8 +56,8 @@ export async function POST(req: Request) {
 
       heartbeatTimer = setInterval(() => {
         if (closed || req.signal.aborted) { if (heartbeatTimer) clearInterval(heartbeatTimer); return; }
-        try { ctrl.enqueue(enc.encode(":hb\n\n")); } catch { if (heartbeatTimer) clearInterval(heartbeatTimer); }
-      }, 12_000);
+        try { ctrl.enqueue(enc.encode("event: hb\ndata: {}\n\n")); } catch { if (heartbeatTimer) clearInterval(heartbeatTimer); }
+      }, 8_000);
 
       const snd = (ev: string, d: unknown) => {
         if (closed || req.signal.aborted) return;
@@ -148,6 +148,8 @@ export async function POST(req: Request) {
       "X-Accel-Buffering": "no",
       "Connection": "keep-alive",
       "Keep-Alive": "timeout=300",
+      "Transfer-Encoding": "chunked",
+      "Content-Encoding": "identity",
     },
   });
 }
