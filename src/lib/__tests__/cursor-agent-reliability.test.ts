@@ -20,6 +20,20 @@ vi.mock("@cursor/sdk", () => ({
 }));
 
 describe("Agent Retry Wrapper", () => {
+  /** Helper: create a mock CursorAgentError with protoErrorCode set. */
+  function makeAgentError(
+    msg: string,
+    opts: { isRetryable?: boolean; protoErrorCode?: number } = {},
+  ): CursorAgentError {
+    const err = new CursorAgentError(msg, {
+      isRetryable: opts.isRetryable ?? false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (err as any).protoErrorCode = opts.protoErrorCode;
+    return err;
+  }
+
   describe("isStaleSessionError", () => {
     it("detects bare error from Error with 'bare error' in message", () => {
       const err = new Error("bare error: stale session");
@@ -27,7 +41,7 @@ describe("Agent Retry Wrapper", () => {
     });
 
     it("detects SDK ConnectError [unauthenticated] via protoErrorCode=16", () => {
-      const err = new CursorAgentError("unauthenticated", { isRetryable: false, protoErrorCode: 16 });
+      const err = makeAgentError("unauthenticated", { isRetryable: false, protoErrorCode: 16 });
       expect(isStaleSessionError(err)).toBe(true);
     });
 
@@ -39,17 +53,17 @@ describe("Agent Retry Wrapper", () => {
 
   describe("isRetryableError", () => {
     it("returns true for CursorAgentError with isRetryable=true", () => {
-      const err = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
+      const err = makeAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       expect(isRetryableError(err)).toBe(true);
     });
 
     it("returns true for CursorAgentError with protoErrorCode=8 (rate limit)", () => {
-      const err = new CursorAgentError("rate limited", { isRetryable: false, protoErrorCode: 8 });
+      const err = makeAgentError("rate limited", { isRetryable: false, protoErrorCode: 8 });
       expect(isRetryableError(err)).toBe(true);
     });
 
     it("returns false for CursorAgentError not retryable", () => {
-      const err = new CursorAgentError("invalid key", { isRetryable: false, protoErrorCode: 7 });
+      const err = makeAgentError("invalid key", { isRetryable: false, protoErrorCode: 7 });
       expect(isRetryableError(err)).toBe(false);
     });
 
@@ -67,7 +81,7 @@ describe("Agent Retry Wrapper", () => {
     });
 
     it("retries on retryable errors with real timers", async () => {
-      const err = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
+      const err = makeAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       const op = vi.fn()
         .mockRejectedValueOnce(err)
         .mockRejectedValueOnce(err)
@@ -90,7 +104,7 @@ describe("Agent Retry Wrapper", () => {
     });
 
     it("throws after max retries exhausted", async () => {
-      const err = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
+      const err = makeAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       const op = vi.fn().mockRejectedValue(err);
 
       await expect(executeWithRetry(op, { maxRetries: 1, baseDelayMs: 10, maxDelayMs: 100 }))
@@ -99,7 +113,7 @@ describe("Agent Retry Wrapper", () => {
     }, 10_000);
 
     it("does not retry non-retryable errors", async () => {
-      const err = new CursorAgentError("invalid key", { isRetryable: false, protoErrorCode: 7 });
+      const err = makeAgentError("invalid key", { isRetryable: false, protoErrorCode: 7 });
       const op = vi.fn().mockRejectedValue(err);
 
       await expect(executeWithRetry(op)).rejects.toThrow("invalid key");
@@ -108,7 +122,7 @@ describe("Agent Retry Wrapper", () => {
 
     it("staleSessionRetryCount + retryable errors combine correctly", async () => {
       const stale = new Error("bare error");
-      const retryable = new CursorAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
+      const retryable = makeAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
       const op = vi.fn()
         .mockRejectedValueOnce(stale)      // attempt 0 → stale retry
         .mockRejectedValueOnce(retryable)  // attempt 1 → backoff

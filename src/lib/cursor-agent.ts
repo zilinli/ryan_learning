@@ -229,12 +229,12 @@ export async function streamTutorReply(params: {
       runId: result.id,
       status: result.status === "error" ? "error" : result.status === "cancelled" ? "cancelled" : "completed",
       durationMs: result.durationMs ?? (Date.now() - startTime),
-      model: result.model,
-      errorMessage: result.status === "error" ? (result as Record<string,unknown>).error as string : undefined,
+      model: result.model?.id,
+      errorMessage: result.status === "error" ? (result as unknown as Record<string,unknown>).error as string : undefined,
     }).catch(() => {});
 
     // Stale-session bare error: retry ONCE with fresh agent
-    if (result.status === "error" && !(result as Record<string,unknown>).error && !params._staleRetried) {
+    if (result.status === "error" && !(result as unknown as Record<string,unknown>).error && !params._staleRetried) {
       clearAgentId(params.sessionId);
       closeAgent();
       return streamTutorReply({ ...params, _staleRetried: true });

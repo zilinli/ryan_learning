@@ -24,10 +24,22 @@ async function getCameraStream(
     throw new Error("Camera is not supported in this browser");
   }
   if (!isSecureMediaContext()) {
-    throw new Error("Camera needs HTTPS — open https://… on your phone");
+    throw new Error("Camera needs HTTPS — open https://…");
+  }
+
+  // Enumerate first to detect if a video input exists (avoids confusing NotFoundError)
+  try {
+    const devicesList = await devices.enumerateDevices();
+    const hasVideo = devicesList.some((d) => d.kind === "videoinput");
+    if (!hasVideo) {
+      throw new DOMException("No video input device found", "NotFoundError");
+    }
+  } catch {
+    // enumerateDevices may fail on some browsers; proceed to getUserMedia
   }
 
   const attempts: MediaStreamConstraints[] = [
+    // Preferred: 720p back camera
     {
       audio: false,
       video: {
@@ -36,8 +48,11 @@ async function getCameraStream(
         height: { ideal: 720 },
       },
     },
+    // Fallback 1: any resolution, specific facing
     { audio: false, video: { facingMode: { ideal: facingMode } } },
+    // Fallback 2: exact facing string (older API)
     { audio: false, video: { facingMode } },
+    // Fallback 3: any video source
     { audio: false, video: true },
   ];
 
@@ -73,6 +88,18 @@ export function CameraCapture({
   const [flash, setFlash] = useState(false);
   /** After Phone/Album, live preview is off until user taps Live again */
   const [livePaused, setLivePaused] = useState(false);
+  const [aspectClass, setAspectClass] = useState("aspect-[3/4]");
+
+  // Detect coarse-pointer → portrait phone; fine → landscape desktop/tablet
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setAspectClass(
+        window.matchMedia("(pointer: coarse)").matches
+          ? "aspect-[3/4]"
+          : "aspect-[4/3]",
+      );
+    }
+  }, []);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -85,6 +112,7 @@ export function CameraCapture({
   const startStream = useCallback(async () => {
     stopStream();
     setError("");
+    setReady(false);
     try {
       const stream = await getCameraStream(facingMode);
       streamRef.current = stream;
@@ -97,26 +125,45 @@ export function CameraCapture({
       video.playsInline = true;
       video.srcObject = stream;
 
+      // Wait for loadedmetadata OR canplay (iPad sometimes skips metadata)
       await new Promise<void>((resolve) => {
-        const done = () => resolve();
+        const done = () => {
+          video.removeEventListener("loadedmetadata", done);
+          video.removeEventListener("canplay", done);
+          resolve();
+        };
         if (video.readyState >= 2) {
-          done();
+          resolve();
           return;
         }
         video.addEventListener("loadedmetadata", done, { once: true });
-        window.setTimeout(done, 2500);
+        video.addEventListener("canplay", done, { once: true });
+        window.setTimeout(resolve, 3000);
       });
 
+      // play() returns a promise; catch autoplay blocks silently
       try {
         await video.play();
       } catch {
+        // iPad Safari may block play even for muted+playsinline.
+        // Try one more time after a microtask — sometimes the
+        // browser needs a tick after setting srcObject.
+        await new Promise((r) => window.setTimeout(r, 100));
         try {
           await video.play();
         } catch {
-          // frames may still arrive
+          // frames may still arrive; don't block readiness
         }
       }
-      setReady(Boolean(video.videoWidth || stream.getVideoTracks().length));
+
+      // Readiness: check videoWidth after play attempt, then fallback to track count
+      const hasVideo = Boolean(
+        video.videoWidth || stream.getVideoTracks().length,
+      );
+      setReady(hasVideo);
+      if (!hasVideo) {
+        setError("Camera not ready — tap Retry live or use Phone camera.");
+      }
     } catch (err) {
       const name = err instanceof DOMException ? err.name : "";
       const msg =
@@ -243,7 +290,7 @@ export function CameraCapture({
           </button>
         </div>
 
-        <div className="relative aspect-[3/4] min-h-0 flex-1 bg-black sm:aspect-[4/3]">
+        <div className={`relative min-h-0 flex-1 bg-black ${aspectClass}`}>
           <video
             ref={videoRef}
             playsInline

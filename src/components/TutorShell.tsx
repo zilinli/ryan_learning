@@ -747,7 +747,7 @@ export function TutorShell() {
           </button>
           <div className="flex min-w-0 items-center gap-1">
             <span className="font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
-              ✨ Spark
+              ✨ The Answer Book
             </span>
             <span className="hidden text-sm text-[var(--ink-muted)] sm:inline">· Ryan</span>
           </div>

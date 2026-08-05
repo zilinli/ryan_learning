@@ -17,7 +17,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 /** Bare run.wait() status:error with no error field — likely stale session. */
 export function isStaleSessionError(err: unknown): boolean {
   if (err instanceof Error && err.message.includes("bare error")) return true;
-  if (err instanceof CursorAgentError && err.protoErrorCode === 16) return true;
+  if (err instanceof CursorAgentError && (err as unknown as Record<string, unknown>).protoErrorCode === 16) return true;
   return false;
 }
 
@@ -25,7 +25,7 @@ export function isStaleSessionError(err: unknown): boolean {
 export function isRetryableError(err: unknown): boolean {
   if (err instanceof CursorAgentError && err.isRetryable) return true;
   // Rate limit with proto error 8
-  if (err instanceof CursorAgentError && err.protoErrorCode === 8) return true;
+  if (err instanceof CursorAgentError && (err as unknown as Record<string, unknown>).protoErrorCode === 8) return true;
   return false;
 }
 

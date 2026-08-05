@@ -11,6 +11,22 @@ type Props = {
   streaming?: boolean;
 };
 
+function formatTime(epochMs: number): string {
+  if (!epochMs) return "";
+  const d = new Date(epochMs);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (sameDay) return `${hh}:${mm}`;
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${m}/${dd} ${hh}:${mm}`;
+}
+
 function messageAttachments(m: ChatMessage): ChatAttachment[] {
   if (m.attachments?.length) return m.attachments;
   if (m.image?.dataUrl) {
@@ -180,7 +196,12 @@ export function ChatThread({ messages, streaming }: Props) {
             } ${isUser ? "items-end" : "items-start"}`}
           >
             <span className="text-xs tracking-wide text-[var(--ink-muted)]">
-              {isUser ? "You" : "Spark"}
+              {isUser ? "You" : "The Answer Book"}
+              {m.createdAt ? (
+                <span className="ml-2 text-[10px] opacity-60">
+                  {formatTime(m.createdAt)}
+                </span>
+              ) : null}
             </span>
             <div
               className={`max-w-[94%] break-words sm:max-w-[88%] ${
