@@ -31,11 +31,12 @@ describe("createConsoleHarnessTools", () => {
   describe("search_code", () => {
     it("finds matches in test files", async () => {
       await fs.writeFile(path.join(TMP, "needle.ts"), "const needle = 42;");
-      const r = asString(await tools.search_code!.execute({ query: "needle", glob: "_test_tmp/**" }, {} as any));
+      const r = asString(await tools.search_code!.execute({ query: "needle", glob: "*needle*" }, {} as any));
       expect(r).toContain("needle = 42");
     });
     it("returns no matches for nonsense pattern", async () => {
-      const r = asString(await tools.search_code!.execute({ query: "ZXYNOTFOUNDXXZ999ABC", glob: "_test_tmp/**" }, {} as any));
+      await fs.writeFile(path.join(TMP, "dummy.ts"), "const hello = 1;");
+      const r = asString(await tools.search_code!.execute({ query: "ZXYNOTFOUNDXXZ999ABC", glob: "*dummy*" }, {} as any));
       expect(r).toBe("No matches found.");
     });
   });
