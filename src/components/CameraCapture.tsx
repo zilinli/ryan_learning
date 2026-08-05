@@ -268,8 +268,8 @@ export function CameraCapture({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,28,34,0.72)] p-0 sm:items-center sm:p-4">
-      <div className="safe-bottom flex max-h-dvh w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[var(--ink)] shadow-2xl animate-fade-up sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,28,34,0.72)] p-0 sm:items-start sm:pt-6 sm:px-4">
+      <div className="safe-bottom flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[var(--ink)] shadow-2xl sm:rounded-2xl">
         <div className="safe-top flex shrink-0 items-center justify-between px-4 py-3 text-white">
           <div>
             <p className="text-sm font-medium">Camera</p>
@@ -290,7 +290,7 @@ export function CameraCapture({
           </button>
         </div>
 
-        <div className={`relative min-h-0 flex-1 bg-black ${aspectClass}`}>
+        <div className={`relative w-full shrink-0 bg-black ${aspectClass}`}>
           <video
             ref={videoRef}
             playsInline

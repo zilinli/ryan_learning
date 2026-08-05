@@ -1,0 +1,22 @@
+[Unit]
+Description=Spark AI Tutor (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/codes/ryan_learning
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_PATH=/root/codes/ryan_learning/.next/node_modules
+ExecStartPre=/usr/bin/node /root/codes/ryan_learning/scripts/ensure-env.mjs
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+KillMode=control-group
+StandardOutput=append:/root/codes/ryan_learning/logs/service.log
+StandardError=append:/root/codes/ryan_learning/logs/service.log
+
+[Install]
+WantedBy=multi-user.target
