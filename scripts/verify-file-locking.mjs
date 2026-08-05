@@ -39,7 +39,7 @@ async function testConcurrentHistoryWrites() {
   const res = await fetch(`${BASE}/api/history`);
   assert.strictEqual(res.status, 200);
   const data = await res.json();
-  const ids = (data.conversations || []).map((c: Record<string,unknown>) => c.sessionId);
+  const ids = (data.conversations || []).map((c) => c.sessionId);
   const found = sessionIds.filter(id => ids.includes(id)).length;
   assert.ok(found >= 4, `All sessions persisted (found ${found}/5)`);
 
@@ -62,7 +62,7 @@ async function testConcurrentLearningMemory() {
     fetch(`${BASE}/api/learning`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(s),
+      body: JSON.stringify({ memory: s }),
     })
   );
 
@@ -75,7 +75,7 @@ async function testConcurrentLearningMemory() {
   assert.strictEqual(res.status, 200);
   const data = await res.json();
   assert.ok(data && typeof data === "object", "Learning memory is valid JSON");
-  assert.ok(Array.isArray(data.topics), "topics is an array");
+  assert.ok(Array.isArray(data.memory?.topics), "topics is an array");
 
   console.log("PASS  concurrent learning memory writes (10 concurrent PUTs)");
 }
