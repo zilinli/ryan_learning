@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { compressImageDataUrl } from "@/lib/image-process";
 import { ensureMediaDevices, isSecureMediaContext } from "@/lib/media";
 
@@ -265,11 +266,34 @@ export function CameraCapture({
     }, 80);
   };
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,28,34,0.72)] p-0 sm:items-start sm:pt-6 sm:px-4">
-      <div className="safe-bottom flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[var(--ink)] shadow-2xl sm:rounded-2xl">
+  // Portal to document.body so `position:fixed` is not trapped by Composer’s
+  // backdrop-blur / overflow-hidden ancestors (on PC that clipped Snap below the fold).
+  if (!open) return null;
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(10,28,34,0.72)] p-0 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Camera"
+      data-camera-portal="true"
+    >
+      {/*
+        Phone: bottom sheet (items-end + rounded-t).
+        sm+ (iPad / PC): vertically centered card so Snap stays in viewport.
+        Video uses min-h-0 flex-1 + max-h so preview shrinks before clipping actions.
+      */}
+      <div className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[var(--ink)] shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-2xl">
         <div className="safe-top flex shrink-0 items-center justify-between px-4 py-3 text-white">
           <div>
             <p className="text-sm font-medium">Camera</p>
@@ -290,7 +314,9 @@ export function CameraCapture({
           </button>
         </div>
 
-        <div className={`relative w-full shrink-0 bg-black ${aspectClass}`}>
+        <div
+          className={`relative w-full min-h-0 flex-1 overflow-hidden bg-black ${aspectClass} max-h-[min(58dvh,28rem)] sm:max-h-[min(62dvh,32rem)]`}
+        >
           <video
             ref={videoRef}
             playsInline
@@ -418,6 +444,7 @@ export function CameraCapture({
           }}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
