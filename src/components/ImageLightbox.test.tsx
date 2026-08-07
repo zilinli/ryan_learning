@@ -1,5 +1,10 @@
+/**
+ * @vitest-environment jsdom
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, fireEvent, act } from "@testing-library/react";
+import { render, fireEvent, act, waitFor } from "@testing-library/react";
+import React from "react";
 import { ImageLightbox } from "../components/ImageLightbox";
 
 describe("ImageLightbox", () => {
@@ -9,7 +14,7 @@ describe("ImageLightbox", () => {
       const actual = await vi.importActual("react-dom");
       return {
         ...actual,
-        createPortal: (node: React.ReactNode, _container: Element) => node,
+        createPortal: (node: React.ReactNode) => node,
       };
     });
   });
@@ -45,79 +50,93 @@ describe("ImageLightbox", () => {
 
   it("calls onClose when Close button is clicked", () => {
     const onClose = vi.fn();
-    const { getByLabelText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={onClose} />,
     );
-    fireEvent.click(getByLabelText("Close"));
+    // Find Close button by aria-label
+    const closeBtn = container.querySelector('button[aria-label="Close"]');
+    expect(closeBtn).not.toBeNull();
+    fireEvent.click(closeBtn!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("shows zoom percentage label", () => {
-    const { getByText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
-    expect(getByText("100%")).not.toBeNull();
+    // The percent is in a span with aria-live="polite"
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct).not.toBeNull();
+    expect(pct!.textContent).toBe("100%");
   });
 
   it("clicking Zoom in updates the percent label", () => {
-    const { getByLabelText, getByText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
-    const zoomInBtn = getByLabelText("Zoom in");
-    fireEvent.click(zoomInBtn);
-    // Should no longer be "100%"
-    expect(getByText("125%")).not.toBeNull();
+    const zoomInBtn = container.querySelector('button[aria-label="Zoom in"]');
+    expect(zoomInBtn).not.toBeNull();
+    fireEvent.click(zoomInBtn!);
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("125%");
   });
 
   it("clicking Zoom out at 100% stays at 100%", () => {
-    const { getByLabelText, getByText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
-    const zoomOutBtn = getByLabelText("Zoom out");
-    fireEvent.click(zoomOutBtn);
-    expect(getByText("100%")).not.toBeNull();
+    const zoomOutBtn = container.querySelector('button[aria-label="Zoom out"]');
+    expect(zoomOutBtn).not.toBeNull();
+    fireEvent.click(zoomOutBtn!);
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("100%");
   });
 
   it("zooms in multiple times", () => {
-    const { getByLabelText, getByText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
-    const zoomInBtn = getByLabelText("Zoom in");
-    fireEvent.click(zoomInBtn);
-    fireEvent.click(zoomInBtn);
-    expect(getByText("150%")).not.toBeNull();
+    const zoomInBtn = container.querySelector('button[aria-label="Zoom in"]');
+    fireEvent.click(zoomInBtn!);
+    fireEvent.click(zoomInBtn!);
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("150%");
   });
 
   it("keyboard + zooms in", () => {
-    const { getByText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
     fireEvent.keyDown(document, { key: "+" });
-    expect(getByText("125%")).not.toBeNull();
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("125%");
   });
 
   it("keyboard - zooms out", () => {
     const onClose = vi.fn();
-    const { getByText, getByLabelText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={onClose} />,
     );
     // Zoom in first
-    const zoomInBtn = getByLabelText("Zoom in");
-    fireEvent.click(zoomInBtn);
-    expect(getByText("125%")).not.toBeNull();
+    const zoomInBtn = container.querySelector('button[aria-label="Zoom in"]');
+    fireEvent.click(zoomInBtn!);
     // Then zoom out
     fireEvent.keyDown(document, { key: "-" });
-    expect(getByText("100%")).not.toBeNull();
+    const pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("100%");
   });
 
   it("keyboard 0 resets zoom", () => {
-    const { getByText, getByLabelText } = render(
+    const { container } = render(
       <ImageLightbox src="test.png" onClose={() => {}} />,
     );
-    fireEvent.click(getByLabelText("Zoom in"));
-    fireEvent.click(getByLabelText("Zoom in"));
-    expect(getByText("150%")).not.toBeNull();
+    const zoomInBtn = container.querySelector('button[aria-label="Zoom in"]');
+    fireEvent.click(zoomInBtn!);
+    fireEvent.click(zoomInBtn!);
+    let pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("150%");
     fireEvent.keyDown(document, { key: "0" });
-    expect(getByText("100%")).not.toBeNull();
+    pct = container.querySelector('[aria-live="polite"]');
+    expect(pct!.textContent).toBe("100%");
   });
 });
