@@ -119,7 +119,7 @@ The mini panel and full `/console` page use the same `/api/console/chat` backend
 
 ## Accounts 👤
 
-Spark supports multiple students on a single device — siblings, classmates, or a family tablet shared by 2–3 kids. Each account's data is fully isolated.
+Spark supports multiple students on a single device — siblings, classmates, or a family tablet shared by 2–3 kids. Each account's data is fully isolated. Accounts sync across devices via the server, so an account created on iPad appears on laptop too.
 
 **A prominent avatar button in the top-right corner** shows who's currently active. Tap it to switch students instantly — no login, no fuss. Follows the same pattern as Khan Academy Kids and ABCmouse.
 
@@ -145,8 +145,9 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | **Switching** | Tap the account avatar in the header — instant switch, no login required |
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
 | **Account limit** | Up to 6 accounts per device |
+|| **Cross-device sync** | Accounts sync globally via server — create on iPad, see on laptop |
 
-Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo).
+Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo), and global cross-device account sync.
 
 ---
 

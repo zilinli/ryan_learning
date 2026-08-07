@@ -10,6 +10,24 @@
 
 ---
 
+## ✅ Completed (2026-08-07) — Bug Fixes + Cross-Device Account Sync
+
+**Multi-tenant flat-key leak bug** — Non-Ryan accounts were inheriting Ryan's conversation history, learning memory, engagement, and voice preferences due to unguarded flat-key fallbacks. Fixed in all five loaders.
+
+- [x] Gate flat-key fallback behind `accountId === RYAN_ACCOUNT` in: `storage.ts`, `learning-memory.ts`, `engagement.ts`, `voices.ts`
+- [x] Fix `handleSwitchAccount` variable shadowing + add server hydration on switch in `TutorShell.tsx`
+- [x] Regression tests in `tenant-storage.test.ts` (6 tests: non-Ryan accounts never leak flat-key data)
+
+**Global cross-device account sync** — Accounts were localStorage-only (device-local). Now synced globally via the server.
+
+- [x] `src/lib/accounts-store.ts` — Server-side file store (`data/accounts/accounts.json`, atomic write)
+- [x] `src/app/api/accounts/route.ts` — `GET` / `PUT /api/accounts`
+- [x] `hydrateAccountsFromServer()` + `pushAccountsToServer()` in `student-profile.ts`
+- [x] `saveAccounts()` auto-pushes to server on every write (create, switch, delete)
+- [x] `TutorShell.tsx` and `AccountHome.tsx` hydrate accounts from server on init
+- [x] Unit tests: `accounts-store.test.ts` (round-trip write+read)
+- [x] 49 test files, 551 tests all passing
+
 ## ✅ Completed (2026-08-07) — Dictionary / Translation
 
 - [x] `/dict` retitled **Dictionary / Translation** (sidebar + page)
