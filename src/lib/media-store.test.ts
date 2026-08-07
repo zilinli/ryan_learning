@@ -183,6 +183,7 @@ describe("media-store", () => {
       messages: [prepared.messages[1]!],
     };
     const removed = await pruneOrphanMedia(
+      "default",
       new Set([sessionId]),
       collectReferencedMediaIds([trimmed]),
     );
@@ -192,5 +193,90 @@ describe("media-store", () => {
 
     await deleteMediaForSession(sessionId);
     expect(await readMedia(keepId)).toBeNull();
+  });
+
+  it("does NOT delete another account's media (account-scoped prune)", async () => {
+    const ownerAcct = `acct_owner_${Date.now()}`;
+    const otherAcct = `acct_other_${Date.now()}`;
+    const ownerSession = `owner_${Date.now()}`;
+    const otherSession = `other_${Date.now()}`;
+
+    // Owner writes media
+    const ownerPrepared = await persistConversationMedia(
+      {
+        sessionId: ownerSession,
+        title: "owner hw",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "photo",
+            createdAt: 1,
+            attachments: [
+              {
+                id: "a1",
+                name: "p.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      ownerAcct,
+    );
+    // Another account writes media (different session)
+    const otherPrepared = await persistConversationMedia(
+      {
+        sessionId: otherSession,
+        title: "other hw",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "photo",
+            createdAt: 1,
+            attachments: [
+              {
+                id: "a1",
+                name: "p.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      otherAcct,
+    );
+    const ownerId = ownerPrepared.messages[0]!.attachments![0]!.mediaId!;
+    const otherId = otherPrepared.messages[0]!.attachments![0]!.mediaId!;
+    expect(await readMedia(ownerId)).not.toBeNull();
+    expect(await readMedia(otherId)).not.toBeNull();
+
+    // Owner's retention pass runs — it must NOT touch the other account's media
+    await pruneOrphanMedia(
+      ownerAcct,
+      new Set([ownerSession]),
+      collectReferencedMediaIds([ownerPrepared]),
+    );
+    expect(
+      await readMedia(ownerId),
+      "owner media survives owner's own prune",
+    ).not.toBeNull();
+    expect(
+      await readMedia(otherId),
+      "other account media survives owner's prune",
+    ).not.toBeNull();
+
+    // Cleanup both
+    await deleteMediaForSession(ownerSession);
+    await deleteMediaForSession(otherSession);
   });
 });

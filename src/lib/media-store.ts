@@ -15,6 +15,12 @@ export type StoredMediaMeta = {
   /** Original filename for downloads */
   name?: string;
   kind?: "image" | "file";
+  /**
+   * Owning account. Media files live in one shared data/media dir, so pruning
+   * MUST be scoped per account — otherwise any account's retention pass deletes
+   * every other account's homework photos (broken history images).
+   */
+  accountId?: string;
 };
 
 function safeSegment(s: string, max = 48): string {
@@ -73,6 +79,7 @@ export async function writeMediaFromDataUrl(
     attachmentId: string;
     name?: string;
     kind?: "image" | "file";
+    accountId?: string;
   },
 ): Promise<StoredMediaMeta | null> {
   const parsed = stripDataUrl(dataUrl);
@@ -89,6 +96,7 @@ export async function writeMediaFromDataUrl(
     bytes: parsed.buf.length,
     ...(refs.name ? { name: refs.name.slice(0, 120) } : {}),
     ...(refs.kind ? { kind: refs.kind } : {}),
+    ...(refs.accountId ? { accountId: refs.accountId } : {}),
   };
   await fs.writeFile(metaPath(mediaId), JSON.stringify(meta), "utf8");
   return meta;
@@ -164,13 +172,20 @@ export function collectReferencedMediaIds(
 }
 
 /**
- * Drop media whose session is gone, or whose mediaId is no longer referenced
- * (e.g. messages trimmed by retention). Also removes stray .bin without meta.
+ * Drop media for the given account whose session is gone, or whose mediaId is
+ * no longer referenced (e.g. messages trimmed by retention). Also removes
+ * stray .bin without meta.
+ *
+ * PRUNING IS ACCOUNT-SCOPED: media meta carries `accountId`, and only media
+ * that belongs to this account is ever deleted here. Media written by older
+ * builds (no accountId) is left untouched — a per-account retention pass must
+ * never delete another account's (or legacy) homework photos.
  *
  * Fresh files (< 2 min) for unknown sessions are kept so an in-flight upsert
  * that wrote media before the conversation JSON cannot race with prune.
  */
 export async function pruneOrphanMedia(
+  accountId: string,
   keepSessionIds: Set<string>,
   keepMediaIds?: Set<string>,
 ): Promise<number> {
@@ -190,6 +205,9 @@ export async function pruneOrphanMedia(
       const meta = JSON.parse(
         await fs.readFile(jsonFull, "utf8"),
       ) as StoredMediaMeta;
+      // Only prune media owned by this account (meta written by old builds
+      // has no accountId — leave it alone).
+      if (meta.accountId && meta.accountId !== accountId) continue;
       const sessionKept = keepSessionIds.has(meta.sessionId);
       const unreferenced =
         Boolean(keepMediaIds) &&
@@ -259,6 +277,7 @@ function slimAttMeta(a: ChatAttachment): ChatAttachment {
  */
 export async function persistConversationMedia(
   record: ConversationRecord,
+  accountId?: string,
 ): Promise<ConversationRecord> {
   const sessionId = record.sessionId;
   const messages: ChatMessage[] = [];
@@ -274,6 +293,7 @@ export async function persistConversationMedia(
           attachmentId: a.id,
           name: a.name,
           kind: a.kind,
+          accountId,
         });
         attachments.push({
           id: a.id,
@@ -299,6 +319,7 @@ export async function persistConversationMedia(
         attachmentId: attId,
         name: "photo.jpg",
         kind: "image",
+        accountId,
       });
       if (!attachments.some((x) => x.id === attId)) {
         attachments.push({

@@ -68,6 +68,36 @@ Defense #1.
 With the PUT guard, a tombstoned session can never re-persist media, so the
 cleanup is permanent.
 
+### 1.4a Media Pruning is Account-Scoped (history-images bug fix, v0.2)
+
+**Bug (reported 2026-08-07):** history photos stopped rendering. Root cause:
+`data/media/` is a single shared directory, but `pruneOrphanMedia` was global —
+its `keepSessionIds` only contained the sessions of the *one account being
+retention-checked*. Every `PUT` (or test run) from account A deleted **all**
+media belonging to accounts B/C/… whose session was not in A's keep-set
+(after the 2-minute grace period). All 94 server mediaIds 404'd → broken
+`<img>` tags in history.
+
+**Fix:**
+
+| Change | File |
+|--------|------|
+| `StoredMediaMeta` gains `accountId?: string`; `writeMediaFromDataUrl` writes it | `media-store.ts` |
+| `persistConversationMedia(record, accountId?)` threads accountId into every media file | `media-store.ts` |
+| `pruneOrphanMedia(accountId, keepSessionIds, keepMediaIds?)` — only media whose `meta.accountId === accountId` is eligible for pruning; media written by old builds (no accountId) is **never** pruned by a retention pass | `media-store.ts` |
+| `enforceServerRetention(accountId)` / `prepareConversationForServer` pass accountId through | `history-store.ts` |
+
+**Self-healing of already-wiped media:** the client init chain already runs
+`ingestStorePhotos → hydrateFromServer → restoreStorePhotosFromVault →
+repairMissingMedia`, and `repairMissingMedia` re-uploads conversations whose
+attachments still carry `dataUrl + mediaId` when `/api/media/check` reports the
+file missing. Devices that still hold the homework photos in the IndexedDB
+vault re-create the server media on their next open. This is unchanged — the
+fix ensures the wipe cannot recur.
+
+Regression test: `media-store.test.ts` — "does NOT delete another account's
+media (account-scoped prune)".
+
 ### 1.5 Files
 
 | File | Role | Status |

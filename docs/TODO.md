@@ -45,6 +45,17 @@
 - [ ] **C.2** — `npm run build` + `verify-deletion-sync.mjs` against running service
 - [ ] **C.3** — Commit → push develop → push master → rebuild → restart :3000 → health check
 
+### Phase D: History-Images Regression (media account-scoping, added 2026-08-07)
+
+**Bug:** history photos 404'd — `pruneOrphanMedia` was global while `data/media` is shared across accounts, so any account's retention pass wiped every other account's media.
+
+- [x] **D.1** — `StoredMediaMeta.accountId` + `writeMediaFromDataUrl` writes it
+- [x] **D.2** — `persistConversationMedia(record, accountId?)` threads accountId through
+- [x] **D.3** — `pruneOrphanMedia(accountId, keepSessionIds, keepMediaIds?)` account-scoped; legacy meta (no accountId) never pruned
+- [x] **D.4** — `history-store.ts` passes accountId in `prepareConversationForServer` / `enforceServerRetention`
+- [x] **D.5** — Regression test: account A's prune leaves account B's media intact (`media-store.test.ts`)
+- [ ] **D.6** — Verify self-heal: `/api/media/check` + vault repair re-uploads missing media on next device open
+
 ---
 
 ## Legacy Pending

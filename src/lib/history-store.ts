@@ -95,8 +95,9 @@ export function sanitizeForServer(
 /** Persist homework photos to disk, then return JSON-safe conversation. */
 export async function prepareConversationForServer(
   record: ConversationRecord,
+  accountId: string = "default",
 ): Promise<ConversationRecord> {
-  const withMedia = await persistConversationMedia(record);
+  const withMedia = await persistConversationMedia(record, accountId);
   return sanitizeForServer(withMedia);
 }
 
@@ -163,8 +164,9 @@ export async function enforceServerRetention(accountId: string = "default"): Pro
     }
   }
 
-  // Drop media for deleted chats AND for messages trimmed out of kept chats
-  await pruneOrphanMedia(keepIds, collectReferencedMediaIds(kept));
+  // Drop media for deleted chats AND for messages trimmed out of kept chats.
+  // Pruning is account-scoped — only this account's media may be removed.
+  await pruneOrphanMedia(accountId, keepIds, collectReferencedMediaIds(kept));
 
   return {
     conversations: kept.length,
@@ -232,7 +234,10 @@ export async function upsertServerConversation(
     return null;
   }
   await ensureDir(accountId);
-  const clean = await prepareConversationForServer({ ...record, sessionId: id });
+  const clean = await prepareConversationForServer(
+    { ...record, sessionId: id },
+    accountId,
+  );
   await lockedWriteJson(filePath(id, accountId), clean);
   await enforceServerRetention(accountId);
   return clean;
@@ -249,7 +254,10 @@ export async function upsertServerConversations(
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
     if (isTombstoned(deletions, id)) continue;
-    const clean = await prepareConversationForServer({ ...rec, sessionId: id });
+    const clean = await prepareConversationForServer(
+      { ...rec, sessionId: id },
+      accountId,
+    );
     await lockedWriteJson(filePath(id, accountId), clean);
     saved.push(clean);
   }
