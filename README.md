@@ -4,9 +4,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-see%20repo-lightgrey)](https://github.com/zilinli/ryan_learning)
 
-**Spark** is a Socratic AI tutor for international-school students (built around BASIS Grade 4 learner **Ryan**). It guides step by step — it does **not** dump final answers first.
+**Spark** is a Socratic AI tutor for international-school students (K-12, grade-agnostic). Built around BASIS Grade 4 learner **Ryan** as the default account, with multi-account support for siblings and classrooms. It guides step by step — it does **not** dump final answers first.
 
-> Live idea: chat · photo your homework · hear replies · draw geometry · remember progress across sessions.
+> Live idea: chat · photo your homework · hear replies · draw geometry · remember progress across sessions · switch accounts in one tap.
 
 **Repository:** [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
@@ -33,6 +33,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching
 - **Learning memory** — topic mastery, streaks, light badges (never interrupt a stuck moment)
+- **Multi-account** — per-account data isolation: each student gets their own chat history, learning progress, and voice preferences. Default = Ryan. Siblings and classmates stay separate.
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
@@ -97,6 +98,33 @@ The mini panel and full `/console` page use the same `/api/console/chat` backend
 
 ---
 
+## Accounts
+
+Spark supports multiple students on a single device — siblings, classmates, or a family tablet shared by 2–3 kids. Each account's data is fully isolated.
+
+### Account model
+
+| Property | Behavior |
+|----------|----------|
+| **Default account** | **Ryan** (BASIS G4) — always present, cannot be deleted |
+| **New accounts** | Each starts fresh with grade-appropriate defaults (G1–G12) |
+| **Data isolation** | Chat history, learning memory (BKT), engagement streaks, and voice preferences are per-account |
+| **Shared settings** | Dark mode and parent PIN are device-wide (same for every account) |
+| **Switching** | Tap the account avatar in the header — instant switch, no login required |
+| **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
+| **Account limit** | Up to 6 accounts per device |
+
+### Switching
+
+1. Tap the avatar/name badge in the top-right header
+2. Pick the target account from the dropdown
+3. Spark reloads that student's chat history, skills, and progress instantly
+4. A brief toast confirms: "Switched to Emma (G8)"
+
+Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)**
+
+---
+
 ## Tech stack
 
 | Layer | Choice |
@@ -105,7 +133,7 @@ The mini panel and full `/console` page use the same `/api/console/chat` backend
 | UI | Tailwind CSS 4, KaTeX, Mermaid, react-markdown |
 | Agent | [Cursor SDK](https://cursor.com/) (`@cursor/sdk`) + in-process tool harness |
 | Voice | Local STT service (Whisper + SenseVoice) + Edge neural TTS via `/api/tts` |
-| Storage | localStorage, IndexedDB, server-side JSON files (history, media, learning memory) |
+| Storage | localStorage (per-account namespaced), IndexedDB, server-side JSON files (history, media, learning memory) |
 | Ops | systemd service supervision (`spark-tutor`, `spark-stt`, `spark-acc`), health-check gating, auto-git pipeline |
 | Tests | Vitest unit tests + `verify:*` end-to-end scripts |
 
@@ -279,6 +307,8 @@ Please do **not** commit secrets (`.env.local`, API keys, unlocked credential bl
 - Tutor tools run in a constrained harness (short timeouts, no arbitrary host shell)
 - SVG from the model is sanitized before render
 - Code Agent changes require a **parent PIN gate** before applying edits
+- Account creation and deletion are PIN-gated; switching between accounts is PIN-free
+- Per-account data isolation via localStorage namespace prefixes (`spark.{accountId}.{module}`)
 - Atomic file writes (`tmp+rename`) prevent corruption during concurrent agent sessions
 
 ---
@@ -292,4 +322,4 @@ Add a root `LICENSE` file if you want an explicit OSI license for downstream use
 
 ## Credits
 
-Built as a personal AI tutor for **Ryan** (BASIS G4). Powered by Cursor's agent SDK, Next.js, and Edge neural voices.
+Built as a personal AI tutor for **Ryan** (BASIS G4), with grade-agnostic support (G1–G12) and multi-account isolation. Powered by Cursor's agent SDK, Next.js, and Edge neural voices.
