@@ -1,7 +1,10 @@
 # Grade-Agnostic Adaptive Tutoring Design
 
-> Version 0.1 · August 2026  
-> Status: Design — transitioning from G4-only to K-12 adaptive
+> Version 0.2 · August 2026  
+> Status: Design — transitioning from G4-only to K-12 adaptive  
+> Research basis: SmartTutor AI (Cambridge, 2025), GraphMASAL (arXiv, 2025),  
+> ES-LLMs (AIED 2026), IntelliCode (arXiv, 2025),  
+> BASIS Charter & Independent Schools curriculum (2025-2026)
 
 ---
 
@@ -84,6 +87,36 @@ gradeBand(gradeNumber: number): GradeBand
   9–12 → "high"
 ```
 
+### 3.2 Why BASIS Matters: One Curriculum, K-12
+
+Spark's default curriculum targets **BASIS International Schools** (the school Ryan attends), which has a distinctive K-12 design:
+
+| Feature | BASIS Approach | Implication for Spark |
+|---------|---------------|----------------------|
+| **Teach-up philosophy** | Curriculum is consistently 1-2 grade levels ahead of traditional schools. G5 uses Envision Mathematics G6; G1 teaches "author's purpose" which Cambridge reserves for G3. | Skill `coreGrade` should reflect actual BASIS pacing, not generic grade level. |
+| **Three concurrent sciences** | Starting in G6, students take **Biology, Chemistry, AND Physics** simultaneously (3 days/week each). This spirals through G6→G7→G8 with increasing depth before Honors/AP in G9. | Skill catalog must support parallel multi-science tracks in a single grade band. |
+| **Accelerated math pathway** | Prealgebra (G6) → Algebra I + Geometry (G7) → Algebra II + Geometry (G8) → Precalculus/AP Calc AB (G9) → AP Calc BC (G10) → Capstone Math (G12). | Math skill progression is compressed: what Common Core spreads across 7-12, BASIS does in 6-10. |
+| **Honors floor at G9** | All G9+ courses are Honors minimum; students take 4+ AP courses and exams. No "regular" track exists. | `middle` band skills must meet Honors-readiness by G8 exit. |
+| **Spiraling curriculum** | Science concepts are revisited in greater depth each year (G6 Bio → G7 Bio → G8 Bio), not taught once. | BKT `pLearn` should account for prior exposure even without mastery. |
+| **World language from G7** | Mandarin, Spanish, French, or Latin starting G7, continuing through G12. | Language skill tracking needs its own sub-catalog for non-English language acquisition. |
+| **Senior Capstone** | G12 culminates in independent research projects + daily college counseling, not standard coursework. | `high` band should have a post-AP "capstone" mode where agent acts as research advisor, not tutor. |
+
+#### BASIS Grade-by-Grade Course Map (source: enrollbasis.com, 2025-2026)
+
+| Grade | Math | Science | Humanities | Language | Elective |
+|-------|------|---------|------------|----------|----------|
+| **K-2** | Counting, shapes, basic ± | Observations, questions | Phonics, sight words, simple sentences | — | Art, Music, PE |
+| **3-4** | Multiplication, fractions intro, place value | Simple experiments, ecosystems | Reading comprehension, narrative writing | — | Engineering (G4) |
+| **5** | **Accelerated Math 5** (Envision G6) | General science + experiments | English 5, World History intro | — | Engineering, Art |
+| **6** | **Prealgebra** (5×/wk) | **Biology 6, Chemistry 6, Physics 6** (3×/wk each) | English 6, World History & Geography I | Latin or Writing 6 | Elective (Art, CS, etc.) |
+| **7** | **Algebra & Geometry I** (5×/wk) | Biology 7, Chemistry 7, Physics 7 (3×/wk each) | English 7, World History & Geography II | World Language (Chinese/French/Spanish/Latin) | Logic or Computer Logic |
+| **8** | **Algebra II & Geometry** (5×/wk) | Biology 8, Chemistry 8, Physics 8 (3×/wk each) | English 8, US History | World Language | Elective |
+| **9** | Honors Precalculus or AP Calc AB | **Honors Science 1** (Bio/Chem/Phys track selected) | Honors English Lang, AP World History, US Gov | World Language | Elective |
+| **10** | AP Calc AB or BC | **Honors Science 2 / AP Science 1** | AP English Lang, AP World History | World Language | Elective |
+| **11** | AP Calc BC or Post-AP Math | **AP Science 2 / Honors Science 3** | AP English Lang/Lit, AP US History | World Language | AP Micro+Macro |
+| **12** | **Capstone Math** (Linear Algebra, etc.) | **Capstone Science** (Organic Chem, Modern Physics, etc.) | Capstone Humanities | Capstone Language | College Counseling, Senior Project |
+
+This course map should inform skill ordering, prerequisite chains, and `coreGrade` assignments in the expanded skill catalog.
 ---
 
 ## 4. Skill Catalog Expansion
@@ -127,17 +160,20 @@ Expand from 14 → ~80 skills across all bands:
 - Reading comprehension with evidence, narrative writing
 - Ecosystems, solar system, simple experiments
 
-**G6-8 (middle) — ~24 skills**
-- Ratios & proportions, expressions & equations, statistics
-- Geometry (angles, volume), negative numbers, pre-algebra
-- Argumentative writing, text analysis, research skills
-- Physical science, earth science, scientific method
+**G6-8 (middle) — ~24 skills** ← BASIS's "three-science" model starts here
+- **Math**: Ratios & proportions, expressions & equations, statistics; Prealgebra → Algebra I + Geometry → Algebra II + Geometry (BASIS accelerated 3-year path)
+- **Science (concurrent)**: Biology 6/7/8 (cells → genetics → evolution); Chemistry 6/7/8 (atoms → reactions → stoichiometry); Physics 6/7/8 (motion → forces → energy)
+- **Humanities**: English 6/7/8 (literary analysis, argumentative writing, research skills); World History & Geography I+II → US History
+- **World Language**: Latin (G6) or Mandarin/Spanish/French (G7+), basic proficiency → intermediate
+- Key: BKT must handle 3 parallel science tracks in a single grade band — skills are not sequential across sciences but concurrent within each year
 
-**G9-12 (high) — ~28 skills**
-- Algebra I/II, geometry proofs, trigonometry, pre-calculus, calculus
-- Statistics & probability, functions & modeling
-- Literary analysis, persuasive writing, research papers
-- Biology, chemistry, physics, environmental science
+**G9-12 (high) — ~28 skills** ← BASIS Honors-floor + AP + Capstone model
+- **Math**: Honors Precalculus → AP Calc AB → AP Calc BC → Capstone Math (Linear Algebra, Discrete Math, etc.)
+- **Science (Honors/AP track)**: Honors Bio/Chem/Phys → AP Bio/Chem/Phys/Environmental Science → Capstone Science (Organic Chem, Modern Physics, Topics in Biology)
+- **Humanities**: AP English Language & Composition, AP English Literature, AP World History, AP US History, AP US Gov, AP Micro+Macro Economics
+- **World Language**: AP Chinese / Spanish / French / Latin (continued from G7)
+- **Capstone**: Senior Project (independent research, daily college counseling seminar)
+- Key: `high` band needs a post-AP "capstone" sub-mode where agent acts as research advisor, not drill tutor. By G12, the student is doing original work — Spark should coach methodology, not quiz facts.
 
 ### 4.3 Filtering by Grade
 
@@ -345,3 +381,37 @@ Each phase is independently shippable and tested against Ryan's existing experie
 | Prompt quality regression | A/B compare prompt output for Ryan before/after each phase |
 | BKT parameter change invalidates historical data | Keep existing parameters; new parameters only for new skills/bands |
 | Performance (80+ skills) | BKT is O(1) per skill; only active band's skills are in memory |
+
+---
+
+## 13. References & Research Foundation
+
+This design draws on current academic research in adaptive tutoring systems, multi-agent architectures, and knowledge tracing.
+
+### 13.1 Industry Research
+
+**SmartTutor AI** (Cambridge, 2025) — Demonstrates that curriculum-aligned adaptive tutoring should separate generative AI (language) from pedagogical logic (instructional decisions). Key takeaway: *instructional decisions are governed by explicit pedagogical logic and structured curriculum representations, enabling personalized learning progression while maintaining safety, reliability, and exam alignment.* Spark's hint ladder + BKT already embodies this principle; the grade band extension formalizes the curriculum representation layer.
+
+**GraphMASAL** (arXiv:2511.11035, 2025) — A graph-based multi-agent system for adaptive learning with four core components: (i) dynamic knowledge graph for persistent learner modeling, (ii) LangGraph orchestration layer for Diagnoser/Planner/Tutor agents, (iii) neural IR for concept grounding, (iv) multi-source multi-sink planning engine. Key takeaway: *a grade-agnostic design uses structured curriculum representations (Knowledge Graphs/DAGs) rather than grade-locked content.* Spark's skill catalog + prerequisite graph already forms this knowledge graph; expanding it across bands makes grade-agnostic adaptation possible.
+
+**ES-LLMs** (AIED 2026, arXiv:2603.23990) — An Ensemble of Specialized LLMs architecture for adaptive tutoring. Maps to the triarchic blueprint: Expert Model (domain knowledge), Learner Model (BKT mastery), Tutor Model (agent policies and orchestrator), with LLM restricted to surface realization. Key takeaway: *pedagogical policy can be externalized as explicit, testable rules.* Spark's `studentProfilePromptLines()` and `buildTutorPrompt()` already separate policy from generation; the band-adaptive language presets extend this to age-appropriate realization.
+
+**IntelliCode** (arXiv:2512.18669, 2025) — A multi-agent LLM tutoring system with centralized learner modeling. Frames adaptive education as a Partially Observable Markov Decision Process (POMDP): learner state maintains mastery vectors, SM-2 review schedules, engagement metrics, and metacognitive memory. The StateGraph Orchestrator is the only component permitted to write to the persistent learner record. Key takeaway: *the orchestrator validates proposed state changes and commits them as atomic updates, preventing conflicting writes.* Spark's `mergeLearningMemory` already handles merge semantics; extending it to band-aware skill filtering follows the same atomic-update pattern.
+
+### 13.2 BASIS-Specific Foundations
+
+- **BASIS Charter School Curriculum (enrollbasis.com)** — Full K-12 grade-by-grade course map with the distinctive three-science-concurrent model (Biology, Chemistry, Physics starting G6), accelerated math pathway (Prealgebra G6 → AP Calc BC G10 → Capstone Math G12), and Honors-floor-at-G9 philosophy. See §3.2 for detailed course map.
+- **BASIS Independent Schools (basisindependent.com)** — "Teach-up" pedagogy: curriculum consistently 1-2 years ahead of traditional schools. Content scope remains standard but is introduced earlier with greater depth.
+- **BASIS Scottsdale & Washington DC 2025-2026 Curricular Materials** — Confirms Savvas Envision Mathematics as textbook across all grades (G5 Accelerated → G6 Envision, Algebra I → Envision A|G|A, AP Calc → Larson/Stewart). Khan Academy listed as supplementary resource.
+
+### 13.3 Design Principles (Synthesized)
+
+From the research above, five principles guide Spark's grade-agnostic redesign:
+
+| # | Principle | Source | Spark Implementation |
+|---|-----------|--------|---------------------|
+| 1 | **Separate policy from generation** | SmartTutor AI, ES-LLMs | Hint ladder rules in `prompts.ts` are deterministic; LLM only realizes surface text |
+| 2 | **Structured curriculum representation** | GraphMASAL | Skill catalog with `minGrade`/`maxGrade`/`prerequisites` forms a K-12 DAG |
+| 3 | **Centralized learner model** | IntelliCode | BKT + SM-2 + engagement state in `learning-memory.ts` is the single source of truth |
+| 4 | **Explicit pedagogical constraints** | ES-LLMs | `curriculumPromptLines()` enforces grade-appropriate scaffolding rules per band |
+| 5 | **Atomic state updates** | IntelliCode | `mergeLearningMemory` + `lockedWriteJson` pattern prevents race conditions on multi-device sync |
