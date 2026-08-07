@@ -18,6 +18,7 @@ import {
   nsKey,
   readFlatKey,
   RYAN_ACCOUNT,
+  RYAN_ACCOUNT,
 } from "./tenant-storage";
 import {
   applySm2Decay,
@@ -153,15 +154,16 @@ export function loadLearningMemory(accountId: string = RYAN_ACCOUNT): LearningMe
       const mem = normalizeMemory(JSON.parse(raw) as Partial<LearningMemory>);
       return applyMemoryDecay(mem);
     }
-    // Fallback: read flat key and auto-migrate
-    const flatRaw = readFlatKey(FLAT_KEYS.memory);
-    if (flatRaw) {
-      const mem = normalizeMemory(JSON.parse(flatRaw) as Partial<LearningMemory>);
-      const decayed = applyMemoryDecay(mem);
-      // Auto-migrate: write namespaced copy, keep flat key as safety net
-      try { localStorage.setItem(nsKeyVal, JSON.stringify(decayed)); } catch { /* ignore */ }
-      markMigrated(accountId);
-      return decayed;
+    // Fallback: read flat key and auto-migrate — ONLY for the default Ryan account
+    if (accountId === RYAN_ACCOUNT) {
+      const flatRaw = readFlatKey(FLAT_KEYS.memory);
+      if (flatRaw) {
+        const mem = normalizeMemory(JSON.parse(flatRaw) as Partial<LearningMemory>);
+        const decayed = applyMemoryDecay(mem);
+        try { localStorage.setItem(nsKeyVal, JSON.stringify(decayed)); } catch { /* ignore */ }
+        markMigrated(accountId);
+        return decayed;
+      }
     }
     return emptyLearningMemory();
   } catch {

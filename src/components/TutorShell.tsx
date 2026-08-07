@@ -442,14 +442,19 @@ export function TutorShell() {
     const mem = loadLearningMemory(id);
     setLearningMemory(mem);
     void hydrateLearningMemoryFromServer(id).then(setLearningMemory);
-    // Reset chat to fresh empty session
-    const store = loadConversations(id);
-    setStore(store);
+    // Reset chat to new account's conversations
+    const nextStore = loadConversations(id);
+    setStore(nextStore);
     setError("");
     speakApiRef.current?.stop();
-    if (store.conversations.length > 0) {
-      setUrlSession(store.activeId);
+    if (nextStore.conversations.length > 0) {
+      setUrlSession(nextStore.activeId);
     }
+    // Background: hydrate new account's conversations from server
+    void hydrateFromServer(nextStore, id).then((merged) => {
+      setStore(merged);
+      saveConversations(merged, id);
+    });
   };
 
   const startNewSession = () => {

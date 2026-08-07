@@ -221,11 +221,13 @@ export function loadVoiceId(accountId: string = RYAN_ACCOUNT): TutorVoiceId {
     const nsKeyVal = nsKey(accountId, "ttsVoice");
     const saved = localStorage.getItem(nsKeyVal);
     if (saved) return normalizeVoiceId(saved);
-    // Fallback: read flat key
-    const flat = readFlatKey(FLAT_KEYS.ttsVoice);
-    if (flat) {
-      try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
-      return normalizeVoiceId(flat);
+    // Fallback: read flat key — ONLY for the default Ryan account
+    if (accountId === RYAN_ACCOUNT) {
+      const flat = readFlatKey(FLAT_KEYS.ttsVoice);
+      if (flat) {
+        try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
+        return normalizeVoiceId(flat);
+      }
     }
   } catch {
     // ignore
@@ -250,11 +252,13 @@ export function loadSpeakEnabled(accountId: string = RYAN_ACCOUNT): boolean {
     const nsKeyVal = nsKey(accountId, "speakEnabled");
     const saved = localStorage.getItem(nsKeyVal);
     if (saved) return saved !== "0" && saved !== "false";
-    // Fallback: flat key
-    const flat = readFlatKey(SPEAK_ENABLED_KEY);
-    if (flat) {
-      try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
-      return flat !== "0" && flat !== "false";
+    // Fallback: flat key — ONLY for the default Ryan account
+    if (accountId === RYAN_ACCOUNT) {
+      const flat = readFlatKey(SPEAK_ENABLED_KEY);
+      if (flat) {
+        try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
+        return flat !== "0" && flat !== "false";
+      }
     }
   } catch {
     // ignore

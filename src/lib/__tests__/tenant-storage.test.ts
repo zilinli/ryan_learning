@@ -199,3 +199,56 @@ describe("migration round-trip", () => {
     expect(localStorage.getItem(FLAT_KEYS.engagement)).toBe(JSON.stringify(flatData));
   });
 });
+
+/**
+ * Regression: verify that non-Ryan accounts do NOT inherit Ryan's
+ * flat-key data (sessions, learning memory, engagement, voices).
+ */
+describe("non-Ryan accounts never read flat-key fallback", () => {
+  const ACCT_ALICE = "acct_alice";
+
+  beforeEach(() => {
+    localStorage.clear();
+    const flatSessions = JSON.stringify({
+      version: 3,
+      activeId: "s123",
+      conversations: [{ sessionId: "s123", title: "Ryan math", messages: [], updatedAt: 1 }],
+    });
+    localStorage.setItem(FLAT_KEYS.sessions, flatSessions);
+    localStorage.setItem(FLAT_KEYS.memory, JSON.stringify({ topics: [], skills: [], updatedAt: 1 }));
+    localStorage.setItem(FLAT_KEYS.engagement, JSON.stringify({ streaks: [5], badges: [] }));
+    localStorage.setItem(FLAT_KEYS.ttsVoice, "yunxi");
+    localStorage.setItem(FLAT_KEYS.speakEnabled, "1");
+  });
+
+  it("loadConversations returns empty for non-Ryan account", () => {
+    const store = loadConversations(ACCT_ALICE);
+    expect(store.conversations).toEqual([]);
+  });
+
+  it("loadConversations still reads flat key for Ryan", () => {
+    const store = loadConversations(RYAN_ACCOUNT);
+    expect(store.conversations.length).toBeGreaterThan(0);
+    expect(store.conversations[0]!.title).toBe("Ryan math");
+  });
+
+  it("loadLearningMemory returns empty for non-Ryan account", () => {
+    const mem = loadLearningMemory(ACCT_ALICE);
+    expect(mem.topics).toEqual([]);
+  });
+
+  it("loadEngagement returns empty for non-Ryan account", () => {
+    const eng = loadEngagement(ACCT_ALICE);
+    expect(eng.streaks).toEqual([]);
+  });
+
+  it("loadVoiceId returns default for non-Ryan account", () => {
+    const vid = loadVoiceId(ACCT_ALICE);
+    expect(vid).toBe("auto");
+  });
+
+  it("loadSpeakEnabled returns true (default) for non-Ryan account", () => {
+    const enabled = loadSpeakEnabled(ACCT_ALICE);
+    expect(enabled).toBe(true);
+  });
+});

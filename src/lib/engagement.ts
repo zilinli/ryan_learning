@@ -46,17 +46,19 @@ export function loadEngagement(accountId: string = RYAN_ACCOUNT): EngagementStat
         badges: Array.isArray(parsed.badges) ? parsed.badges : [],
       };
     }
-    // Fallback: read flat key
-    const flatRaw = readFlatKey(FLAT_KEYS.engagement);
-    if (flatRaw) {
-      const parsed = JSON.parse(flatRaw) as Partial<EngagementState>;
-      const result = {
-        ...emptyEngagement(),
-        ...parsed,
-        badges: Array.isArray(parsed.badges) ? parsed.badges : [],
-      };
-      try { localStorage.setItem(nsKeyVal, JSON.stringify(result)); } catch { /* ignore */ }
-      return result;
+    // Fallback: read flat key — ONLY for the default Ryan account
+    if (accountId === RYAN_ACCOUNT) {
+      const flatRaw = readFlatKey(FLAT_KEYS.engagement);
+      if (flatRaw) {
+        const parsed = JSON.parse(flatRaw) as Partial<EngagementState>;
+        const result = {
+          ...emptyEngagement(),
+          ...parsed,
+          badges: Array.isArray(parsed.badges) ? parsed.badges : [],
+        };
+        try { localStorage.setItem(nsKeyVal, JSON.stringify(result)); } catch { /* ignore */ }
+        return result;
+      }
     }
     return emptyEngagement();
   } catch {

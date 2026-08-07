@@ -233,27 +233,29 @@ export function loadConversations(accountId: string = RYAN_ACCOUNT): Conversatio
         return pruneStore(parsed);
       }
     }
-    // Fallback: read flat key and auto-migrate
-    const flatRaw = readFlatKey(STORE_KEY);
-    if (flatRaw) {
-      const parsed = JSON.parse(flatRaw) as ConversationsStore;
-      if (parsed?.version === 3 && Array.isArray(parsed.conversations)) {
-        const pruned = pruneStore(parsed);
-        try { localStorage.setItem(namespacedKey, JSON.stringify(pruned)); } catch { /* ignore */ }
-        markMigrated(accountId);
-        return pruned;
+    // Fallback: read flat key and auto-migrate — ONLY for the default Ryan account.
+    // New accounts must NOT inherit Ryan's legacy data.
+    if (accountId === RYAN_ACCOUNT) {
+      const flatRaw = readFlatKey(STORE_KEY);
+      if (flatRaw) {
+        const parsed = JSON.parse(flatRaw) as ConversationsStore;
+        if (parsed?.version === 3 && Array.isArray(parsed.conversations)) {
+          const pruned = pruneStore(parsed);
+          try { localStorage.setItem(namespacedKey, JSON.stringify(pruned)); } catch { /* ignore */ }
+          markMigrated(accountId);
+          return pruned;
+        }
       }
-    }
-    // Legacy migration (flat legacy key → namespaced)
-    const legacyRaw = readFlatKey(LEGACY_KEY);
-    if (legacyRaw) {
-      const legacy = JSON.parse(legacyRaw) as TutorSessionState;
-      if (legacy?.sessionId) {
-        const migrated = pruneStore(migrateLegacy(legacy));
-        try { localStorage.setItem(namespacedKey, JSON.stringify(migrated)); } catch { /* ignore */ }
-        markMigrated(accountId);
-        // Don't remove legacy flat key (safety net)
-        return migrated;
+      // Legacy migration (flat legacy key → namespaced) — Ryan only
+      const legacyRaw = readFlatKey(LEGACY_KEY);
+      if (legacyRaw) {
+        const legacy = JSON.parse(legacyRaw) as TutorSessionState;
+        if (legacy?.sessionId) {
+          const migrated = pruneStore(migrateLegacy(legacy));
+          try { localStorage.setItem(namespacedKey, JSON.stringify(migrated)); } catch { /* ignore */ }
+          markMigrated(accountId);
+          return migrated;
+        }
       }
     }
   } catch {
