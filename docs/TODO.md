@@ -1,9 +1,10 @@
 # 📋 Downstream Development TODO
 
-> Version 0.3 · 2026-08-03  
+> Version 0.4 · 2026-08-04  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 24 test files, 220 tests, service `active` at :3000  
-> New UI spec: **[subsystems/ui-architecture.md](subsystems/ui-architecture.md)** (451 lines, covers full page design)
+> New UI spec: **[subsystems/ui-architecture.md](subsystems/ui-architecture.md)** (451 lines, covers full page design)  
+> New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (417 lines, v0.2 — BASIS K-12 + research-backed)
 
 ---
 
@@ -330,7 +331,7 @@
 
 ---
 
-## 🔴 Phase 12: Grade-Agnostic Adaptive Tutoring (24h)
+## 🔴 Phase 12: Grade-Agnostic Adaptive Tutoring (29h)
 
 > **Design:** [subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)  
 > **Goal:** Make Spark work for any student G1–G12. G4 is the baseline; system adapts up/down based on BKT mastery. No hardcoded Ryan/BASIS/G4 assumptions in core logic.  
@@ -364,17 +365,17 @@ Coach differently for a 6-year-old vs. a 16-year-old. Same hint ladder, differen
 | 🟡 12B.5 | Remove all hardcoded `"Ryan"` from prompt templates; use `profile.name` dynamic substitution | 0.5h | `src/lib/prompts.ts`, `src/lib/learning-memory.ts`, `src/lib/tutor-harness.ts` |
 | 🟡 12B.6 | Regression test: prompt output comparison with `RYAN_PROFILE` — confirm coaching style unchanged | 0.5h | `src/lib/prompts.test.ts` |
 
-### 12C: Skill Catalog Expansion (Phase C — 8h)
+### 12C: Skill Catalog Expansion (Phase C — 9h)
 
-Expand from 14 G4 skills to multi-band catalog. Start with elementary band (G3-5), then add middle and high.
+Expand from 14 G4 skills to multi-band catalog aligned to BASIS K-12 course map (design doc §3.2 + §4.2).
 
 | # | Task | Effort | Files |
 |---|------|--------|-------|
-| 🟡 12C.1 | Extend `SkillDefinition` type with `minGrade`, `coreGrade`, `maxGrade`, `band` fields | 0.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.2 | Expand elementary-band skills: add 6 G3 skills (multiplication fluency, word-problem strategies, measurement units, paragraph writing, etc.) + keep existing 14 G4-5 skills | 2h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.3 | Add middle-band skills (~24 skills: ratios, pre-algebra, algebra I, argumentative writing, physical science, etc.) | 2h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.4 | Add high-band skills (~28 skills: algebra II, trig, pre-calc, calculus, literary analysis, bio/chem/physics, etc.) | 2h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.5 | `activeSkillsForProfile(profile)` — filter skill catalog by `minGrade ≤ profile.grade ≤ maxGrade` | 0.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.1 | Extend `SkillDefinition` type with `minGrade`, `coreGrade`, `maxGrade`, `band`, `prerequisites`, `subject` fields | 0.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.2 | Expand elementary-band skills: add 6 G3 skills + align existing 14 G4-5 skills to BASIS G5 course map (Accelerated Math → Envision G6, English 5, General Science → experiments). Keep Ryan's current 14 skills with same IDs — additive only. | 2h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.3 | Add middle-band skills (~24) aligned to BASIS G6-8 three-science-concurrent model: **Math** (Prealgebra → Algebra I+Geometry → Algebra II+Geometry), **Science** (Bio 6/7/8 — cells/genetics/evolution, Chem 6/7/8 — atoms/reactions/stoichiometry, Physics 6/7/8 — motion/forces/energy), **Humanities** (English 6/7/8 lit analysis + World History I/II + US History), **Language** (Latin 6 + Chinese/French/Spanish 7). BKT must handle parallel science tracks — skills are concurrent within year, not sequential across sciences. | 2.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.4 | Add high-band skills (~28) aligned to BASIS Honors/AP/Capstone model: **Math** (Precalc → AP Calc AB → AP Calc BC → Capstone Math), **Science** (Honors Bio/Chem/Phys → AP Bio/Chem/Phys/EnvSci → Capstone Science), **Humanities** (AP English Lang/Lit, AP World/US History, AP Micro+Macro), **Language** (AP Chinese/Spanish/French/Latin). Include `capstone` sub-mode: for G12 skills, agent acts as research advisor (methodology coaching) not drill tutor. | 2.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.5 | `activeSkillsForProfile(profile)` — filter skill catalog by `minGrade ≤ profile.grade ≤ maxGrade`; for `coreGrade` near student grade, boost ZPD warm-up priority | 0.5h | `src/lib/skill-catalog.ts` |
 | 🟡 12C.6 | Wire `activeSkillsForProfile` into BKT initialization + ZPD warm-up selection + skill prompts | 0.5h | `src/lib/learning-memory.ts`, `src/lib/prompts.ts` |
 | 🟡 12C.7 | Regression test: `activeSkillsForProfile(RYAN_PROFILE)` returns exactly the current 14 G4 skills | 0.5h | `src/lib/skill-catalog.test.ts` 🆕 |
 
@@ -400,6 +401,30 @@ New students get grade-appropriate defaults, not Ryan's copy.
 | 🟢 12E.2 | Remove `"Hi Ryan!"` and hardcoded `"Ryan"` labels from `ConsoleThread.tsx` — use active account profile name | 0.5h | `src/components/ConsoleThread.tsx`, `src/components/TutorShell.tsx` |
 | 🟢 12E.3 | Test: create G8 account → verify skill pool = middle band, language style ≠ elementary | 0.5h | `src/lib/student-profile.test.ts` |
 
+### 12F: BASIS Curriculum Alignment (Phase F — 3h)
+
+Align prompt injection, textbook references, and course-aware scaffolding to BASIS K-12 specifics (design doc §3.2).
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟡 12F.1 | `curriculumPromptLines()` — for BASIS profiles, inject grade-band-specific textbook refs: G5 → Envision Mathematics G6 (Savvas, ISBN 978-1-4188-4908-5), Algebra I → Envision A|G|A (ISBN 978-1-4188-5436-2), Algebra II → Envision A|G|A (ISBN 978-1-4188-5452-2), AP Calc → Larson/Stewart. Khan Academy as supplemental resource link. | 0.5h | `src/lib/prompts.ts`, `src/lib/curriculum.ts` 🆕 |
+| 🟡 12F.2 | Parallel-science BKT wiring — when student is in middle/high band with 3 concurrent sciences, BKT tracks Bio, Chem, Phys independently (separate `pKnown` per science) but shares `activeSkillsForProfile` pool. | 1h | `src/lib/bkt.ts`, `src/lib/skill-catalog.ts`, `src/lib/learning-memory.ts` |
+| 🟡 12F.3 | Capstone detection — if `gradeBand === "high" && grade === 12`, `curriculumPromptLines()` emits "Capstone advisor" role (research methodology, not drill). Suppress hint-ladder L0-L1; use Socratic L2-L3 only. | 0.5h | `src/lib/prompts.ts` |
+| 🟡 12F.4 | World language skill sub-catalog — `LanguageSkillDefinition` extends `SkillDefinition` with `language: "zh"|"es"|"fr"|"la"`, proficiency tiers (beginner→intermediate→AP). Active only when student profile has a world language and grade ≥ 7 (BASIS world language start). | 0.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12F.5 | Regression test: with `RYAN_PROFILE`, `curriculumPromptLines()` output matches current `BASIS_G4_CURRICULUM` injection exactly. | 0.5h | `src/lib/prompts.test.ts` |
+
+### 12G: Research-Aligned Safeguards (Phase G — 2h)
+
+Implement the 5 design principles from academic research (design doc §13) as code-level safety rails.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟡 12G.1 | **Separate policy from generation** — extract `gradePolicyForBand(band)` returning explicit rules (allowable scaffolding, forbidden shortcuts, minimum-effort gate) as typed constraints. Passed to `buildTutorPrompt()` as §boundary. | 0.5h | `src/lib/prompts.ts`, `src/lib/policy.ts` 🆕 |
+| 🟡 12G.2 | **Centralized learner model write gate** — refactor `mergeLearningMemory()` to be the single write path. All BKT skill state changes flow through `mergeLearningMemory` → `lockedWriteJson`. Add `lastModifiedSkill` audit field. No other function may directly mutate `LearningMemory`. | 0.5h | `src/lib/learning-memory.ts` |
+| 🟡 12G.3 | **Explicit pedagogical constraints** — `validateTutorResponse(response, profile)` checker: response must not solve the problem directly (hint ladder policy), must stay within band vocabulary, must reference correct subject. Called before SSE emits text. Non-blocking warning on violation — logs, does not censor (guard rail, not wall). | 0.5h | `src/lib/tutor-harness.ts`, `src/lib/policy.ts` |
+| 🟡 12G.4 | **Structured curriculum DAG guard** — `prerequisiteChain(skill, depth)` — given a skill, returns its prereq chain up to `depth` levels. Used by ZPD warm-up to never suggest a skill whose prereq `pKnown < 0.60`. (GraphMASAL-aligned.) | 0.25h | `src/lib/skill-catalog.ts` |
+| 🟡 12G.5 | Unit test: `prerequisiteChain("algebra_1", 3)` → array of prereq skill IDs ending with `fraction_fluency`. Verify chain length and ordering. | 0.25h | `src/lib/skill-catalog.test.ts` |
+
 ---
 
 ## 📊 Summary
@@ -413,7 +438,7 @@ New students get grade-appropriate defaults, not Ryan's copy.
 | **Phase 9** STT Reliability | 🔴 Critical | 6 (9.1–9.6) | **4h** |
 | **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
 | **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
-| **Phase 12** Grade-Agnostic | 🔴 Critical | 26 (12A.1–12E.3) | **24h** |
+| **Phase 12** Grade-Agnostic | 🔴 Critical | 36 (12A.1–12G.5) | **29h** |
 | **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
 | **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
 | **Phase 4** Voice | 🟡 Important | 3 | **9d** |
@@ -421,11 +446,12 @@ New students get grade-appropriate defaults, not Ryan's copy.
 | **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
 | **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
 
-**Total new critical work (Phases 7–12):** ~62 hours (~8 days)
+**Total new critical work (Phases 7–12):** ~72 hours (~9 days)
 
-**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → **Phase 12 (Grade-Agnostic 24h)** → Phase 0 UI (6d) → Phase 6 tests (10d)
+**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → **Phase 12 (Grade-Agnostic 29h: A→B→C→F→G→D→E)** → Phase 0 UI (6d) → Phase 6 tests (10d)
 
 **Next immediate steps:**
 1. **Phase 12A.1** — Add `gradeBand` to `StudentProfile` type (0.5h, foundation for grade awareness)
 2. **Phase 12A.2** — Extract `RYAN_PROFILE`, make `DEFAULT_STUDENT_PROFILE` universal (1h, break hardcoding)
-3. **Phase 12A.8** — Full regression test with Ryan's profile (1h, safety gate)
+3. **Phase 12C.1** — Extend `SkillDefinition` with band/grade fields (0.5h, enables all catalog expansion)
+4. **Phase 12A.8** — Full regression test with Ryan's profile (1h, safety gate)
