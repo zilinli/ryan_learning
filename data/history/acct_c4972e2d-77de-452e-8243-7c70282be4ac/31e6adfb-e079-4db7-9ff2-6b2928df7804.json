@@ -1,0 +1,20 @@
+{
+  "sessionId": "31e6adfb-e079-4db7-9ff2-6b2928df7804",
+  "title": "Say something",
+  "messages": [
+    {
+      "id": "m_1785676781370_vrf34q",
+      "role": "user",
+      "content": "Say something",
+      "createdAt": 1785676781370
+    },
+    {
+      "id": "m_1785676781370_cfcyih",
+      "role": "assistant",
+      "content": "Hi! I’m here whenever you’re ready.\n\nWhat are you working on today — maths, reading, or something else? Share a question or a photo of the problem, and we’ll take it step by step together.",
+      "createdAt": 1785676781370
+    }
+  ],
+  "createdAt": 1785676771562,
+  "updatedAt": 1785676787426
+}

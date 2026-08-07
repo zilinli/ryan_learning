@@ -273,6 +273,7 @@ export function TutorShell() {
   const saveTimerRef = useRef<number | null>(null);
   const voiceEnabledRef = useRef(true);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
+  const accountIdRef = useRef(RYAN_ACCOUNT_ID);
 
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
@@ -341,11 +342,11 @@ export function TutorShell() {
           const final = repaired !== restored ? repaired : restored;
           await ingestStorePhotos(final);
           await pruneVaultToStore(final);
-          if (cancelled) return;
+          if (cancelled || accountIdRef.current !== aid) return;
           setStore(final);
           saveConversations(final, aid);
           const withMedia = await pushStoreToServer(final, aid);
-          if (cancelled) return;
+          if (cancelled || accountIdRef.current !== aid) return;
           if (withMedia !== final) {
             setStore(withMedia);
             saveConversations(withMedia, aid);
@@ -376,6 +377,10 @@ export function TutorShell() {
 
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    accountIdRef.current = accountId;
+  }, [accountId]);
 
   useEffect(() => {
     voiceEnabledRef.current = voiceEnabled;
@@ -432,6 +437,8 @@ export function TutorShell() {
 
   const handleSwitchAccount = (id: string) => {
     if (id === accountId || busy) return;
+    // Prevent in-flight init photo vault from overwriting the new account's store
+    accountIdRef.current = id;
     // Save current state
     if (store) saveConversations(store, accountId);
     if (learningMemory) {

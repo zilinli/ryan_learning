@@ -1,0 +1,97 @@
+{
+  "topics": [
+    {
+      "id": "writing",
+      "label": "narrative writing",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786103938121
+    },
+    {
+      "id": "reading",
+      "label": "reading with evidence",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786103938121
+    },
+    {
+      "id": "fractions",
+      "label": "fraction concepts",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786103938121
+    }
+  ],
+  "skills": [
+    {
+      "id": "narrative-writing",
+      "label": "narrative writing",
+      "topicId": "writing",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786103938121,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786103938121
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786103938121
+      }
+    },
+    {
+      "id": "reading-evidence",
+      "label": "reading with evidence",
+      "topicId": "reading",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786103938121,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786103938121
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786103938121
+      }
+    },
+    {
+      "id": "fractions-concepts",
+      "label": "fraction concepts",
+      "topicId": "fractions",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786103938121,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786103938121
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786103938121
+      }
+    }
+  ],
+  "recentStruggles": [],
+  "recentWins": [],
+  "sessionDigests": [],
+  "updatedAt": 1786103938121
+}

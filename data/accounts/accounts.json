@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "activeId": "acct_ryan",
+  "accounts": [
+    {
+      "id": "acct_ryan",
+      "profile": {
+        "name": "Ryan",
+        "age": 9,
+        "grade": 4,
+        "gradeBand": "elementary",
+        "school": "BASIS International School",
+        "curriculum": null,
+        "preferredChinese": "yue",
+        "stronger": [
+          "general practice",
+          "narrative writing",
+          "reading with evidence"
+        ],
+        "focusAreas": [
+          "Earth–Moon–Sun / space",
+          "equivalent fractions",
+          "angles & triangles"
+        ]
+      },
+      "createdAt": 1786069756062,
+      "updatedAt": 1786092599839
+    },
+    {
+      "id": "acct_c4972e2d-77de-452e-8243-7c70282be4ac",
+      "profile": {
+        "name": "Ching",
+        "age": 9,
+        "grade": 12,
+        "gradeBand": "high",
+        "school": "BASIS International School",
+        "curriculum": {
+          "label": "BASIS International School G12",
+          "grade": 12,
+          "subjects": [
+            "math",
+            "science",
+            "reading",
+            "writing",
+            "general"
+          ]
+        },
+        "preferredChinese": "yue",
+        "stronger": [],
+        "focusAreas": [
+          "narrative writing",
+          "reading with evidence",
+          "fraction concepts"
+        ]
+      },
+      "createdAt": 1786103844558,
+      "updatedAt": 1786103938125
+    }
+  ]
+}

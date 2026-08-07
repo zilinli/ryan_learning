@@ -1,0 +1,53 @@
+{
+  "sessionId": "e4d9b7f7-de32-439e-ae59-826ebb9285b6",
+  "title": "Bonjour.",
+  "messages": [
+    {
+      "id": "m_1785818228479_wqtxg5",
+      "role": "user",
+      "content": "Bonjour.",
+      "createdAt": 1785818228479
+    },
+    {
+      "id": "m_1785818228479_kxve00",
+      "role": "assistant",
+      "content": "Sorry — something went wrong: Load failed",
+      "createdAt": 1785818228479
+    },
+    {
+      "id": "m_1785818255844_tnjftv",
+      "role": "user",
+      "content": "Bonjour",
+      "createdAt": 1785818255844
+    },
+    {
+      "id": "m_1785818255844_068jdf",
+      "role": "assistant",
+      "content": "Bonjour Ryan !\n\nContent de te revoir — tu as déjà bien travaillé aujourd’hui.\n\nOn continue un peu les **fractions**, ou tu préfères autre chose (maths, lecture, sciences…) ?",
+      "createdAt": 1785818255844
+    },
+    {
+      "id": "m_1785827863960_zv7jy7",
+      "role": "user",
+      "content": "describe the picture",
+      "createdAt": 1785827863961,
+      "attachments": [
+        {
+          "id": "a_1785827845624_9mtmsg",
+          "name": "A82C3631-F1B3-484D-A767-7E8B3687391B.jpeg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "e4d9b7f7-de32-439e-ae59-_67a8494766bb596b72f63bcc"
+        }
+      ]
+    },
+    {
+      "id": "m_1785827863961_3axhs9",
+      "role": "assistant",
+      "content": "Ryan, what a proud smile! I see you at the table with three little cups stacked like a tiny pyramid.\n\nThe top cup says **1 LIGHT**, the red one says **3 MEDIUM**, and the yellow one says **5 DARK**.\n\nWhat were you doing with those cups — sorting, stacking, or a science experiment?",
+      "createdAt": 1785827863961
+    }
+  ],
+  "createdAt": 1785818213084,
+  "updatedAt": 1785827892089
+}

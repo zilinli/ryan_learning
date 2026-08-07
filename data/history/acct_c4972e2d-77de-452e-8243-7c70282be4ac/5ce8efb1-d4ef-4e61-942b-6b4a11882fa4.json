@@ -1,0 +1,40 @@
+{
+  "sessionId": "5ce8efb1-d4ef-4e61-942b-6b4a11882fa4",
+  "title": "Can you speak?",
+  "messages": [
+    {
+      "id": "m_1785675675499_xrgs1u",
+      "role": "user",
+      "content": "Can you speak?",
+      "createdAt": 1785675675499
+    },
+    {
+      "id": "m_1785675675499_7xf9h0",
+      "role": "assistant",
+      "content": "Yes — I can chat with you here in writing, like a tutor in a message box.\n\nI can’t talk out loud with my voice in this chat, though. If you meant something else by “speak” (like help with speaking practice, English conversation, or a subject), tell me what you’d like to try and we’ll start together.",
+      "createdAt": 1785675675499
+    },
+    {
+      "id": "m_1785675840623_i9gb34",
+      "role": "user",
+      "content": "What is that",
+      "createdAt": 1785675840623,
+      "attachments": [
+        {
+          "id": "a_1785675832918_wj7s85",
+          "name": "IMG_0345.jpeg",
+          "mimeType": "image/jpeg",
+          "kind": "image"
+        }
+      ]
+    },
+    {
+      "id": "m_1785675840623_h253ru",
+      "role": "assistant",
+      "content": "That looks like a fun photo of you — flexing your arm, glasses on, green shirt — with a **mirror effect** down the middle, so it looks like two of you facing each other.\n\nBehind you I can see a bookshelf, and on your shirt a bit of writing that ends with **“…FUTURE”**.\n\nWhat were you wondering about — the mirror trick, the shirt, or something else in the picture?",
+      "createdAt": 1785675840623
+    }
+  ],
+  "createdAt": 1785675606616,
+  "updatedAt": 1785675856150
+}
