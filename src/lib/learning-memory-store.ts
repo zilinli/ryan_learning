@@ -1,3 +1,13 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import {
+  emptyLearningMemory,
+  mergeLearningMemory,
+  normalizeMemory,
+  type LearningMemory,
+} from "./learning-memory";
+import { lockedWriteJson } from "./file-lock";
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const LEARNING_DIR = path.join(DATA_DIR, "learning");
 const DEFAULT_FILE = path.join(DATA_DIR, "learning-memory.json");
