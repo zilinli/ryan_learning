@@ -126,6 +126,9 @@ export const ENVISION_G5_PROMPT_HINT = [
 const PROFILE_KEY = "spark.studentProfile.v2";
 /** Multi-account store — Ryan is always seeded as a switchable account. */
 const ACCOUNTS_KEY = "spark.accounts.v1";
+/** Tracks which account IDs were present in the last successful server sync.
+ *  Used to detect server-side deletions (account removed on another device). */
+const SERVER_SYNC_IDS_KEY = "spark.accounts.serverIds.v1";
 export const RYAN_ACCOUNT_ID = "acct_ryan";
 
 export type AccountRecord = {
@@ -576,6 +579,8 @@ export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
     };
 
     const merged = mergeServerAccounts(local, serverStore);
+    // Remember server IDs so we can detect deletions on next sync
+    recordServerSyncIds(serverStore.accounts);
     saveAccounts(merged);
     return merged;
   } catch {
@@ -600,20 +605,56 @@ export function pushAccountsToServer(store?: AccountsStore): void {
   }
 }
 
-/** Server baseline + add any local-only accounts, ensure Ryan exists. */
+/** Server baseline + add any local-only accounts, ensure Ryan exists.
+ *  Accounts that were previously on the server but are now missing → deleted remotely → drop locally. */
 function mergeServerAccounts(local: AccountsStore, server: AccountsStore): AccountsStore {
   const serverIds = new Set(server.accounts.map((a) => a.id));
+  const prevServerIds = readServerSyncIds();
   const mergedAccounts = [...server.accounts];
+  let changed = false;
 
   for (const acct of local.accounts) {
-    if (!serverIds.has(acct.id)) {
-      mergedAccounts.push(acct);
+    if (serverIds.has(acct.id)) continue;
+    // Local-only account → was it known from a previous server sync?
+    if (prevServerIds.has(acct.id)) {
+      // This account was on the server before but is now missing → deleted on another device
+      changed = true;
+      continue; // drop it
     }
+    // Genuinely new local account → add to merged list + will be pushed to server
+    mergedAccounts.push(acct);
   }
 
-  return ensureDefaultAccount({
+  const result = ensureDefaultAccount({
     version: 1,
     activeId: local.activeId,
     accounts: mergedAccounts,
   });
+
+  // If we dropped accounts, persist the cleanup immediately
+  if (changed) saveAccounts(result);
+
+  return result;
+}
+
+/** Store server account IDs for deletion detection on the next sync. */
+function recordServerSyncIds(accounts: AccountRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const ids = accounts.map((a) => a.id);
+    localStorage.setItem(SERVER_SYNC_IDS_KEY, JSON.stringify(ids));
+  } catch { /* ignore */ }
+  // Also record as side-effect of success
+}
+
+/** Read the set of account IDs that were in the last successful server sync. */
+function readServerSyncIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(SERVER_SYNC_IDS_KEY);
+    if (!raw) return new Set();
+    const ids = JSON.parse(raw) as string[];
+    if (Array.isArray(ids)) return new Set(ids);
+  } catch { /* ignore */ }
+  return new Set();
 }
