@@ -330,6 +330,78 @@
 
 ---
 
+## 🔴 Phase 12: Grade-Agnostic Adaptive Tutoring (24h)
+
+> **Design:** [subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)  
+> **Goal:** Make Spark work for any student G1–G12. G4 is the baseline; system adapts up/down based on BKT mastery. No hardcoded Ryan/BASIS/G4 assumptions in core logic.  
+> **Non-negotiable:** Zero regression for Ryan's current experience — every phase has a dedicated regression gate.
+
+### 12A: Profile Abstraction (Phase A — 6h)
+
+Make grade functional. Keep existing skill catalog; Ryan's profile becomes a saved account, not the system default.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 12A.1 | Add `gradeBand` to `StudentProfile` type: derive `"early"|"elementary"|"middle"|"high"` from numeric grade | 0.5h | `src/lib/student-profile.ts` |
+| 🔴 12A.2 | Extract `RYAN_PROFILE` as a named export (preserve all G4/BASIS data); `DEFAULT_STUDENT_PROFILE` becomes grade-agnostic (`name: ""`, `grade: 4`, `school: ""`) | 1h | `src/lib/student-profile.ts` |
+| 🔴 12A.3 | `createAccount()` accepts optional `Partial<StudentProfile>` — new accounts get bare defaults, not Ryan's data | 0.5h | `src/lib/student-profile.ts` |
+| 🔴 12A.4 | `ensureRyan()` → `ensureDefaultAccount()` — backward-compatible: still creates Ryan profile if it's the only account | 0.5h | `src/lib/student-profile.ts` |
+| 🔴 12A.5 | Add `curriculum` field to `StudentProfile` (`null` = auto-detect from grade); remove hardcoded `BASIS_G4_CURRICULUM` from prompt injection | 1h | `src/lib/student-profile.ts`, `src/lib/prompts.ts` |
+| 🔴 12A.6 | `curriculumPromptLines(profile)` — generates grade-band-appropriate curriculum hints (e.g., G3-5 fractions denominator constraints, G6-8 rational numbers, G9-12 rational functions) | 1h | `src/lib/prompts.ts` |
+| 🔴 12A.7 | BKT parameter selection by grade band: `bktDefaultsForBand(band)`. Per-band defaults per design doc table (early: pInit=0.30, elementary=0.25 baseline, middle=0.20, high=0.15) | 0.5h | `src/lib/bkt.ts` |
+| 🔴 12A.8 | Regression test: run full prompt+profile test suite with `RYAN_PROFILE`, verify output identical to pre-change | 1h | `src/lib/student-profile.test.ts`, `src/lib/prompts.test.ts` |
+
+### 12B: Age-Adaptive Prompt Language (Phase B — 5h)
+
+Coach differently for a 6-year-old vs. a 16-year-old. Same hint ladder, different vocabulary.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟡 12B.1 | Define `LanguagePreset` type: `{ confirm, encourage, stuck, error, thinkAloud }` strings per band | 0.5h | `src/lib/prompts.ts` |
+| 🟡 12B.2 | Implement `languageForBand(band: GradeBand): LanguagePreset` — 4 presets per design doc table | 0.5h | `src/lib/prompts.ts` |
+| 🟡 12B.3 | Inject `LanguagePreset` into `buildTutorPrompt()` via `studentProfilePromptLines()` — replace hardcoded `"(G4–G5 accessible)"` and `"BASIS-critical"` with band-adaptive versions | 1h | `src/lib/prompts.ts` |
+| 🟡 12B.4 | `subjectCoachingLines()` band-aware: fractions in G4 are "food/pizza metaphors", G8 is "rational expressions", G11 is "limits & asymptotes" | 1h | `src/lib/prompts.ts` |
+| 🟡 12B.5 | Remove all hardcoded `"Ryan"` from prompt templates; use `profile.name` dynamic substitution | 0.5h | `src/lib/prompts.ts`, `src/lib/learning-memory.ts`, `src/lib/tutor-harness.ts` |
+| 🟡 12B.6 | Regression test: prompt output comparison with `RYAN_PROFILE` — confirm coaching style unchanged | 0.5h | `src/lib/prompts.test.ts` |
+
+### 12C: Skill Catalog Expansion (Phase C — 8h)
+
+Expand from 14 G4 skills to multi-band catalog. Start with elementary band (G3-5), then add middle and high.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟡 12C.1 | Extend `SkillDefinition` type with `minGrade`, `coreGrade`, `maxGrade`, `band` fields | 0.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.2 | Expand elementary-band skills: add 6 G3 skills (multiplication fluency, word-problem strategies, measurement units, paragraph writing, etc.) + keep existing 14 G4-5 skills | 2h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.3 | Add middle-band skills (~24 skills: ratios, pre-algebra, algebra I, argumentative writing, physical science, etc.) | 2h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.4 | Add high-band skills (~28 skills: algebra II, trig, pre-calc, calculus, literary analysis, bio/chem/physics, etc.) | 2h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.5 | `activeSkillsForProfile(profile)` — filter skill catalog by `minGrade ≤ profile.grade ≤ maxGrade` | 0.5h | `src/lib/skill-catalog.ts` |
+| 🟡 12C.6 | Wire `activeSkillsForProfile` into BKT initialization + ZPD warm-up selection + skill prompts | 0.5h | `src/lib/learning-memory.ts`, `src/lib/prompts.ts` |
+| 🟡 12C.7 | Regression test: `activeSkillsForProfile(RYAN_PROFILE)` returns exactly the current 14 G4 skills | 0.5h | `src/lib/skill-catalog.test.ts` 🆕 |
+
+### 12D: Auto-Advance Mechanism (Phase D — 3h)
+
+When mastery exceeds band ceiling, suggest upgrading to next grade band. Parent opt-in.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟢 12D.1 | `autoAdvanceCheck(memory, profile)` — if all active-band skills have pKnown > 0.85, return `AdvanceSuggestion { suggestedBand, confidence, skillsReady }` | 1h | `src/lib/learning-memory.ts` |
+| 🟢 12D.2 | Add `advanceSuggestion` field to `LearningMemory` type for persistence across sessions | 0.5h | `src/lib/learning-memory.ts` |
+| 🟢 12D.3 | Prompt integration: when advance suggestion exists, include gentle note in system prompt ("You may be ready for more challenging material in some areas") | 0.5h | `src/lib/prompts.ts`, `src/lib/learning-memory.ts` |
+| 🟢 12D.4 | Unit tests: (a) 100% mastery → advance suggestion, (b) mixed mastery → null, (c) already at "high" band → null | 0.5h | `src/lib/__tests__/auto-advance.test.ts` 🆕 |
+| 🟢 12D.5 | Regression: Ryan's current BKT state should NOT trigger advance (existing data within G4 range) | 0.5h | `src/lib/__tests__/auto-advance.test.ts` |
+
+### 12E: Multi-Account Grace (Phase E — 2h)
+
+New students get grade-appropriate defaults, not Ryan's copy.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟢 12E.1 | `AccountHome.tsx` — add grade selector (1–12 number input or dropdown) when creating a new account | 1h | `src/components/AccountHome.tsx` |
+| 🟢 12E.2 | Remove `"Hi Ryan!"` and hardcoded `"Ryan"` labels from `ConsoleThread.tsx` — use active account profile name | 0.5h | `src/components/ConsoleThread.tsx`, `src/components/TutorShell.tsx` |
+| 🟢 12E.3 | Test: create G8 account → verify skill pool = middle band, language style ≠ elementary | 0.5h | `src/lib/student-profile.test.ts` |
+
+---
+
 ## 📊 Summary
 
 | Phase | Priority | Sub-tasks | Est. |
@@ -341,6 +413,7 @@
 | **Phase 9** STT Reliability | 🔴 Critical | 6 (9.1–9.6) | **4h** |
 | **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
 | **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
+| **Phase 12** Grade-Agnostic | 🔴 Critical | 26 (12A.1–12E.3) | **24h** |
 | **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
 | **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
 | **Phase 4** Voice | 🟡 Important | 3 | **9d** |
@@ -348,11 +421,11 @@
 | **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
 | **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
 
-**Total new critical work (Phases 7–10):** ~38 hours (~5 days)
+**Total new critical work (Phases 7–12):** ~62 hours (~8 days)
 
-**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → **Phase 11** (Code Agent v3 22h) → Phase 0 UI (6d) → Phase 6 tests (10d)
+**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → **Phase 12 (Grade-Agnostic 24h)** → Phase 0 UI (6d) → Phase 6 tests (10d)
 
 **Next immediate steps:**
-1. **Phase 11A.1** — Extend `ChatRequest` type for attachments (0.5h, foundation for upload)
-2. **Phase 11D.2** — Create `spark-acc.service` systemd unit (0.5h, stability)
-3. **Phase 11C.1** — Build `git-ops.ts` test runner (1.5h, auto-git foundation)
+1. **Phase 12A.1** — Add `gradeBand` to `StudentProfile` type (0.5h, foundation for grade awareness)
+2. **Phase 12A.2** — Extract `RYAN_PROFILE`, make `DEFAULT_STUDENT_PROFILE` universal (1h, break hardcoding)
+3. **Phase 12A.8** — Full regression test with Ryan's profile (1h, safety gate)
