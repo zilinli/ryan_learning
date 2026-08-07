@@ -79,6 +79,11 @@ export const CANTONESE_DICT: CantoneseEntry[] = [
   { traditional: "細", simplified: "细", jyutping: "sai3", tone: 3, gloss: "small / young", mandarin: "xì", freq: 42 },
   { traditional: "好", simplified: "好", jyutping: "hou2", tone: 2, gloss: "good / very", mandarin: "hǎo", freq: 43 },
   { traditional: "靚", simplified: "靓", jyutping: "leng3", tone: 3, gloss: "pretty / beautiful", example: "好靚 (very pretty)", freq: 44 },
+  // ── Common compounds (sample chips + learner phrases) ──
+  { traditional: "好靚", simplified: "好靓", jyutping: "hou2 leng3", tone: 2, gloss: "very pretty / beautiful", example: "你今日好靚 (You look great today)", freq: 44 },
+  { traditional: "食飯", simplified: "食饭", jyutping: "sik6 faan6", tone: 6, gloss: "to eat a meal / have rice", example: "一齊食飯 (eat together)", freq: 11 },
+  { traditional: "唔該", simplified: "唔该", jyutping: "m4 goi1", tone: 4, gloss: "thank you (for a service) / please / excuse me", example: "唔該借借 (Excuse me, coming through)", freq: 6 },
+  { traditional: "多謝", simplified: "多谢", jyutping: "do1 ze6", tone: 1, gloss: "thank you (for a gift)", freq: 6 },
   { traditional: "多", simplified: "多", jyutping: "do1", tone: 1, gloss: "many / much", mandarin: "duō", freq: 45 },
   { traditional: "少", simplified: "少", jyutping: "siu2", tone: 2, gloss: "few / little", mandarin: "shǎo", freq: 46 },
   { traditional: "熱", simplified: "热", jyutping: "jit6", tone: 6, gloss: "hot", mandarin: "rè", freq: 47 },

@@ -36,10 +36,22 @@ describe("dict-cache", () => {
   });
 
   it("handles special characters and Chinese", () => {
-    const data = { word: "你好", lang: "zh" as const, entries: [] };
+    const data = {
+      word: "你好",
+      lang: "zh" as const,
+      entries: [
+        {
+          headword: "你好",
+          partOfSpeech: "interjection",
+          senses: [{ definition: "hello" }],
+          source: "freedict" as const,
+        },
+      ],
+    };
     writeToCache("freedict", "zh", "你好", data);
     const cached = readFromCache("freedict", "zh", "你好");
     expect(cached).not.toBeNull();
+    expect(cached!.word).toBe("你好");
   });
 
   it("handles invalid paths gracefully", () => {

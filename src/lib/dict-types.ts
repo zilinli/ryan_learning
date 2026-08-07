@@ -45,6 +45,10 @@ export type DictResponse = {
   word: string;
   lang: DictLang;
   entries: DictEntry[];
+  /** Original query when we auto-corrected a typo */
+  correctedFrom?: string;
+  /** Spelling suggestions when exact match fails (or alongside a correction) */
+  suggestions?: string[];
 };
 
 /** Client-side recent search */

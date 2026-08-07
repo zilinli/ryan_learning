@@ -10,6 +10,10 @@ import {
   readFlatKey,
   RYAN_ACCOUNT,
 } from "../tenant-storage";
+import { loadConversations } from "../storage";
+import { loadLearningMemory } from "../learning-memory";
+import { loadEngagement } from "../engagement";
+import { loadVoiceId, loadSpeakEnabled } from "../voices";
 
 // Provide a simple localStorage mock for the node environment
 const store = new Map<string, string>();
@@ -216,20 +220,20 @@ describe("non-Ryan accounts never read flat-key fallback", () => {
     });
     localStorage.setItem(FLAT_KEYS.sessions, flatSessions);
     localStorage.setItem(FLAT_KEYS.memory, JSON.stringify({ topics: [], skills: [], updatedAt: 1 }));
-    localStorage.setItem(FLAT_KEYS.engagement, JSON.stringify({ streaks: [5], badges: [] }));
-    localStorage.setItem(FLAT_KEYS.ttsVoice, "yunxi");
+    localStorage.setItem(FLAT_KEYS.engagement, JSON.stringify({ streak: 5, badges: ["star"] }));
+    localStorage.setItem(FLAT_KEYS.ttsVoice, "xiaoxiao");
     localStorage.setItem(FLAT_KEYS.speakEnabled, "1");
   });
 
-  it("loadConversations returns empty for non-Ryan account", () => {
+  it("loadConversations returns empty (only default New chat) for non-Ryan account", () => {
     const store = loadConversations(ACCT_ALICE);
-    expect(store.conversations).toEqual([]);
+    expect(store.conversations.length).toBe(1);
+    expect(store.conversations[0]!.title).toBe("New chat");
   });
 
   it("loadConversations still reads flat key for Ryan", () => {
     const store = loadConversations(RYAN_ACCOUNT);
-    expect(store.conversations.length).toBeGreaterThan(0);
-    expect(store.conversations[0]!.title).toBe("Ryan math");
+    expect(store.conversations.some((c) => c.title === "Ryan math")).toBe(true);
   });
 
   it("loadLearningMemory returns empty for non-Ryan account", () => {
@@ -239,7 +243,7 @@ describe("non-Ryan accounts never read flat-key fallback", () => {
 
   it("loadEngagement returns empty for non-Ryan account", () => {
     const eng = loadEngagement(ACCT_ALICE);
-    expect(eng.streaks).toEqual([]);
+    expect(eng.badges).toEqual([]);
   });
 
   it("loadVoiceId returns default for non-Ryan account", () => {

@@ -138,6 +138,7 @@ export function Dictionary() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setRecents(loadRecentSearches());
@@ -154,7 +155,10 @@ export function Dictionary() {
         const res = await dictLookup(word.trim(), l, abortRef.current.signal);
         setResults(res);
         if (res && res.entries.length === 0) {
-          setError(`No results for "${word.trim()}" in ${DICT_LANG_LABELS[l]}. Try another word.`);
+          const hint = res.suggestions?.length
+            ? ` Did you mean ${res.suggestions.slice(0, 3).map((s) => `"${s}"`).join(", ")}?`
+            : " Try another word.";
+          setError(`No results for "${word.trim()}" in ${DICT_LANG_LABELS[l]}.${hint}`);
         } else if (!res) {
           setError("Failed to look up the word. Please try again.");
         }
@@ -171,13 +175,9 @@ export function Dictionary() {
   const onInputChange = useCallback(
     (val: string) => {
       setQuery(val);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       if (val.trim().length >= 2) {
-        abortRef.current?.abort();
-        abortRef.current = new AbortController();
-        const word = val;
-        const l = lang;
-        const timer = setTimeout(() => doLookup(word, l), 350);
-        return () => clearTimeout(timer);
+        debounceRef.current = setTimeout(() => doLookup(val, lang), 450);
       } else {
         setResults(null);
         setError("");
@@ -265,6 +265,7 @@ export function Dictionary() {
   // Cleanup
   useEffect(() => {
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       abortRef.current?.abort();
       if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     };
@@ -424,17 +425,47 @@ export function Dictionary() {
 
         {/* Results */}
         <div className="mt-8 space-y-4">
-          {error ? (
-            <p className="text-[var(--ink-muted)]">{error}</p>
+          {results?.correctedFrom ? (
+            <p className="rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/8 px-3 py-2 text-sm text-[var(--ink)]">
+              Showing results for <strong>{results.word}</strong>
+              <span className="text-[var(--ink-muted)]">
+                {" "}
+                (corrected from “{results.correctedFrom}”)
+              </span>
+            </p>
+          ) : null}
+
+          {error && !hasResults ? (
+            <div className="space-y-3">
+              <p className="text-[var(--ink-muted)]">{error}</p>
+              {results?.suggestions && results.suggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  <span className="w-full text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]/70">
+                    Did you mean
+                  </span>
+                  {results.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setQuery(s);
+                        doLookup(s, lang);
+                      }}
+                      className="rounded-full border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 py-1.5 text-sm font-medium text-[var(--teal)] hover:bg-[var(--teal)]/20"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ) : hasResults ? (
             resultEntries.map((entry, i) => (
               <EntryCard key={`${entry.headword}-${entry.partOfSpeech}-${i}`} entry={entry} />
             ))
           ) : query.trim().length >= 2 && !loading ? (
             <p className="text-[var(--ink-muted)]">
-              {results?.entries.length === 0
-                ? `No results for "${query}" in ${DICT_LANG_LABELS[lang]}.`
-                : "Enter a word to look up definitions, translations, and pronunciations."}
+              Enter a word to look up definitions, translations, and pronunciations.
             </p>
           ) : null}
         </div>
