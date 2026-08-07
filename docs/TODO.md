@@ -11,31 +11,39 @@
 
 ---
 
-## 🔴 In Progress (2026-08-08) — Cross-Device Deletion Sync + Multi-Theme
+## 🔴 In Progress (2026-08-07) — Cross-Device Deletion Sync + Multi-Theme
 
-**Deletion sync bug** — PC1 delete does not propagate to PC2 (reincarnation bug due to union-merge logic).  
+**Deletion sync bug** — PC1 delete does not propagate to PC2 (reincarnation bug). Root cause confirmed: server `PUT` had no deletion-log guard, so a stale device re-uploaded the deleted chat before hydration completed.
 **Themes** — Upgrade from dark/light toggle to 4-theme system (light / dark / light-blue / light-green).
 
-### Phase A: Deletion Sync (2.5h)
+> **Design (v0.2):** [subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md) — tombstone log + **server PUT guard** (authoritative) + client push filter + periodic re-hydration (60s + visibilitychange) + WCAG contrast audit (muted-color fixes for blue/green themes).
 
-- [ ] **A.1** — Create `src/lib/deletion-log.ts` — server-side tombstone read/write/prune (0.5h)
-- [ ] **A.2** — Update `src/app/api/history/route.ts` — GET attaches `deletions`; DELETE writes tombstone before unlink (0.5h)
-- [ ] **A.3** — Update `src/lib/history-sync.ts` — `hydrateFromServer` applies deletion log before merge (0.5h)
-- [ ] **A.4** — Unit tests: `src/lib/deletion-log.test.ts` (5 tests) (0.5h)
-- [ ] **A.5** — Integration check: delete on one "device" → second "device" sync drops it (0.5h)
+### Phase A: Deletion Sync
 
-### Phase B: Multi-Theme (2.5h)
+- [x] **A.1** — `src/lib/deletion-log.ts` — server-side tombstone read/write/prune + `isTombstoned()` predicate
+- [x] **A.2** — `/api/history` GET attaches `deletions`; DELETE → tombstone before unlink + media cleanup
+- [x] **A.3** — `hydrateFromServer` applies deletion log before merge
+- [x] **A.4** — Unit tests `deletion-log.test.ts` (8 tests: write/read/coexist/TTL/prune/`isTombstoned`)
+- [x] **A.5** — 🔴 **Server PUT guard** — `upsertServerConversation(s)` reject fresh-tombstoned sessions (no resurrection)
+- [x] **A.6** — Client push filter — `pushStoreToServer` drops tombstoned sessions via deletion cache; `deleteServerChat` seeds cache
+- [x] **A.7** — Periodic re-hydration in `TutorShell.tsx` — 60s interval + `visibilitychange`; skips while agent busy
+- [x] **A.8** — Unit tests: `history-store-deletion.test.ts` (4), `history-sync.test.ts` (3)
+- [ ] **A.9** — Integration: `scripts/verify-deletion-sync.mjs` — two-device delete → no re-upload → media gone
 
-- [ ] **B.1** — Refactor `globals.css`: replace `.dark` with `[data-theme="…"]` blocks for 4 themes (0.5h)
-- [ ] **B.2** — Create `src/components/ThemePicker.tsx` — 4-color palette selector (0.5h)
-- [ ] **B.3** — Update `layout.tsx` inline script for `data-theme` + backward compat (0.5h)
-- [ ] **B.4** — Mount `ThemePicker` in `TutorShell.tsx` header; remove `DarkToggle` (0.5h)
-- [ ] **B.5** — Audit & fix hardcoded colors in components (0.5h)
+### Phase B: Multi-Theme
 
-### Phase C: Tests + Release (1h)
+- [x] **B.1** — `globals.css` 4-theme `[data-theme="…"]` blocks + legacy `.dark` fallback
+- [x] **B.2** — `src/components/ThemePicker.tsx` — 4-swatch picker (apply on mount + `theme-color` meta sync)
+- [x] **B.3** — `layout.tsx` no-FOUC inline script (`spark.theme` + `prefers-color-scheme` + legacy `spark.dark`)
+- [x] **B.4** — Mount `ThemePicker` in `TutorShell.tsx` header; `DarkToggle` removed
+- [x] **B.5** — Contrast fixes: light-blue/green `--ink-muted` → `#4a6a7c` / `#4a6a4a` (≥ 4.5:1); `--diff-*` vars added to all 4 themes; `DiffViewer.tsx` themified
+- [x] **B.6** — Tests: `theme-contrast.test.ts` (WCAG AA programmatic), `ThemePicker.test.tsx` (jsdom)
 
-- [ ] **C.1** — Run full test suite (≥ 250 tests, 0 failures)
-- [ ] **C.2** — Commit → push develop → push master → rebuild → restart :3001
+### Phase C: Tests + Release
+
+- [ ] **C.1** — Full test suite green (≥ 570 tests, 0 failures)
+- [ ] **C.2** — `npm run build` + `verify-deletion-sync.mjs` against running service
+- [ ] **C.3** — Commit → push develop → push master → rebuild → restart :3000 → health check
 
 ---
 

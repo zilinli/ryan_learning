@@ -49,4 +49,14 @@ export async function writeTombstone(
   await fs.writeFile(filePath(accountId), JSON.stringify(log), "utf-8");
 }
 
+/** True when a session has a fresh (non-expired) tombstone. */
+export function isTombstoned(
+  log: Record<string, number>,
+  sessionId: string,
+  now: number = Date.now(),
+): boolean {
+  const ts = log[sessionId];
+  return typeof ts === "number" && now - ts < TTL_MS;
+}
+
 export function getDeletionLogTTL(): number { return TTL_MS; }

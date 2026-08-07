@@ -17,6 +17,7 @@
     "verify:stt": "node scripts/verify-stt.mjs",
     "verify:history": "node scripts/verify-history.mjs",
     "verify:upload": "node scripts/verify-upload.mjs",
+    "verify:deletion-sync": "node scripts/verify-deletion-sync.mjs",
     "verify:system": "node scripts/verify-system.mjs",
     "verify:diagrams": "node --experimental-strip-types scripts/verify-diagrams.mjs",
     "verify:sse": "node scripts/verify-sse-reliability.mjs",

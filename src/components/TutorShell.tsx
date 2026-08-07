@@ -275,6 +275,9 @@ export function TutorShell() {
   const voiceEnabledRef = useRef(true);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
   const accountIdRef = useRef(RYAN_ACCOUNT_ID);
+  const storeRef = useRef<ConversationsStore | null>(null);
+  const busyRef = useRef(false);
+  const syncRunningRef = useRef(false);
 
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
@@ -384,6 +387,14 @@ export function TutorShell() {
   }, [accountId]);
 
   useEffect(() => {
+    storeRef.current = store;
+  }, [store]);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
+  useEffect(() => {
     voiceEnabledRef.current = voiceEnabled;
   }, [voiceEnabled]);
 
@@ -416,6 +427,43 @@ export function TutorShell() {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
   }, [ready, store, busy]);
+
+  // Periodic cross-device sync: pull deletions + new messages from the server
+  // every 60s and whenever the tab becomes visible again. A conversation that
+  // was deleted on another device disappears from this screen without reload.
+  useEffect(() => {
+    if (!ready) return;
+    const sync = async () => {
+      const cur = storeRef.current;
+      if (!cur || busyRef.current || syncRunningRef.current) return;
+      syncRunningRef.current = true;
+      try {
+        const merged = await hydrateFromServer(cur, accountIdRef.current);
+        const restored = await restoreStorePhotosFromVault(merged);
+        const changed =
+          restored.activeId !== cur.activeId ||
+          JSON.stringify(restored.conversations) !==
+            JSON.stringify(cur.conversations);
+        if (changed) {
+          setStore(restored);
+          saveConversations(restored, accountIdRef.current);
+        }
+      } catch {
+        // offline — next cycle retries
+      } finally {
+        syncRunningRef.current = false;
+      }
+    };
+    const timer = window.setInterval(sync, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ready]);
 
   const active = useMemo(
     () => (store ? getActiveConversation(store) : null),

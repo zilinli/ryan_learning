@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readDeletionLog, writeTombstone, getDeletionLogTTL } from "./deletion-log";
+import { readDeletionLog, writeTombstone, getDeletionLogTTL, isTombstoned } from "./deletion-log";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -44,5 +44,20 @@ describe("deletion-log", () => {
     const result = await readDeletionLog(AID);
     expect(result["old_sess"]).toBeUndefined();
     expect(result["fresh_sess"]).toBeDefined();
+  });
+
+  it("isTombstoned — fresh tombstone is active", async () => {
+    await writeTombstone("sess_active", AID);
+    const log = await readDeletionLog(AID);
+    expect(isTombstoned(log, "sess_active")).toBe(true);
+  });
+
+  it("isTombstoned — expired tombstone is ignored", () => {
+    const old = Date.now() - 31 * 86400 * 1000;
+    expect(isTombstoned({ old_sess: old }, "old_sess")).toBe(false);
+  });
+
+  it("isTombstoned — missing session is not tombstoned", () => {
+    expect(isTombstoned({}, "nope")).toBe(false);
   });
 });

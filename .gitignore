@@ -48,6 +48,7 @@ yarn-error.log*
 /data/accounts/
 /data/history/
 /data/learning/
+/data/deletions/
 
 # agent-chat build cache
 agent-chat/.next/

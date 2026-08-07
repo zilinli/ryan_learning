@@ -2,6 +2,25 @@ import type { ConversationRecord, ConversationsStore } from "./types";
 import { mergeConversationLists, mergeMessageAttachments } from "./history-merge";
 import { RYAN_ACCOUNT } from "./tenant-storage";
 
+const TOMBSTONE_TTL_MS = 30 * 86400 * 1000;
+
+/**
+ * Last-known server deletion map, refreshed by hydrateFromServer /
+ * deleteServerChat. Used by pushStoreToServer so a stale local copy of a
+ * conversation that was deleted on another device is never re-uploaded.
+ */
+let deletionCache: Record<string, number> = {};
+
+function hasFreshTombstone(sessionId: string, now: number = Date.now()): boolean {
+  const ts = deletionCache[sessionId];
+  return typeof ts === "number" && now - ts < TOMBSTONE_TTL_MS;
+}
+
+/** Test-only: reset the cached deletion map. */
+export function __resetDeletionCacheForTests(log: Record<string, number> = {}): void {
+  deletionCache = log;
+}
+
 /** Pull account-scoped history from the server. */
 export async function fetchServerHistory(accountId: string = RYAN_ACCOUNT): Promise<{
   conversations: ConversationRecord[];
@@ -115,13 +134,14 @@ export async function hydrateFromServer(
 ): Promise<ConversationsStore> {
   try {
     const { conversations: remote, deletions } = await fetchServerHistory(accountId);
+    deletionCache = deletions;
     // Filter out tombstoned conversations from local store
     const now = Date.now();
     const filteredLocal = local.conversations.filter((c) => {
       const ts = deletions[c.sessionId];
       if (typeof ts !== "number") return true;
       // Keep if tombstone is older than 30 days (expired)
-      return now - ts > 30 * 86400 * 1000;
+      return now - ts > TOMBSTONE_TTL_MS;
     });
     return mergeConversationLists(
       filteredLocal,
@@ -167,7 +187,9 @@ export async function pushStoreToServer(
   store: ConversationsStore,
   accountId: string = RYAN_ACCOUNT,
 ): Promise<ConversationsStore> {
-  const conversations = store.conversations.filter((c) => c.messages.length > 0);
+  const conversations = store.conversations.filter(
+    (c) => c.messages.length > 0 && !hasFreshTombstone(c.sessionId),
+  );
   if (!conversations.length) return store;
   try {
     const res = await fetch("/api/history", {
@@ -190,9 +212,13 @@ export async function pushStoreToServer(
 
 export async function deleteServerChat(sessionId: string, accountId: string = RYAN_ACCOUNT): Promise<void> {
   try {
-    await fetch(`/api/history?sessionId=${encodeURIComponent(sessionId)}&accountId=${encodeURIComponent(accountId)}`, {
+    const res = await fetch(`/api/history?sessionId=${encodeURIComponent(sessionId)}&accountId=${encodeURIComponent(accountId)}`, {
       method: "DELETE",
     });
+    // Remember the deletion locally so this device won't re-upload the chat
+    // before the next hydration refreshes the server-side tombstone map.
+    deletionCache[sessionId] = Date.now();
+    if (!res.ok) throw new Error(`delete HTTP ${res.status}`);
   } catch {
     // ignore
   }

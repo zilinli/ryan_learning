@@ -149,9 +149,9 @@ export function SentenceTranslate() {
     setSpeaking(true);
     engine
       .speak(result.translation, {
-        onEnd: () => setSpeaking(false),
         onError: () => setSpeaking(false),
       })
+      .then(() => setSpeaking(false))
       .catch(() => setSpeaking(false));
   }, [result, speaking]);
 

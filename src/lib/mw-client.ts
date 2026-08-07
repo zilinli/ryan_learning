@@ -84,10 +84,12 @@ export function parseMwCollegiate(
         audioUrl: prs?.sound ? mwAudioUrl(prs.sound.audio) : undefined,
         partOfSpeech: d.fl,
         senses: (d.shortdef ?? []).map((def, i) => {
-          const exGroup = d.def?.[0]?.sseq?.[i]?.[0]?.[1] as
-            | { dt?: [string, unknown][] }
-            | undefined;
-          const vis = exGroup?.dt?.find(([tag]) => tag === "vis")?.[1];
+          const seq = d.def?.[0]?.sseq?.[i];
+          const senseTuple = Array.isArray(seq) ? seq[0] : undefined;
+          const senseObj = Array.isArray(senseTuple)
+            ? (senseTuple[1] as { dt?: [string, unknown][] } | undefined)
+            : undefined;
+          const vis = senseObj?.dt?.find(([tag]) => tag === "vis")?.[1];
           return {
             definition: String(def ?? "").replace(/\{[^}]+\}/g, ""),
             example: mwExampleText(vis),

@@ -1,7 +1,8 @@
 # Deletion Sync & Multi-Theme System
 
-> Version 0.1 · 2026-08-07
+> Version 0.2 · 2026-08-07
 > Priority: 🔴 critical (deletion bug) · 🟡 important (themes)
+> Status: design finalized — server PUT guard + client push filter + periodic re-hydration + 4-theme system
 
 ---
 
@@ -14,7 +15,17 @@ local copy survives `mergeConversationLists` (which uses union logic).
 PC2's next `pushStoreToServer` re-uploads the deleted conversation — a
 **reincarnation bug**.
 
-### 1.2 Design — Server-Side Deletion Log
+**Root cause (confirmed by code audit, 2026-08-07):**
+
+1. Server `PUT /api/history` (→ `upsertServerConversation(s)`) **never checks
+   the deletion log**. Any device can re-create a deleted conversation.
+2. PC2's debounced save effect pushes its **un-hydrated** local store (which
+   still contains the deleted chat) *before* the async init hydration
+   completes — the re-upload wins.
+3. PC2 only hydrates on init / account switch; while the tab stays open it
+   never learns about deletions made on PC1.
+
+### 1.2 Design — Server-Side Deletion Log (tombstones)
 
 A lightweight tombstone-based approach:
 
@@ -22,36 +33,83 @@ A lightweight tombstone-based approach:
 data/deletions/{accountId}.json    ←  { sessionId: number (epoch ms), … }
 ```
 
-- On `DELETE /api/history?sessionId=…`, the server writes a tombstone entry
-  *before* unlinking the JSON file.
+- On `DELETE /api/history?sessionId=…&accountId=…`, the server writes a
+  tombstone entry **before** unlinking the JSON file and **before** deleting
+  the conversation's media files under `data/media`.
 - On every `GET /api/history?accountId=…`, the server attaches a
   `deletions` field: `{ [sessionId]: deletedAt }`.
-- `hydrateFromServer` filters out tombstoned sessions from the local
-  conversation list *before* merging with the server list and *before*
-  pushing back.
-- Tombstones auto-expire after 30 days (client-side filter: ignore entries
-  older than 30 × 86400 × 1000 ms).
-- TTL is enforced server-side too during periodic cleanup (on any write to
-  the deletions file).
+- Tombstones auto-expire after 30 days (TTL enforced on every read/write).
 
-### 1.3 Files
+### 1.3 The Three Defenses (all required)
 
-| File | Role |
-|------|------|
-| `src/lib/deletion-log.ts` | Read/write/prune the per-account deletion log |
-| `src/app/api/history/route.ts` | Include `deletions` in GET response; write tombstone in DELETE |
-| `src/lib/history-sync.ts` | `hydrateFromServer` applies deletion log before merging |
-| `src/lib/history-store.ts` | `deleteServerConversation` writes tombstone before unlink |
-| `src/lib/deletion-log.test.ts` | Unit tests |
-| `src/lib/history-sync.test.ts` | (existing, may need update) |
+The tombstone alone is not enough. Three layers close every reincarnation path:
 
-### 1.4 Test Plan
+| # | Defense | Where | Effect |
+|---|---------|-------|--------|
+| 1 | **Server PUT guard** | `history-store.ts` (`upsertServerConversation`, `upsertServerConversations`) | Any upsert of a session with a fresh tombstone is rejected (`null` / skipped). **Authoritative — the server never resurrects a deleted chat, regardless of client timing.** |
+| 2 | **Client push filter** | `history-sync.ts` (`pushStoreToServer`) | The client caches the last-seen deletion map (`hydrateFromServer` / `deleteServerChat` update it) and drops tombstoned sessions before pushing. |
+| 3 | **Hydration on both sides** | `history-sync.ts` (`hydrateFromServer`) + `TutorShell.tsx` | (a) On init/switch: filter tombstoned sessions out of the local list before merging. (b) **Periodic re-hydration every 60 s + on tab `visibilitychange`**: an open tab on PC2 drops conversations that PC1 deleted, and picks up new ones — live cross-device consistency without reload. |
 
-- Tombstone is written on delete, read back correctly
-- `hydrateFromServer` strips tombstoned conversations
-- Expired tombstones (30+ days) are ignored
-- Tombstoned conversation does NOT re-upload on next push
-- No tombstone → no filtering (backward compatible)
+**Ordering rule (hydrate-before-push):** the init chain must run
+`hydrateFromServer` before the first `pushStoreToServer`. The debounced save
+effect may still push pre-hydration data; that is safe only because of
+Defense #1.
+
+### 1.4 Media / File Cleanup
+
+`deleteServerConversation` already:
+
+1. Writes the tombstone (Defense #1 depends on this).
+2. Unlinks `data/{accountId}/<sessionId>.json`.
+3. `deleteMediaForSession(sessionId)` removes every
+   `data/media/<mediaId>.bin` + `.json` pair whose meta references the
+   session — i.e. **text, images and uploaded files are all deleted server-side**.
+
+With the PUT guard, a tombstoned session can never re-persist media, so the
+cleanup is permanent.
+
+### 1.5 Files
+
+| File | Role | Status |
+|------|------|--------|
+| `src/lib/deletion-log.ts` | Read/write/prune the per-account deletion log + `isTombstoned()` predicate | ✅ v0.1 + predicate |
+| `src/app/api/history/route.ts` | Include `deletions` in GET response; DELETE → `deleteServerConversation` | ✅ v0.1 |
+| `src/lib/history-store.ts` | `deleteServerConversation` writes tombstone → unlink → delete media; **PUT guard rejects tombstoned upserts** | ✅ + 🔴 PUT guard |
+| `src/lib/history-sync.ts` | `hydrateFromServer` applies deletions; `pushStoreToServer` filters tombstoned; deletion cache | ✅ + 🔴 push filter |
+| `src/components/TutorShell.tsx` | Periodic re-hydration timer + visibility listener | 🔴 new |
+| `scripts/verify-deletion-sync.mjs` | Two-device integration test (see §1.7) | 🔴 new |
+| `src/lib/deletion-log.test.ts` | Unit tests (tombstone + predicate) | ✅ |
+| `src/lib/history-store-deletion.test.ts` | PUT-guard + delete-flow unit tests | 🔴 new |
+
+### 1.6 TTL & Expiry Semantics
+
+- Server prunes tombstones older than 30 days on any read/write of the log.
+- Client treats a tombstone older than 30 days as expired and **re-allows** the
+  conversation (matches server pruning — a tombstoned chat that was re-created
+  after 30 days is treated as a brand-new chat).
+
+### 1.7 Test Plan
+
+Unit (`deletion-log.test.ts`):
+- [x] Tombstone is written on delete, read back correctly
+- [x] Multiple tombstones coexist
+- [x] Expired tombstones (30+ days) pruned on read
+- [ ] `isTombstoned` — fresh → true; expired → false; missing → false
+
+Unit (`history-store-deletion.test.ts`):
+- [ ] Upsert after delete is rejected (`null`), conversation file not re-created
+- [ ] Batch upsert skips tombstoned sessions, saves the fresh ones
+- [ ] DELETE removes conversation file + tombstone exists; account data untouched
+
+Client (`history-sync`):
+- [ ] `pushStoreToServer` drops tombstoned sessions (mock `fetch`)
+
+Integration (`scripts/verify-deletion-sync.mjs`, two simulated devices):
+- [ ] Device A PUT → Device B GET sees the chat
+- [ ] Device A DELETE → server file + media removed
+- [ ] Device B GET: chat absent from `conversations`, present in `deletions`
+- [ ] Device B re-PUTs the stale chat → server rejects (no resurrection)
+- [ ] Device B GET again → chat still absent
 
 ---
 
@@ -72,124 +130,87 @@ Use `data-theme="light" | "dark" | "light-blue" | "light-green"` on `<html>`.
 Each value triggers a CSS block that sets **all** `--ink`, `--teal`, etc.
 variables.
 
-Theme preference stored in `localStorage` key `spark.theme` (values:
-`"light"`, `"dark"`, `"light-blue"`, `"light-green"`). An inline script in
-`layout.tsx` reads this before first paint to prevent FOUC.
+Theme preference stored in `localStorage` key `spark.theme`. An inline script
+in `layout.tsx` reads it before first paint to prevent FOUC (falling back to
+`prefers-color-scheme`, and migrating the legacy `spark.dark` flag).
 
-A `ThemePicker` component (dropdown or icon palette) replaces the unused
-`DarkToggle`. It lives in the header and the sidebar footer.
+A `ThemePicker` component (four swatch buttons) replaces the unused
+`DarkToggle`. It lives in the header.
 
-### 2.3 Color Palettes
+### 2.3 Color Palettes + WCAG Contrast Audit
 
-#### Light (current :root)
+Contrast verified programmatically (`theme-contrast.test.ts`). Targets:
+**`--ink` ≥ 4.5:1**, **`--ink-muted` ≥ 4.5:1** (normal text), **`--teal` /
+`--coral` ≥ 3.0:1** (large/bold text & accents) — all on their `--bg0`.
 
-| Variable | Value |
-|----------|-------|
-| `--ink` | `#3d2b1f` |
-| `--ink-muted` | `#7a6555` |
-| `--teal` | `#6b8f71` |
-| `--coral` | `#c4785a` |
-| `--mist` | `#ebe0d2` |
-| `--line` | `rgba(61,43,31,0.14)` |
-| `--bg0` | `#f3ebe0` |
-| `--bg1` | `rgba(90,60,35,0.28)` |
-| `--bg2` | `rgba(70,45,25,0.22)` |
-| Body gradient | `#f7f0e6 → #efe4d4 → #e8dcc8` |
+| Theme | `--bg0` | `--ink` (ratio) | `--ink-muted` (ratio) | `--teal` (ratio) | `--coral` (ratio) |
+|-------|---------|------------------|-----------------------|------------------|------------------|
+| light | `#f3ebe0` | `#3d2b1f` (13.0) | `#7a6555` (4.7) | `#6b8f71` (3.3) | `#b96f52` (3.3) 🔧 |
+| dark | `#1a120c` | `#e8dcc8` (13.6) | `#a89078` (5.8) | `#8fb896` (8.2) | `#e09a7a` (8.0) |
+| light-blue | `#eef4f8` | `#1a2a3a` (13.5) | `#4a6a7c` (5.2) 🔧 | `#3a7a9a` (4.3) | `#c0695a` (3.5) 🔧 |
+| light-green | `#eef8f0` | `#1a2e1a` (13.8) | `#4a6a4a` (5.5) 🔧 | `#3a7e5a` (4.4) | `#c0695a` (3.5) 🔧 |
 
-#### Dark (current .dark)
-
-| Variable | Value |
-|----------|-------|
-| `--ink` | `#e8dcc8` |
-| `--ink-muted` | `#a89078` |
-| `--teal` | `#8fb896` |
-| `--coral` | `#e09a7a` |
-| `--mist` | `rgba(60,40,25,0.45)` |
-| `--line` | `rgba(232,220,200,0.14)` |
-| `--bg0` | `#1a120c` |
-| `--bg1` | `rgba(90,60,35,0.28)` |
-| `--bg2` | `rgba(70,45,25,0.22)` |
-| Body | `linear-gradient(180deg, #1f1510, #18110c, #140e0a)` |
-
-#### Light Blue
-
-| Variable | Value |
-|----------|-------|
-| `--ink` | `#1a2a3a` |
-| `--ink-muted` | `#5a7a8a` |
-| `--teal` | `#3a7a9a` |
-| `--coral` | `#d4786a` |
-| `--mist` | `#dce8f0` |
-| `--line` | `rgba(26,42,58,0.12)` |
-| `--bg0` | `#eef4f8` |
-| `--bg1` | `rgba(50,80,110,0.18)` |
-| `--bg2` | `rgba(40,70,100,0.22)` |
-| Body | `#f0f6fa → #e4ecf4 → #d8e2ec` |
-
-#### Light Green
-
-| Variable | Value |
-|----------|-------|
-| `--ink` | `#1a2e1a` |
-| `--ink-muted` | `#5a7a5a` |
-| `--teal` | `#3a7e5a` |
-| `--coral` | `#d4786a` |
-| `--mist` | `#d8ece0` |
-| `--line` | `rgba(26,46,26,0.12)` |
-| `--bg0` | `#eef8f0` |
-| `--bg1` | `rgba(40,90,60,0.18)` |
-| `--bg2` | `rgba(30,80,50,0.22)` |
-| Body | `#f0faf2 → #e4f4e8 → #d8ecd8` |
+🔧 = corrected in v0.2 — previous values measured below AA: `--ink-muted` `#5a7a8a`/`#5a7a5a` were ~4.1–4.3:1; `--coral` `#c4785a`/`#d4786a` were ~2.8:1 on the light themes.
 
 ### 2.4 UI Harmony Rules
 
-- **Hardcoded colors must be eliminated.** Search for any `#`-literal
-  color in TSX files and replace with CSS variables or Tailwind classes.
-  Exception: inline SVG shapes in atmosphere blobs.
-- **Contrast check:** `--ink` on `--bg0` must have WCAG AA contrast ratio
-  (≥ 4.5:1 for normal text).
-- **`--coral` on `--bg0` must pass AA for large/bold text (≥ 3:1).**
-- **`--teal` on `--bg0` must pass AA for large/bold text (≥ 3:1).**
-- **Hardcoded white `#fff` / `#ffffff`** in components (e.g., buttons,
-  overlays) should use `color-mix(in srgb, var(--bg0) 94%, white)` or
-  similar for dark-theme safety.
-- **`--mist` backgrounds** must be translucent enough in dark themes to
-  show `--bg0` through them.
+- **All component colors go through CSS variables.** No `#`-literal
+  Tailwind arbitrary values in TSX (exceptions: ThemePicker swatches, camera
+  overlay text on live preview, SVG shapes).
+- Diff viewer (Code Agent panel) uses dedicated variables so added/removed
+  lines stay readable on every theme:
+
+| Var | light / light-blue / light-green | dark |
+|-----|----------------------------------|------|
+| `--diff-code-bg` | `rgba(255,255,255,0.6)` | `rgba(255,255,255,0.04)` |
+| `--diff-add-bg` | `rgba(26,127,90,0.12)` | `rgba(63,185,80,0.18)` |
+| `--diff-remove-bg` | `rgba(192,57,43,0.10)` | `rgba(255,107,107,0.16)` |
+| `--diff-add` | `#1a7f5a` | `#6fd08a` |
+| `--diff-remove` | `#c0392b` | `#ff9088` |
+
+- `--surface` stays near-white on light themes and translucent white on dark.
+- `color-scheme` is set per theme so native scrollbars / inputs match.
+- Browser `theme-color` meta is updated at runtime by `ThemePicker` to the
+  active theme's `--bg0`.
 
 ### 2.5 ThemePicker Component
 
-- Position: header right side, between voice toggle and menu toggle (or
-  replacing unused DarkToggle slot).
-- UI: four small colored circle buttons (or a compact `<select>`).
-- Active theme: ring highlight.
-- Clicking a theme: writes `spark.theme` to localStorage, sets
-  `document.documentElement.dataset.theme`, and removes the `.dark` class
-  (migrating from old toggle).
+- Position: header right side.
+- UI: four small colored circle buttons; active theme gets a ring highlight.
+- Clicking a theme: writes `spark.theme`, sets
+  `document.documentElement.dataset.theme`, removes legacy `spark.dark`,
+  updates `meta[name=theme-color]`.
+- Backward compatibility: `spark.dark === "true"` migrates to
+  `spark.theme = "dark"` on init.
 
 ### 2.6 Files
 
-| File | Role |
-|------|------|
-| `src/app/globals.css` | Replace `.dark` blocks with `[data-theme="…"]` blocks for all 4 themes |
-| `src/app/layout.tsx` | Update inline script for `data-theme` |
-| `src/components/ThemePicker.tsx` | New component |
-| `src/components/TutorShell.tsx` | Mount `ThemePicker`, remove `DarkToggle` |
-| `src/components/HistorySidebar.tsx` | Optional: theme button in footer |
+| File | Role | Status |
+|------|------|--------|
+| `src/app/globals.css` | `[data-theme="…"]` blocks for all 4 themes + diff vars | ✅ + 🔧 contrast fixes |
+| `src/app/layout.tsx` | Inline no-FOUC script for `data-theme` | ✅ |
+| `src/components/ThemePicker.tsx` | Swatch picker | ✅ + 🔧 theme-color meta |
+| `src/components/TutorShell.tsx` | Mount `ThemePicker`, `DarkToggle` removed | ✅ |
+| `src/components/DiffViewer.tsx` | Use `--diff-*` variables | 🔧 |
+| `src/lib/theme-contrast.test.ts` | Programmatic WCAG contrast checks | 🔴 new |
+| `src/components/ThemePicker.test.tsx` | jsdom component test | 🔴 new |
 
 ### 2.7 Migration from `.dark` class
 
 Old approach: `document.documentElement.classList.toggle("dark")`.
 New approach: `document.documentElement.dataset.theme = "dark"`.
 
-**Backward compatibility**: On init, if `spark.dark === "true"` but
-`spark.theme` is unset, migrate to `spark.theme = "dark"`.
+Backward compatibility is retained in CSS (`html.dark:not([data-theme])`) and
+in the inline script, so any tab still running the old bundle renders dark
+correctly until reload.
 
 ### 2.8 Test Plan
 
-- ThemePicker renders all 4 options
-- Clicking a theme updates `document.documentElement.dataset.theme`
-- localStorage key `spark.theme` is persisted correctly
-- Theme variables have sufficient contrast (programmatic check)
-- No hardcoded `#fff` in main components
-- Dark theme does not show washed-out text
-- Inline script applies theme before paint (no FOUC)
+- [ ] `ThemePicker` renders all 4 options (jsdom)
+- [ ] Clicking a theme updates `document.documentElement.dataset.theme`
+- [ ] `spark.theme` persisted; legacy `spark.dark` removed
+- [ ] Programmatic contrast: all 4 themes pass WCAG AA thresholds above
+- [ ] Diff-viewer variables exist in `globals.css` for every theme
+- [ ] No `#fff` / hardcoded foreground backgrounds left in components
+- [ ] Manual: switch themes on desktop + phone; chat text, sidebar, buttons
+      and diff viewer remain legible

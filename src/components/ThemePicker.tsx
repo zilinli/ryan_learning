@@ -28,13 +28,26 @@ function applyTheme(id: ThemeId) {
     localStorage.removeItem("spark.dark");
   } catch {}
   document.documentElement.setAttribute("data-theme", id);
+  // Keep the browser chrome (status bar / theme-color) in sync with the UI
+  const bg = THEMES.find((t) => t.id === id)?.swatch;
+  if (bg) {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", bg);
+  }
 }
 
 export function ThemePicker() {
   const [active, setActive] = useState<ThemeId>("light");
 
   useEffect(() => {
-    setActive(loadTheme());
+    const t = loadTheme();
+    setActive(t);
+    applyTheme(t);
   }, []);
 
   const pick = useCallback((id: ThemeId) => {

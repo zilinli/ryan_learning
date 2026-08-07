@@ -32,10 +32,12 @@ function EntryCard({ entry }: { entry: DictEntry }) {
       return;
     }
     setSpeaking(true);
-    engine.speak(text, {
-      onEnd: () => setSpeaking(false),
-      onError: () => setSpeaking(false),
-    }).catch(() => setSpeaking(false));
+    engine
+      .speak(text, {
+        onError: () => setSpeaking(false),
+      })
+      .then(() => setSpeaking(false))
+      .catch(() => setSpeaking(false));
   }, [entry.headword, speaking]);
 
   return (

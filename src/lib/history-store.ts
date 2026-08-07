@@ -18,7 +18,7 @@ import {
   pruneOrphanMedia,
 } from "./media-store";
 import { lockedWriteJson } from "./file-lock";
-import { writeTombstone } from "./deletion-log";
+import { isTombstoned, readDeletionLog, writeTombstone } from "./deletion-log";
 
 /** Server-side durable chat history (account-scoped, shared across browsers / devices). */
 const BASE_DIR = path.join(process.cwd(), "data");
@@ -205,6 +205,20 @@ export async function getServerConversation(
   }
 }
 
+/**
+ * A deleted conversation must never be re-created: the server rejects any
+ * upsert of a session that has a fresh tombstone. This is the authoritative
+ * guard against the cross-device "reincarnation" bug — a stale device's push
+ * of a chat that was deleted elsewhere is silently dropped here.
+ */
+async function isDeletedSession(
+  sessionId: string,
+  accountId: string,
+): Promise<boolean> {
+  const deletions = await readDeletionLog(accountId);
+  return isTombstoned(deletions, sessionId);
+}
+
 export async function upsertServerConversation(
   record: ConversationRecord,
   accountId: string = "default",
@@ -212,6 +226,9 @@ export async function upsertServerConversation(
   const id = safeId(record.sessionId);
   if (!id) return null;
   if (!record.messages?.length) {
+    return null;
+  }
+  if (await isDeletedSession(id, accountId)) {
     return null;
   }
   await ensureDir(accountId);
@@ -227,9 +244,11 @@ export async function upsertServerConversations(
 ): Promise<ConversationRecord[]> {
   const saved: ConversationRecord[] = [];
   await ensureDir(accountId);
+  const deletions = await readDeletionLog(accountId);
   for (const rec of records) {
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
+    if (isTombstoned(deletions, id)) continue;
     const clean = await prepareConversationForServer({ ...rec, sessionId: id });
     await lockedWriteJson(filePath(id, accountId), clean);
     saved.push(clean);
