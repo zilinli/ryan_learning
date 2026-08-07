@@ -1,5 +1,5 @@
-import { SpanishDict } from "@/components/SpanishDict";
+import { Dictionary } from "@/components/Dictionary";
 
 export default function DictPage() {
-  return <SpanishDict />;
+  return <Dictionary />;
 }

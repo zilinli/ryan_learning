@@ -1,0 +1,68 @@
+{
+  "sessionId": "c2af0215-5833-4fa1-98ab-1450074b9088",
+  "title": "Como estás?",
+  "messages": [
+    {
+      "id": "m_1785677703218_6gh1ju",
+      "role": "user",
+      "content": "Como estás?",
+      "createdAt": 1785677703218
+    },
+    {
+      "id": "m_1785677703218_7ufbfw",
+      "role": "assistant",
+      "content": "¡Hola! I'm doing well — thanks for asking.\n\nWhat would you like to work on today?",
+      "createdAt": 1785677703218
+    },
+    {
+      "id": "m_1785677935455_s1sc3y",
+      "role": "user",
+      "content": "hola",
+      "createdAt": 1785677935455
+    },
+    {
+      "id": "m_1785677935455_t4sn57",
+      "role": "assistant",
+      "content": "你好呀！😄 睇到你打「hola」——西班牙文打招呼嚟㗎。\n\n今日想温习咩呀？可以系语言、数学，或者其他功课，慢慢同我讲啦。",
+      "createdAt": 1785677935455
+    },
+    {
+      "id": "m_1785677961160_dl2zsa",
+      "role": "user",
+      "content": "Como estás?",
+      "createdAt": 1785677961160
+    },
+    {
+      "id": "m_1785677961160_v8ke3f",
+      "role": "assistant",
+      "content": "¡Hola! Estoy muy bien, gracias por preguntar 😊\n\n¿Y tú, cómo estás? ¿Qué te gustaría practicar hoy?",
+      "createdAt": 1785677961160
+    },
+    {
+      "id": "m_1785678017041_27o8zw",
+      "role": "user",
+      "content": "你可以同時用中文英文語語西班牙文大招呼",
+      "createdAt": 1785678017041
+    },
+    {
+      "id": "m_1785678017041_nlwm1e",
+      "role": "assistant",
+      "content": "當然可以！四種打招呼一次過嚟啦：\n\n- **中文**：你好！\n- **English**：Hello!\n- **粵語**：你好呀！\n- **Español**：¡Hola!\n\n四個都識打招呼，好叻呀 😊  \n今日想用邊種語言練習，定係想做其他功課？",
+      "createdAt": 1785678017041
+    },
+    {
+      "id": "m_1785678072141_4x2141",
+      "role": "user",
+      "content": "但是你说的是普通话不是粤语",
+      "createdAt": 1785678072141
+    },
+    {
+      "id": "m_1785678072141_i7tq2s",
+      "role": "assistant",
+      "content": "你讲得对，谢谢纠正！🙏\n\n刚才「你好呀」看起来像粤语，但写出来其实更像**普通话**。\n\n更清楚一点：\n\n- **普通话**：你好！（nǐ hǎo）\n- **粤语**：哈囉！／早晨！（néih hóu / jóu sàhn）\n\n粤语打招呼，你平时比较常说「哈囉」还是「早晨」呀？",
+      "createdAt": 1785678072141
+    }
+  ],
+  "createdAt": 1785677690517,
+  "updatedAt": 1785678079673
+}

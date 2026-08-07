@@ -1,0 +1,56 @@
+{
+  "sessionId": "ce7271e0-4b3b-4b26-8235-e09c6f572c9c",
+  "title": "请你使用中文，粤语，英文，西班牙语打招呼",
+  "messages": [
+    {
+      "id": "m_1785678129245_ezoltu",
+      "role": "user",
+      "content": "请你使用中文，粤语，英文，西班牙语打招呼",
+      "createdAt": 1785678129245
+    },
+    {
+      "id": "m_1785678129245_67o6fg",
+      "role": "assistant",
+      "content": "你好！很高兴见到你～\n\n粵語：你好呀！好開心見到你～\n\nEnglish: Hi! Nice to meet you.\n\nEspañol: ¡Hola! Encantado de conocerte.\n\n想用哪种语言继续聊？或者今天想学点什么？",
+      "createdAt": 1785678129245
+    },
+    {
+      "id": "m_1785812341269_k5frpd",
+      "role": "user",
+      "content": "重新来一次打招呼",
+      "createdAt": 1785812341269
+    },
+    {
+      "id": "m_1785812341269_iodlqw",
+      "role": "assistant",
+      "content": "你好呀 Ryan！好开心再见到你～\n\n**中文：** 你好！很高兴见到你～  \n**粤语：** 你好呀！好开心见到你～  \n**English：** Hi! Nice to meet you.  \n**Español：** ¡Hola! Encantado de conocerte.\n\n今日想用边种语言继续倾？定系想学啲咩呀？",
+      "createdAt": 1785812341269
+    },
+    {
+      "id": "m_1785812451042_ulaatx",
+      "role": "user",
+      "content": "Espanol",
+      "createdAt": 1785812451042
+    },
+    {
+      "id": "m_1785812451042_bsrz2c",
+      "role": "assistant",
+      "content": "¡Hola Ryan! Entonces hablamos en **español**.\n\n¿Qué quieres hacer hoy?\n1. Aprender palabras nuevas (poco a poco)\n2. Matemáticas\n3. Ciencias\n4. Otra cosa\n\n¿Cuál eliges?",
+      "createdAt": 1785812451042
+    },
+    {
+      "id": "m_1785812500400_fmbs4f",
+      "role": "user",
+      "content": "Change it to English.",
+      "createdAt": 1785812500400
+    },
+    {
+      "id": "m_1785812500400_rtc9pw",
+      "role": "assistant",
+      "content": "Got it, Ryan — we’ll use **English** now.\n\nWhat do you want to do today?\n1. Learn Spanish words (one by one)\n2. Math\n3. Science\n4. Something else\n\nWhich one?",
+      "createdAt": 1785812500400
+    }
+  ],
+  "createdAt": 1785678097170,
+  "updatedAt": 1785812503761
+}

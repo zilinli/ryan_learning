@@ -1,0 +1,32 @@
+{
+  "sessionId": "470e7662-031a-46ea-9be7-c006ec9c6a87",
+  "title": "Hello?",
+  "messages": [
+    {
+      "id": "m_1785672895642_wgb4a9",
+      "role": "user",
+      "content": "Hello?",
+      "createdAt": 1785672895642
+    },
+    {
+      "id": "m_1785672895642_t51ztq",
+      "role": "assistant",
+      "content": "Hi! Good to see you.\n\nWhat would you like to work on today? A homework question, something you’re stuck on, or just a topic you want to understand better?",
+      "createdAt": 1785672895643
+    },
+    {
+      "id": "m_1785672925187_qu2rwf",
+      "role": "user",
+      "content": "It's a big color. I like your British water.",
+      "createdAt": 1785672925187
+    },
+    {
+      "id": "m_1785672925187_zlst09",
+      "role": "assistant",
+      "content": "Hmm, I’m not quite sure what you mean yet — and that’s okay!\n\nWhen you say “a big color,” do you mean a colour you’re looking at, or something else? And “British water” — did you mean British **weather**, or something different?\n\nSay it again in your own words, and we’ll figure it out together.",
+      "createdAt": 1785672925188
+    }
+  ],
+  "createdAt": 1785672930326,
+  "updatedAt": 1785672930326
+}

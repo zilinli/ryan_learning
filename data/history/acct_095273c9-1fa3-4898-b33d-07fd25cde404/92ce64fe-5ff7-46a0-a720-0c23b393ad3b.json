@@ -1,0 +1,69 @@
+{
+  "sessionId": "92ce64fe-5ff7-46a0-a720-0c23b393ad3b",
+  "title": "It is a F C E practice. Can you help me w…",
+  "messages": [
+    {
+      "id": "m_1785835167940_g8pywz",
+      "role": "user",
+      "content": "It is a F C E practice. Can you help me with doinging it.",
+      "createdAt": 1785835167940,
+      "attachments": [
+        {
+          "id": "a_1785835097546_7uodut",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "92ce64fe-5ff7-46a0-a720-_0dff03ed56d449bf337213c7"
+        },
+        {
+          "id": "a_1785835105153_j3qwt6",
+          "name": "camera-2.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "92ce64fe-5ff7-46a0-a720-_2af206ff2817e87e66437c05"
+        }
+      ]
+    },
+    {
+      "id": "m_1785835167940_ma5x8c",
+      "role": "assistant",
+      "content": "Sorry — something went wrong: network error",
+      "createdAt": 1785835167940
+    },
+    {
+      "id": "m_1785836207058_azs42d",
+      "role": "user",
+      "content": "Try it again now.",
+      "createdAt": 1785836207058,
+      "attachments": [
+        {
+          "id": "a_1785836196938_mpavmb",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "92ce64fe-5ff7-46a0-a720-_c0becbfb8f7e84f991225bfa"
+        }
+      ]
+    },
+    {
+      "id": "m_1785836207058_u4527n",
+      "role": "assistant",
+      "content": "Happy to try again, Ryan — this is **FCE reading** (Part 5), the story **“Living with Gran.”**\n\n> From Photo 1, opening: “Rose Frost is sixteen. She is moving in with her grandmother, Daisy, for two years…”\n\nWhich question do you want first — **31, 32, or 33**? (Or tell me which part of the story feels confusing.)",
+      "createdAt": 1785836207058
+    },
+    {
+      "id": "m_1785839825306_3sz532",
+      "role": "user",
+      "content": "Let's start with question 11 and 15,11 to 15.",
+      "createdAt": 1785839825306
+    },
+    {
+      "id": "m_1785839825306_itzqvb",
+      "role": "assistant",
+      "content": "Quick check, Ryan — on your photo I can see **Part 5** with questions starting at **31** (not 11).\n\nDo you mean **31 to 35** on this “Living with Gran” page?  \nOr do you have a **different page** for questions **11–15** you can send?",
+      "createdAt": 1785839825306
+    }
+  ],
+  "createdAt": 1785834405816,
+  "updatedAt": 1785839839187
+}

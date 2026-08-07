@@ -1,0 +1,563 @@
+{
+  "sessionId": "adfdf7f8-8773-4631-82e9-3a044528502d",
+  "title": "what is facilities",
+  "messages": [
+    {
+      "id": "m_1785917006480_68hu3o",
+      "role": "user",
+      "content": "",
+      "createdAt": 1785917006480,
+      "attachments": [
+        {
+          "id": "a_1785916998198_1q0spc",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_0829286aaa716d4c858c0dec"
+        }
+      ]
+    },
+    {
+      "id": "m_1785917006480_83of9k",
+      "role": "assistant",
+      "content": "Great — now we’ve got **questions 31–36**. We’ll go **one at a time**.\n\nStart with **31**:\n\n> From the questions photo: “In the first paragraph the writer suggests that Rose and Amy’s parents…”\n\nLook back at **paragraph 1** of the story (where Amy stays at school, Rose goes to Grandma).\n\n**Find this** — what careful plan did the parents make for **Rose’s school life**?\n\nThen pick **A, B, C, or D** for question 31 — and tell me which one you choose.",
+      "createdAt": 1785917006480
+    },
+    {
+      "id": "m_1785917119071_prbzg4",
+      "role": "user",
+      "content": "what is facilities",
+      "createdAt": 1785917119071
+    },
+    {
+      "id": "m_1785917119071_v2t40l",
+      "role": "assistant",
+      "content": "**Facilities** = the useful things a place gives you — like a kitchen, gym, wifi, or a library at a school dorm.\n\nIn option **D**, it means: nice things in Amy’s school housing.\n\nQuick try: can you make one short sentence with **facilities**? Then we’ll pick A, B, C, or D for question **31**.",
+      "createdAt": 1785917119071
+    },
+    {
+      "id": "m_1785917178328_o4hlo8",
+      "role": "user",
+      "content": "It's a from, a facility.",
+      "createdAt": 1785917178328
+    },
+    {
+      "id": "m_1785917178328_ptdukx",
+      "role": "assistant",
+      "content": "Nice try — you’re close.\n\nTiny fix: say something like “My school has good **facilities**,” or “The hotel’s **facilities** include a pool.”\n\nNow back to **question 31**. Look at **paragraph 1** again.\n\n> From the story, paragraph 1: Amy stays at school; Rose goes to live with Grandma (and will start a new school later).\n\nWhich option matches what the **parents** cared about?\n\n- **C** talks about Rose’s **studies** not being disrupted  \n- **D** talks about Amy liking the **facilities**\n\nDoes paragraph 1 talk more about **school/studies**, or about Amy loving nice facilities? Then pick **A, B, C, or D**.",
+      "createdAt": 1785917178328
+    },
+    {
+      "id": "m_1785917210147_vkz3bd",
+      "role": "user",
+      "content": "is a phone a facility",
+      "createdAt": 1785917210147
+    },
+    {
+      "id": "m_1785917210147_q4vaa2",
+      "role": "assistant",
+      "content": "A phone is more like a **device** (a you use).\n\n**Facilities** usually means helpful **things in a place** — pool, gym, library, kitchen — not one small object in your pocket.\n\nSo for option **D**, “facilities” = nice things in Amy’s school housing.\n\nBack to **31**: does paragraph 1 talk about Amy loving those nice things, or about the parents keeping **school/studies** going smoothly? Pick **A, B, C, or D**.",
+      "createdAt": 1785917210147
+    },
+    {
+      "id": "m_1785917370261_7lkl2z",
+      "role": "user",
+      "content": "D, because the first paragraph says that their parents have gave Amy the best room in the college with very good facilities like study area, kitchen and free access to internet and C isn't right because Rose is that grandma's health not studying.",
+      "createdAt": 1785917370261
+    },
+    {
+      "id": "m_1785917370261_q3yx5p",
+      "role": "assistant",
+      "content": "Good — you picked **D**, and you explained why. Before I say if that’s right: let’s check the **evidence**.\n\nYou said paragraph 1 talks about Amy’s “best room,” kitchen, and free internet.\n\n> From the story, paragraph 1: Amy “was to stay on at her school under the guardianship of the college head.”\n\n**Find this** — does that sentence mention kitchen / internet / best room, or only that she **stays at school with a guardian**?\n\nRe-read just paragraph 1, then try **31** again: **A, B, C, or D**?",
+      "createdAt": 1785917370261
+    },
+    {
+      "id": "m_1785917531337_ba3w1d",
+      "role": "user",
+      "content": "St deep because the last sentenced at first paragraph, Che and Dla would keeping would be keeping an eye on Amy whether she liked it or not and this says Amy would appreciate the facilities the facilities her accommodation offered and the text says whether she liked it or not, it is like it or not if they hoped that she wants to hate, it would be whether she hate it or not.",
+      "createdAt": 1785917531337
+    },
+    {
+      "id": "m_1785917531337_ivtku8",
+      "role": "assistant",
+      "content": "I can see you’re working hard on that last sentence — nice focus.\n\nHere’s the tricky bit: **“whether she liked it or not”** does **not** mean “they hoped she’d love the facilities.”\n\nIt means: Amy has to stay there **even if she doesn’t like it**. That idea is almost the **opposite** of option **D**.\n\nAlso: paragraph 1 never names kitchen, internet, or “best room.” So **D** doesn’t have evidence.\n\nNow look only at **Rose’s** plan in paragraph 1 (living with Grandma in England / school).\n\n> Option **C**: parents were keen that Rose’s **studies** should not be disrupted.\n\nDoes that fit better than D now? Pick again — **A, B, C, or D** — and say one reason from the **real** words in paragraph 1.",
+      "createdAt": 1785917531337
+    },
+    {
+      "id": "m_1785917778595_uaxb4i",
+      "role": "user",
+      "content": "Look at these two close up pictures. The first one is a close up of paragraph 1, and the other is a close up of paragraphs. No, not progress is the question 31. You can look at the options and the paragraph. Try to read again.",
+      "createdAt": 1785917778595,
+      "attachments": [
+        {
+          "id": "a_1785917723865_iipj9y",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_22fbab5680bdf3c3abfba564"
+        },
+        {
+          "id": "a_1785917738109_lgzzu6",
+          "name": "camera-2.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_5c38fcf5d80c6c3acdbcfb4c"
+        }
+      ]
+    },
+    {
+      "id": "m_1785917778595_emujr5",
+      "role": "assistant",
+      "content": "Thanks for the close-ups, Ryan — that helps a lot.\n\nI need to correct myself: paragraph 1 **does** talk about Amy’s kitchen, study area, internet, and phone. You found that well.\n\nBut question **31** asks what the **parents** are like / what they want — not what Amy likes.\n\nLook at these two bits:\n\n> From Photo 1: “To Amy’s delight, she had been given the best room…”\n\n> From Photo 1, last sentence: “Jeff and Dahlia would be keeping an eye on Amy, whether she liked it or not.”\n\n**Find this** — which sentence is mainly about the **parents’** plan?\n\nThen choose again for 31: is it closer to **B** (check Amy is behaving) or **D** (hope she loves the facilities)?",
+      "createdAt": 1785917778595
+    },
+    {
+      "id": "m_1785917914991_2ezhee",
+      "role": "user",
+      "content": "The parents just want to see whether she like it or not. but but we don't know what the parents is thinking because look look at it, It doesn't say they want to they want Dla to love it or want Dla to hate it, but mostly to love it, right, why would the parents want Amy to hate it.",
+      "createdAt": 1785917914991
+    },
+    {
+      "id": "m_1785917914991_an7i4z",
+      "role": "assistant",
+      "content": "You’re thinking carefully — and you’re right that parents usually want kids to be happy.\n\nBut look at this phrase again:\n\n> From Photo 1: “Jeff and Dahlia would be **keeping an eye on** Amy, whether she liked it or not.”\n\n**Keeping an eye on** means **watching / checking on** someone — like making sure they behave — **not** “checking if they love their room.”\n\nSo the parents’ plan in that sentence is about **watching Amy**, even if she doesn’t want to be watched.\n\nDoes that sound more like **B** (check she’s behaving) or **D** (hope she loves the facilities)?\n\nPick one — then tell me **why**.",
+      "createdAt": 1785917914991
+    },
+    {
+      "id": "m_1785917990071_wojhwt",
+      "role": "user",
+      "content": "I will pick none because it doesn't say behaving well in the paragraph.",
+      "createdAt": 1785917990071
+    },
+    {
+      "id": "m_1785917990071_mxx8jk",
+      "role": "assistant",
+      "content": "Smart notice, Ryan — you’re right: the paragraph does **not** use the exact words “behaving well.”\n\nHere’s the exam trick: options often **say the same idea with different words**.\n\n> From Photo 1: “keeping an eye on Amy”\n\nThink of it like this: if Mum says she’ll “keep an eye on you at the party,” what does she mean?\n\n- make sure you **behave**  \n- or hope you love the snacks?\n\nThen look at **B** again. Can “keeping an eye on Amy” match **B**, even without the word “behaving”?\n\nTell me: **B** or still **D** — and why.",
+      "createdAt": 1785917990071
+    },
+    {
+      "id": "m_1785918053009_5jeskr",
+      "role": "user",
+      "content": "Maybe, and I know she is wrong because Rose isn't studying.",
+      "createdAt": 1785918053009
+    },
+    {
+      "id": "m_1785918053009_o8lx7z",
+      "role": "assistant",
+      "content": "Yes — **C** is weak here. That option is about **Rose’s studies**, but the “keeping an eye” sentence is about **Amy**. Good catch.\n\nYour “maybe” sounds like you’re leaning toward **B**.\n\nBefore I say if that’s right: **why B?**\n\nPoint to the words that helped you — especially **“keeping an eye on Amy.”** What do those words tell you the parents will do?",
+      "createdAt": 1785918053009
+    },
+    {
+      "id": "m_1785918124662_lxxcgm",
+      "role": "user",
+      "content": "Because as you suggested, and usually, if you keep an eye on someone and just see whether it love it, it It is seen It seems strange..",
+      "createdAt": 1785918124662
+    },
+    {
+      "id": "m_1785918124662_t4t9gd",
+      "role": "assistant",
+      "content": "Yes — **B** is the best answer.\n\nYou reasoned it well: “keeping an eye on Amy” is about **watching / her**, not hoping she loves the kitchen and wifi. Option **D** is a trap because the facilities are in the paragraph, but that’s about **Amy’s delight**, not the parents’ plan.\n\nBig win on this one — you learned the exam trick: same idea, different words.\n\nReady for **question 32** (what Rose remembered about Daisy)?",
+      "createdAt": 1785918124662
+    },
+    {
+      "id": "m_1785918508036_6f0pum",
+      "role": "user",
+      "content": "I chose a for that because it it was only vague holiday memories that Rose recalled of her grandmother, and she had never known her grandfather from that sentence and also the last one Rose had been only 10 years old when she lastest goodbye, but her memories had been happy onces.",
+      "createdAt": 1785918508036
+    },
+    {
+      "id": "m_1785918508036_gwaf0n",
+      "role": "assistant",
+      "content": "Yes — **A** is right.\n\nYou used the exact clue:\n\n> From paragraph 2: “It was only vague **holiday memories** that Rose recalled of her grandmother…”\n\nNice evidence work.\n\nQuick trap check: **C** says holidays with her **grandparents** — but the text says she **never knew her grandfather**. So C is out.\n\nReady for **33** (why “uncanny knack” is used near line 37)?",
+      "createdAt": 1785918508036
+    },
+    {
+      "id": "m_1785918654392_20tnd0",
+      "role": "user",
+      "content": "B, because it was in paragraph3, and it was mostly about Daisy is a positive woman a go getter. So it is out because it is suggested suggested that Daisy made long lasting friendships, but it didn't talk about friendships. and it didn't say how excited Daisy was going to see Rose and she didn't have any behavior..",
+      "createdAt": 1785918654392
+    },
+    {
+      "id": "m_1785918654392_pz16wy",
+      "role": "assistant",
+      "content": "Yes — **B** is right.\n\n**Uncanny knack** = a surprisingly special skill (almost “wow, how does she do that?”). So the words are there to show Daisy’s ability is **extraordinary**.\n\nYou also knocked out the traps well:\n- not mainly about friendships (**A**)\n- not about Daisy being excited to see Rose (**C**)\n- not “weird behavior” (**D**)\n\nReady for **34** (why Rose talked with her mum about the move)?",
+      "createdAt": 1785918654392
+    },
+    {
+      "id": "m_1785918701905_1fortx",
+      "role": "user",
+      "content": "So as your definition, So others would think, wow, how did Liy gather so many friends.",
+      "createdAt": 1785918701905
+    },
+    {
+      "id": "m_1785918701905_uucr3u",
+      "role": "assistant",
+      "content": "Yes — that’s the idea.\n\nPeople would think, “**Wow — how does Daisy bring everyone together like that?**” That’s why **uncanny knack** fits option **B**.\n\n(Daisy’s name, not Liy — easy mix-up!)\n\nNow **34**: Rose talked with her mum about the move because Rose hoped to…\n\n> From paragraph 4: Rose wants to be trusted to make her own decisions… The agreement is based on “trust.”\n\n**Find this** — then pick **A, B, C, or D**. What was Rose hoping for in that talk?",
+      "createdAt": 1785918701905
+    },
+    {
+      "id": "m_1785918803576_1mzjtc",
+      "role": "user",
+      "content": "Maybe see, because she has a complain about needing more freedom about her own own choice.",
+      "createdAt": 1785918803576
+    },
+    {
+      "id": "m_1785918803576_iy49e2",
+      "role": "assistant",
+      "content": "I hear you — Rose wants **more freedom** to make her **own choices**. That part is true.\n\nBut look carefully: is the talk mainly Rose **complaining**, or Rose and Mum trying to **make a deal**?\n\n> From paragraph 4: The agreement is based on “**trust**.” (Mum also gives her a phone for emergencies.)\n\n**Find this** — when two people make an **agreement**, which option fits best?\n\n- **A** reach a compromise  \n- **C** make a complaint  \n\nWhich one do you pick, and why?",
+      "createdAt": 1785918803576
+    },
+    {
+      "id": "m_1785918956582_yi0e80",
+      "role": "user",
+      "content": "Or maybe A, but I don't. I isn't sure the meaning of compromise.",
+      "createdAt": 1785918956582
+    },
+    {
+      "id": "m_1785918956582_0vhk2w",
+      "role": "assistant",
+      "content": "No worries — **compromise** is a tough word.\n\nA **compromise** is when **both sides give a little** and meet in the middle.\n\nExample: You want ice cream every night; Mum says once a week — you agree on **three times**. That’s a compromise.\n\nIn the story: Rose wants freedom; Mum wants safety → they make a **trust** deal (plus the phone).\n\nCan you make one short sentence with **compromise**? Then pick **A** or **C** for question **34**.",
+      "createdAt": 1785918956582
+    },
+    {
+      "id": "m_1785919008895_x8v0v4",
+      "role": "user",
+      "content": "Then a, because they're discussing about whether those want freedom.",
+      "createdAt": 1785919008895
+    },
+    {
+      "id": "m_1785919008895_283nc8",
+      "role": "assistant",
+      "content": "Yes — **A**.\n\nThey talk about Rose’s freedom, then make a **deal** (trust + phone). That’s a **compromise**, not just a complaint.\n\nYou’ve got **31–34** — strong work.\n\nReady for **35** (“This had worked in her favour” near lines 74–75)?",
+      "createdAt": 1785919008895
+    },
+    {
+      "id": "m_1785919071160_qgq15v",
+      "role": "user",
+      "content": "Yes, I'm ready, but I first want to check the answer I did for 36. I chose a. Is that right.",
+      "createdAt": 1785919071160
+    },
+    {
+      "id": "m_1785919071160_cfg6vh",
+      "role": "assistant",
+      "content": "Good idea to check **36** — let’s use the text, not a yes/no from me yet.\n\nYou chose **A** (eager to meet new people). Look at the last paragraph again:\n\n> From the last paragraph: Rose is a “**veteran**” at changing schools… (her fourth school in five years)\n\n**Find this** — does “veteran” mean she’s **excited to make new friends**, or more like she’s **used to big changes** / ready for another go?\n\nThen tell me: stick with **A**, or switch to another letter — and why.",
+      "createdAt": 1785919071160
+    },
+    {
+      "id": "m_1785919163624_xx1w8e",
+      "role": "user",
+      "content": "Switch into  D because maybe she wants to start a new community. She wants to have new friends.",
+      "createdAt": 1785919163624
+    },
+    {
+      "id": "m_1785919163624_bg889j",
+      "role": "assistant",
+      "content": "Good switch — **D** is the stronger choice.\n\nOne tiny refine on your “why”: wanting **new friends** sounds more like option **A**.  \n\n**D** is about a **fresh start** — a new piece of her life.\n\n> From the last paragraph: she sees the move as another piece in “the mosaic that was her life,” and she’s a **veteran** at changing schools.\n\n**Find this** — does that sound like she’s scared, or okay with starting again?\n\nIf you agree, we’ll keep **D** for 36 — then tackle **35**.",
+      "createdAt": 1785919163624
+    },
+    {
+      "id": "m_1785919299203_xzjsi8",
+      "role": "user",
+      "content": "Okay.",
+      "createdAt": 1785919299203
+    },
+    {
+      "id": "m_1785919299203_x95w8s",
+      "role": "assistant",
+      "content": "Great — **36 = D**. She’s okay with another **fresh start**.\n\nNow **35**: What is meant by “This had worked in her favour” (lines 74–75)?\n\n> From the last paragraph (near 74–75): look for what **“this”** is — often her good school record / being mature and trustworthy.\n\n**Find this** — then pick **A, B, C, or D**.\n\nWhat do you think “worked in her favour” means here?",
+      "createdAt": 1785919299203
+    },
+    {
+      "id": "m_1785920566799_f0dqb3",
+      "role": "user",
+      "content": "I'm not sure, but I think it means do what she wants.",
+      "createdAt": 1785920566799
+    },
+    {
+      "id": "m_1785920566799_kjc0gn",
+      "role": "assistant",
+      "content": "I’ll check the passage wording around “worked in her favour” so we can match your idea to the options carefully.Nice try, Ryan — “do what she wants” is close to option **C**, so you’re thinking carefully.\n\nBut **“worked in her favour”** means something a bit different: it **helped her** / was an **advantage** for her — not “she always got her way.”\n\n> From lines 74–75: find the sentence with **“This had worked in her favour.”** Look at the sentence **just before** — what is **“this”** talking about?\n\n**Find this** — then choose:\n\n- **C** = parents usually let her do whatever she wanted  \n- **D** = her past behaviour affected her parents’ decision  \n\nWhich letter fits better, and why?",
+      "createdAt": 1785920566799
+    },
+    {
+      "id": "m_1785920664716_f82hwb",
+      "role": "user",
+      "content": "D, because shes already set advantage. So maybe her behavior is the advantage to make her parents think this decision.",
+      "createdAt": 1785920664716
+    },
+    {
+      "id": "m_1785920664716_siywa7",
+      "role": "assistant",
+      "content": "Yes — **D**. That’s strong thinking, Ryan.\n\nYou spotted the key idea: her **past behaviour** was the **advantage** that helped her parents decide. That’s exactly what “worked in her favour” means here.\n\nNice finish — you’ve got **31–36** done. How sure do you feel on this one, **1–3**? (1 = still fuzzy, 3 = I could explain it to a friend)",
+      "createdAt": 1785920664716
+    },
+    {
+      "id": "m_1785921329069_sufohh",
+      "role": "user",
+      "content": "p",
+      "createdAt": 1785921329069,
+      "attachments": [
+        {
+          "id": "a_1785921312127_td473s",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_1bc1100dff54d92ae4ee145c"
+        },
+        {
+          "id": "a_1785921322868_hy8sph",
+          "name": "camera-2.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_6c44a4272ef5d7d505da16ad"
+        }
+      ]
+    },
+    {
+      "id": "m_1785921329069_6j2uk6",
+      "role": "assistant",
+      "content": "",
+      "createdAt": 1785921329069
+    },
+    {
+      "id": "m_1785926325190_gdc6ok",
+      "role": "user",
+      "content": "",
+      "createdAt": 1785926325190,
+      "attachments": [
+        {
+          "id": "a_1785926319152_yg5ict",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_989c48e3222e266b212c212b"
+        },
+        {
+          "id": "a_1785926322430_z5ge7t",
+          "name": "camera-2.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_4e2e3773d7725392cdc167d8"
+        }
+      ]
+    },
+    {
+      "id": "m_1785926325190_k48r40",
+      "role": "assistant",
+      "content": "I’ll look at your photos carefully, then we’ll take the first question together.Got it, Ryan — this looks like **Saturday jobs** (reading: match people to ideas).\n\nI can see four people:\n- **A** Keith  \n- **B** James  \n- **C** Caroline  \n- **D** Freya  \n\nPhoto 1 looks a bit dark/hard to read on my side. Can you tell me the **first question number** (like “Which person…?”), or send a clearer photo of the **questions**?\n\nThen we’ll do that one together, step by step.",
+      "createdAt": 1785926325190
+    },
+    {
+      "id": "m_1785926410728_3xiu0v",
+      "role": "user",
+      "content": "",
+      "createdAt": 1785926410728,
+      "attachments": [
+        {
+          "id": "a_1785926406076_ldoun9",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_3a9cede839e05ea2bb92bc80"
+        }
+      ]
+    },
+    {
+      "id": "m_1785926410728_vfb763",
+      "role": "assistant",
+      "content": "Perfect — now I can see the questions (**43–52**). This is a **matching** task: each line → one teenager (**A–D**). Same letter can be used more than once.\n\nLet’s start with **43** only:\n\n> From Photo 1, Q43: “Which teenager **argues that having a job encourages people to be more efficient**?”\n\n**Find this** — look in **A–D** for someone who says a job helps you use your time **better** / get more done.\n\nWho do you think it is — **A, B, C, or D** — and which sentence made you choose?",
+      "createdAt": 1785926410728
+    },
+    {
+      "id": "m_1785927540981_8y77zz",
+      "role": "user",
+      "content": "This is what I did so far.",
+      "createdAt": 1785927540981,
+      "attachments": [
+        {
+          "id": "a_1785927528639_f38ny8",
+          "name": "camera-1.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "adfdf7f8-8773-4631-82e9-_af79bc19fbc51ade4023d930"
+        }
+      ]
+    },
+    {
+      "id": "m_1785927540981_06ivaz",
+      "role": "assistant",
+      "content": "Nice work so far, Ryan — you’ve already got **45, 46, 49, 51, 52** filled in. That’s a strong start.\n\nLet’s finish the blanks one by one. Back to **43** (still empty):\n\n> From the questions: “argues that having a job encourages people to be more **efficient**?”\n\n**Efficient** ≈ using time well / getting more done.\n\n> Look in **C** and **D** (not only A/B) for someone who says a job helps you **organise your time better**.\n\nWhich letter fits **43** — and which short line did you find?",
+      "createdAt": 1785927540981
+    },
+    {
+      "id": "m_1785927632116_ce6iui",
+      "role": "user",
+      "content": "D because it says that her mom said that it will take her studying time. So, so change it into a half time job..",
+      "createdAt": 1785927632116
+    },
+    {
+      "id": "m_1785927632116_bu7uun",
+      "role": "assistant",
+      "content": "Good letter guess — **D** is the right person.\n\nBut check your **why** carefully. Mum worrying about **study time** is **not** the same as “a job makes you **efficient**.”\n\n> From **D Freya**: find Freya’s own idea — something like a job helps you **organise your time better**.\n\n**Find this** — can you point to that line in Freya’s text? Then we’ll lock **43 = D**.",
+      "createdAt": 1785927632116
+    },
+    {
+      "id": "m_1785927810651_48ztne",
+      "role": "user",
+      "content": "It might be the sentence. I think if you work a few hours every week, you learn to organize your time better.",
+      "createdAt": 1785927810651
+    },
+    {
+      "id": "m_1785927810651_ykogju",
+      "role": "assistant",
+      "content": "Yes — that’s the **exact** clue. Well found!\n\n**Organise your time better** ≈ **more efficient**. So **43 = D**. Write it in.\n\nNext blank: **44** — “says there is only a **limited range of jobs** to choose from?”\n\n> Look for someone who says teens don’t have many job choices / only a few kinds of work.\n\nWho do you think — **A, B, C, or D** — and which line?",
+      "createdAt": 1785927810651
+    },
+    {
+      "id": "m_1785927914413_ip8fv9",
+      "role": "user",
+      "content": "I don't know. Each line seems incorrect.",
+      "createdAt": 1785927914413
+    },
+    {
+      "id": "m_1785927914413_kk3p36",
+      "role": "assistant",
+      "content": "You’re stuck — that’s okay. I’ll help you find the right kind of clue for **44**.No worries, Ryan — this one is sneaky because the text **won’t say** “limited range.”\n\n**Limited range** ≈ **not many kinds** / **only a few choices**.\n\n> Scan **A–D** for words like **few**, **only**, **not many**, or **choice** about jobs for teenagers.\n\n**Find this** — which person talks about teens having **only a few job options**? Tell me the letter **or** the short phrase you spot.",
+      "createdAt": 1785927914413
+    },
+    {
+      "id": "m_1785928212085_vvcmwz",
+      "role": "user",
+      "content": "I can't spot any.",
+      "createdAt": 1785928212085
+    },
+    {
+      "id": "m_1785928212085_xx9yfg",
+      "role": "assistant",
+      "content": "Okay — let’s shrink it. Don’t scan all four.\n\n> Open **C Caroline** only (the babysitting text).\n\n**Find this** — look for a line about jobs for **young people / teenagers**, saying the **choice is small** (or only certain jobs like babysitting).\n\nCan you see Caroline’s paragraph? If yes, read just that bit and tell me one short phrase that sounds like “not many job choices.”",
+      "createdAt": 1785928212085
+    },
+    {
+      "id": "m_1785928272653_fhxutu",
+      "role": "user",
+      "content": "It seems to be the most common job among my classmates.",
+      "createdAt": 1785928272653
+    },
+    {
+      "id": "m_1785928272653_hejat9",
+      "role": "assistant",
+      "content": "Yes — you’re in the **right place** (**C**)!\n\n“Most common job among my classmates” is a big clue: teens mostly do **one kind** of work.\n\n> Check the **next sentence** after that — does Caroline also say there **aren’t many other jobs** for people her age?\n\nIf yes, **44 = C**. Write it in, then tell me — ready for **47** (still blank)?",
+      "createdAt": 1785928272653
+    },
+    {
+      "id": "m_1785928349225_5pz1z6",
+      "role": "user",
+      "content": "Ready.",
+      "createdAt": 1785928349226
+    },
+    {
+      "id": "m_1785928349226_e6n789",
+      "role": "assistant",
+      "content": "Great — **44 = C** is locked. On to **47**.\n\n> From the questions: “puts up with a **general disadvantage** of having a job?”\n\n**Puts up with** ≈ accepts something annoying / not perfect.  \n**Disadvantage** ≈ a bad side of working (less free time, lower pay, etc.).\n\n**Find this** — who says work has a downside, but they still accept it?\n\nWho — **A, B, C, or D** — and which short line?",
+      "createdAt": 1785928349226
+    },
+    {
+      "id": "m_1785928415537_a5mq1u",
+      "role": "user",
+      "content": "B because it says the pay was rubbish.",
+      "createdAt": 1785928415537
+    },
+    {
+      "id": "m_1785928415537_lfe4f9",
+      "role": "assistant",
+      "content": "Good — you picked **B**, and James does talk about a downside.\n\nBut check your **why** carefully. “Pay was rubbish” was about his **first** chemist’s job — then he got a better one. So that’s not the **general** bad side of working.\n\n> From **B James**: look near the end — does he say he has **less time** for parties / fun, but still likes having his own money?\n\n**Find this** — if yes, that’s the “puts up with a disadvantage” idea. Then we’ll lock **47**.",
+      "createdAt": 1785928415537
+    },
+    {
+      "id": "m_1785928494445_rpie3t",
+      "role": "user",
+      "content": "Yes, go on.",
+      "createdAt": 1785928494445
+    },
+    {
+      "id": "m_1785928494445_pwva1n",
+      "role": "assistant",
+      "content": "Yes — **47 = B**. Less free time, but he still accepts the job. Nice catch after the second look.\n\nNext blank: **48** — “can choose to work **less** when short of time?”\n\n> Look for someone whose job is **flexible** — they can skip a shift / work fewer hours when there’s lots of homework.\n\nWho — **A, B, C, or D** — and which short line?",
+      "createdAt": 1785928494445
+    },
+    {
+      "id": "m_1785928544070_nwjwha",
+      "role": "user",
+      "content": "I only know one that can miss the job. I don't know if that count.",
+      "createdAt": 1785928544070
+    },
+    {
+      "id": "m_1785928544070_wtf86i",
+      "role": "assistant",
+      "content": "Yes — that **counts**! “Can miss the job / skip a shift” when you’re busy = work **less** when short of time.\n\nWho is that person — **A Keith**? And what short line did you see (homework / flexible / miss a shift)?\n\nTell me the letter + the clue, then we’ll lock **48**.",
+      "createdAt": 1785928544070
+    },
+    {
+      "id": "m_1785928607623_by0fmo",
+      "role": "user",
+      "content": "The sentence is, and it's quite flexible. Basically, I can give it a miss when I have too much homework.",
+      "createdAt": 1785928607623
+    },
+    {
+      "id": "m_1785928607623_yldwe6",
+      "role": "assistant",
+      "content": "Perfect clue — that’s **A Keith**. **48 = A**.\n\nLast blank: **50** — “doesn’t agree with the **reason** behind someone’s decision?”\n\n> Look for someone who disagrees with **why** another person decided something (often a parent).\n\nWho — **A, B, C, or D** — and what do they disagree about?",
+      "createdAt": 1785928607623
+    },
+    {
+      "id": "m_1785928666602_0oqpz8",
+      "role": "user",
+      "content": "I only know D, but it is the parent disagreeing with the child because it is, but mom changed her mind about it at the last minute, saying I was wrong to risk, letting my schoolwork suffer.",
+      "createdAt": 1785928666602
+    },
+    {
+      "id": "m_1785928666602_4rr7my",
+      "role": "assistant",
+      "content": "You’re close — and **D** is the right person.\n\nTiny flip on the “who”: the question asks which **teenager** disagrees. That’s **Freya**, not Mum.\n\n> Mum’s reason: the job would hurt schoolwork.  \n> Freya’s view: Mum is wrong about that (she overestimates Freya’s study time).\n\nSo **50 = D**. Write it in.\n\nYou’ve finished **43–52** — strong work sticking with the hard ones. Want a quick check of **46** (you wrote **D** earlier)?",
+      "createdAt": 1785928666602
+    },
+    {
+      "id": "m_1785928729104_j2ova8",
+      "role": "user",
+      "content": "Yeah, what's wrong with that?",
+      "createdAt": 1785928729104
+    },
+    {
+      "id": "m_1785928729104_zkoppg",
+      "role": "assistant",
+      "content": "Good question — let’s check **46** with the text, not just yes/no.\n\n> Q46: “hopes to find **regular** part-time work **eventually**?”\n\n**Eventually** ≈ in the future / later on.\n\nYou chose **D Freya**. Freya wants a job **now**, but Mum said **no** — and the decision is final.\n\n> Now peek at **C Caroline** — does she say she wants a **better / more regular** job later (more pay, more experience)?\n\nWhich fits **46** better — stick with **D**, or switch to **C** — and why?",
+      "createdAt": 1785928729104
+    },
+    {
+      "id": "m_1785928784524_06yxoj",
+      "role": "user",
+      "content": "B, because James's father told him that a Saturday job is a good thing to do.",
+      "createdAt": 1785928784524
+    },
+    {
+      "id": "m_1785928784524_f5jf19",
+      "role": "assistant",
+      "content": "Hold on — that clue is strong, but for a **different** question.\n\n> “Dad said a Saturday job is a good thing” ≈ got a job to please someone / follow Dad’s advice → that’s more like **49** (which you already got as **B**).\n\n**46** is about hoping for a **regular** job **later**.\n\n> Back to **C Caroline**: look for wanting a **better-paid / more proper** job in the **future**.\n\nStick with **D**, switch to **C**, or keep **B**? Pick one — and say the future-job line if you find it.",
+      "createdAt": 1785928784524
+    },
+    {
+      "id": "m_1785928888161_lrldgr",
+      "role": "user",
+      "content": "Yes, it is C because it in the first sentence it says I've never had a part time job before, which means and at last, she find one, which means that at first, she hope to find one,.",
+      "createdAt": 1785928888161
+    },
+    {
+      "id": "m_1785928888161_vfatrs",
+      "role": "assistant",
+      "content": "Yes — **switch to C**. Good self-correct!\n\nOne tiny refine on your **why**: “never had a job before” is background. The stronger clue for **46** is Caroline wanting a **better / more regular** job **later** (more pay, more experience).\n\n**46 = C** — change it from D.\n\nFull set locked. You stuck with the tricky matches — that’s real FCE skill. How sure do you feel on this Part 7, **1–3**?",
+      "createdAt": 1785928888161
+    }
+  ],
+  "createdAt": 1785915428554,
+  "updatedAt": 1785928900023
+}

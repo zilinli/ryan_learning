@@ -1,0 +1,32 @@
+{
+  "sessionId": "9ab688a8-fe0e-4785-8e28-63270248e3e7",
+  "title": "¿Cómo estás?",
+  "messages": [
+    {
+      "id": "m_1785723240488_paxo2r",
+      "role": "user",
+      "content": "¿Cómo estás?",
+      "createdAt": 1785723240488
+    },
+    {
+      "id": "m_1785723240488_6ulgpf",
+      "role": "assistant",
+      "content": "¡Hola! Muy bien, gracias. ¿Y tú?\n\nCuando quieras, dime en qué te ayudo hoy: mates, lectura, deberes… lo que tengas.",
+      "createdAt": 1785723240488
+    },
+    {
+      "id": "m_1785723262388_6extn1",
+      "role": "user",
+      "content": "Thếm thế nào mới còn đúng không?",
+      "createdAt": 1785723262388
+    },
+    {
+      "id": "m_1785723262388_8h2v74",
+      "role": "assistant",
+      "content": "Chào em! Câu đó hơi ngắn, thầy chưa chắc em đang hỏi gì.\n\nEm đang hỏi **cách chào** lúc nãy còn đúng không, hay muốn kiểm tra **một bài tập**?\n\nGửi lại câu hỏi / ảnh bài giúp thầy nhé.",
+      "createdAt": 1785723262388
+    }
+  ],
+  "createdAt": 1785723217499,
+  "updatedAt": 1785723299511
+}

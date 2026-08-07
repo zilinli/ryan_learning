@@ -1,0 +1,53 @@
+{
+  "sessionId": "25933168-2225-40e1-9e09-10ac9cf657c1",
+  "title": "hi",
+  "messages": [
+    {
+      "id": "m_1785672267556_brwdg7",
+      "role": "user",
+      "content": "hi",
+      "createdAt": 1785672267556
+    },
+    {
+      "id": "m_1785672267556_8p3r5i",
+      "role": "assistant",
+      "content": "Hi! Good to see you.\n\nWhat would you like to work on today — homework, a concept you’re stuck on, or something else?",
+      "createdAt": 1785672267557
+    },
+    {
+      "id": "m_1785676571484_756rh7",
+      "role": "user",
+      "content": "say something",
+      "createdAt": 1785676571484
+    },
+    {
+      "id": "m_1785676571484_7r0ilq",
+      "role": "assistant",
+      "content": "Sure! I’m here and ready when you are.\n\nWhat should we dig into — a subject from school, a tricky homework question, or something you’re just curious about?",
+      "createdAt": 1785676571484
+    },
+    {
+      "id": "m_1785848731132_xreeia",
+      "role": "user",
+      "content": "总结下这个截图的文章",
+      "createdAt": 1785848731132,
+      "attachments": [
+        {
+          "id": "a_1785848704612_2iho38",
+          "name": "image.jpg",
+          "mimeType": "image/jpeg",
+          "kind": "image",
+          "mediaId": "25933168-2225-40e1-9e09-_3088cba9158f419e0603278d"
+        }
+      ]
+    },
+    {
+      "id": "m_1785848731132_hz5aq8",
+      "role": "assistant",
+      "content": "Ryan，睇到你想**总结**呢篇 *Living with Gran* 啦——好啊，我哋一齐嚟写，唔好一次过抄晒我嘅答案。\n\n先由最重要嘅一点开始：\n\n> From Photo 1, 开头：  \n> \"Rose Frost was just sixteen years old, and she was going to live with her grandmother, Daisy.\"\n\n**睇呢度** —— 用你自己嘅话讲一句：呢篇故事主要讲边个？佢要去做咩？",
+      "createdAt": 1785848731132
+    }
+  ],
+  "createdAt": 1785672281154,
+  "updatedAt": 1785848772537
+}
