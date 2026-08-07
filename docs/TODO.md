@@ -56,6 +56,17 @@
 - [x] **D.5** — Regression test: account A's prune leaves account B's media intact (`media-store.test.ts`)
 - [x] **D.6** — Verify self-heal: `/api/media/check` works live; cross-account media survives on live service (regression script ✓)
 
+### Phase E: Theme UX Polish (v0.3, added 2026-08-08)
+
+**Requested:** default theme = light green; dark-theme text unreadable on action buttons (e.g. "New chat"); theme options should be collapsible (cleaner header).
+
+- [x] **E.1** — Default theme → `light-green` (layout.tsx no-FOUC script + ThemePicker fallback + viewport `theme-color`); removed `prefers-color-scheme` auto-switch for a deterministic first-visit default
+- [x] **E.2** — `--action-bg` / `--action-ink` per theme; dark theme flips to light-cream button + dark text (fixes white-on-cream "New chat")
+- [x] **E.3** — Converted `bg-[var(--ink)] text-white` → action vars: HistorySidebar, Composer, AccountHome, SentenceTranslate; CameraCapture overlay now fixed always-dark `#14100c`
+- [x] **E.4** — ThemePicker redesigned: compact half-moon swatch trigger → anchored menu (4 swatches + ✓); closes on outside click / Escape; `menuitemradio` a11y
+- [x] **E.5** — Tests updated: ThemePicker (collapsed menu, default, Escape), theme-contrast adds `--action-*` ≥ 4.5:1
+- [x] **E.6** — README + design doc updated (v0.3)
+
 ---
 
 ## Legacy Pending

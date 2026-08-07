@@ -376,7 +376,7 @@ export function AccountHome() {
 
           <Link
             href="/"
-            className="inline-flex w-full items-center justify-center rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            className="inline-flex w-full items-center justify-center rounded-full bg-[var(--action-bg)] px-5 py-3 text-sm font-medium text-[var(--action-ink)] transition hover:opacity-90"
           >
             Continue to tutor →
           </Link>

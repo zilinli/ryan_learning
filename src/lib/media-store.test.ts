@@ -137,44 +137,47 @@ describe("media-store", () => {
 
   it("prunes media for trimmed messages and orphan sessions", async () => {
     const sessionId = `prune_${Date.now()}`;
-    const prepared = await persistConversationMedia({
-      sessionId,
-      title: "trim",
-      messages: [
-        {
-          id: "old",
-          role: "user",
-          content: "old photo",
-          createdAt: 1,
-          attachments: [
-            {
-              id: "a_old",
-              name: "old.jpg",
-              mimeType: "image/jpeg",
-              kind: "image",
-              dataUrl: TINY_JPEG,
-            },
-          ],
-        },
-        {
-          id: "keep",
-          role: "user",
-          content: "keep photo",
-          createdAt: 2,
-          attachments: [
-            {
-              id: "a_keep",
-              name: "keep.jpg",
-              mimeType: "image/jpeg",
-              kind: "image",
-              dataUrl: TINY_JPEG,
-            },
-          ],
-        },
-      ],
-      createdAt: 1,
-      updatedAt: 2,
-    });
+    const prepared = await persistConversationMedia(
+      {
+        sessionId,
+        title: "trim",
+        messages: [
+          {
+            id: "old",
+            role: "user",
+            content: "old photo",
+            createdAt: 1,
+            attachments: [
+              {
+                id: "a_old",
+                name: "old.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+          {
+            id: "keep",
+            role: "user",
+            content: "keep photo",
+            createdAt: 2,
+            attachments: [
+              {
+                id: "a_keep",
+                name: "keep.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      "default",
+    );
     const oldId = prepared.messages[0]!.attachments![0]!.mediaId!;
     const keepId = prepared.messages[1]!.attachments![0]!.mediaId!;
 
@@ -278,5 +281,125 @@ describe("media-store", () => {
     // Cleanup both
     await deleteMediaForSession(ownerSession);
     await deleteMediaForSession(otherSession);
+  });
+
+  it("deleting a session in one account never deletes same-sessionId media of another account", async () => {
+    const sharedSession = `shared_${Date.now()}`;
+    const acctA = `acct_dupA_${Date.now()}`;
+    const acctB = `acct_dupB_${Date.now()}`;
+
+    const a = await persistConversationMedia(
+      {
+        sessionId: sharedSession,
+        title: "A",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "a",
+            createdAt: 1,
+            attachments: [
+              {
+                id: "a1",
+                name: "a.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      acctA,
+    );
+    const b = await persistConversationMedia(
+      {
+        sessionId: sharedSession,
+        title: "B",
+        messages: [
+          {
+            id: "m2",
+            role: "user",
+            content: "b",
+            createdAt: 1,
+            attachments: [
+              {
+                id: "a2",
+                name: "b.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                dataUrl: TINY_JPEG,
+              },
+            ],
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      acctB,
+    );
+    const mediaA = a.messages[0]!.attachments![0]!.mediaId!;
+    const mediaB = b.messages[0]!.attachments![0]!.mediaId!;
+    expect(mediaA).not.toBe(mediaB);
+    expect(await readMedia(mediaA)).not.toBeNull();
+    expect(await readMedia(mediaB)).not.toBeNull();
+
+    // Account A deletes its session — B's same-sessionId media must survive
+    const removed = await deleteMediaForSession(sharedSession, acctA);
+    expect(removed).toBeGreaterThanOrEqual(1);
+    expect(await readMedia(mediaA)).toBeNull();
+    expect(
+      await readMedia(mediaB),
+      "account B media survives A's session delete",
+    ).not.toBeNull();
+
+    await deleteMediaForSession(sharedSession, acctB);
+    expect(await readMedia(mediaB)).toBeNull();
+  });
+
+  it("never prunes legacy media that has no accountId", async () => {
+    const legacySession = `legacy_${Date.now()}`;
+    const legacy = await persistConversationMedia({
+      sessionId: legacySession,
+      title: "legacy",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "old",
+          createdAt: 1,
+          attachments: [
+            {
+              id: "a1",
+              name: "old.jpg",
+              mimeType: "image/jpeg",
+              kind: "image",
+              dataUrl: TINY_JPEG,
+            },
+          ],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const legacyId = legacy.messages[0]!.attachments![0]!.mediaId!;
+    expect(await readMedia(legacyId)).not.toBeNull();
+
+    // Any account's retention pass must leave the accountId-less media alone,
+    // even though its session is not in the keep-set (legacy owner unknown).
+    await pruneOrphanMedia(
+      `acct_someone_${Date.now()}`,
+      new Set<string>(),
+    );
+    expect(
+      await readMedia(legacyId),
+      "legacy media without accountId survives foreign prune",
+    ).not.toBeNull();
+
+    // Cleanup (direct delete without account scoping removes it)
+    await deleteMediaForSession(legacySession);
+    expect(await readMedia(legacyId)).toBeNull();
   });
 });

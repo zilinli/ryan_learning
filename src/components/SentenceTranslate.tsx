@@ -295,7 +295,7 @@ export function SentenceTranslate() {
                   onClick={() =>
                     setPhotos((prev) => prev.filter((x) => x.id !== p.id))
                   }
-                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--ink)] text-[11px] text-white shadow"
+                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--action-bg)] text-[11px] text-[var(--action-ink)] shadow"
                   aria-label={`Remove ${p.name}`}
                 >
                   ×

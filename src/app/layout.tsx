@@ -31,7 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f3ebe0" },
+    { media: "(prefers-color-scheme: light)", color: "#eef8f0" },
     { media: "(prefers-color-scheme: dark)", color: "#1a120c" },
   ],
 };
@@ -46,7 +46,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("spark.theme")||"light";var d=localStorage.getItem("spark.dark");if(!t||t==="light"){if(d==="true")t="dark";else if(d===null&&window.matchMedia("(prefers-color-scheme:dark)").matches)t="dark"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("spark.theme")||"light-green";var d=localStorage.getItem("spark.dark");if(t==="light"&&d==="true")t="dark";document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
           }}
         />
       </head>

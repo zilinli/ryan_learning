@@ -136,7 +136,10 @@ export async function deleteMedia(mediaId: string): Promise<void> {
   ]);
 }
 
-export async function deleteMediaForSession(sessionId: string): Promise<number> {
+export async function deleteMediaForSession(
+  sessionId: string,
+  accountId?: string,
+): Promise<number> {
   await ensureMediaDir();
   const names = await fs.readdir(MEDIA_DIR);
   let removed = 0;
@@ -147,6 +150,12 @@ export async function deleteMediaForSession(sessionId: string): Promise<number> 
         await fs.readFile(path.join(MEDIA_DIR, name), "utf8"),
       ) as StoredMediaMeta;
       if (meta.sessionId !== sessionId) continue;
+      // Account-scoped deletion: when the caller knows the owning account,
+      // never touch another account's (or legacy no-accountId) media. Keeps a
+      // sessionId collision across accounts from deleting the other's photos.
+      if (accountId) {
+        if (!meta.accountId || meta.accountId !== accountId) continue;
+      }
       await deleteMedia(meta.mediaId);
       removed += 1;
     } catch {
@@ -205,9 +214,11 @@ export async function pruneOrphanMedia(
       const meta = JSON.parse(
         await fs.readFile(jsonFull, "utf8"),
       ) as StoredMediaMeta;
-      // Only prune media owned by this account (meta written by old builds
-      // has no accountId — leave it alone).
-      if (meta.accountId && meta.accountId !== accountId) continue;
+      // PRUNING IS ACCOUNT-SCOPED: only media whose meta.accountId matches this
+      // account may be removed. Media without accountId (written by old builds)
+      // is treated as legacy — its owner is unknowable, so it is never pruned by
+      // a per-account retention pass (a stale delete here breaks history imgs).
+      if (!meta.accountId || meta.accountId !== accountId) continue;
       const sessionKept = keepSessionIds.has(meta.sessionId);
       const unreferenced =
         Boolean(keepMediaIds) &&

@@ -293,7 +293,7 @@ export function CameraCapture({
         sm+ (iPad / PC): vertically centered card so Snap stays in viewport.
         Video uses min-h-0 flex-1 + max-h so preview shrinks before clipping actions.
       */}
-      <div className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[var(--ink)] shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-2xl">
+      <div className="safe-bottom flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-white/20 bg-[#14100c] shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-2xl">
         <div className="safe-top flex shrink-0 items-center justify-between px-4 py-3 text-white">
           <div>
             <p className="text-sm font-medium">Camera</p>
@@ -308,7 +308,7 @@ export function CameraCapture({
               stopStream();
               onClose();
             }}
-            className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)]"
+            className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#14100c]"
           >
             Done
           </button>
@@ -335,7 +335,7 @@ export function CameraCapture({
               <button
                 type="button"
                 onClick={resumeLive}
-                className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)]"
+                className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#14100c]"
               >
                 Live camera
               </button>
@@ -353,7 +353,7 @@ export function CameraCapture({
                 <button
                   type="button"
                   onClick={() => releaseThenPick("phone")}
-                  className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--ink)]"
+                  className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#14100c]"
                 >
                   Phone camera
                 </button>
@@ -390,7 +390,7 @@ export function CameraCapture({
             type="button"
             disabled={!ready || Boolean(error) || busy || livePaused}
             onClick={() => void snap()}
-            className="min-h-12 min-w-[7rem] rounded-full bg-white px-8 py-3 text-sm font-semibold text-[var(--ink)] disabled:opacity-40"
+            className="min-h-12 min-w-[7rem] rounded-full bg-white px-8 py-3 text-sm font-semibold text-[#14100c] disabled:opacity-40"
           >
             {busy ? "…" : "Snap"}
           </button>

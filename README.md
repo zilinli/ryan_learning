@@ -34,6 +34,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching
 - **Learning memory** — topic mastery, streaks, light badges (never interrupt a stuck moment)
 - **Multi-account** — per-account data isolation: each student gets their own chat history, learning progress, and voice preferences. Default = Ryan. Siblings and classmates stay separate.
+- **Themes** — four built-in themes (Light, Dark, Light blue, Light green) with WCAG-AA contrast. **Light green is the default.** Switch via the palette button in the header — a collapsed menu keeps the header clean. First-visit visitors and returning users with no saved preference get light green.
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
@@ -141,7 +142,7 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | **Default account** | **Ryan** (BASIS G4) — always present, cannot be deleted |
 | **New accounts** | Each starts fresh with grade-appropriate defaults (G1–G12) |
 | **Data isolation** | Chat history, learning memory (BKT), engagement streaks, and voice preferences are per-account |
-| **Shared settings** | Dark mode and parent PIN are device-wide (same for every account) |
+| **Shared settings** | Theme and parent PIN are device-wide (same for every account) |
 | **Switching** | Tap the account avatar in the header — instant switch, no login required |
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
 | **Account limit** | Up to 6 accounts per device |

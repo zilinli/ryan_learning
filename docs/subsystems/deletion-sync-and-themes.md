@@ -1,8 +1,8 @@
 # Deletion Sync & Multi-Theme System
 
-> Version 0.2 · 2026-08-07
+> Version 0.3 · 2026-08-08
 > Priority: 🔴 critical (deletion bug) · 🟡 important (themes)
-> Status: design finalized — server PUT guard + client push filter + periodic re-hydration + 4-theme system
+> Status: design finalized + shipped — server PUT guard + client push filter + periodic re-hydration + 4-theme system; **v0.3: light-green default, collapsible ThemePicker, `--action-*` contrast fix, account-scoped media pruning**
 
 ---
 
@@ -84,8 +84,22 @@ media belonging to accounts B/C/… whose session was not in A's keep-set
 |--------|------|
 | `StoredMediaMeta` gains `accountId?: string`; `writeMediaFromDataUrl` writes it | `media-store.ts` |
 | `persistConversationMedia(record, accountId?)` threads accountId into every media file | `media-store.ts` |
-| `pruneOrphanMedia(accountId, keepSessionIds, keepMediaIds?)` — only media whose `meta.accountId === accountId` is eligible for pruning; media written by old builds (no accountId) is **never** pruned by a retention pass | `media-store.ts` |
-| `enforceServerRetention(accountId)` / `prepareConversationForServer` pass accountId through | `history-store.ts` |
+| `pruneOrphanMedia(accountId, keepSessionIds, keepMediaIds?)` — **only** media whose `meta.accountId === accountId` is eligible; media with **no** accountId (legacy builds) is never pruned by any retention pass | `media-store.ts` |
+| `deleteMediaForSession(sessionId, accountId?)` — account-scoped: a sessionId collision across accounts can never delete the other account's photos | `media-store.ts` |
+| `enforceServerRetention(accountId)` / `prepareConversationForServer` / `deleteServerConversation` pass accountId through | `history-store.ts` |
+
+**Durability guarantee (what deletes media & when):** media on disk is only ever
+removed by (1) the user deleting a conversation (`DELETE /api/history`), (2)
+retention budget exceeded — oldest conversations / trimmed messages dropped
+(1000-msg / 12MB caps, the "TTL" the user accepts), (3) corrupt-meta / stray-bin
+cleanup. New uploads are written to `.bin` + `.json` **before** the conversation
+JSON, so a retention pass that runs afterward always sees the new mediaId as
+referenced. There is no time-based media TTL.
+
+Regression tests: `media-store.test.ts` — "does NOT delete another account's media
+(account-scoped prune)", "deleting a session in one account never deletes
+same-sessionId media of another account", "never prunes legacy media that has no
+accountId".
 
 **Self-healing of already-wiped media:** the client init chain already runs
 `ingestStorePhotos → hydrateFromServer → restoreStorePhotosFromVault →
@@ -149,10 +163,16 @@ Integration (`scripts/verify-deletion-sync.mjs`, two simulated devices):
 
 Current theming uses a warm brown palette with only light/dark via
 `html.dark`. Users requested:
-- Light (warm cream/brown, current default)
-- Dark (warm dark brown, current)
+- Light (warm cream/brown)
+- Dark (warm dark brown)
 - Light Blue (cool blue academic feel)
 - Light Green (fresh calm feel)
+
+**v0.3 (2026-08-08):** Light Green is now the **default theme** for
+first-visit visitors and users with no saved preference (was Light).
+Reason: requested explicitly — the calm green is the least fatiguing default
+for a tutoring app. Users who previously saved a theme keep it; the legacy
+`spark.dark` flag still migrates to `dark`.
 
 ### 2.2 Design — CSS `data-theme` Attribute
 
@@ -161,11 +181,13 @@ Each value triggers a CSS block that sets **all** `--ink`, `--teal`, etc.
 variables.
 
 Theme preference stored in `localStorage` key `spark.theme`. An inline script
-in `layout.tsx` reads it before first paint to prevent FOUC (falling back to
-`prefers-color-scheme`, and migrating the legacy `spark.dark` flag).
+in `layout.tsx` reads it before first paint to prevent FOUC. Fallback order:
+saved `spark.theme` → legacy `spark.dark === "true"` → **`light-green`**
+(deterministic default; `prefers-color-scheme` is intentionally *not* used so
+first-time visitors land on light green regardless of OS setting).
 
-A `ThemePicker` component (four swatch buttons) replaces the unused
-`DarkToggle`. It lives in the header.
+A collapsible `ThemePicker` (compact palette trigger → anchored menu) replaces
+the unused `DarkToggle`. It lives in the header.
 
 ### 2.3 Color Palettes + WCAG Contrast Audit
 
@@ -203,27 +225,62 @@ Contrast verified programmatically (`theme-contrast.test.ts`). Targets:
 - Browser `theme-color` meta is updated at runtime by `ThemePicker` to the
   active theme's `--bg0`.
 
+### 2.4a Action Buttons Stay Legible in Every Theme (v0.3)
+
+Primary action buttons ("New chat", "Continue to tutor", camera trigger) used
+`bg-[var(--ink)] text-white`. That is correct on light themes (ink is a dark
+brown) but **broken on dark**: `--ink` is light cream, so white-on-cream text
+was unreadable. Fix: a semantic pair per theme —
+
+| Var | light / light-blue / light-green | dark |
+|-----|----------------------------------|------|
+| `--action-bg` | `#3d2b1f` / `#1a2a3a` / `#1a2e1a` | `#e8dcc8` |
+| `--action-ink` | `#ffffff` | `#1a120c` |
+
+- Light themes: dark button, white text (≥ 13:1).
+- Dark theme: light cream button, dark text (≥ 13:1) — the standard
+  dark-mode CTA pattern.
+- All `bg-[var(--ink)] text-white` components were converted to
+  `bg-[var(--action-bg)] text-[var(--action-ink)]`:
+  `HistorySidebar` (New chat), `Composer` (camera trigger), `AccountHome`
+  (Continue to tutor), `SentenceTranslate` (photo remove badge).
+- `CameraCapture` is a deliberate always-dark camera UI, so its overlay now
+  uses a fixed dark `#14100c` instead of `var(--ink)` — independent of theme.
+- Enforced by `theme-contrast.test.ts`: `--action-ink` on `--action-bg`
+  must be ≥ 4.5:1 in every theme.
+
 ### 2.5 ThemePicker Component
 
 - Position: header right side.
-- UI: four small colored circle buttons; active theme gets a ring highlight.
+- **Collapsed by default (v0.3):** a single circular trigger shows the current
+  theme as a half-moon swatch (surface + accent). Clicking opens a small
+  right-anchored menu listing all four themes — each row has its swatch,
+  label, and a ✓ checkmark on the active one. Matches the pattern used by
+  Notion / Linear / Vercel.
+- Closes on outside click/touch or `Escape`; exposes `aria-haspopup="menu"`,
+  `aria-expanded`, `role="menuitemradio"`, `aria-checked`.
 - Clicking a theme: writes `spark.theme`, sets
   `document.documentElement.dataset.theme`, removes legacy `spark.dark`,
-  updates `meta[name=theme-color]`.
+  updates `meta[name=theme-color]`, closes the menu.
 - Backward compatibility: `spark.dark === "true"` migrates to
-  `spark.theme = "dark"` on init.
+  `spark.theme = "dark"` on init. No saved preference → `light-green`.
 
 ### 2.6 Files
 
 | File | Role | Status |
 |------|------|--------|
-| `src/app/globals.css` | `[data-theme="…"]` blocks for all 4 themes + diff vars | ✅ + 🔧 contrast fixes |
-| `src/app/layout.tsx` | Inline no-FOUC script for `data-theme` | ✅ |
-| `src/components/ThemePicker.tsx` | Swatch picker | ✅ + 🔧 theme-color meta |
+| `src/app/globals.css` | `[data-theme="…"]` blocks for all 4 themes + diff vars + `--action-*` | ✅ + 🔧 v0.2 contrast + 🔧 v0.3 action vars |
+| `src/app/layout.tsx` | Inline no-FOUC script for `data-theme` (default `light-green`) | ✅ + 🔧 v0.3 default |
+| `src/components/ThemePicker.tsx` | Collapsible palette-trigger menu | ✅ + 🔧 v0.3 collapsed UI |
 | `src/components/TutorShell.tsx` | Mount `ThemePicker`, `DarkToggle` removed | ✅ |
 | `src/components/DiffViewer.tsx` | Use `--diff-*` variables | 🔧 |
-| `src/lib/theme-contrast.test.ts` | Programmatic WCAG contrast checks | 🔴 new |
-| `src/components/ThemePicker.test.tsx` | jsdom component test | 🔴 new |
+| `src/components/HistorySidebar.tsx` | "New chat" uses `--action-*` | 🔧 v0.3 |
+| `src/components/Composer.tsx` | Camera trigger uses `--action-*` | 🔧 v0.3 |
+| `src/components/AccountHome.tsx` | "Continue to tutor" uses `--action-*` | 🔧 v0.3 |
+| `src/components/SentenceTranslate.tsx` | Photo remove badge uses `--action-*` | 🔧 v0.3 |
+| `src/components/CameraCapture.tsx` | Always-dark camera overlay (`#14100c`) | 🔧 v0.3 |
+| `src/lib/theme-contrast.test.ts` | Programmatic WCAG contrast checks incl. `--action-*` | 🔴 new + 🔧 v0.3 |
+| `src/components/ThemePicker.test.tsx` | jsdom component test (collapsed menu) | 🔴 new + 🔧 v0.3 |
 
 ### 2.7 Migration from `.dark` class
 
@@ -236,11 +293,14 @@ correctly until reload.
 
 ### 2.8 Test Plan
 
-- [ ] `ThemePicker` renders all 4 options (jsdom)
-- [ ] Clicking a theme updates `document.documentElement.dataset.theme`
-- [ ] `spark.theme` persisted; legacy `spark.dark` removed
-- [ ] Programmatic contrast: all 4 themes pass WCAG AA thresholds above
-- [ ] Diff-viewer variables exist in `globals.css` for every theme
-- [ ] No `#fff` / hardcoded foreground backgrounds left in components
-- [ ] Manual: switch themes on desktop + phone; chat text, sidebar, buttons
+- [x] `ThemePicker` shows a collapsed trigger; opening it renders all 4 options (jsdom)
+- [x] Clicking a theme updates `document.documentElement.dataset.theme`
+- [x] `spark.theme` persisted; legacy `spark.dark` removed
+- [x] No saved preference → defaults to `light-green`
+- [x] Menu closes on `Escape`
+- [x] Programmatic contrast: all 4 themes pass WCAG AA thresholds above
+- [x] `--action-ink` on `--action-bg` ≥ 4.5:1 in every theme
+- [x] Diff-viewer variables exist in `globals.css` for every theme
+- [x] No `#fff` / hardcoded foreground backgrounds left in components
+- [x] Manual: switch themes on desktop + phone; chat text, sidebar, buttons
       and diff viewer remain legible

@@ -149,7 +149,7 @@ export async function enforceServerRetention(accountId: string = "default"): Pro
     if (keepIds.has(c.sessionId)) continue;
     try {
       await fs.unlink(filePath(c.sessionId, accountId));
-      await deleteMediaForSession(c.sessionId);
+      await deleteMediaForSession(c.sessionId, accountId);
       removed += 1;
     } catch {
       // ignore
@@ -280,7 +280,7 @@ export async function deleteServerConversation(
   } catch {
     // Already gone — still clean media below
   }
-  const removedMedia = await deleteMediaForSession(id);
+  const removedMedia = await deleteMediaForSession(id, accountId);
   return removedJson || removedMedia > 0;
 }
 

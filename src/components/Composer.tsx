@@ -192,7 +192,7 @@ export function Composer({
             className={`inline-flex min-h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-sm font-semibold transition disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--teal)] sm:px-4 ${
               cameraOpen
                 ? "bg-[var(--coral)] text-white"
-                : "bg-[var(--ink)] text-white hover:opacity-90"
+                : "bg-[var(--action-bg)] text-[var(--action-ink)] hover:opacity-90"
             }`}
             title="Snap homework"
             aria-label="Camera — snap homework"

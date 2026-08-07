@@ -31,6 +31,9 @@
   --diff-remove-bg: rgba(192, 57, 43, 0.1);
   --diff-add: #1a7f5a;
   --diff-remove: #c0392b;
+  /* Primary action buttons (e.g. "New chat") — text MUST stay readable */
+  --action-bg: #3d2b1f;
+  --action-ink: #ffffff;
   color-scheme: light;
 }
 
@@ -62,6 +65,10 @@
   --diff-remove-bg: rgba(255, 107, 107, 0.16);
   --diff-add: #6fd08a;
   --diff-remove: #ff9088;
+  /* Dark theme: --ink is light, so action buttons flip to a light surface
+     with dark text (white-on-cream would be invisible). */
+  --action-bg: #e8dcc8;
+  --action-ink: #1a120c;
   color-scheme: dark;
 }
 
@@ -93,6 +100,8 @@
   --diff-remove-bg: rgba(192, 57, 43, 0.1);
   --diff-add: #1a7f5a;
   --diff-remove: #c0392b;
+  --action-bg: #1a2a3a;
+  --action-ink: #ffffff;
   color-scheme: light;
 }
 
@@ -124,6 +133,8 @@
   --diff-remove-bg: rgba(192, 57, 43, 0.1);
   --diff-add: #1a7f5a;
   --diff-remove: #c0392b;
+  --action-bg: #1a2e1a;
+  --action-ink: #ffffff;
   color-scheme: light;
 }
 
@@ -150,6 +161,8 @@ html.dark:not([data-theme]) {
   --blob-b: #4a3020;
   --blob-a-opacity: 0.35;
   --blob-b-opacity: 0.3;
+  --action-bg: #e8dcc8;
+  --action-ink: #1a120c;
   color-scheme: dark;
 }
 

@@ -72,6 +72,8 @@ describe("theme contrast (WCAG AA)", () => {
       "--ink-muted",
       "--teal",
       "--coral",
+      "--action-bg",
+      "--action-ink",
       "--diff-code-bg",
       "--diff-add-bg",
       "--diff-remove-bg",
@@ -119,6 +121,21 @@ describe("theme contrast (WCAG AA)", () => {
           `${name}: ${key} needs ≥ ${LARGE_TEXT}:1 (was ${ratio?.toFixed(2)})`,
         ).toBeGreaterThanOrEqual(LARGE_TEXT);
       }
+    }
+  });
+
+  it("action button text passes AA (≥ 4.5:1) on its action background", async () => {
+    const themes = await parseThemes();
+    for (const [name, vars] of Object.entries(themes)) {
+      const ratio = contrast(vars["--action-ink"], vars["--action-bg"]);
+      expect(
+        ratio,
+        `${name}: --action-ink (${vars["--action-ink"]}) vs --action-bg (${vars["--action-bg"]}) = ${ratio}`,
+      ).not.toBeNull();
+      expect(
+        ratio!,
+        `${name}: action button needs ≥ ${NORMAL_TEXT}:1 (was ${ratio?.toFixed(2)})`,
+      ).toBeGreaterThanOrEqual(NORMAL_TEXT);
     }
   });
 

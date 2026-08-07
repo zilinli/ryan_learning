@@ -91,7 +91,7 @@ export function HistorySidebar({
             onNew();
             onClose();
           }}
-          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--ink)] px-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)] transition hover:opacity-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
           New chat
         </button>
