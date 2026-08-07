@@ -1,10 +1,10 @@
 # 📋 Downstream Development TODO
 
-> Version 0.4 · 2026-08-04  
+> Version 0.5 · 2026-08-07  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
-> Baseline: 24 test files, 220 tests, service `active` at :3000  
-> New UI spec: **[subsystems/ui-architecture.md](subsystems/ui-architecture.md)** (451 lines, covers full page design)  
-> New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (417 lines, v0.2 — BASIS K-12 + research-backed)
+> Baseline: 37 test files, 437 tests, service `active` at :3000  
+> New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
+> New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)
 
 ---
 
@@ -427,6 +427,81 @@ Implement the 5 design principles from academic research (design doc §13) as co
 
 ---
 
+## 🔴 Phase 13: Multi-Tenant Account Isolation (18h)
+
+Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** v0.1
+
+True per-account data partitioning. Today only profile metadata (name, grade) is per-account; learning memory, chat history, engagement, and voice preferences are shared globally. After Phase 13, switching accounts completely swaps the student's experience.
+
+**Default = Ryan remains unchanged.** Non-Ryan accounts start fresh with grade-appropriate defaults.
+
+### 13A: Storage Abstraction Layer (Phase A — 4h)
+
+Create `TenantStorage` wrapper. Convert all data modules to per-account signatures. Zero behavioral change — data still lives at flat keys under the hood.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13A.1 | Create `src/lib/tenant-storage.ts` — `nsKey(accountId, module)`, `TenantStorage` class with `get/set/remove/clear(accountId)`, shared key bypass list | 1h | `src/lib/tenant-storage.ts` 🆕 |
+| 🔴 13A.2 | Update `learning-memory.ts` — `loadLearningMemory(accountId?)`, `saveLearningMemory(accountId?, mem)`. Default param `= RYAN_ACCOUNT_ID` for backward compat. All imports updated. | 1h | `src/lib/learning-memory.ts`, all callers |
+| 🔴 13A.3 | Update `storage.ts` — `loadConversations(accountId?)`, `saveConversations(accountId?, store)`. LocalStorage key → `nsKey(accountId, "sessions")`. | 1h | `src/lib/storage.ts`, all callers |
+| 🔴 13A.4 | Update `engagement.ts` — `loadEngagement(accountId?)`, `saveEngagement(accountId?, state)`. Key → `nsKey(accountId, "engagement")`. | 0.5h | `src/lib/engagement.ts`, all callers |
+| 🔴 13A.5 | Update `voices.ts` — TTS voice preference per account. | 0.5h | `src/lib/voices.ts` |
+| 🔴 13A.6 | Regression test: all 37 test files pass. Ryan's data still loads (default accountId param = RYAN_ACCOUNT_ID). | included | All test files |
+
+### 13B: Flat → Namespaced Migration (Phase B — 3h)
+
+One-time migration that moves existing global data into per-account namespaced keys. Flat keys preserved as safety net (never deleted).
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13B.1 | `migrateAccountData(accountId)` — read flat keys → write `nsKey(accountId, module)` → set `spark.migration.completed` flag under account scope | 1h | `src/lib/tenant-storage.ts` |
+| 🔴 13B.2 | `loadLearningMemory(accountId)` — check namespaced key first; if missing, fall back to flat key + auto-migrate | 0.5h | `src/lib/learning-memory.ts` |
+| 🔴 13B.3 | Same fallback + auto-migrate pattern for sessions, engagement, voice | 0.5h | `src/lib/storage.ts`, `engagement.ts`, `voices.ts` |
+| 🔴 13B.4 | Migration unit test: create flat key → load with accountId → namespaced key exists → flat key still intact (not deleted) | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` 🆕 |
+| 🔴 13B.5 | Round-trip test: write namespaced → reload → read back → data matches | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` |
+
+### 13C: Server-Side Multi-Tenant API (Phase C — 3h)
+
+API routes scope data by `accountId`. Backward compatible: requests without `accountId` default to `"default"` (preserves existing server data).
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13C.1 | `/api/learning` — accept `?accountId=` query param on GET; `{ accountId, memory }` body on PUT. File paths: `data/learning/{accountId}.json`. Default: `"default"` maps to existing `data/learning/latest.json`. | 1h | `src/app/api/learning/route.ts` |
+| 🔴 13C.2 | `/api/history` — accept `?accountId=` query param on GET/PUT/DELETE. File paths: `data/history/{accountId}/sessions.json`. Default: `"default"` maps to existing `data/history/sessions.json`. | 1h | `src/app/api/history/route.ts` |
+| 🔴 13C.3 | Server sync hooks — `hydrateLearningMemoryFromServer(accountId)`, `pushStoreToServer(accountId, store)` | 0.5h | `src/lib/learning-memory.ts`, `src/lib/history-sync.ts` |
+| 🔴 13C.4 | Backward compat test: GET `/api/learning` (no accountId) → returns existing Ryan data from `latest.json` | 0.5h | Manual verification or `scripts/verify-multi-tenant.mjs` |
+
+### 13D: Account Switcher UI (Phase D — 4h)
+
+Header dropdown for switching accounts + enhanced account creation form.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13D.1 | `AccountSwitcher.tsx` — header dropdown showing current account avatar + name. Tap to open popover with all accounts. Switch triggers full data reload for target accountId. | 1.5h | `src/components/AccountSwitcher.tsx` 🆕, `TutorShell.tsx` |
+| 🔴 13D.2 | Enhance `AccountHome.tsx` — add school text field and subject checkboxes (Math, Science, Reading, Writing, General) to account creation form. Grade selector already exists. | 1h | `src/components/AccountHome.tsx` |
+| 🔴 13D.3 | `AccountAvatar.tsx` — colored circle with initial letter (e.g., "R" in teal, "E" in coral, etc.). Use account ID hash to pick color deterministically. | 0.5h | `src/components/AccountAvatar.tsx` 🆕 |
+| 🔴 13D.4 | Wire account switch in `TutorShell.tsx` — on switch: (1) save current account state via all data hooks, (2) set `activeId` in AccountsStore, (3) reload all data hooks for new accountId, (4) reset chat thread to empty session. Show toast: "Switched to {name} (G{grade})". | 1h | `src/components/TutorShell.tsx` |
+
+### 13E: Privacy & Polish (Phase E — 2h)
+
+Account deletion with safeguards, per-account empty states, account limit enforcement.
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13E.1 | Account deletion — two-step confirmation: (1) "Delete {name}'s account?" (2) "All chat history, learning progress, and photos will be permanently removed." → PIN gate → clear all namespaced keys for that accountId + remove from accounts list. Ryan account cannot be deleted (only reset to profile defaults). | 1h | `src/components/AccountHome.tsx`, `src/components/PinGate.tsx` |
+| 🟡 13E.2 | Per-account empty state messaging — grade-band-appropriate first-launch text (design doc §5.4). `ChatThread.tsx` reads active account gradeBand and shows matching welcome message. | 0.5h | `src/components/ChatThread.tsx`, `src/components/TutorShell.tsx` |
+| 🟡 13E.3 | Account limit enforcement — max 6 accounts. Show friendly message: "You have 6 accounts — that's the limit for this device. Remove one to add another." | 0.5h | `src/components/AccountHome.tsx` |
+
+### 13F: End-to-End Validation (Phase F — 2h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 13F.1 | E2E test script: (a) create G8 account "Emma" → (b) send a message → (c) verify Emma's chat appears in her namespaced keys → (d) verify Ryan's namespaced keys are unchanged → (e) switch to Ryan → (f) verify Ryan's chat is still his own | 1h | `scripts/verify-multi-tenant.mjs` 🆕 |
+| 🔴 13F.2 | Unit test: `TenantStorage` isolation — write key for acct_X → write same key for acct_Y → read back acct_X → data unchanged. Shared keys writable without prefix. | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` |
+| 🔴 13F.3 | Full regression: Ryan's experience unchanged — all 437 tests pass, chat loads normally, learning memory intact, engagement state preserved | 0.5h | Run `npm test` |
+
+---
+
 ## 📊 Summary
 
 | Phase | Priority | Sub-tasks | Est. |
@@ -439,6 +514,7 @@ Implement the 5 design principles from academic research (design doc §13) as co
 | **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
 | **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
 | **Phase 12** Grade-Agnostic | 🔴 Critical | 36 (12A.1–12G.5) | **29h** |
+| **Phase 13** Multi-Tenant | 🔴 Critical | 21 (13A.1–13F.3) | **18h** |
 | **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
 | **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
 | **Phase 4** Voice | 🟡 Important | 3 | **9d** |
@@ -446,12 +522,12 @@ Implement the 5 design principles from academic research (design doc §13) as co
 | **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
 | **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
 
-**Total new critical work (Phases 7–12):** ~72 hours (~9 days)
+**Total new critical work (Phases 7–13):** ~90 hours (~11.3 days)
 
-**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → **Phase 12 (Grade-Agnostic 29h: A→B→C→F→G→D→E)** → Phase 0 UI (6d) → Phase 6 tests (10d)
+**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → Phase 12 (Grade-Agnostic 29h) → **Phase 13 (Multi-Tenant 18h: A→B→C→D→E→F)** → Phase 0 UI (6d) → Phase 6 tests (10d)
 
 **Next immediate steps:**
-1. **Phase 12A.1** — Add `gradeBand` to `StudentProfile` type (0.5h, foundation for grade awareness)
-2. **Phase 12A.2** — Extract `RYAN_PROFILE`, make `DEFAULT_STUDENT_PROFILE` universal (1h, break hardcoding)
-3. **Phase 12C.1** — Extend `SkillDefinition` with band/grade fields (0.5h, enables all catalog expansion)
-4. **Phase 12A.8** — Full regression test with Ryan's profile (1h, safety gate)
+1. **Phase 13A.1** — Create `TenantStorage` wrapper with `nsKey()` pattern (1h, foundation for all isolation)
+2. **Phase 13A.2** — Update `learning-memory.ts` to accept `accountId` param (1h, per-account BKT)
+3. **Phase 13A.3** — Update `storage.ts` to accept `accountId` param (1h, per-account chat history)
+4. **Phase 13A.6** — Full regression: all 437 tests pass with new signatures (gate)

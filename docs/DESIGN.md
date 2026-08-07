@@ -69,6 +69,7 @@ flowchart TB
 | **[subsystems/agent-console-panel.md](subsystems/agent-console-panel.md)** | 🖥 Agent Chat Console (port 3001) embedded into Spark sidebar |
 | **[subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)** | 🪟 Code Agent mini window UX: vibe coding, diff/apply, close behavior |
 | **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** | 📐 Grade-agnostic adaptive tutoring: K-12, auto-advance, age-aware language |
+| **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** | 🔐 Multi-tenant account isolation: per-account data partitioning, namespace storage, server sync scoping |
 | **[subsystems/security-sanitization.md](subsystems/security-sanitization.md)** | Threat model, input sanitization, tool sandboxing |
 | **[subsystems/testing.md](subsystems/testing.md)** | 🧪 Test strategy, gap analysis, regression catalog |
 | **[subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)** | 🔧 Agent session recovery, retry/timeout/error-handler, atomic file writes |
