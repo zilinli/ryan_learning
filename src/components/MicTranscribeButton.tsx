@@ -216,7 +216,7 @@ export function MicTranscribeButton({
             ? "border-[var(--coral)] bg-[var(--coral)] text-white animate-pulse-ring"
             : busy
               ? "border-[var(--teal)] bg-[var(--teal)] text-white"
-              : "border-[var(--line)] bg-white/80 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] dark:bg-white/10"
+              : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] dark:bg-[var(--surface-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
         title={touchMode ? "Tap to talk · tap again to search" : "Hold to talk"}
         aria-label={

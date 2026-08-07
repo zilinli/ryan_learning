@@ -93,7 +93,7 @@ function StepReveal({
     <div
       className={`my-2 rounded-xl border p-3 ${
         variant === "user"
-          ? "border-white/30 bg-white/10"
+          ? "border-[var(--surface)] bg-[var(--surface-muted)]"
           : "border-[var(--line)] bg-[var(--mist)]"
       }`}
     >
@@ -115,8 +115,8 @@ function StepReveal({
             key={i}
             className={`mb-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
               isRevealed
-                ? "border-[var(--teal)]/35 bg-white"
-                : "cursor-pointer border-[var(--line)] bg-white/60 hover:border-[var(--teal)]/50 hover:bg-white/80"
+                ? "border-[var(--teal)]/35 bg-[var(--surface)]"
+                : "cursor-pointer border-[var(--line)] bg-[var(--surface-muted)] hover:border-[var(--teal)]/50 hover:bg-[var(--surface-muted)]"
             }`}
             onClick={() => !isRevealed && reveal(i)}
             role="button"
@@ -176,8 +176,8 @@ function TutorImg({
       alt={alt || "diagram"}
       className={`tutor-md-img my-2 max-h-80 w-auto max-w-full rounded-xl object-contain ${
         user
-          ? "border border-white/25"
-          : "border border-[var(--line)] bg-white"
+          ? "border border-[var(--surface)]"
+          : "border border-[var(--line)] bg-[var(--surface)]"
       }`}
       loading="eager"
       decoding="async"
@@ -256,7 +256,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
         return (
           <code
             className={`rounded px-1 py-0.5 font-mono text-[0.9em] ${
-              user ? "bg-white/20" : "bg-[var(--mist)] text-[var(--ink)]"
+              user ? "bg-[var(--surface-muted)]" : "bg-[var(--mist)] text-[var(--ink)]"
             }`}
             {...props}
           >
@@ -298,7 +298,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
             evidence
               ? "tutor-evidence mb-2 rounded-xl border border-[var(--teal)]/35 bg-[var(--mist)] px-3 py-2.5 text-[var(--ink)] last:mb-0"
               : user
-                ? "mb-2 border-l-2 border-white/50 pl-3 opacity-95 last:mb-0"
+                ? "mb-2 border-l-2 border-[var(--surface)] pl-3 opacity-95 last:mb-0"
                 : "mb-2 border-l-[3px] border-[var(--teal)] pl-3 text-[var(--ink)] last:mb-0"
           }
         >

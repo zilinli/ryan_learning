@@ -75,7 +75,7 @@ export function HistorySidebar({
         </div>
         <button
           type="button"
-          className="min-h-10 rounded-full px-3 text-sm text-[var(--ink-muted)] hover:bg-white/70 lg:hidden"
+          className="min-h-10 rounded-full px-3 text-sm text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] lg:hidden"
           onClick={onClose}
           aria-label="Close sidebar"
         >
@@ -103,7 +103,7 @@ export function HistorySidebar({
             disabled={disabled}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search chats…"
-            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-white/80 px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-50"
+            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-50"
             enterKeyHint="search"
             autoComplete="off"
           />
@@ -148,8 +148,8 @@ export function HistorySidebar({
                     }}
                     className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
                       active
-                        ? "bg-white shadow-sm ring-1 ring-[var(--line)]"
-                        : "hover:bg-white/70"
+                        ? "bg-[var(--surface)] shadow-sm ring-1 ring-[var(--line)]"
+                        : "hover:bg-[var(--surface-muted)]"
                     }`}
                   >
                     <span className="line-clamp-2 pr-6 text-sm text-[var(--ink)]">
@@ -203,7 +203,7 @@ export function HistorySidebar({
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
         <a
           href="/dict"
-          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-white/70 px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
           Dictionary / Translation
         </a>
@@ -275,7 +275,7 @@ export function HistorySidebar({
       {/* Delete confirmation overlay */}
       {confirmDelete ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,28,34,0.35)] px-4">
-          <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-xl ring-1 ring-[var(--line)]">
+          <div className="w-full max-w-xs rounded-2xl bg-[var(--surface)] p-5 shadow-xl ring-1 ring-[var(--line)]">
             <p className="text-sm font-medium text-[var(--ink)]">Delete this conversation?</p>
             <p className="mt-1 text-xs text-[var(--ink-muted)]">This cannot be undone.</p>
             <div className="mt-4 flex gap-2">

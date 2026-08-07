@@ -1,8 +1,9 @@
 # 📋 Downstream Development TODO
 
-> Version 0.6 · 2026-08-07  
+> Version 0.7 · 2026-08-08  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
-> Baseline: 37 test files, 437 tests, service `active` at :3000  
+> Baseline: 27 test files, 243 tests, service `active` at :3001  
+> New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
 > New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
@@ -10,7 +11,35 @@
 
 ---
 
-## ✅ Completed (2026-08-07) — Bug Fixes + Cross-Device Account Sync
+## 🔴 In Progress (2026-08-08) — Cross-Device Deletion Sync + Multi-Theme
+
+**Deletion sync bug** — PC1 delete does not propagate to PC2 (reincarnation bug due to union-merge logic).  
+**Themes** — Upgrade from dark/light toggle to 4-theme system (light / dark / light-blue / light-green).
+
+### Phase A: Deletion Sync (2.5h)
+
+- [ ] **A.1** — Create `src/lib/deletion-log.ts` — server-side tombstone read/write/prune (0.5h)
+- [ ] **A.2** — Update `src/app/api/history/route.ts` — GET attaches `deletions`; DELETE writes tombstone before unlink (0.5h)
+- [ ] **A.3** — Update `src/lib/history-sync.ts` — `hydrateFromServer` applies deletion log before merge (0.5h)
+- [ ] **A.4** — Unit tests: `src/lib/deletion-log.test.ts` (5 tests) (0.5h)
+- [ ] **A.5** — Integration check: delete on one "device" → second "device" sync drops it (0.5h)
+
+### Phase B: Multi-Theme (2.5h)
+
+- [ ] **B.1** — Refactor `globals.css`: replace `.dark` with `[data-theme="…"]` blocks for 4 themes (0.5h)
+- [ ] **B.2** — Create `src/components/ThemePicker.tsx` — 4-color palette selector (0.5h)
+- [ ] **B.3** — Update `layout.tsx` inline script for `data-theme` + backward compat (0.5h)
+- [ ] **B.4** — Mount `ThemePicker` in `TutorShell.tsx` header; remove `DarkToggle` (0.5h)
+- [ ] **B.5** — Audit & fix hardcoded colors in components (0.5h)
+
+### Phase C: Tests + Release (1h)
+
+- [ ] **C.1** — Run full test suite (≥ 250 tests, 0 failures)
+- [ ] **C.2** — Commit → push develop → push master → rebuild → restart :3001
+
+---
+
+## Legacy Pending
 
 **Multi-tenant flat-key leak bug** — Non-Ryan accounts were inheriting Ryan's conversation history, learning memory, engagement, and voice preferences due to unguarded flat-key fallbacks. Fixed in all five loaders.
 

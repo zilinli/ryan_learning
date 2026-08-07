@@ -7,6 +7,7 @@ import {
   upsertServerConversation,
   upsertServerConversations,
 } from "@/lib/history-store";
+import { readDeletionLog } from "@/lib/deletion-log";
 import type { ConversationRecord } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -52,9 +53,11 @@ export async function GET(req: Request) {
 
   const conversations = await listServerConversations(accountId);
   const stats = await historyStats(accountId);
+  const deletions = await readDeletionLog(accountId);
   return Response.json({
     version: 3,
     conversations,
+    deletions,
     stats,
   });
 }

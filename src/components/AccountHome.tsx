@@ -160,7 +160,7 @@ export function AccountHome() {
           </p>
         </div>
 
-        <div className="mt-8 space-y-4 rounded-2xl border border-[var(--line)] bg-white/80 p-5 shadow-[0_16px_50px_-28px_rgba(15,60,70,0.5)] backdrop-blur animate-fade-up-delay">
+        <div className="mt-8 space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-5 shadow-[0_16px_50px_-28px_rgba(15,60,70,0.5)] backdrop-blur animate-fade-up-delay">
           <p className="flex items-center gap-2 text-sm text-[var(--ink-muted)]">
             <AccountAvatar accountId={active.id} name={active.profile.name} size={20} />
             Active:{" "}
@@ -177,7 +177,7 @@ export function AccountHome() {
                 setNotice("");
               }}
               placeholder="e.g. Alex"
-              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
               autoComplete="nickname"
             />
           </label>
@@ -187,7 +187,7 @@ export function AccountHome() {
             <select
               value={grade}
               onChange={(e) => setGrade(Number(e.target.value))}
-              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
                 <option key={g} value={g}>
@@ -204,7 +204,7 @@ export function AccountHome() {
               value={school}
               onChange={(e) => setSchool(e.target.value)}
               placeholder="e.g. BASIS International"
-              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
             />
           </label>
 
@@ -220,7 +220,7 @@ export function AccountHome() {
                     className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
                       checked
                         ? "border-[var(--teal)] bg-[var(--teal)]/5 text-[var(--teal)]"
-                        : "border-[var(--line)] bg-white text-[var(--ink-muted)] hover:border-[var(--teal)]/50"
+                        : "border-[var(--line)] bg-[var(--surface)] text-[var(--ink-muted)] hover:border-[var(--teal)]/50"
                     }`}
                   >
                     <input
@@ -255,7 +255,7 @@ export function AccountHome() {
             <button
               type="button"
               onClick={handleSaveRyan}
-              className="flex-1 rounded-full border border-[var(--line)] bg-white px-5 py-3 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
+              className="flex-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-5 py-3 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
             >
               Save Ryan
             </button>
@@ -284,7 +284,7 @@ export function AccountHome() {
                     <button
                       type="button"
                       onClick={handleDeleteCancel}
-                      className="flex-1 rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
+                      className="flex-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
                     >
                       Cancel
                     </button>
@@ -307,7 +307,7 @@ export function AccountHome() {
                     <button
                       type="button"
                       onClick={handleDeleteCancel}
-                      className="flex-1 rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
+                      className="flex-1 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
                     >
                       Keep account
                     </button>
@@ -335,7 +335,7 @@ export function AccountHome() {
                         className={`flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
                           isActive
                             ? "bg-[var(--mist)] font-medium text-[var(--ink)]"
-                            : "hover:bg-white/90 text-[var(--ink)]"
+                            : "hover:bg-[var(--surface-muted)] text-[var(--ink)]"
                         } disabled:cursor-default`}
                       >
                         <AccountAvatar accountId={a.id} name={a.profile.name} size={22} />

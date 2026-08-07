@@ -56,7 +56,7 @@ export default function AccountSwitcher({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className="flex items-center gap-2 rounded-full border border-[var(--line)]/60 bg-white/70 px-2.5 py-1.5 text-sm transition hover:bg-[var(--mist)] hover:border-[var(--teal)]/50 active:scale-95"
+        className="flex items-center gap-2 rounded-full border border-[var(--line)]/60 bg-[var(--surface-muted)] px-2.5 py-1.5 text-sm transition hover:bg-[var(--mist)] hover:border-[var(--teal)]/50 active:scale-95"
         aria-label={`${accountName} — tap to switch student`}
       >
         {active ? (
@@ -84,7 +84,7 @@ export default function AccountSwitcher({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-[var(--line)] bg-white/97 shadow-[0_16px_48px_-16px_rgba(15,60,70,0.35)] backdrop-blur-xl z-50 animate-fade-up origin-top-right">
+        <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] shadow-[0_16px_48px_-16px_rgba(15,60,70,0.35)] backdrop-blur-xl z-50 animate-fade-up origin-top-right">
           {/* Header */}
           <div className="px-4 pt-3.5 pb-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]">

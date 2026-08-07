@@ -39,7 +39,7 @@ function EntryCard({ entry }: { entry: DictEntry }) {
   }, [entry.headword, speaking]);
 
   return (
-    <article className="animate-fade-up rounded-2xl border border-[var(--line)] bg-white/80 p-5 dark:bg-white/5">
+    <article className="animate-fade-up rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-5 dark:bg-[var(--surface-muted)]">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <div className="flex items-center gap-2">
           <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
@@ -275,7 +275,7 @@ export function Dictionary() {
 
         {/* Mode: Word | Sentence */}
         <div
-          className="mt-6 flex rounded-2xl border border-[var(--line)] bg-white/50 p-1 dark:bg-white/5 animate-fade-up-delay"
+          className="mt-6 flex rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-1 dark:bg-[var(--surface-muted)] animate-fade-up-delay"
           role="tablist"
           aria-label="Dictionary or Translation"
         >
@@ -323,7 +323,7 @@ export function Dictionary() {
               className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
                 lang === l
                   ? "border-[var(--teal)] bg-[var(--teal)] text-white"
-                  : "border-[var(--line)] bg-white/60 text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-white/5"
+                  : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-[var(--surface-muted)]"
               }`}
             >
               {DICT_LANG_LABELS[l]}
@@ -341,7 +341,7 @@ export function Dictionary() {
                 onChange={(e) => onInputChange(e.target.value)}
                 placeholder={`Search in ${DICT_LANG_LABELS[lang]}…`}
                 autoFocus
-                className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-3 pr-10 text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+                className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 pr-10 text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
                 autoComplete="off"
                 spellCheck={false}
                 onKeyDown={(e) => {
@@ -380,7 +380,7 @@ export function Dictionary() {
               className={`rounded-full border px-3 py-1.5 text-sm transition ${
                 query.trim().toLowerCase() === w.toLowerCase()
                   ? "border-[var(--teal)] bg-[var(--teal)] text-white"
-                  : "border-[var(--line)] bg-white/70 text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-white/5"
+                  : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-[var(--surface-muted)]"
               }`}
             >
               {w}
@@ -404,7 +404,7 @@ export function Dictionary() {
                     setQuery(r.word);
                     doLookup(r.word, r.lang as DictLang);
                   }}
-                  className="rounded-full border border-[var(--line)]/60 bg-white/50 px-2.5 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--mist)] dark:bg-white/5"
+                  className="rounded-full border border-[var(--line)]/60 bg-[var(--surface-muted)] px-2.5 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--mist)] dark:bg-[var(--surface-muted)]"
                 >
                   {r.word}
                 </button>

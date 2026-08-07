@@ -5,6 +5,7 @@ import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { CodeAgentPanel } from "./CodeAgentPanel";
+import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
 import {
@@ -886,6 +887,7 @@ export function TutorShell() {
                 <line x1="8" y1="23" x2="16" y2="23" />
               </svg>
             </button>
+            <ThemePicker />
             <AccountSwitcher
               accounts={accounts}
               activeId={accountId}
@@ -959,47 +961,6 @@ export function TutorShell() {
         </button>
       )}
     </div>
-  );
-}
-
-/** Simple dark mode toggle — reads/writes localStorage + <html> class. */
-function DarkToggle() {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("spark.dark");
-    const on = stored !== null ? stored === "true" : window.matchMedia("(prefers-color-scheme:dark)").matches;
-    setDark(on);
-  }, []);
-
-  const toggle = () => {
-    const next = !dark;
-    setDark(next);
-    localStorage.setItem("spark.dark", String(next));
-    document.documentElement.classList.toggle("dark", next);
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-      aria-label={dark ? "Light mode" : "Dark mode"}
-      title={dark ? "Switch to light" : "Switch to dark"}
-    >
-      {dark ? (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2" /><path d="M12 20v2" /><path d="M4.93 4.93l1.41 1.41" />
-          <path d="M17.66 17.66l1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" />
-          <path d="M6.34 17.66l-1.41 1.41" /><path d="M19.07 4.93l-1.41 1.41" />
-        </svg>
-      ) : (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-    </button>
   );
 }
 

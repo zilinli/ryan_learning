@@ -18,6 +18,7 @@ import {
   pruneOrphanMedia,
 } from "./media-store";
 import { lockedWriteJson } from "./file-lock";
+import { writeTombstone } from "./deletion-log";
 
 /** Server-side durable chat history (account-scoped, shared across browsers / devices). */
 const BASE_DIR = path.join(process.cwd(), "data");
@@ -243,6 +244,8 @@ export async function deleteServerConversation(
 ): Promise<boolean> {
   const id = safeId(sessionId);
   if (!id) return false;
+  // Write tombstone so other devices know to drop this conversation
+  await writeTombstone(id, accountId);
   let removedJson = false;
   try {
     await fs.unlink(filePath(id, accountId));

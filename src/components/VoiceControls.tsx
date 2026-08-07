@@ -459,7 +459,7 @@ export function VoiceControls({
               : speakError
                 ? "border-[var(--coral)] bg-[var(--coral)]/10 text-[var(--coral)]"
                 : "border-[var(--teal)] bg-[var(--mist)] text-[var(--ink)]"
-            : "border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
+            : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
         }`}
         title={voiceEnabled ? "Speak on \u2014 tap to mute" : "Speak off \u2014 tap to read aloud"}
         aria-label={voiceEnabled ? "Speak on" : "Speak off"}
@@ -483,7 +483,7 @@ export function VoiceControls({
           className={`inline-flex min-h-[2.75rem] shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40 ${
             voiceMenuOpen
               ? "border-[var(--teal)] bg-[var(--mist)] text-[var(--ink)]"
-              : "border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
+              : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--ink)]"
           }`}
           title={`Voice: ${currentVoice.label}`}
           aria-label={`Voice: ${currentVoice.label}. Click to change.`}
@@ -505,7 +505,7 @@ export function VoiceControls({
               aria-label="Close voice menu"
               onClick={() => setVoiceMenuOpen(false)}
             />
-            <ul className="absolute bottom-full right-0 z-20 mb-1 w-52 rounded-xl border border-[var(--line)] bg-white/95 p-1 shadow-lg backdrop-blur">
+            <ul className="absolute bottom-full right-0 z-20 mb-1 w-52 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-1 shadow-lg backdrop-blur">
               {TUTOR_VOICES.map((v) => (
                 <li key={v.id}>
                   <button

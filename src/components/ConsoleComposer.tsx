@@ -150,7 +150,7 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
   const canSend = !disabled && (text.trim().length > 0 || atts.length > 0);
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-3 shadow-sm backdrop-blur">
+    <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-3 shadow-sm backdrop-blur">
       {/* Attachment pills */}
       {atts.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">

@@ -46,7 +46,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=localStorage.getItem("spark.dark");if(m==="true"||(m===null&&window.matchMedia("(prefers-color-scheme:dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("spark.theme")||"light";var d=localStorage.getItem("spark.dark");if(!t||t==="light"){if(d==="true")t="dark";else if(d===null&&window.matchMedia("(prefers-color-scheme:dark)").matches)t="dark"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`,
           }}
         />
       </head>

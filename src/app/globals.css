@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
-:root {
-  /* Light brown palette */
+/* ── 4-Theme System via data-theme ── */
+
+/* Light (warm cream/brown, default) */
+:root,
+[data-theme="light"] {
   --ink: #3d2b1f;
   --ink-muted: #7a6555;
   --teal: #6b8f71;
@@ -16,11 +19,18 @@
   --bg-base-bot: #e8dcc8;
   --background: var(--bg0);
   --foreground: var(--ink);
+  --surface: #ffffff;
+  --surface-muted: rgba(255,255,255,0.72);
+  --surface-hover: rgba(255,255,255,0.55);
+  --blob-a: #d4b896;
+  --blob-b: #c4a882;
+  --blob-a-opacity: 0.45;
+  --blob-b-opacity: 0.45;
+  color-scheme: light;
 }
 
-/* Dark brown — toggled via class on <html> */
-.dark,
-html.dark {
+/* Dark (warm dark brown) */
+[data-theme="dark"] {
   --ink: #e8dcc8;
   --ink-muted: #a89078;
   --teal: #8fb896;
@@ -35,6 +45,91 @@ html.dark {
   --bg-base-bot: #140e0a;
   --background: var(--bg0);
   --foreground: var(--ink);
+  --surface: rgba(255,255,255,0.06);
+  --surface-muted: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.1);
+  --blob-a: #5a3d28;
+  --blob-b: #4a3020;
+  --blob-a-opacity: 0.35;
+  --blob-b-opacity: 0.3;
+  color-scheme: dark;
+}
+
+/* Light Blue (cool academic) */
+[data-theme="light-blue"] {
+  --ink: #1a2a3a;
+  --ink-muted: #5a7a8a;
+  --teal: #3a7a9a;
+  --coral: #d4786a;
+  --mist: #dce8f0;
+  --line: rgba(26, 42, 58, 0.12);
+  --bg0: #eef4f8;
+  --bg1: #d0dce8;
+  --bg2: #c4d2e0;
+  --bg-base-top: #f0f6fa;
+  --bg-base-mid: #e4ecf4;
+  --bg-base-bot: #d8e2ec;
+  --background: var(--bg0);
+  --foreground: var(--ink);
+  --surface: #ffffff;
+  --surface-muted: rgba(255,255,255,0.72);
+  --surface-hover: rgba(255,255,255,0.55);
+  --blob-a: #9bb8d4;
+  --blob-b: #8aaccc;
+  --blob-a-opacity: 0.45;
+  --blob-b-opacity: 0.45;
+  color-scheme: light;
+}
+
+/* Light Green (fresh calm) */
+[data-theme="light-green"] {
+  --ink: #1a2e1a;
+  --ink-muted: #5a7a5a;
+  --teal: #3a7e5a;
+  --coral: #d4786a;
+  --mist: #d8ece0;
+  --line: rgba(26, 46, 26, 0.12);
+  --bg0: #eef8f0;
+  --bg1: #c8e0cc;
+  --bg2: #b8d4bc;
+  --bg-base-top: #f0faf2;
+  --bg-base-mid: #e4f4e8;
+  --bg-base-bot: #d8ecd8;
+  --background: var(--bg0);
+  --foreground: var(--ink);
+  --surface: #ffffff;
+  --surface-muted: rgba(255,255,255,0.72);
+  --surface-hover: rgba(255,255,255,0.55);
+  --blob-a: #8cc4a0;
+  --blob-b: #7ab88c;
+  --blob-a-opacity: 0.45;
+  --blob-b-opacity: 0.45;
+  color-scheme: light;
+}
+
+/* Backward compat: support legacy .dark class → map to data-theme */
+html.dark:not([data-theme]) {
+  --ink: #e8dcc8;
+  --ink-muted: #a89078;
+  --teal: #8fb896;
+  --coral: #e09a7a;
+  --mist: rgba(60, 40, 25, 0.45);
+  --line: rgba(232, 220, 200, 0.14);
+  --bg0: #1a120c;
+  --bg1: rgba(90, 60, 35, 0.28);
+  --bg2: rgba(70, 45, 25, 0.22);
+  --bg-base-top: #1f1510;
+  --bg-base-mid: #18110c;
+  --bg-base-bot: #140e0a;
+  --background: var(--bg0);
+  --foreground: var(--ink);
+  --surface: rgba(255,255,255,0.06);
+  --surface-muted: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.1);
+  --blob-a: #5a3d28;
+  --blob-b: #4a3020;
+  --blob-a-opacity: 0.35;
+  --blob-b-opacity: 0.3;
   color-scheme: dark;
 }
 
@@ -121,7 +216,8 @@ input {
   left: -4rem;
   width: 22rem;
   height: 22rem;
-  background: #d4b896;
+  background: var(--blob-a);
+  opacity: var(--blob-a-opacity);
 }
 
 .atmosphere-blob-b {
@@ -129,18 +225,9 @@ input {
   top: 20%;
   width: 18rem;
   height: 18rem;
-  background: #c4a882;
+  background: var(--blob-b);
+  opacity: var(--blob-b-opacity);
   animation-delay: -6s;
-}
-
-html.dark .atmosphere-blob-a {
-  background: #5a3d28;
-  opacity: 0.35;
-}
-
-html.dark .atmosphere-blob-b {
-  background: #4a3020;
-  opacity: 0.3;
 }
 
 .atmosphere-grain {

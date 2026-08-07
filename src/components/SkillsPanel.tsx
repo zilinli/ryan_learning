@@ -94,7 +94,7 @@ export function SkillsPanel({ memory }: Props) {
 
   return (
     <div
-      className={`mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 ${
+      className={`mx-3 mb-2 flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] ${
         open ? "max-h-[min(40%,18rem)]" : ""
       }`}
     >
@@ -102,7 +102,7 @@ export function SkillsPanel({ memory }: Props) {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex w-full shrink-0 items-center gap-2 px-3 py-2 text-left transition hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--teal)]"
+        className="flex w-full shrink-0 items-center gap-2 px-3 py-2 text-left transition hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--teal)]"
       >
         <span
           className="shrink-0 text-[10px] text-[var(--ink-muted)]"

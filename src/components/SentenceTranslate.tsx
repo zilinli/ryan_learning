@@ -166,7 +166,7 @@ export function SentenceTranslate() {
           <select
             value={from}
             onChange={(e) => setFrom(e.target.value as TranslateLang)}
-            className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+            className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
           >
             {(Object.keys(TRANSLATE_LANG_LABELS) as TranslateLang[]).map((l) => (
               <option key={l} value={l}>
@@ -181,7 +181,7 @@ export function SentenceTranslate() {
           onClick={swapLangs}
           disabled={from === "auto"}
           title={from === "auto" ? "Pick a source language to swap" : "Swap languages"}
-          className="mb-0.5 rounded-xl border border-[var(--line)] bg-white/70 p-2.5 text-[var(--ink-muted)] transition hover:border-[var(--teal)] hover:text-[var(--teal)] disabled:opacity-35 dark:bg-white/5"
+          className="mb-0.5 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-2.5 text-[var(--ink-muted)] transition hover:border-[var(--teal)] hover:text-[var(--teal)] disabled:opacity-35 dark:bg-[var(--surface-muted)]"
           aria-label="Swap languages"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -197,7 +197,7 @@ export function SentenceTranslate() {
           <select
             value={to}
             onChange={(e) => setTo(e.target.value as DictLang)}
-            className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+            className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
           >
             {(Object.keys(DICT_LANG_LABELS) as DictLang[]).map((l) => (
               <option key={l} value={l}>
@@ -216,7 +216,7 @@ export function SentenceTranslate() {
             onChange={(e) => setText(e.target.value)}
             rows={4}
             placeholder="Type or paste a sentence… or snap a photo of text"
-            className="min-h-[6.5rem] w-full flex-1 resize-y rounded-2xl border border-[var(--line)] bg-white/90 px-4 py-3 text-[15px] leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+            className="min-h-[6.5rem] w-full flex-1 resize-y rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-[15px] leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
           />
           <MicTranscribeButton
             language={sttLangFromDictLang(from === "auto" ? to : from)}
@@ -236,7 +236,7 @@ export function SentenceTranslate() {
                 setText(SAMPLE_SENTENCES[l]);
                 if (to === l) setTo(l === "en" ? "zh" : "en");
               }}
-              className="rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1 text-[11px] text-[var(--ink-muted)] hover:bg-[var(--mist)] dark:bg-white/5"
+              className="rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2.5 py-1 text-[11px] text-[var(--ink-muted)] hover:bg-[var(--mist)] dark:bg-[var(--surface-muted)]"
             >
               Try {DICT_LANG_LABELS[l]}
             </button>
@@ -255,7 +255,7 @@ export function SentenceTranslate() {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={photos.length >= MAX_PHOTOS}
-              className="rounded-full border border-[var(--line)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)] disabled:opacity-40 dark:bg-white/5"
+              className="rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition hover:bg-[var(--mist)] disabled:opacity-40 dark:bg-[var(--surface-muted)]"
             >
               Upload
             </button>
@@ -334,7 +334,7 @@ export function SentenceTranslate() {
       ) : null}
 
       {result ? (
-        <div className="animate-fade-up space-y-3 rounded-2xl border border-[var(--line)] bg-white/85 p-5 dark:bg-white/5">
+        <div className="animate-fade-up space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-5 dark:bg-[var(--surface-muted)]">
           {result.sourceText ? (
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]/70">
@@ -377,7 +377,7 @@ export function SentenceTranslate() {
           </div>
 
           {result.notes ? (
-            <p className="rounded-xl bg-[var(--mist)]/80 px-3 py-2 text-sm text-[var(--ink-muted)] dark:bg-white/5">
+            <p className="rounded-xl bg-[var(--mist)]/80 px-3 py-2 text-sm text-[var(--ink-muted)] dark:bg-[var(--surface-muted)]">
               {result.notes}
             </p>
           ) : null}

@@ -3,11 +3,17 @@ import { mergeConversationLists, mergeMessageAttachments } from "./history-merge
 import { RYAN_ACCOUNT } from "./tenant-storage";
 
 /** Pull account-scoped history from the server. */
-export async function fetchServerHistory(accountId: string = RYAN_ACCOUNT): Promise<ConversationRecord[]> {
+export async function fetchServerHistory(accountId: string = RYAN_ACCOUNT): Promise<{
+  conversations: ConversationRecord[];
+  deletions: Record<string, number>;
+}> {
   const res = await fetch(`/api/history?accountId=${encodeURIComponent(accountId)}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`history HTTP ${res.status}`);
-  const data = (await res.json()) as { conversations?: ConversationRecord[] };
-  return Array.isArray(data.conversations) ? data.conversations : [];
+  const data = (await res.json()) as { conversations?: ConversationRecord[]; deletions?: Record<string, number> };
+  return {
+    conversations: Array.isArray(data.conversations) ? data.conversations : [],
+    deletions: data.deletions && typeof data.deletions === "object" ? data.deletions : {},
+  };
 }
 
 /** Collect all mediaIds referenced in conversations. */
@@ -108,9 +114,17 @@ export async function hydrateFromServer(
   accountId: string = RYAN_ACCOUNT,
 ): Promise<ConversationsStore> {
   try {
-    const remote = await fetchServerHistory(accountId);
+    const { conversations: remote, deletions } = await fetchServerHistory(accountId);
+    // Filter out tombstoned conversations from local store
+    const now = Date.now();
+    const filteredLocal = local.conversations.filter((c) => {
+      const ts = deletions[c.sessionId];
+      if (typeof ts !== "number") return true;
+      // Keep if tombstone is older than 30 days (expired)
+      return now - ts > 30 * 86400 * 1000;
+    });
     return mergeConversationLists(
-      local.conversations,
+      filteredLocal,
       remote,
       local.activeId,
     );

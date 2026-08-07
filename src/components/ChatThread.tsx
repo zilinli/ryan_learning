@@ -166,10 +166,10 @@ export function ChatThread({ messages, streaming }: Props) {
           step — no spoilers.
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--ink-muted)]">
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2.5 py-1">
             📷 Photo
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-white/60 px-2.5 py-1">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2.5 py-1">
             🎤 Voice question
           </span>
         </div>
@@ -207,7 +207,7 @@ export function ChatThread({ messages, streaming }: Props) {
               className={`max-w-[94%] break-words sm:max-w-[88%] ${
                 isUser
                   ? "rounded-2xl rounded-br-md bg-[var(--teal)] px-4 py-3 text-white"
-                  : "rounded-2xl rounded-bl-md bg-white/70 px-4 py-3 text-[var(--ink)] ring-1 ring-[var(--line)]"
+                  : "rounded-2xl rounded-bl-md bg-[var(--surface-muted)] px-4 py-3 text-[var(--ink)] ring-1 ring-[var(--line)]"
               }`}
             >
               {attachments.length > 0 ? (
@@ -239,7 +239,7 @@ export function ChatThread({ messages, streaming }: Props) {
                               alt={a.name || `Photo ${idx + 1}`}
                               className={`max-h-44 max-w-[9rem] cursor-zoom-in object-contain transition group-hover:opacity-95 sm:max-w-[11rem] ${
                                 isUser
-                                  ? "border border-white/20"
+                                  ? "border border-[var(--surface)]"
                                   : "border border-[var(--line)]"
                               } rounded-xl`}
                               draggable={false}
@@ -260,7 +260,7 @@ export function ChatThread({ messages, streaming }: Props) {
                             key={a.id}
                             className={`inline-flex h-20 w-20 animate-pulse items-center justify-center rounded-xl text-xs ${
                               isUser
-                                ? "bg-white/20 text-white"
+                                ? "bg-[var(--surface-muted)] text-white"
                                 : "bg-[var(--mist)] text-[var(--ink-muted)]"
                             }`}
                             aria-label="Loading photo"
@@ -274,7 +274,7 @@ export function ChatThread({ messages, streaming }: Props) {
                           key={a.id}
                           className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
                             isUser
-                              ? "bg-white/20 text-white"
+                              ? "bg-[var(--surface-muted)] text-white"
                               : "bg-[var(--mist)] text-[var(--ink)]"
                           }`}
                           title="Photo unavailable — please upload again"
@@ -296,7 +296,7 @@ export function ChatThread({ messages, streaming }: Props) {
                           type="button"
                           className={`inline-flex max-w-[14rem] items-center gap-1 truncate rounded-full px-2.5 py-1 text-left text-xs underline-offset-2 hover:underline ${
                             isUser
-                              ? "bg-white/20 text-white"
+                              ? "bg-[var(--surface-muted)] text-white"
                               : "bg-[var(--mist)] text-[var(--ink)]"
                           }`}
                           title={`Download ${a.name}`}
@@ -313,7 +313,7 @@ export function ChatThread({ messages, streaming }: Props) {
                         key={a.id}
                         className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${
                           isUser
-                            ? "bg-white/20 text-white"
+                            ? "bg-[var(--surface-muted)] text-white"
                             : "bg-[var(--mist)] text-[var(--ink)]"
                         }`}
                         title="File not saved — please upload again"
@@ -354,7 +354,7 @@ export function ChatThread({ messages, streaming }: Props) {
         <button
           type="button"
           onClick={scrollToBottom}
-          className="fixed bottom-24 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--line)] bg-white/95 px-4 py-2 text-xs font-medium text-[var(--teal)] shadow-lg backdrop-blur transition hover:bg-white"
+          className="fixed bottom-24 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-2 text-xs font-medium text-[var(--teal)] shadow-lg backdrop-blur transition hover:bg-[var(--surface)]"
         >
           ↓ New messages
         </button>

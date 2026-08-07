@@ -57,7 +57,7 @@ function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
   return (
     <div
       className={`tutor-diagram mb-2 overflow-x-auto rounded-xl p-2 last:mb-0 ${
-        user ? "bg-white/15" : "bg-[var(--mist)]/80 ring-1 ring-[var(--line)]"
+        user ? "bg-[var(--surface-muted)]" : "bg-[var(--mist)]/80 ring-1 ring-[var(--line)]"
       }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -125,7 +125,7 @@ function MermaidDiagram({ code, user }: { code: string; user?: boolean }) {
   return (
     <div
       className={`tutor-diagram mb-2 overflow-x-auto rounded-xl p-2 last:mb-0 ${
-        user ? "bg-white/15" : "bg-[var(--mist)]/80 ring-1 ring-[var(--line)]"
+        user ? "bg-[var(--surface-muted)]" : "bg-[var(--mist)]/80 ring-1 ring-[var(--line)]"
       }`}
       dangerouslySetInnerHTML={{ __html: svg }}
     />

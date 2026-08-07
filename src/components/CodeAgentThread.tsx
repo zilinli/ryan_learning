@@ -104,7 +104,7 @@ function MessageBubble({ m }: { m: ConsoleMessage }) {
           <div className="mb-1.5 flex flex-wrap gap-1">
             {m.attachments.map((a, i) => (
               <span key={`${a.name}-${i}`}
-                className="inline-flex max-w-[140px] items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-[var(--ink-muted)]">
+                className="inline-flex max-w-[140px] items-center gap-1 rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] text-[var(--ink-muted)]">
                 {a.kind === "image" ? "🖼" : "📄"}
                 <span className="truncate">{a.name}</span>
               </span>

@@ -27,7 +27,7 @@ function SenseCard({ sense }: { sense: SpanishSense }) {
     Boolean,
   );
   return (
-    <li className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-3 dark:bg-white/5">
+    <li className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 dark:bg-[var(--surface-muted)]">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
           {sense.es}
@@ -126,7 +126,7 @@ export function SpanishDict() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. the, hello, gracias…"
               autoFocus
-              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-3 text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
               autoComplete="off"
               spellCheck={false}
             />
@@ -141,7 +141,7 @@ export function SpanishDict() {
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   query.trim().toLowerCase() === w
                     ? "border-[var(--teal)] bg-[var(--teal)] text-white"
-                    : "border-[var(--line)] bg-white/70 text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-white/5"
+                    : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--mist)] dark:bg-[var(--surface-muted)]"
                 }`}
               >
                 {w}

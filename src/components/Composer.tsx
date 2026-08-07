@@ -98,7 +98,7 @@ export function Composer({
           {attachments.map((a) => (
             <div
               key={a.id}
-              className="relative flex items-center gap-1.5 rounded-xl border border-[var(--line)] bg-white/85 p-1.5 pr-2"
+              className="relative flex items-center gap-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-1.5 pr-2"
             >
               {a.kind === "image" && a.dataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -130,7 +130,7 @@ export function Composer({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-[var(--line)] bg-white/90 p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
         <textarea
           value={text}
           disabled={disabled}

@@ -41,7 +41,7 @@ export function SetupPanel({ onConfigured }: Props) {
         </p>
       </div>
 
-      <div className="mt-8 space-y-3 rounded-2xl border border-[var(--line)] bg-white/80 p-5 shadow-[0_16px_50px_-28px_rgba(15,60,70,0.5)] backdrop-blur animate-fade-up-delay">
+      <div className="mt-8 space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-5 shadow-[0_16px_50px_-28px_rgba(15,60,70,0.5)] backdrop-blur animate-fade-up-delay">
         <label className="block text-sm text-[var(--ink-muted)]">
           Cursor API Key
           <input
@@ -49,7 +49,7 @@ export function SetupPanel({ onConfigured }: Props) {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="crsr_... or cursor_..."
-            className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+            className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
           />
         </label>
         <a
