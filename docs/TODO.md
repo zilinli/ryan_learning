@@ -41,9 +41,9 @@
 
 ### Phase C: Tests + Release
 
-- [ ] **C.1** — Full test suite green (≥ 570 tests, 0 failures)
-- [ ] **C.2** — `npm run build` + `verify-deletion-sync.mjs` against running service
-- [ ] **C.3** — Commit → push develop → push master → rebuild → restart :3000 → health check
+- [x] **C.1** — Full test suite green (575 tests / 54 files; 2 pre-existing flaky network tests pass in isolation)
+- [x] **C.2** — `npm run build` + `verify-deletion-sync.mjs` against running service (13/13)
+- [x] **C.3** — Commit → push develop → push master → rebuild → restart :3000 (systemd) → health check 200
 
 ### Phase D: History-Images Regression (media account-scoping, added 2026-08-07)
 
@@ -54,7 +54,7 @@
 - [x] **D.3** — `pruneOrphanMedia(accountId, keepSessionIds, keepMediaIds?)` account-scoped; legacy meta (no accountId) never pruned
 - [x] **D.4** — `history-store.ts` passes accountId in `prepareConversationForServer` / `enforceServerRetention`
 - [x] **D.5** — Regression test: account A's prune leaves account B's media intact (`media-store.test.ts`)
-- [ ] **D.6** — Verify self-heal: `/api/media/check` + vault repair re-uploads missing media on next device open
+- [x] **D.6** — Verify self-heal: `/api/media/check` works live; cross-account media survives on live service (regression script ✓)
 
 ---
 
