@@ -7,7 +7,7 @@ export type SkillDef = {
   label: string;
   /** Coarse topic for backward-compatible topic list */
   topicId: string;
-  subject: "math" | "science" | "ela" | "humanities" | "language";
+  subject: "math" | "science" | "ela" | "humanities" | "language" | "general";
   /** Minimum grade for this skill to appear */
   minGrade: number;
   /** Grade at which this skill is "core" (ZPD-weighted) */

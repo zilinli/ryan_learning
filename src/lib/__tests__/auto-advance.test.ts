@@ -12,7 +12,6 @@ function makeSkill(
   overrides: Partial<SkillMastery> & { id: string },
 ): SkillMastery {
   return {
-    id: overrides.id,
     label: overrides.label || overrides.id,
     topicId: overrides.topicId || "math",
     pKnown: 0.25,

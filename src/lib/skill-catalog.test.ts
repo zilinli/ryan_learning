@@ -14,7 +14,7 @@ import {
 describe("skill-catalog", () => {
   it("covers all curriculum subjects", () => {
     const subjects = new Set(SKILL_CATALOG.map((s) => s.subject));
-    ["math", "science", "ela", "humanities"].forEach((subj) =>
+    ["math", "science", "ela", "humanities", "language", "general"].forEach((subj) =>
       expect(subjects.has(subj as never)).toBe(true),
     );
   });
