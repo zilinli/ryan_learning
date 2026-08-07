@@ -38,16 +38,24 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
 
-### Diccionario — Multilingual Dictionary (`/dict`)
+### Dictionary / Translation (`/dict`)
 
-A multilingual dictionary with authoritative sources and voice support:
+Word lookup **and** AI sentence/photo translation in one page:
 
+**Word (dictionary)**
 - **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese)
-- **Sources** — Merriam-Webster Collegiate + Spanish-English (when API keys configured), Free Dictionary API fallback, local Cantonese dataset (開放粵語字典, CC-BY)
-- **Voice input** — Hold the mic button to speak a word; uses the same STT pipeline as the tutor (SenseVoice + faster-whisper)
-- **Text-to-speech** — 🔊 button beside each result headword to hear pronunciation (edge-tts, multilingual voices)
-- **Caching** — 24-hour server-side cache to stay within rate limits
-- **Recent searches** — persisted per-language in localStorage
+- **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY)
+- **Voice input** — Hold the mic to speak a word (SenseVoice + faster-whisper)
+- **Text-to-speech** — 🔊 beside each headword (edge-tts)
+- **Caching** — 24-hour server-side cache; cross-language glosses on results
+
+**Sentence (AI translation)**
+- Full sentences / paragraphs via Cursor Agent (LLM)
+- **Photo upload & camera** — OCR + translate worksheets, signs, screenshots (up to 3 images)
+- From / To language pickers (including Auto-detect → EN/ES/FR/中文/粵語)
+- Learner-friendly notes + speak the translation aloud
+
+Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.
 
 ---
 

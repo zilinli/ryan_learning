@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DictEntry, DictLang, DictResponse, DictSense, RecentSearch } from "@/lib/dict-types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DictEntry, DictLang, DictPageMode, DictResponse, RecentSearch } from "@/lib/dict-types";
 import { DICT_LANG_LABELS } from "@/lib/dict-types";
 import { dictLookup, loadRecentSearches, saveRecentSearch } from "@/lib/dict-client";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
+import { SentenceTranslate } from "@/components/SentenceTranslate";
 
 const SAMPLE_WORDS: Record<DictLang, string[]> = {
   en: ["hello", "the", "dictionary", "water", "beautiful", "imagination"],
@@ -177,6 +178,7 @@ function CrossTranslationsPanel({
 // ── Main Dictionary component ──
 
 export function Dictionary() {
+  const [mode, setMode] = useState<DictPageMode>("word");
   const [lang, setLang] = useState<DictLang>("en");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<DictResponse | null>(null);
@@ -341,14 +343,54 @@ export function Dictionary() {
           >
             ← Back to tutor
           </Link>
-          <p className="mt-4 font-[family-name:var(--font-display)] text-5xl text-[var(--ink)]">
-            Diccionario
+          <p className="mt-4 font-[family-name:var(--font-display)] text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
+            Dictionary<span className="text-[var(--ink-muted)]"> / </span>Translation
           </p>
           <p className="mt-3 text-[var(--ink-muted)] leading-relaxed">
-            Multilingual dictionary — English · Español · Français · 中文 · 粵語
+            Look up words, or translate full sentences and photos with AI.
           </p>
         </div>
 
+        {/* Mode: Word | Sentence */}
+        <div
+          className="mt-6 flex rounded-2xl border border-[var(--line)] bg-white/50 p-1 dark:bg-white/5 animate-fade-up-delay"
+          role="tablist"
+          aria-label="Dictionary or Translation"
+        >
+          {(
+            [
+              { id: "word" as const, label: "Word", hint: "Dictionary" },
+              { id: "sentence" as const, label: "Sentence", hint: "AI translate" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={mode === tab.id}
+              onClick={() => setMode(tab.id)}
+              className={`flex flex-1 flex-col items-center rounded-xl px-3 py-2.5 transition ${
+                mode === tab.id
+                  ? "bg-[var(--teal)] text-white shadow-sm"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              <span className="text-sm font-semibold">{tab.label}</span>
+              <span
+                className={`text-[10px] ${
+                  mode === tab.id ? "text-white/80" : "text-[var(--ink-muted)]/70"
+                }`}
+              >
+                {tab.hint}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {mode === "sentence" ? (
+          <SentenceTranslate />
+        ) : (
+          <>
         {/* Language selector */}
         <div className="mt-5 flex flex-wrap gap-2 animate-fade-up-delay">
           {(Object.keys(DICT_LANG_LABELS) as DictLang[]).map((l) => (
@@ -527,6 +569,8 @@ export function Dictionary() {
             </p>
           ) : null}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

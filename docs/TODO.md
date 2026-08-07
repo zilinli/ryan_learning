@@ -5,7 +5,17 @@
 > Baseline: 37 test files, 437 tests, service `active` at :3000  
 > New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
-> New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)
+> New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
+> Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)
+
+---
+
+## ✅ Completed (2026-08-07) — Dictionary / Translation
+
+- [x] `/dict` retitled **Dictionary / Translation** (sidebar + page)
+- [x] Word / Sentence segmented UI
+- [x] `POST /api/dict/translate` — Cursor Agent sentence + photo OCR translate
+- [x] Camera / upload (reuse `CameraCapture`), MW School + Spanish keys, docs/README
 
 ---
 

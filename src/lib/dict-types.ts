@@ -63,3 +63,42 @@ export type RecentSearch = {
   lang: DictLang;
   ts: number;
 };
+
+/** Page mode on /dict */
+export type DictPageMode = "word" | "sentence";
+
+/** Target/source for sentence translation (auto = detect). */
+export type TranslateLang = DictLang | "auto";
+
+export const TRANSLATE_LANG_LABELS: Record<TranslateLang, string> = {
+  auto: "Auto-detect",
+  ...DICT_LANG_LABELS,
+};
+
+/** Photo / image attached to a sentence translation request. */
+export type TranslateImagePayload = {
+  name: string;
+  mimeType: string;
+  /** Raw base64 (no data: prefix) */
+  data: string;
+  /** Optional preview data URL for the UI */
+  dataUrl?: string;
+};
+
+/** POST /api/dict/translate body */
+export type SentenceTranslateRequest = {
+  text?: string;
+  from: TranslateLang;
+  to: DictLang;
+  images?: TranslateImagePayload[];
+};
+
+/** Structured LLM translation result */
+export type SentenceTranslateResponse = {
+  detectedSourceLang?: string;
+  sourceText: string;
+  translation: string;
+  notes?: string;
+  from: TranslateLang;
+  to: DictLang;
+};

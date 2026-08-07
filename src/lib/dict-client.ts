@@ -1,9 +1,10 @@
-/**
- * Client-side dictionary lookup helper.
- * Debounces input, calls /api/dict, and manages recent searches in localStorage.
- */
-
-import type { DictLang, DictResponse, RecentSearch } from "./dict-types";
+import type {
+  DictLang,
+  DictResponse,
+  RecentSearch,
+  SentenceTranslateRequest,
+  SentenceTranslateResponse,
+} from "./dict-types";
 
 const RECENT_KEY = "spark.dict.recent.v1";
 const MAX_RECENT = 20;
@@ -46,4 +47,26 @@ export async function dictLookup(
   } catch {
     return null;
   }
+}
+
+export async function translateSentence(
+  body: SentenceTranslateRequest,
+  signal?: AbortSignal,
+): Promise<SentenceTranslateResponse> {
+  const res = await fetch("/api/dict/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const data = (await res.json()) as SentenceTranslateResponse & {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || `Translation failed (${res.status})`);
+  }
+  if (!data.translation) {
+    throw new Error("Empty translation");
+  }
+  return data;
 }

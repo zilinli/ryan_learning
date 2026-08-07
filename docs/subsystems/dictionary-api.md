@@ -1,206 +1,119 @@
-# Multilingual Dictionary API
+# Dictionary / Translation API
 
-## 1.0 Problem
+## 1.0 Overview
 
-The current Diccionario (`/dict`) is a **static, client-side** English→Spanish dictionary with only 10 hardcoded entries. Most words return "No match." It supports only one language pair and offers no audio, etymologies, or example sentences from authoritative sources.
+`/dict` is **Dictionary / Translation**:
 
-**User requirements:**
-- Authoritative dictionary sources (Merriam-Webster preferred)
-- Languages: English, Spanish (Español), French (Français), Chinese 普通话, Cantonese 粵語
-- Default lookup: English + Spanish
-- Audio pronunciations, example sentences, grammatical info
-- Voice input (speech-to-text) — speak a word instead of typing it
-- Text-to-speech playback — hear the correct pronunciation of any result headword
+1. **Word mode** — authoritative word lookup (Merriam-Webster School + Spanish, FreeDict / seeds / GTX fallback, local Cantonese).
+2. **Sentence mode** — full-sentence / paragraph / **photo** translation via Cursor Agent (LLM).
 
-## 2.0 API Strategy
+Sidebar label: **Dictionary / Translation**.
 
-We combine **three complementary sources** to cover all target languages:
+**Languages:** English · Español · Français · 中文 · 粵語
+
+## 2.0 Word lookup sources
 
 | Source | Languages | Quota (free) | Strength |
 |---|---|---|---|
-| **Merriam-Webster Collegiate** | English (definitions) | 1,000/day | Most authoritative; audio, etymology, dates |
-| **Merriam-Webster Spanish-English** | ES↔EN (bilingual) | 1,000/day | Bidirectional: ES→EN and EN→ES; Latin-American Spanish |
-| **Free Dictionary API** | EN, ES, FR, ZH + all Wiktionary languages | 1,000/hr (no key) | Broad language coverage; IPA, translations, examples |
+| **Merriam-Webster School (`sd4`)** | English | 1,000/day | Learner-friendly definitions + audio |
+| **Merriam-Webster Spanish-English** | ES↔EN | 1,000/day | Bidirectional bilingual |
+| **Free Dictionary API** | EN (+ spotty ES/FR/ZH) | 1,000/hr | Broad EN coverage |
+| **Local seeds + GTX translate** | ES/FR/ZH/Yue | offline / unbounded | Fills FreeDict gaps |
+| **Cantonese local** | 粵語 | offline | Jyutping + glosses |
 
-**Cantonese** is served from a local embedded dataset (`lib/cantonese-dict.ts`) sourced from [Open Cantonese Dictionary (yyzd)](https://github.com/kfcd/yyzd), a CC-BY-3.0 dataset of 6,500+ character entries with Jyutping, definitions, and examples. We ship a curated subset of ~500 common characters.
-
-### 2.1 Fallback Chain
-
-For each request, the `/api/dict` route tries sources in priority order:
+### 2.1 Word fallback chain
 
 ```
-English word:
-  1. Merriam-Webster Collegiate (definitions + audio)
-  2. Free Dictionary API (fallback)
-
-Spanish word → English:
-  1. Merriam-Webster Spanish-English
-  2. Free Dictionary API (fallback)
-
-French word → English:
-  1. Free Dictionary API (primary — MW doesn't cover French)
-
-Chinese (Mandarin) word → English:
-  1. Free Dictionary API (zh → en)
-
-Cantonese word → English:
-  1. Local Cantonese dataset (primary)
-  2. Free Dictionary API (zh fallback — limited for Cantonese)
+cache (MW first) → Merriam-Webster → FreeDict → seeds → (non-EN) GTX gloss
+→ fuzzy suggest / auto-correct → cross-language enrichment
 ```
 
-### 2.2 Unified Response Schema
+## 3.0 Sentence / photo translation (LLM)
 
-Regardless of source, the API always returns:
+`POST /api/dict/translate`
 
-```typescript
-type DictResponse = {
-  word: string;
-  lang: "en" | "es" | "fr" | "zh" | "yue";
-  entries: DictEntry[];
-};
-
-type DictEntry = {
-  headword: string;           // canonical form
-  pronunciation?: string;     // IPA or phonetic
-  audioUrl?: string;          // MW audio or external
-  partOfSpeech: string;
-  definitions: string[];
-  examples?: { text: string; translation?: string }[];
-  translations?: { lang: string; text: string }[];  // for bilingual lookups
-  inflections?: { label: string; form: string }[];
-  source: "merriam-webster" | "freedict" | "cantonese-local";
-};
+```json
+{
+  "text": "optional typed sentence",
+  "from": "auto|en|es|fr|zh|yue",
+  "to": "en|es|fr|zh|yue",
+  "images": [
+    { "name": "photo-1.jpg", "mimeType": "image/jpeg", "data": "<base64>" }
+  ]
+}
 ```
 
-## 3.0 Architecture
+- Requires Cursor API key (same as tutor).
+- Spawns a short-lived **Spark Translator** agent (no tutor tools).
+- Photos: model reads visible text (OCR), then translates into `to`.
+- Max 3 images; text ≤ 4000 chars.
+- Response:
 
-```
-┌──────────────────────────────────────────────────┐
-│  /dict page (SpanishDict.tsx → DictPage.tsx)     │
-│  Language selector: EN | ES | FR | 中文 | 粵語   │
-│  Search input → debounced fetch to /api/dict     │
-└──────────────────┬───────────────────────────────┘
-                   │ GET /api/dict?word=hello&from=en&to=es
-                   ▼
-┌──────────────────────────────────────────────────┐
-│  /api/dict/route.ts                              │
-│  1. Check filesystem cache (TTL: 24h)            │
-│  2. Route to source(s) based on from/to params   │
-│  3. Normalize to unified DictResponse            │
-│  4. Write to cache                               │
-│  5. Return JSON                                  │
-└──────┬─────────────────────┬─────────────────────┘
-       │                     │
-       ▼                     ▼
-┌──────────────┐   ┌──────────────────┐   ┌─────────────────┐
-│  MW Collegiate│   │ MW Spanish-Eng   │   │  Free Dict API  │
-│  + MW Spanish │   │ (dictionaryapi.  │   │  (api.dictionary │
-│  (api keys in │   │  com)            │   │  api.dev)        │
-│  .env.local)  │   │                  │   │                  │
-└──────────────┘   └──────────────────┘   └─────────────────┘
-       │                     │                     │
-       └─────────────────────┼─────────────────────┘
-                             │
-                    ┌────────┴────────┐
-                    │  dict-cache.ts   │
-                    │  data/dict-cache/│
-                    │  {lang}/{word}.  │
-                    │  json, TTL 24h   │
-                    └─────────────────┘
+```json
+{
+  "detectedSourceLang": "es",
+  "sourceText": "…",
+  "translation": "…",
+  "notes": "optional short tip",
+  "from": "auto",
+  "to": "en"
+}
 ```
 
-## 4.0 Files
+### 3.1 UI (Sentence mode)
 
-| File | Purpose |
+```
+[ Word | Sentence ]   ← segmented control
+From [Auto ▾]  ⇅  To [English ▾]
+┌ textarea — sentence / paste ─────────────┐
+└──────────────────────────────────────────┘
+Photos: [Upload] [Camera]   thumbnails ×
+[ Translate with AI ]
+┌ Source · es ─────────────────────────────┐
+│ …                                        │
+│ English                         🔊       │
+│ … translation (display type)             │
+└──────────────────────────────────────────┘
+```
+
+Reuses `CameraCapture` + `compressImageDataUrl` from the main tutor photo pipeline.
+
+## 4.0 Key files
+
+| Path | Role |
 |---|---|
-| `src/lib/dict-client.ts` | Client-side fetch wrapper (debounce, error handling, localStorage recent-searches) |
-| `src/lib/dict-cache.ts` | Server-side file cache: read/write JSON with TTL |
-| `src/lib/mw-client.ts` | Merriam-Webster Collegiate + Spanish-English API adapters → unified `DictResponse` |
-| `src/lib/freedict-client.ts` | Free Dictionary API adapter → unified `DictResponse` |
-| `src/lib/cantonese-dict.ts` | Local Cantonese dataset (~500 common entries) with Jyutping, definitions, search |
-| `src/app/api/dict/route.ts` | API route: orchestrates sources, caching, normalization |
-| `src/components/Dictionary.tsx` | Refactored Dict page component (replaces `SpanishDict.tsx`) |
-| `src/lib/dict-types.ts` | Shared TypeScript types for `DictResponse`, `DictEntry`, etc. |
+| `src/components/Dictionary.tsx` | Page shell: Word / Sentence tabs |
+| `src/components/SentenceTranslate.tsx` | Sentence + photo UI |
+| `src/app/api/dict/route.ts` | Word lookup orchestration |
+| `src/app/api/dict/translate/route.ts` | LLM sentence/photo translation |
+| `src/lib/dict-sentence.ts` | Prompt + JSON parse |
+| `src/lib/mw-client.ts` | Merriam-Webster School + Spanish |
+| `src/lib/dict-translate.ts` | Cross-lang gloss enrichment (words) |
+| `src/lib/dict-types.ts` | Shared types |
 
-## 5.0 API Key Configuration
-
-Add to `.env.local` (and `.env.local.example`):
+## 5.0 API keys (`.env.local`)
 
 ```bash
-# Merriam-Webster Dictionary API (register at https://dictionaryapi.com/)
-# Free tier: 1,000 queries/day per key, non-commercial use
-MERRIAM_WEBSTER_SCHOOL_KEY=your-school-dictionary-key   # English (sd4) — preferred
-MERRIAM_WEBSTER_SPANISH_KEY=your-spanish-english-key    # ES↔EN bilingual
-# MERRIAM_WEBSTER_COLLEGIATE_KEY=your-collegiate-key    # optional English fallback
+CURSOR_API_KEY=…                          # required for Sentence mode
+MERRIAM_WEBSTER_SCHOOL_KEY=…              # English (sd4)
+MERRIAM_WEBSTER_SPANISH_KEY=…             # ES↔EN
+# MERRIAM_WEBSTER_COLLEGIATE_KEY=…        # optional EN fallback
 ```
 
-Keys are optional. When absent, the system falls back to Free Dictionary API / local seeds / translate.
-English prefers School Dictionary (`sd4`), then Collegiate if that key is set.
+`scripts/ensure-env.mjs` preserves non-`CURSOR_API_KEY` lines when rewriting `.env.local`.
 
-## 6.0 Caching
+## 6.0 Caching (word mode)
 
-File-based cache at `data/dict-cache/{source}/{normalized-word}.json`:
-- TTL: 24 hours (86400 seconds)
-- Cache key: `${source}:${word}` normalized to lowercase, stripped diacritics
-- Auto-cleanup: oldest entries evicted when directory exceeds 512 entries per source
+File cache: `data/dict-cache/{source}/{lang}/{word}.json` · TTL 24h · MW preferred over FreeDict/translate caches.
 
-## 7.0 UI Design
+## 7.0 Word UI notes
 
-**Language selector**: Horizontal pills at top of Diccionario page:
-`EN` (default, primary) | `ES` | `FR` | `中文` | `粵語`
+- Language pills · debounced search (~450ms) · mic STT · TTS · Did-you-mean · cross-translations panel
+- Rate limit: 120/min; seeds / translate still available when limited
 
-**Search**: Single input field. User types a word. If language is set to English, it looks up English definitions. If Spanish, it does ES→EN translation. Always shows results in both directions where possible.
+## 8.0 Testing
 
-**Result card** (per sense/entry):
-```
-font-display:  hello       /həˈloʊ/   🔊    interjection
-Used as a greeting or to begin a telephone conversation.
-"Hello, how are you today?"
-Translations:  hola (es) · bonjour (fr)
-Source: Merriam-Webster
-```
-
-**Recent searches**: Stored in localStorage per language, shown as clickable chips below search bar.
-
-**Empty state**: "Type or speak a word to look it up" with sample suggestions from each supported language.
-
-**Voice input** (speech-to-text): Mic button beside the search bar. On tap, records audio via `MediaRecorder`, sends to the existing `/api/transcribe` endpoint, and populates the search box with recognized text. Uses the same STT infrastructure as the main tutor (SenseVoice + faster-whisper).
-
-**Text-to-speech** (read aloud): Each result card has a 🔊 button next to the headword that calls `getSharedSpeechEngine().speak(text)`. This reuses the existing `NeuralSpeechEngine` (edge-tts) from `speech-player.ts`. The first tap unlocks the audio context; subsequent taps play instantly.
-
-## 5.5 Voice Input (Speech-to-Text)
-
-Reuses the existing STT pipeline:
-
-```
-Mic button tap → MediaRecorder → Blob → POST /api/transcribe
-                                        (language hint from selected lang)
-→ text result → populate search box → auto-trigger lookup
-```
-
-Languages supported by STT: en, es, fr, zh, yue (auto-detected from selected dictionary language).
-
-## 5.6 Text-to-Speech (Read Aloud)
-
-Reuses the existing `NeuralSpeechEngine` from `speech-player.ts`:
-
-```
-🔊 button beside headword → getSharedSpeechEngine().speak(headword, {
-  onStart, onEnd, onProgress
-}) → edge-tts audio → playback
-```
-
-## 8.0 Rate Limiting
-
-- Per-IP rate limit: 30 requests/minute (429 + Retry-After header)
-- Server-side only — protects MW quota, avoids abuse
-- Client does lightweight debounce (300ms) on input
-
-## 9.0 Testing Strategy
-
-- `src/lib/mw-client.test.ts` — MW response parsing, normalization
-- `src/lib/freedict-client.test.ts` — FreeDict response parsing
-- `src/lib/cantonese-dict.test.ts` — Jyutping lookup, character search
-- `src/lib/dict-cache.test.ts` — Read/write, TTL enforcement, eviction
-- `src/components/Dictionary.test.tsx` — UI rendering, language switching
-- `scripts/verify-dict.mjs` — E2E: curl /api/dict for each language
+- `src/lib/mw-client.test.ts` — MW parse (incl. School Dict `vis` arrays)
+- `src/lib/dict-sentence.test.ts` — prompt + JSON parse
+- `src/lib/dict-translate.test.ts` — cross-lang enrichment + GTX fallback
+- Live: `GET /api/dict`, `POST /api/dict/translate`

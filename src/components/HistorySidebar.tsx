@@ -205,7 +205,7 @@ export function HistorySidebar({
           href="/dict"
           className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-white/70 px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
-          Diccionario · ES
+          Dictionary / Translation
         </a>
         {onOpenCodeAgent ? (
           <button
