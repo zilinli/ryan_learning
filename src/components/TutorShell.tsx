@@ -273,22 +273,96 @@ export function TutorShell() {
   const voiceEnabledRef = useRef(true);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
 
+  // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
-    const accts = loadAccounts();
-    const active = getActiveAccount(accts);
-    const aid = active.id;
-    setAccounts(accts.accounts);
-    setAccountId(aid);
-    setAccountName(active.profile.name);
-    const enabled = loadSpeakEnabled(aid);
-    setVoiceEnabled(enabled);
-    voiceEnabledRef.current = enabled;
-    const vid = loadVoiceId(aid);
-    setVoiceId(vid);
-    voiceIdRef.current = vid;
-    setEngagement(loadEngagement(aid));
-    setLearningMemory(loadLearningMemory(aid));
-    void hydrateLearningMemoryFromServer(aid).then(setLearningMemory);
+    let cancelled = false;
+
+    try {
+      // 1. Resolve account synchronously — do NOT depend on stale setState closures
+      const accts = loadAccounts();
+      const active = getActiveAccount(accts);
+      const aid = active.id;
+
+      // 2. Load all per-account client data synchronously
+      const enabled = loadSpeakEnabled(aid);
+      const vid = loadVoiceId(aid);
+      const eng = loadEngagement(aid);
+      const mem = loadLearningMemory(aid);
+      const conversations = loadConversations(aid);
+
+      if (cancelled) return;
+
+      // 3. Batch state updates so React renders once
+      setAccountId(aid);
+      setAccounts(accts.accounts);
+      setAccountName(active.profile.name);
+      setVoiceEnabled(enabled);
+      voiceEnabledRef.current = enabled;
+      setVoiceId(vid);
+      voiceIdRef.current = vid;
+      setEngagement(eng);
+      setLearningMemory(mem);
+      setStore(conversations);
+      setReady(true);
+
+      // 4. Non-blocking background work
+      void hydrateLearningMemoryFromServer(aid).then((m) => {
+        if (!cancelled) setLearningMemory(m);
+      });
+
+      // URL session param — select a specific conversation on deep-link
+      const urlSession = sessionIdFromUrl();
+      if (urlSession && urlSession.length > 4) {
+        const exists = conversations.conversations.some((c) => c.sessionId === urlSession);
+        if (exists && conversations.activeId !== urlSession) {
+          setStore({ ...conversations, activeId: urlSession });
+        }
+      }
+
+      // Photo vault → server hydration chain (fire-and-forget, writes back via setStore)
+      void (async () => {
+        try {
+          await ingestStorePhotos(conversations);
+          const merged = await hydrateFromServer(conversations, aid);
+          const restored = await restoreStorePhotosFromVault(merged);
+          const { store: repaired } = await repairMissingMedia(restored);
+          const final = repaired !== restored ? repaired : restored;
+          await ingestStorePhotos(final);
+          await pruneVaultToStore(final);
+          if (cancelled) return;
+          setStore(final);
+          saveConversations(final, aid);
+          const withMedia = await pushStoreToServer(final, aid);
+          if (cancelled) return;
+          if (withMedia !== final) {
+            setStore(withMedia);
+            saveConversations(withMedia, aid);
+          }
+        } catch {
+          // Background hydration failures are non-critical — the UI is already live
+        }
+      })();
+
+      // API key check — non-critical, defaults to server-side default key
+      fetch("/api/setup")
+        .then(async (r) => {
+          if (cancelled) return;
+          const data = (await r.json()) as { configured?: boolean };
+          setKeyMissing(data.configured === false);
+        })
+        .catch(() => {
+          if (!cancelled) setKeyMissing(false);
+        });
+    } catch (e) {
+      // If init itself crashes, show the error instead of infinite loading
+      console.error("Spark init failed", e);
+      if (!cancelled) {
+        setError("Something went wrong. Please refresh the page to try again.");
+        setReady(true);
+      }
+    }
+
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -302,50 +376,6 @@ export function TutorShell() {
   const setSpeakApi = useCallback((api: SpeakStreamApi | null) => {
     speakApiRef.current = api;
   }, []);
-
-  useEffect(() => {
-    const loaded = loadConversations(accountId);
-    setStore(loaded);
-    setReady(true);
-
-    // 🔗 Zero-login: resolve ?session= URL param → select that conversation
-    const urlSession = sessionIdFromUrl();
-    if (urlSession && urlSession.length > 4) {
-      const exists = loaded.conversations.some((c) => c.sessionId === urlSession);
-      if (exists && loaded.activeId !== urlSession) {
-        setStore({ ...loaded, activeId: urlSession });
-      }
-    }
-
-    // Keep homework photos in IndexedDB, then merge server history, then
-    // restore any photos the server JSON no longer carries as base64.
-    // Repair missing media files on the server by re-persisting from vault.
-    void (async () => {
-      await ingestStorePhotos(loaded);
-      const merged = await hydrateFromServer(loaded);
-      const restored = await restoreStorePhotosFromVault(merged);
-      // Re-persist images whose server files were lost (rebuild / deploy wipe)
-      const { store: repaired } = await repairMissingMedia(restored);
-      const final = repaired !== restored ? repaired : restored;
-      await ingestStorePhotos(final);
-      await pruneVaultToStore(final);
-      setStore(final);
-      saveConversations(final, accountId);
-      const withMedia = await pushStoreToServer(final);
-      if (withMedia !== final) {
-        setStore(withMedia);
-        saveConversations(withMedia, accountId);
-      }
-    })();
-
-    fetch("/api/setup")
-      .then(async (r) => {
-        const data = (await r.json()) as { configured?: boolean };
-        // 仅在明确未配置时才弹出输入；网络失败不挡小孩使用（服务端有默认 Key）
-        setKeyMissing(data.configured === false);
-      })
-      .catch(() => setKeyMissing(false));
-  }, [accountId]);
 
   // Debounce localStorage + server sync while streaming — sync writes freeze the UI on iPad
   useEffect(() => {
@@ -724,7 +754,21 @@ export function TutorShell() {
   if (!ready || !store) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-[var(--ink-muted)]">
-        Loading…
+        {error ? (
+          <div className="flex flex-col items-center gap-3 px-4 text-center">
+            <div className="text-4xl">&#x26A0;</div>
+            <p className="text-sm max-w-xs">{error}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-full bg-[var(--teal)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--teal)]/90 active:scale-95"
+            >
+              Refresh Page
+            </button>
+          </div>
+        ) : (
+          <>Loading…</>
+        )}
       </div>
     );
   }
