@@ -98,9 +98,22 @@ The mini panel and full `/console` page use the same `/api/console/chat` backend
 
 ---
 
-## Accounts
+## Accounts 👤
 
 Spark supports multiple students on a single device — siblings, classmates, or a family tablet shared by 2–3 kids. Each account's data is fully isolated.
+
+**A prominent avatar button in the top-right corner** shows who's currently active. Tap it to switch students instantly — no login, no fuss. Follows the same pattern as Khan Academy Kids and ABCmouse.
+
+### Switching
+
+```
+ Tap [👤 Ryan ▾]  →  Pick student  →  Done
+```
+
+1. Tap the **avatar pill** in the top-right header (shows name + colored circle)
+2. Pick the target account from the dropdown — a **checkmark** shows who's active
+3. Spark reloads that student's chat history, skills, and progress instantly
+4. "Manage accounts" at the bottom opens the full account page (PIN-gated)
 
 ### Account model
 
@@ -114,14 +127,7 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
 | **Account limit** | Up to 6 accounts per device |
 
-### Switching
-
-1. Tap the avatar/name badge in the top-right header
-2. Pick the target account from the dropdown
-3. Spark reloads that student's chat history, skills, and progress instantly
-4. A brief toast confirms: "Switched to Emma (G8)"
-
-Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)**
+Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo).
 
 ---
 
