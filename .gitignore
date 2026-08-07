@@ -64,3 +64,4 @@ __pycache__/
 _test_tmp/
 
 .console-backups/
+data/dict-cache/

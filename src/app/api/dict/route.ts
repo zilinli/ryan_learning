@@ -12,6 +12,7 @@ import { readFromCache, writeToCache } from "@/lib/dict-cache";
 import { mwCollegiateLookup, mwSpanishLookup } from "@/lib/mw-client";
 import { freeDictLookup } from "@/lib/freedict-client";
 import { cantoneseLookup } from "@/lib/cantonese-dict";
+import { localSeedLookup } from "@/lib/local-seeds";
 
 const VALID_LANGS = Object.keys(DICT_LANG_LABELS) as DictLang[];
 
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
 
   // ── Language-specific lookup chains ──
   if (langParam === "en") {
-    // English: MW Collegiate → FreeDict
+    // English: MW Collegiate → FreeDict (always available via Wiktionary)
     result = await mwCollegiateLookup(wordLower);
     if (result) {
       writeToCache(sourceLabel("mw"), langParam, wordLower, result);
@@ -79,7 +80,7 @@ export async function GET(req: Request) {
     }
     result = await freeDictLookup(wordLower, "en");
   } else if (langParam === "es") {
-    // Spanish: MW Spanish-English → FreeDict
+    // Spanish: MW Spanish-English (bidirectional) → FreeDict
     result = await mwSpanishLookup(wordLower);
     if (result) {
       writeToCache(sourceLabel("mw-es"), langParam, wordLower, result);
@@ -87,10 +88,10 @@ export async function GET(req: Request) {
     }
     result = await freeDictLookup(wordLower, "es");
   } else if (langParam === "fr") {
-    // French: FreeDict only (MW doesn't cover French)
+    // French: MW Spanish doesn't cover French, FreeDict may have limited coverage
     result = await freeDictLookup(wordLower, "fr");
   } else if (langParam === "zh") {
-    // Chinese (Mandarin): FreeDict only
+    // Chinese (Mandarin): FreeDict
     result = await freeDictLookup(wordLower, "zh");
   } else if (langParam === "yue") {
     // Cantonese: local dataset only
@@ -99,13 +100,19 @@ export async function GET(req: Request) {
       writeToCache(sourceLabel("cantonese-local"), langParam, wordLower, result);
       return NextResponse.json(result);
     }
-    // Fallback: try FreeDict zh
     result = await freeDictLookup(wordLower, "zh");
   }
 
   if (result && result.entries.length > 0) {
     writeToCache(sourceLabel("freedict"), langParam, wordLower, result);
     return NextResponse.json(result);
+  }
+
+  // ── Final fallback: local seed lexicon ──
+  const seedResult = localSeedLookup(wordLower, langParam);
+  if (seedResult) {
+    writeToCache(sourceLabel("local-seed"), langParam, wordLower, seedResult);
+    return NextResponse.json(seedResult);
   }
 
   return NextResponse.json({
