@@ -7,7 +7,7 @@ import {
   zoomIn,
   zoomOut,
   formatZoomPercent,
-} from "../lightbox-zoom";
+} from "./lightbox-zoom";
 
 describe("clampZoom", () => {
   it("returns values at step boundaries", () => {
