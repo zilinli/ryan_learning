@@ -45,6 +45,9 @@ yarn-error.log*
 /data/learning-memory.json
 /data/media/*
 !/data/media/.gitkeep
+/data/accounts/
+/data/history/
+/data/learning/
 
 # agent-chat build cache
 agent-chat/.next/
