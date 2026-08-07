@@ -36,6 +36,8 @@ import {
   type EngagementState,
 } from "@/lib/engagement";
 import {
+  getActiveAccount,
+  loadAccounts,
   loadStudentProfile,
   syncProfileFromSkills,
 } from "@/lib/student-profile";
@@ -253,6 +255,7 @@ export function TutorShell() {
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
   );
+  const [accountName, setAccountName] = useState("Ryan");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
@@ -271,6 +274,7 @@ export function TutorShell() {
     voiceIdRef.current = vid;
     setEngagement(loadEngagement());
     setLearningMemory(loadLearningMemory());
+    setAccountName(getActiveAccount(loadAccounts()).profile.name);
     void hydrateLearningMemoryFromServer().then(setLearningMemory);
   }, []);
 
@@ -749,7 +753,13 @@ export function TutorShell() {
             <span className="font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
               ✨ The Answer Book
             </span>
-            <span className="hidden text-sm text-[var(--ink-muted)] sm:inline">· Ryan</span>
+            <a
+              href="/account"
+              className="hidden text-sm text-[var(--ink-muted)] underline-offset-2 hover:text-[var(--teal)] hover:underline sm:inline"
+              title="Switch account"
+            >
+              · {accountName}
+            </a>
           </div>
           {/* Voice toggle in header */}
           <button

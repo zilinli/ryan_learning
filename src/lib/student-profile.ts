@@ -79,25 +79,226 @@ export const ENVISION_G5_PROMPT_HINT = [
 
 /** v2: Chinese preference defaults to 粤语 (old key may have stored 普通话). */
 const PROFILE_KEY = "spark.studentProfile.v2";
+/** Multi-account store — Ryan is always seeded as a switchable account. */
+const ACCOUNTS_KEY = "spark.accounts.v1";
+export const RYAN_ACCOUNT_ID = "acct_ryan";
+
+export type AccountRecord = {
+  id: string;
+  profile: StudentProfile;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type AccountsStore = {
+  version: 1;
+  activeId: string;
+  accounts: AccountRecord[];
+};
+
+function normalizeProfile(partial?: Partial<StudentProfile> | null): StudentProfile {
+  const parsed = partial ?? {};
+  return {
+    ...DEFAULT_STUDENT_PROFILE,
+    ...parsed,
+    preferredChinese: parsed.preferredChinese === "zh" ? "zh" : "yue",
+    stronger: Array.isArray(parsed.stronger)
+      ? parsed.stronger
+      : DEFAULT_STUDENT_PROFILE.stronger,
+    focusAreas: Array.isArray(parsed.focusAreas)
+      ? parsed.focusAreas
+      : DEFAULT_STUDENT_PROFILE.focusAreas,
+  };
+}
+
+function newAccountId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `acct_${crypto.randomUUID()}`;
+  }
+  return `acct_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function ryanAccount(now = Date.now()): AccountRecord {
+  return {
+    id: RYAN_ACCOUNT_ID,
+    profile: { ...DEFAULT_STUDENT_PROFILE },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function ensureRyan(store: AccountsStore): AccountsStore {
+  if (store.accounts.some((a) => a.id === RYAN_ACCOUNT_ID)) return store;
+  return {
+    ...store,
+    accounts: [ryanAccount(), ...store.accounts],
+  };
+}
+
+function emptyAccountsStore(): AccountsStore {
+  const ryan = ryanAccount();
+  return { version: 1, activeId: ryan.id, accounts: [ryan] };
+}
+
+export function loadAccounts(): AccountsStore {
+  if (typeof window === "undefined") return emptyAccountsStore();
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AccountsStore;
+      if (parsed?.version === 1 && Array.isArray(parsed.accounts)) {
+        const accounts = parsed.accounts
+          .filter((a) => a && typeof a.id === "string")
+          .map((a) => ({
+            id: a.id,
+            profile: normalizeProfile(a.profile),
+            createdAt: a.createdAt || Date.now(),
+            updatedAt: a.updatedAt || Date.now(),
+          }));
+        const withRyan = ensureRyan({
+          version: 1,
+          activeId: parsed.activeId || RYAN_ACCOUNT_ID,
+          accounts,
+        });
+        if (!withRyan.accounts.some((a) => a.id === withRyan.activeId)) {
+          withRyan.activeId = withRyan.accounts[0]!.id;
+        }
+        return withRyan;
+      }
+    }
+    // Migrate legacy single profile → multi-account (keep Ryan + optional other)
+    const legacyRaw = localStorage.getItem(PROFILE_KEY);
+    const store = emptyAccountsStore();
+    if (legacyRaw) {
+      const legacy = normalizeProfile(JSON.parse(legacyRaw) as Partial<StudentProfile>);
+      if (legacy.name.trim() && legacy.name.trim() !== "Ryan") {
+        const id = newAccountId();
+        const now = Date.now();
+        store.accounts.push({
+          id,
+          profile: legacy,
+          createdAt: now,
+          updatedAt: now,
+        });
+        store.activeId = id;
+      } else {
+        store.accounts = store.accounts.map((a) =>
+          a.id === RYAN_ACCOUNT_ID ? { ...a, profile: legacy, updatedAt: Date.now() } : a,
+        );
+      }
+    }
+    saveAccounts(store);
+    return store;
+  } catch {
+    return emptyAccountsStore();
+  }
+}
+
+export function saveAccounts(store: AccountsStore): void {
+  if (typeof window === "undefined") return;
+  try {
+    const next = ensureRyan(store);
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
+    const active = next.accounts.find((a) => a.id === next.activeId);
+    if (active) {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(active.profile));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function getActiveAccount(store: AccountsStore): AccountRecord {
+  return (
+    store.accounts.find((a) => a.id === store.activeId) ||
+    store.accounts.find((a) => a.id === RYAN_ACCOUNT_ID) ||
+    store.accounts[0]!
+  );
+}
+
+/** Create a new account from a typed name and switch to it. */
+export function createAccount(name: string, store?: AccountsStore): AccountsStore {
+  const base = store ?? loadAccounts();
+  const trimmed = name.trim();
+  if (!trimmed) return base;
+  const now = Date.now();
+  const id =
+    trimmed.toLowerCase() === "ryan"
+      ? RYAN_ACCOUNT_ID
+      : newAccountId();
+  if (id === RYAN_ACCOUNT_ID && base.accounts.some((a) => a.id === RYAN_ACCOUNT_ID)) {
+    const next: AccountsStore = {
+      ...base,
+      activeId: RYAN_ACCOUNT_ID,
+      accounts: base.accounts.map((a) =>
+        a.id === RYAN_ACCOUNT_ID
+          ? {
+              ...a,
+              profile: { ...a.profile, name: "Ryan" },
+              updatedAt: now,
+            }
+          : a,
+      ),
+    };
+    saveAccounts(next);
+    return next;
+  }
+  const record: AccountRecord = {
+    id,
+    profile: {
+      ...DEFAULT_STUDENT_PROFILE,
+      name: trimmed,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+  const next: AccountsStore = {
+    version: 1,
+    activeId: id,
+    accounts: [...base.accounts.filter((a) => a.id !== id), record],
+  };
+  saveAccounts(next);
+  return next;
+}
+
+/** Switch the active account (e.g. to Ryan). */
+export function switchAccount(accountId: string, store?: AccountsStore): AccountsStore {
+  const base = store ?? loadAccounts();
+  if (!base.accounts.some((a) => a.id === accountId)) return base;
+  const next = { ...base, activeId: accountId };
+  saveAccounts(next);
+  return next;
+}
+
+/** Ensure Ryan exists as a saved account and optionally switch to it. */
+export function saveRyanAccount(switchTo = false, store?: AccountsStore): AccountsStore {
+  const base = ensureRyan(store ?? loadAccounts());
+  const now = Date.now();
+  const next: AccountsStore = {
+    ...base,
+    activeId: switchTo ? RYAN_ACCOUNT_ID : base.activeId,
+    accounts: base.accounts.map((a) =>
+      a.id === RYAN_ACCOUNT_ID
+        ? {
+            ...a,
+            profile: { ...DEFAULT_STUDENT_PROFILE, ...a.profile, name: "Ryan" },
+            updatedAt: now,
+          }
+        : a,
+    ),
+  };
+  if (!next.accounts.some((a) => a.id === RYAN_ACCOUNT_ID)) {
+    next.accounts = [ryanAccount(now), ...next.accounts];
+  }
+  saveAccounts(next);
+  return next;
+}
 
 export function loadStudentProfile(): StudentProfile {
   if (typeof window === "undefined") return { ...DEFAULT_STUDENT_PROFILE };
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return { ...DEFAULT_STUDENT_PROFILE };
-    const parsed = JSON.parse(raw) as Partial<StudentProfile>;
-    return {
-      ...DEFAULT_STUDENT_PROFILE,
-      ...parsed,
-      preferredChinese:
-        parsed.preferredChinese === "zh" ? "zh" : "yue",
-      stronger: Array.isArray(parsed.stronger)
-        ? parsed.stronger
-        : DEFAULT_STUDENT_PROFILE.stronger,
-      focusAreas: Array.isArray(parsed.focusAreas)
-        ? parsed.focusAreas
-        : DEFAULT_STUDENT_PROFILE.focusAreas,
-    };
+    const accounts = loadAccounts();
+    return { ...getActiveAccount(accounts).profile };
   } catch {
     return { ...DEFAULT_STUDENT_PROFILE };
   }
@@ -105,7 +306,17 @@ export function loadStudentProfile(): StudentProfile {
 
 export function saveStudentProfile(profile: StudentProfile): void {
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    const store = loadAccounts();
+    const now = Date.now();
+    const next: AccountsStore = {
+      ...store,
+      accounts: store.accounts.map((a) =>
+        a.id === store.activeId
+          ? { ...a, profile: normalizeProfile(profile), updatedAt: now }
+          : a,
+      ),
+    };
+    saveAccounts(next);
   } catch {
     // ignore
   }
