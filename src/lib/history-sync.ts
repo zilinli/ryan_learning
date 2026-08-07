@@ -1,9 +1,10 @@
 import type { ConversationRecord, ConversationsStore } from "./types";
 import { mergeConversationLists, mergeMessageAttachments } from "./history-merge";
+import { RYAN_ACCOUNT } from "./tenant-storage";
 
-/** Pull global history from the server. */
-export async function fetchServerHistory(): Promise<ConversationRecord[]> {
-  const res = await fetch("/api/history", { cache: "no-store" });
+/** Pull account-scoped history from the server. */
+export async function fetchServerHistory(accountId: string = RYAN_ACCOUNT): Promise<ConversationRecord[]> {
+  const res = await fetch(`/api/history?accountId=${encodeURIComponent(accountId)}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`history HTTP ${res.status}`);
   const data = (await res.json()) as { conversations?: ConversationRecord[] };
   return Array.isArray(data.conversations) ? data.conversations : [];

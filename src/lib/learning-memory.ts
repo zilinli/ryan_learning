@@ -8,9 +8,17 @@
  * - ZPD-based warm-up skill selection
  * - Recall cache for prompt context snippets
  *
- * Stored in localStorage + synced to /api/learning.
+ * Stored in localStorage (per-account namespaced) + synced to /api/learning.
  */
 
+import {
+  FLAT_KEYS,
+  isAccountMigrated,
+  markMigrated,
+  nsKey,
+  readFlatKey,
+  RYAN_ACCOUNT,
+} from "./tenant-storage";
 import {
   applySm2Decay,
   bktDefaultsForBand,
@@ -92,7 +100,7 @@ export type SessionDigest = {
 
 export type TurnOutcome = "correct" | "incorrect" | "practice";
 
-const KEY = "spark.learningMemory";
+const KEY = FLAT_KEYS.memory;
 const MAX_TOPICS = 12;
 const MAX_SKILLS = 24;
 const MAX_NOTES = 5;
@@ -136,22 +144,34 @@ export function emptyLearningMemory(): LearningMemory {
   };
 }
 
-export function loadLearningMemory(): LearningMemory {
+export function loadLearningMemory(accountId: string = RYAN_ACCOUNT): LearningMemory {
   if (typeof window === "undefined") return emptyLearningMemory();
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyLearningMemory();
-    const mem = normalizeMemory(JSON.parse(raw) as Partial<LearningMemory>);
-    // Apply SM-2 decay on load so pKnown reflects time since last review
-    return applyMemoryDecay(mem);
+    const nsKeyVal = nsKey(accountId, "memory");
+    const raw = localStorage.getItem(nsKeyVal);
+    if (raw) {
+      const mem = normalizeMemory(JSON.parse(raw) as Partial<LearningMemory>);
+      return applyMemoryDecay(mem);
+    }
+    // Fallback: read flat key and auto-migrate
+    const flatRaw = readFlatKey(FLAT_KEYS.memory);
+    if (flatRaw) {
+      const mem = normalizeMemory(JSON.parse(flatRaw) as Partial<LearningMemory>);
+      const decayed = applyMemoryDecay(mem);
+      // Auto-migrate: write namespaced copy, keep flat key as safety net
+      try { localStorage.setItem(nsKeyVal, JSON.stringify(decayed)); } catch { /* ignore */ }
+      markMigrated(accountId);
+      return decayed;
+    }
+    return emptyLearningMemory();
   } catch {
     return emptyLearningMemory();
   }
 }
 
-export function saveLearningMemory(mem: LearningMemory): void {
+export function saveLearningMemory(mem: LearningMemory, accountId: string = RYAN_ACCOUNT): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(mem));
+    localStorage.setItem(nsKey(accountId, "memory"), JSON.stringify(mem));
   } catch {
     // ignore quota
   }
@@ -1099,15 +1119,15 @@ export function serializeLearningMemoryForChat(
 
 // ── Server Sync ─────────────────────────────────────────────────────
 
-export async function hydrateLearningMemoryFromServer(): Promise<LearningMemory> {
-  const local = loadLearningMemory();
+export async function hydrateLearningMemoryFromServer(accountId: string = RYAN_ACCOUNT): Promise<LearningMemory> {
+  const local = loadLearningMemory(accountId);
   try {
-    const res = await fetch("/api/learning", { cache: "no-store" });
+    const res = await fetch(`/api/learning?accountId=${encodeURIComponent(accountId)}`, { cache: "no-store" });
     if (!res.ok) return local;
     const data = (await res.json()) as { memory?: Partial<LearningMemory> };
     const remote = normalizeMemory(data.memory);
     const merged = mergeLearningMemory(local, remote);
-    saveLearningMemory(merged);
+    saveLearningMemory(merged, accountId);
     return merged;
   } catch {
     return local;
@@ -1116,6 +1136,7 @@ export async function hydrateLearningMemoryFromServer(): Promise<LearningMemory>
 
 export async function pushLearningMemoryToServer(
   mem: LearningMemory,
+  accountId: string = RYAN_ACCOUNT,
 ): Promise<void> {
   const m = normalizeMemory(mem);
   if (!m.skills.length && !m.topics.length && !m.recentWins.length) {
@@ -1125,7 +1146,7 @@ export async function pushLearningMemoryToServer(
     await fetch("/api/learning", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memory: serializeLearningMemoryForChat(m) }),
+      body: JSON.stringify({ accountId, memory: serializeLearningMemoryForChat(m) }),
     });
   } catch {
     // offline / ignore

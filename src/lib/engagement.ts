@@ -1,5 +1,7 @@
 /** Lightweight engagement for a 9–10 year-old (streak + daily solves). */
 
+import { FLAT_KEYS, nsKey, readFlatKey, RYAN_ACCOUNT } from "./tenant-storage";
+
 export type EngagementState = {
   streak: number;
   lastActiveDay: string; // YYYY-MM-DD local
@@ -8,7 +10,7 @@ export type EngagementState = {
   badges: string[];
 };
 
-const KEY = "spark.engagement";
+const KEY = FLAT_KEYS.engagement;
 
 function todayKey(): string {
   const d = new Date();
@@ -31,25 +33,40 @@ export function emptyEngagement(): EngagementState {
   };
 }
 
-export function loadEngagement(): EngagementState {
+export function loadEngagement(accountId: string = RYAN_ACCOUNT): EngagementState {
   if (typeof window === "undefined") return emptyEngagement();
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return emptyEngagement();
-    const parsed = JSON.parse(raw) as Partial<EngagementState>;
-    return {
-      ...emptyEngagement(),
-      ...parsed,
-      badges: Array.isArray(parsed.badges) ? parsed.badges : [],
-    };
+    const nsKeyVal = nsKey(accountId, "engagement");
+    const raw = localStorage.getItem(nsKeyVal);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<EngagementState>;
+      return {
+        ...emptyEngagement(),
+        ...parsed,
+        badges: Array.isArray(parsed.badges) ? parsed.badges : [],
+      };
+    }
+    // Fallback: read flat key
+    const flatRaw = readFlatKey(FLAT_KEYS.engagement);
+    if (flatRaw) {
+      const parsed = JSON.parse(flatRaw) as Partial<EngagementState>;
+      const result = {
+        ...emptyEngagement(),
+        ...parsed,
+        badges: Array.isArray(parsed.badges) ? parsed.badges : [],
+      };
+      try { localStorage.setItem(nsKeyVal, JSON.stringify(result)); } catch { /* ignore */ }
+      return result;
+    }
+    return emptyEngagement();
   } catch {
     return emptyEngagement();
   }
 }
 
-export function saveEngagement(state: EngagementState): void {
+export function saveEngagement(state: EngagementState, accountId: string = RYAN_ACCOUNT): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(nsKey(accountId, "engagement"), JSON.stringify(state));
   } catch {
     // ignore
   }
@@ -67,7 +84,8 @@ function unlockBadges(state: EngagementState): string[] {
 
 /** Call after a successful tutor turn (student engaged). */
 export function recordLearningTurn(
-  prev: EngagementState = loadEngagement(),
+  prev: EngagementState = loadEngagement(RYAN_ACCOUNT),
+  accountId: string = RYAN_ACCOUNT,
 ): EngagementState {
   const today = todayKey();
   const yday = yesterdayKey();
@@ -92,7 +110,7 @@ export function recordLearningTurn(
     badges: [],
   };
   next.badges = unlockBadges(next);
-  saveEngagement(next);
+  saveEngagement(next, accountId);
   return next;
 }
 

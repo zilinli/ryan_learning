@@ -1,0 +1,20 @@
+{
+  "sessionId": "cs_1785810972993_hnxz7i",
+  "messages": [
+    {
+      "id": "cm_1786082759267",
+      "role": "user",
+      "content": "做一个西语字典 the",
+      "attachments": [],
+      "createdAt": 1786082759267
+    },
+    {
+      "id": "cm_1786082814961",
+      "role": "assistant",
+      "content": "先摸清项目结构和现有字典相关代码，再为西语 “the” 做实现。重新按正确参数调用工具。",
+      "createdAt": 1786082814961
+    }
+  ],
+  "fileChangeCount": 0,
+  "hasUncommittedChanges": false
+}

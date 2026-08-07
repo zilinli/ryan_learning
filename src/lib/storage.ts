@@ -8,9 +8,17 @@ import {
   enforceHistoryRetention,
   MAX_TOTAL_MESSAGES,
 } from "./history-retention";
+import {
+  FLAT_KEYS,
+  isAccountMigrated,
+  markMigrated,
+  nsKey,
+  readFlatKey,
+  RYAN_ACCOUNT,
+} from "./tenant-storage";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
-const STORE_KEY = "spark-tutor-sessions-v3";
+const STORE_KEY = FLAT_KEYS.sessions;
 
 /** Hard caps so localStorage + RAM stay small on phones */
 export const MAX_CONVERSATIONS = 100;
@@ -214,23 +222,37 @@ function migrateLegacy(legacy: TutorSessionState): ConversationsStore {
   };
 }
 
-export function loadConversations(): ConversationsStore {
+export function loadConversations(accountId: string = RYAN_ACCOUNT): ConversationsStore {
   if (typeof window === "undefined") return emptyStore();
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as ConversationsStore;
+    const namespacedKey = nsKey(accountId, "sessions");
+    const nsRaw = localStorage.getItem(namespacedKey);
+    if (nsRaw) {
+      const parsed = JSON.parse(nsRaw) as ConversationsStore;
       if (parsed?.version === 3 && Array.isArray(parsed.conversations)) {
         return pruneStore(parsed);
       }
     }
-    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    // Fallback: read flat key and auto-migrate
+    const flatRaw = readFlatKey(STORE_KEY);
+    if (flatRaw) {
+      const parsed = JSON.parse(flatRaw) as ConversationsStore;
+      if (parsed?.version === 3 && Array.isArray(parsed.conversations)) {
+        const pruned = pruneStore(parsed);
+        try { localStorage.setItem(namespacedKey, JSON.stringify(pruned)); } catch { /* ignore */ }
+        markMigrated(accountId);
+        return pruned;
+      }
+    }
+    // Legacy migration (flat legacy key → namespaced)
+    const legacyRaw = readFlatKey(LEGACY_KEY);
     if (legacyRaw) {
       const legacy = JSON.parse(legacyRaw) as TutorSessionState;
       if (legacy?.sessionId) {
         const migrated = pruneStore(migrateLegacy(legacy));
-        saveConversations(migrated);
-        localStorage.removeItem(LEGACY_KEY);
+        try { localStorage.setItem(namespacedKey, JSON.stringify(migrated)); } catch { /* ignore */ }
+        markMigrated(accountId);
+        // Don't remove legacy flat key (safety net)
         return migrated;
       }
     }
@@ -240,11 +262,11 @@ export function loadConversations(): ConversationsStore {
   return emptyStore();
 }
 
-export function saveConversations(store: ConversationsStore): void {
+export function saveConversations(store: ConversationsStore, accountId: string = RYAN_ACCOUNT): void {
   if (typeof window === "undefined") return;
   const pruned = pruneStore(store);
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(pruned));
+    localStorage.setItem(nsKey(accountId, "sessions"), JSON.stringify(pruned));
   } catch {
     // Quota exceeded — drop oldest inactive chats and strip all previews
     try {
@@ -262,7 +284,7 @@ export function saveConversations(store: ConversationsStore): void {
             messages: slimMessages(c.messages, false),
           })),
       };
-      localStorage.setItem(STORE_KEY, JSON.stringify(aggressive));
+      localStorage.setItem(nsKey(accountId, "sessions"), JSON.stringify(aggressive));
     } catch {
       // private mode / hard fail
     }
@@ -280,7 +302,7 @@ export function getActiveConversation(
 
 /** @deprecated — use loadConversations */
 export function loadSession(): TutorSessionState | null {
-  const store = loadConversations();
+  const store = loadConversations(RYAN_ACCOUNT);
   const active = getActiveConversation(store);
   if (!active) return null;
   return {
@@ -292,7 +314,7 @@ export function loadSession(): TutorSessionState | null {
 
 /** @deprecated */
 export function saveSession(state: TutorSessionState): void {
-  const store = loadConversations();
+  const store = loadConversations(RYAN_ACCOUNT);
   const idx = store.conversations.findIndex(
     (c) => c.sessionId === state.sessionId,
   );
@@ -307,12 +329,12 @@ export function saveSession(state: TutorSessionState): void {
   if (idx >= 0) store.conversations[idx] = record;
   else store.conversations.unshift(record);
   store.activeId = state.sessionId;
-  saveConversations(store);
+  saveConversations(store, RYAN_ACCOUNT);
 }
 
 /** @deprecated */
 export function clearSession(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(LEGACY_KEY);
-  localStorage.removeItem(STORE_KEY);
+  // Don't remove flat or namespaced keys (handled by migration)
 }

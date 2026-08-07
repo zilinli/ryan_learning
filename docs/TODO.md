@@ -1,10 +1,11 @@
 # 📋 Downstream Development TODO
 
-> Version 0.5 · 2026-08-07  
+> Version 0.6 · 2026-08-07  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 37 test files, 437 tests, service `active` at :3000  
 > New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
-> New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)
+> New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
+> New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)
 
 ---
 
@@ -502,6 +503,43 @@ Account deletion with safeguards, per-account empty states, account limit enforc
 
 ---
 
+## 🔴 Phase 14: Image Lightbox — Top Layer + Zoom (6h)
+
+> **Design:** [subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)  
+> **Bug:** Opening a large homework photo in chat is occluded by the left History sidebar (stacking-context trap: lightbox `z-[80]` lives under main column `z-10`, while desktop sidebar is `z-20`).  
+> **Goal:** Portal lightbox to `document.body` at `z-[200]`; add zoom in / zoom out (buttons + keyboard); pan when zoomed; tests required.
+
+### 14A: Stacking Fix + Zoom UI (4h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 14A.1 | Extract pure zoom helpers: `ZOOM_MIN/MAX/STEP`, `clampZoom`, `zoomIn`, `zoomOut`, `formatZoomPercent` | 0.5h | `src/lib/lightbox-zoom.ts` 🆕 |
+| 🔴 14A.2 | Portal `ImageLightbox` via `createPortal(..., document.body)`; mount-safe for SSR; set overlay to `z-[200]` with overlay-ladder comment | 1h | `src/components/ImageLightbox.tsx` |
+| 🔴 14A.3 | Toolbar: Zoom out (−), Zoom in (+), percent label, Close; 44px touch targets; English `aria-label`s | 1h | `src/components/ImageLightbox.tsx` |
+| 🔴 14A.4 | Apply CSS `transform: scale(zoom)`; pan (`offset`) when `zoom > 1`; backdrop-tap closes only if pointer movement &lt; ~5px | 1h | `src/components/ImageLightbox.tsx` |
+| 🔴 14A.5 | Keyboard: `+`/`=` zoom in, `-` zoom out, `0` reset fit, `Esc` close (keep existing Esc) | 0.5h | `src/components/ImageLightbox.tsx` |
+
+### 14B: Tests (1.5h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🔴 14B.1 | Unit tests for zoom helpers — clamp, step, percent formatting, min/max edges | 0.5h | `src/lib/lightbox-zoom.test.ts` 🆕 |
+| 🔴 14B.2 | Component tests (`@testing-library/react`): portal attaches under `document.body`; overlay has top-layer z-index class; Zoom in/out update percent; Esc/Close call `onClose`; backdrop click at zoom 1 closes | 1h | `src/components/ImageLightbox.test.tsx` 🆕 |
+
+### 14C: Manual QA + Polish (0.5h)
+
+| # | Task | Effort | Files |
+|---|------|--------|-------|
+| 🟡 14C.1 | Manual QA: desktop sidebar open + large schedule photo (no occlusion); phone 390×844 toolbar usable; Code Agent open still covered by lightbox | 0.25h | Manual |
+| 🟢 14C.2 | Optional: pinch-to-zoom on touch (nice-to-have; buttons ship in 14A) | 0.25h+ | `ImageLightbox.tsx` |
+
+**Acceptance (gate before merge):**
+1. Desktop sidebar does not cover any part of the opened photo.
+2. Zoom in / out buttons work; percent label updates; Esc closes.
+3. `npm test` green including new `lightbox-zoom` + `ImageLightbox` tests.
+
+---
+
 ## 📊 Summary
 
 | Phase | Priority | Sub-tasks | Est. |
@@ -515,6 +553,7 @@ Account deletion with safeguards, per-account empty states, account limit enforc
 | **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
 | **Phase 12** Grade-Agnostic | 🔴 Critical | 36 (12A.1–12G.5) | **29h** |
 | **Phase 13** Multi-Tenant | 🔴 Critical | 21 (13A.1–13F.3) | **18h** |
+| **Phase 14** Image Lightbox + Zoom | 🔴 Critical | 8 (14A.1–14C.2) | **6h** |
 | **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
 | **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
 | **Phase 4** Voice | 🟡 Important | 3 | **9d** |
@@ -522,11 +561,18 @@ Account deletion with safeguards, per-account empty states, account limit enforc
 | **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
 | **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
 
-**Total new critical work (Phases 7–13):** ~90 hours (~11.3 days)
+**Total new critical work (Phases 7–14):** ~96 hours (~12 days)
 
-**Updated critical path:** Phase 7 (agent reliability 10h) → Phase 8 (mini window 10h) → Phase 9 (STT 4h) → Phase 10 (tests 14h) → Phase 11 (Code Agent v3 22h) → Phase 12 (Grade-Agnostic 29h) → **Phase 13 (Multi-Tenant 18h: A→B→C→D→E→F)** → Phase 0 UI (6d) → Phase 6 tests (10d)
+**Updated critical path:** Phase 7 → Phase 8 → Phase 9 → Phase 10 → Phase 11 → Phase 12 → Phase 13 → **Phase 14 (Lightbox stacking + zoom, 6h)** → Phase 0 UI → Phase 6 tests
 
-**Next immediate steps:**
+**Next immediate steps (Phase 14 — UX bug, can run ahead of Phase 13 if prioritized):**
+1. **14A.1** — Create `lightbox-zoom.ts` helpers (0.5h)
+2. **14A.2** — Portal + `z-[200]` stacking fix (1h) — fixes sidebar occlusion
+3. **14A.3–14A.5** — Zoom toolbar, pan, keyboard (2.5h)
+4. **14B.1–14B.2** — Unit + component tests (1.5h) — merge gate
+5. **14C.1** — Manual QA on desktop sidebar + phone
+
+**Next immediate steps (Phase 13 — if continuing multi-tenant):**
 1. **Phase 13A.1** — Create `TenantStorage` wrapper with `nsKey()` pattern (1h, foundation for all isolation)
 2. **Phase 13A.2** — Update `learning-memory.ts` to accept `accountId` param (1h, per-account BKT)
 3. **Phase 13A.3** — Update `storage.ts` to accept `accountId` param (1h, per-account chat history)

@@ -1,6 +1,6 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.3.0 · August 2026  
+> Version 0.3.1 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---
@@ -70,6 +70,7 @@ flowchart TB
 | **[subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)** | 🪟 Code Agent mini window UX: vibe coding, diff/apply, close behavior |
 | **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** | 📐 Grade-agnostic adaptive tutoring: K-12, auto-advance, age-aware language |
 | **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** | 🔐 Multi-tenant account isolation: per-account data partitioning, namespace storage, server sync scoping |
+| **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** | 🔍 Chat photo lightbox — portal stacking fix (above sidebar) + zoom in/out |
 | **[subsystems/security-sanitization.md](subsystems/security-sanitization.md)** | Threat model, input sanitization, tool sandboxing |
 | **[subsystems/testing.md](subsystems/testing.md)** | 🧪 Test strategy, gap analysis, regression catalog |
 | **[subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)** | 🔧 Agent session recovery, retry/timeout/error-handler, atomic file writes |

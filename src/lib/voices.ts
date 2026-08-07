@@ -8,6 +8,8 @@ export type TutorVoiceId =
   | "jorge"
   | "henri";
 
+import { FLAT_KEYS, nsKey, readFlatKey, RYAN_ACCOUNT } from "./tenant-storage";
+
 export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr";
 
 export type TutorVoice = {
@@ -213,43 +215,56 @@ export function resolveEdgeVoice(
   return fixed.edgeVoice;
 }
 
-export function loadVoiceId(): TutorVoiceId {
+export function loadVoiceId(accountId: string = RYAN_ACCOUNT): TutorVoiceId {
   if (typeof window === "undefined") return DEFAULT_VOICE_ID;
   try {
-    const saved = window.localStorage.getItem("spark.ttsVoice");
-    return normalizeVoiceId(saved);
+    const nsKeyVal = nsKey(accountId, "ttsVoice");
+    const saved = localStorage.getItem(nsKeyVal);
+    if (saved) return normalizeVoiceId(saved);
+    // Fallback: read flat key
+    const flat = readFlatKey(FLAT_KEYS.ttsVoice);
+    if (flat) {
+      try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
+      return normalizeVoiceId(flat);
+    }
   } catch {
     // ignore
   }
   return DEFAULT_VOICE_ID;
 }
 
-export function saveVoiceId(id: TutorVoiceId) {
+export function saveVoiceId(id: TutorVoiceId, accountId: string = RYAN_ACCOUNT) {
   try {
-    window.localStorage.setItem("spark.ttsVoice", id);
+    localStorage.setItem(nsKey(accountId, "ttsVoice"), id);
   } catch {
     // ignore
   }
 }
 
-const SPEAK_ENABLED_KEY = "spark.speakEnabled";
+const SPEAK_ENABLED_KEY = FLAT_KEYS.speakEnabled;
 
 /** Default ON — replies should be read aloud unless the student turns it off. */
-export function loadSpeakEnabled(): boolean {
+export function loadSpeakEnabled(accountId: string = RYAN_ACCOUNT): boolean {
   if (typeof window === "undefined") return true;
   try {
-    const saved = window.localStorage.getItem(SPEAK_ENABLED_KEY);
-    if (saved === "0" || saved === "false") return false;
-    if (saved === "1" || saved === "true") return true;
+    const nsKeyVal = nsKey(accountId, "speakEnabled");
+    const saved = localStorage.getItem(nsKeyVal);
+    if (saved) return saved !== "0" && saved !== "false";
+    // Fallback: flat key
+    const flat = readFlatKey(SPEAK_ENABLED_KEY);
+    if (flat) {
+      try { localStorage.setItem(nsKeyVal, flat); } catch { /* ignore */ }
+      return flat !== "0" && flat !== "false";
+    }
   } catch {
     // ignore
   }
   return true;
 }
 
-export function saveSpeakEnabled(enabled: boolean) {
+export function saveSpeakEnabled(enabled: boolean, accountId: string = RYAN_ACCOUNT) {
   try {
-    window.localStorage.setItem(SPEAK_ENABLED_KEY, enabled ? "1" : "0");
+    localStorage.setItem(nsKey(accountId, "speakEnabled"), enabled ? "1" : "0");
   } catch {
     // ignore
   }
