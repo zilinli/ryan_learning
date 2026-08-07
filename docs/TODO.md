@@ -28,7 +28,7 @@
 - [x] **A.6** — Client push filter — `pushStoreToServer` drops tombstoned sessions via deletion cache; `deleteServerChat` seeds cache
 - [x] **A.7** — Periodic re-hydration in `TutorShell.tsx` — 60s interval + `visibilitychange`; skips while agent busy
 - [x] **A.8** — Unit tests: `history-store-deletion.test.ts` (4), `history-sync.test.ts` (3)
-- [ ] **A.9** — Integration: `scripts/verify-deletion-sync.mjs` — two-device delete → no re-upload → media gone
+- [x] **A.9** — Integration: `scripts/verify-deletion-sync.mjs` — two-device delete → no re-upload → media gone (13/13 ✓ live)
 
 ### Phase B: Multi-Theme
 
