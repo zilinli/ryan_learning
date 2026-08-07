@@ -32,7 +32,10 @@ export function readFromCache(
       return null;
     }
     const raw = fs.readFileSync(p, "utf-8");
-    return JSON.parse(raw) as DictResponse;
+    const parsed = JSON.parse(raw) as DictResponse;
+    // Don't serve cached empty results — let the chain retry
+    if (!parsed.entries || parsed.entries.length === 0) return null;
+    return parsed;
   } catch {
     return null;
   }
