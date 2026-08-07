@@ -59,5 +59,25 @@ if (!isCursorApiKey(apiKey)) {
   apiKey = DEFAULT_CURSOR_API_KEY;
 }
 
-await fs.writeFile(envFile, `CURSOR_API_KEY=${apiKey}\n`, "utf8");
+// Preserve existing non-CURSOR keys (e.g. Merriam-Webster) when rewriting .env.local
+let preserved = "";
+try {
+  const raw = await fs.readFile(envFile, "utf8");
+  preserved = raw
+    .split(/\r?\n/)
+    .filter((line) => {
+      const t = line.trim();
+      if (!t || t.startsWith("#")) return true;
+      return !t.startsWith("CURSOR_API_KEY=");
+    })
+    .join("\n")
+    .replace(/\n+$/, "");
+} catch {
+  // no existing file
+}
+
+const nextBody = preserved
+  ? `CURSOR_API_KEY=${apiKey}\n${preserved}\n`
+  : `CURSOR_API_KEY=${apiKey}\n`;
+await fs.writeFile(envFile, nextBody, "utf8");
 console.log("环境已就绪");

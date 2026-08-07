@@ -38,6 +38,7 @@ import {
 } from "@/lib/engagement";
 import {
   getActiveAccount,
+  hydrateAccountsFromServer,
   loadAccounts,
   loadStudentProfile,
   RYAN_ACCOUNT_ID,
@@ -308,6 +309,17 @@ export function TutorShell() {
       // 4. Non-blocking background work
       void hydrateLearningMemoryFromServer(aid).then((m) => {
         if (!cancelled) setLearningMemory(m);
+      });
+
+      // Hydrate accounts from server so they're shared across devices
+      void hydrateAccountsFromServer().then((hydrated) => {
+        if (cancelled) return;
+        setAccounts(hydrated.accounts);
+        const fresh = getActiveAccount(hydrated);
+        if (fresh.id !== accountId) {
+          setAccountId(fresh.id);
+          setAccountName(fresh.profile.name);
+        }
       });
 
       // URL session param — select a specific conversation on deep-link

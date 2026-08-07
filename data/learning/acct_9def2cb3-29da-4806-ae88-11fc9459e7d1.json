@@ -1,0 +1,228 @@
+{
+  "topics": [
+    {
+      "id": "writing",
+      "label": "narrative writing",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786100819989
+    },
+    {
+      "id": "reading",
+      "label": "reading with evidence",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786100819989
+    },
+    {
+      "id": "fractions",
+      "label": "fraction concepts",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786100819989
+    },
+    {
+      "id": "decimals",
+      "label": "place value (decimals)",
+      "mastery": 47,
+      "solves": 2,
+      "lastSeen": 1786100819989
+    },
+    {
+      "id": "ela-early",
+      "label": "letter sounds / phonics",
+      "mastery": 47,
+      "solves": 1,
+      "lastSeen": 1786100819989
+    },
+    {
+      "id": "math-early",
+      "label": "counting & cardinality",
+      "mastery": 47,
+      "solves": 2,
+      "lastSeen": 1786100819989
+    }
+  ],
+  "skills": [
+    {
+      "id": "narrative-writing",
+      "label": "narrative writing",
+      "topicId": "writing",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "reading-evidence",
+      "label": "reading with evidence",
+      "topicId": "reading",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "fractions-concepts",
+      "label": "fraction concepts",
+      "topicId": "fractions",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "decimals",
+      "label": "decimals",
+      "topicId": "decimals",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "place-value",
+      "label": "place value (decimals)",
+      "topicId": "decimals",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "simple-sentences",
+      "label": "simple sentences",
+      "topicId": "ela-early",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "measurement-intro",
+      "label": "measurement intro",
+      "topicId": "math-early",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    },
+    {
+      "id": "place-value-100",
+      "label": "place value to 100",
+      "topicId": "math-early",
+      "pKnown": 0.472,
+      "mastery": 47,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786100819989,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786100819989
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1786100819989
+      }
+    }
+  ],
+  "recentStruggles": [],
+  "recentWins": [],
+  "sessionDigests": [],
+  "updatedAt": 1786100819989
+}

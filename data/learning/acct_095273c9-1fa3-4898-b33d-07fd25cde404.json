@@ -1,0 +1,389 @@
+{
+  "topics": [
+    {
+      "id": "decimals",
+      "label": "place value (decimals)",
+      "mastery": 53,
+      "solves": 15,
+      "lastSeen": 1786090504373
+    },
+    {
+      "id": "fractions",
+      "label": "fraction concepts",
+      "mastery": 48,
+      "solves": 21,
+      "lastSeen": 1786090504373
+    },
+    {
+      "id": "general",
+      "label": "general",
+      "mastery": 100,
+      "solves": 122,
+      "lastSeen": 1786082929711
+    },
+    {
+      "id": "reading",
+      "label": "reading with evidence",
+      "mastery": 100,
+      "solves": 23,
+      "lastSeen": 1786077872146
+    },
+    {
+      "id": "writing",
+      "label": "narrative writing",
+      "mastery": 100,
+      "solves": 47,
+      "lastSeen": 1786077661053
+    },
+    {
+      "id": "science-space",
+      "label": "Earth–Moon–Sun / space",
+      "mastery": 0,
+      "solves": 2,
+      "lastSeen": 1786006158373
+    },
+    {
+      "id": "geometry",
+      "label": "angles & triangles",
+      "mastery": 22,
+      "solves": 5,
+      "lastSeen": 1785990180383
+    },
+    {
+      "id": "multiplication",
+      "label": "multiplication facts",
+      "mastery": 98,
+      "solves": 12,
+      "lastSeen": 1785900598563
+    }
+  ],
+  "skills": [
+    {
+      "id": "place-value",
+      "label": "place value",
+      "topicId": "decimals",
+      "pKnown": 0.994,
+      "mastery": 99,
+      "attempts": 13,
+      "correct": 0,
+      "incorrect": 3,
+      "lastSeen": 1786090504373,
+      "sm2State": {
+        "ef": 1.3,
+        "interval": 6,
+        "reps": 2,
+        "prevReview": 1786090504373
+      },
+      "eloState": {
+        "rating": 1513,
+        "n": 13,
+        "lastUpdate": 1786090504373
+      }
+    },
+    {
+      "id": "fractions-concepts",
+      "label": "fraction concepts",
+      "topicId": "fractions",
+      "pKnown": 0.997,
+      "mastery": 100,
+      "attempts": 14,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786090504373,
+      "sm2State": {
+        "ef": 1.3800000000000001,
+        "interval": 237,
+        "reps": 8,
+        "prevReview": 1786090504373
+      },
+      "eloState": {
+        "rating": 1568,
+        "n": 8,
+        "lastUpdate": 1786090504373
+      }
+    },
+    {
+      "id": "decimals",
+      "label": "decimals",
+      "topicId": "decimals",
+      "pKnown": 0.064,
+      "mastery": 6,
+      "attempts": 2,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786090504373,
+      "sm2State": {
+        "ef": 2.2199999999999998,
+        "interval": 6,
+        "reps": 2,
+        "prevReview": 1786090504373
+      },
+      "eloState": {
+        "rating": 1519,
+        "n": 2,
+        "lastUpdate": 1786090504373
+      }
+    },
+    {
+      "id": "general-practice",
+      "label": "general practice",
+      "topicId": "general",
+      "pKnown": 0.999,
+      "mastery": 100,
+      "attempts": 122,
+      "correct": 7,
+      "incorrect": 14,
+      "lastSeen": 1786082929711,
+      "sm2State": {
+        "ef": 1.3,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1786082929711
+      },
+      "eloState": {
+        "rating": 2600,
+        "n": 117,
+        "lastUpdate": 1786082929711
+      }
+    },
+    {
+      "id": "reading-evidence",
+      "label": "reading with evidence",
+      "topicId": "reading",
+      "pKnown": 0.999,
+      "mastery": 100,
+      "attempts": 23,
+      "correct": 1,
+      "incorrect": 1,
+      "lastSeen": 1786077872146,
+      "sm2State": {
+        "ef": 1.3,
+        "interval": 10,
+        "reps": 4,
+        "prevReview": 1786077872146
+      },
+      "eloState": {
+        "rating": 1685,
+        "n": 23,
+        "lastUpdate": 1786077872146
+      }
+    },
+    {
+      "id": "narrative-writing",
+      "label": "narrative writing",
+      "topicId": "writing",
+      "pKnown": 0.999,
+      "mastery": 100,
+      "attempts": 47,
+      "correct": 0,
+      "incorrect": 3,
+      "confidence": 1,
+      "lastSeen": 1786077661053,
+      "sm2State": {
+        "ef": 1.3,
+        "interval": 38,
+        "reps": 9,
+        "prevReview": 1786077661053
+      },
+      "eloState": {
+        "rating": 1888,
+        "n": 47,
+        "lastUpdate": 1786077661053
+      }
+    },
+    {
+      "id": "fraction-word-problems",
+      "label": "fraction word problems",
+      "topicId": "fractions",
+      "pKnown": 0.89,
+      "mastery": 89,
+      "attempts": 6,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1786006593690,
+      "sm2State": {
+        "ef": 1.66,
+        "interval": 94,
+        "reps": 6,
+        "prevReview": 1786006593690
+      },
+      "eloState": {
+        "rating": 1552,
+        "n": 6,
+        "lastUpdate": 1786006593690
+      }
+    },
+    {
+      "id": "earth-moon-sun",
+      "label": "Earth–Moon–Sun / space",
+      "topicId": "science-space",
+      "pKnown": 0.001,
+      "mastery": 0,
+      "attempts": 2,
+      "correct": 0,
+      "incorrect": 1,
+      "lastSeen": 1786006158373,
+      "sm2State": {
+        "ef": 2.04,
+        "interval": 1,
+        "reps": 0,
+        "prevReview": 1786006158373
+      },
+      "eloState": {
+        "rating": 1492,
+        "n": 2,
+        "lastUpdate": 1786006158373
+      }
+    },
+    {
+      "id": "geometry-measure",
+      "label": "perimeter & area",
+      "topicId": "geometry",
+      "pKnown": 0.437,
+      "mastery": 44,
+      "attempts": 4,
+      "correct": 0,
+      "incorrect": 0,
+      "confidence": 1,
+      "lastSeen": 1785990180383,
+      "sm2State": {
+        "ef": 1.9399999999999997,
+        "interval": 27,
+        "reps": 4,
+        "prevReview": 1785990180383
+      },
+      "eloState": {
+        "rating": 1536,
+        "n": 4,
+        "lastUpdate": 1785990180383
+      }
+    },
+    {
+      "id": "multiplication-facts",
+      "label": "multiplication facts",
+      "topicId": "multiplication",
+      "pKnown": 0.979,
+      "mastery": 98,
+      "attempts": 12,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1785900598563,
+      "sm2State": {
+        "ef": 1.66,
+        "interval": 94,
+        "reps": 6,
+        "prevReview": 1785900598563
+      },
+      "eloState": {
+        "rating": 1552,
+        "n": 6,
+        "lastUpdate": 1785900598563
+      }
+    },
+    {
+      "id": "equivalent-fractions",
+      "label": "equivalent fractions",
+      "topicId": "fractions",
+      "pKnown": 0.001,
+      "mastery": 0,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "lastSeen": 1785811171724,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1785811171724
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1785811171724
+      }
+    },
+    {
+      "id": "geometry-angles",
+      "label": "angles & triangles",
+      "topicId": "geometry",
+      "pKnown": 0.001,
+      "mastery": 0,
+      "attempts": 1,
+      "correct": 0,
+      "incorrect": 0,
+      "confidence": 2,
+      "lastSeen": 1785774595373,
+      "sm2State": {
+        "ef": 2.36,
+        "interval": 1,
+        "reps": 1,
+        "prevReview": 1785774595373
+      },
+      "eloState": {
+        "rating": 1509,
+        "n": 1,
+        "lastUpdate": 1785774595373
+      }
+    }
+  ],
+  "recentStruggles": [
+    "Needed help with reading with evidence",
+    "Needed help with narrative writing",
+    "Needed help with place value"
+  ],
+  "recentWins": [
+    "Progress on reading with evidence",
+    "Progress on fractions"
+  ],
+  "sessionDigests": [
+    {
+      "date": "2026-08-04",
+      "topic": "Hello?",
+      "insight": "General practice session with 4 messages",
+      "bestApproach": "discussion-based tutoring"
+    },
+    {
+      "date": "2026-08-04",
+      "topic": "请你使用中文，粤语，英文，西班牙语打招呼",
+      "insight": "General practice session with 8 messages",
+      "bestApproach": "discussion-based tutoring"
+    },
+    {
+      "date": "2026-08-04",
+      "topic": "multiplication facts",
+      "insight": "Had some difficulty — 2 signs of struggle detected",
+      "bestApproach": "**before / after**"
+    },
+    {
+      "date": "2026-08-05",
+      "topic": "reading with evidence",
+      "insight": "Had some difficulty — 2 signs of struggle detected",
+      "bestApproach": "discussion-based tutoring"
+    },
+    {
+      "date": "2026-08-05",
+      "topic": "fraction word problems",
+      "insight": "Had some difficulty — 3 signs of struggle detected",
+      "bestApproach": "discussion-based tutoring"
+    },
+    {
+      "date": "2026-08-05",
+      "topic": "place value",
+      "insight": "Had some difficulty — 5 signs of struggle detected",
+      "bestApproach": "options often **say the same idea with different words**"
+    },
+    {
+      "date": "2026-08-06",
+      "topic": "place value",
+      "insight": "Worked on place value, fraction concepts",
+      "bestApproach": "discussion-based tutoring"
+    },
+    {
+      "date": "2026-08-07",
+      "topic": "place value",
+      "insight": "Worked on place value, reading with evidence, narrative writing",
+      "bestApproach": "you can"
+    }
+  ],
+  "updatedAt": 1786090504373
+}

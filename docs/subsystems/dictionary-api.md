@@ -129,11 +129,13 @@ Add to `.env.local` (and `.env.local.example`):
 ```bash
 # Merriam-Webster Dictionary API (register at https://dictionaryapi.com/)
 # Free tier: 1,000 queries/day per key, non-commercial use
-MERRIAM_WEBSTER_COLLEGIATE_KEY=your-key-here
-MERRIAM_WEBSTER_SPANISH_KEY=your-key-here
+MERRIAM_WEBSTER_SCHOOL_KEY=your-school-dictionary-key   # English (sd4) — preferred
+MERRIAM_WEBSTER_SPANISH_KEY=your-spanish-english-key    # ES↔EN bilingual
+# MERRIAM_WEBSTER_COLLEGIATE_KEY=your-collegiate-key    # optional English fallback
 ```
 
-Keys are optional. When absent, the system falls back to Free Dictionary API automatically.
+Keys are optional. When absent, the system falls back to Free Dictionary API / local seeds / translate.
+English prefers School Dictionary (`sd4`), then Collegiate if that key is set.
 
 ## 6.0 Caching
 

@@ -37,7 +37,7 @@ export type DictEntry = {
   /** Inflected forms */
   inflections?: { label: string; form: string }[];
   /** Data source label */
-  source: "merriam-webster" | "freedict" | "cantonese-local";
+  source: "merriam-webster" | "freedict" | "cantonese-local" | "translate";
 };
 
 /** Top-level response from /api/dict */
@@ -49,6 +49,12 @@ export type DictResponse = {
   correctedFrom?: string;
   /** Spelling suggestions when exact match fails (or alongside a correction) */
   suggestions?: string[];
+  /**
+   * Cross-language headword translations:
+   * - lang=en → ES / FR / ZH / 粵
+   * - other langs → English
+   */
+  crossTranslations?: { lang: DictLang; text: string }[];
 };
 
 /** Client-side recent search */

@@ -40,6 +40,33 @@ describe("parseMwCollegiate", () => {
     const entries = parseMwCollegiate(mixed, "hello");
     expect(entries).toHaveLength(2);
   });
+
+  it("tolerates array-shaped MW example (vis) nodes from School Dict", () => {
+    const entry = {
+      ...sampleEntry,
+      shortdef: ["pleasing to the senses"],
+      def: [
+        {
+          sseq: [
+            [
+              [
+                "sense",
+                {
+                  dt: [
+                    ["text", "pleasing"],
+                    ["vis", [{ t: "a {it}beautiful{/it} picture" }]],
+                  ],
+                },
+              ],
+            ],
+          ],
+        },
+      ],
+    };
+    const entries = parseMwCollegiate([entry as never], "beautiful");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.senses[0]!.example).toContain("beautiful");
+  });
 });
 
 describe("parseMwSpanish", () => {

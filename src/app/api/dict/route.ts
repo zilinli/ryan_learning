@@ -2,7 +2,8 @@
  * GET /api/dict?word=hello&lang=en
  *
  * Lookup chain: cache → Merriam-Webster → FreeDict → local seeds →
- * fuzzy suggestions (Datamuse + seeds) with auto-correct for close typos.
+ * translate fallback (ES/FR/ZH/Yue) → fuzzy suggestions + auto-correct →
+ * cross-language translation enrichment.
  */
 
 import { NextResponse } from "next/server";
@@ -17,10 +18,23 @@ import {
   buildSuggestions,
   pickAutoCorrect,
 } from "@/lib/dict-suggest";
+import {
+  enrichDictResponse,
+  needsTranslationEnrichment,
+  translateFallbackLookup,
+} from "@/lib/dict-translate";
 
 const VALID_LANGS = Object.keys(DICT_LANG_LABELS) as DictLang[];
 
-// Per-IP rate limit — raised because typing used to flood before debounce fix
+const MW_CACHE_SOURCES = ["mw", "mw-es"] as const;
+const FALLBACK_CACHE_SOURCES = [
+  "freedict",
+  "cantonese-local",
+  "local-seed",
+  "translate",
+] as const;
+const CACHE_SOURCES = [...MW_CACHE_SOURCES, ...FALLBACK_CACHE_SOURCES] as const;
+
 const rateMap = new Map<string, number[]>();
 const RATE_LIMIT = 120;
 
@@ -33,24 +47,44 @@ function rateLimited(ip: string): boolean {
   return hits.length > RATE_LIMIT;
 }
 
+function readCached(
+  sources: readonly string[],
+  lang: DictLang,
+  wordLower: string,
+): { result: DictResponse; source: string } | null {
+  for (const src of sources) {
+    const cached = readFromCache(src, lang, wordLower);
+    if (cached?.entries?.length) return { result: cached, source: src };
+  }
+  return null;
+}
+
 async function exactLookup(
   wordLower: string,
   lang: DictLang,
+  opts?: { allowTranslateFallback?: boolean },
 ): Promise<{ result: DictResponse | null; source: string }> {
-  // Cache (including local-seed)
-  for (const src of ["mw", "mw-es", "freedict", "cantonese-local", "local-seed"]) {
-    const cached = readFromCache(src, lang, wordLower);
-    if (cached) return { result: cached, source: src };
-  }
+  const allowTranslate = opts?.allowTranslateFallback !== false;
+
+  // Prefer Merriam-Webster cache, then live MW, before weaker FreeDict/translate caches
+  const mwCached = readCached(MW_CACHE_SOURCES, lang, wordLower);
+  if (mwCached) return mwCached;
 
   if (lang === "en") {
     const mw = await mwCollegiateLookup(wordLower);
     if (mw?.entries.length) return { result: mw, source: "mw" };
-    const fd = await freeDictLookup(wordLower, "en");
-    if (fd?.entries.length) return { result: fd, source: "freedict" };
   } else if (lang === "es") {
     const mw = await mwSpanishLookup(wordLower);
     if (mw?.entries.length) return { result: mw, source: "mw-es" };
+  }
+
+  const weakCached = readCached(FALLBACK_CACHE_SOURCES, lang, wordLower);
+  if (weakCached) return weakCached;
+
+  if (lang === "en") {
+    const fd = await freeDictLookup(wordLower, "en");
+    if (fd?.entries.length) return { result: fd, source: "freedict" };
+  } else if (lang === "es") {
     const fd = await freeDictLookup(wordLower, "es");
     if (fd?.entries.length) return { result: fd, source: "freedict" };
   } else if (lang === "fr") {
@@ -69,7 +103,26 @@ async function exactLookup(
   const seed = localSeedLookup(wordLower, lang);
   if (seed?.entries.length) return { result: seed, source: "local-seed" };
 
+  // FreeDict ES/FR/ZH is effectively empty for most standard vocabulary.
+  // Translate → English gloss so learners still get a usable entry.
+  if (allowTranslate && lang !== "en") {
+    const fb = await translateFallbackLookup(wordLower, lang);
+    if (fb?.entries.length) return { result: fb, source: "translate" };
+  }
+
   return { result: null, source: "" };
+}
+
+async function finalize(
+  result: DictResponse,
+  lang: DictLang,
+  wordLower: string,
+  source: string,
+): Promise<DictResponse> {
+  const enriched = await enrichDictResponse(result);
+  // Prefer caching the enriched payload so repeat hits stay bilingual
+  writeToCache(source || "freedict", lang, wordLower, enriched);
+  return enriched;
 }
 
 export async function GET(req: Request) {
@@ -97,16 +150,38 @@ export async function GET(req: Request) {
 
   const wordLower = word.toLowerCase().trim();
 
-  // Serve cache without counting against rate limit
-  for (const src of ["mw", "mw-es", "freedict", "cantonese-local", "local-seed"]) {
-    const cached = readFromCache(src, langParam, wordLower);
-    if (cached) return NextResponse.json(cached);
+  // Prefer Merriam-Webster cache hits; do not let weaker caches skip live MW
+  const mwHit = readCached(MW_CACHE_SOURCES, langParam, wordLower);
+  if (mwHit) {
+    if (!needsTranslationEnrichment(mwHit.result)) {
+      return NextResponse.json(mwHit.result);
+    }
+    const enriched = await enrichDictResponse(mwHit.result);
+    writeToCache(mwHit.source, langParam, wordLower, enriched);
+    return NextResponse.json(enriched);
   }
 
   if (rateLimited(ip)) {
-    // Still allow local seed / fuzzy offline path when rate-limited
+    const weak = readCached(FALLBACK_CACHE_SOURCES, langParam, wordLower);
+    if (weak) {
+      return NextResponse.json(
+        needsTranslationEnrichment(weak.result)
+          ? await enrichDictResponse(weak.result)
+          : weak.result,
+      );
+    }
     const seed = localSeedLookup(wordLower, langParam);
-    if (seed) return NextResponse.json(seed);
+    if (seed) {
+      return NextResponse.json(await enrichDictResponse(seed));
+    }
+    // Still allow translate fallback under rate limit — it doesn't hit FreeDict
+    if (langParam !== "en") {
+      const fb = await translateFallbackLookup(wordLower, langParam);
+      if (fb?.entries.length) {
+        writeToCache("translate", langParam, wordLower, fb);
+        return NextResponse.json(fb);
+      }
+    }
     const suggestions = await buildSuggestions(wordLower, langParam, 5);
     return NextResponse.json({
       word,
@@ -116,36 +191,53 @@ export async function GET(req: Request) {
     } as DictResponse);
   }
 
-  const { result, source } = await exactLookup(wordLower, langParam);
+  const { result, source } = await exactLookup(wordLower, langParam, {
+    allowTranslateFallback: false,
+  });
   if (result && result.entries.length > 0) {
-    if (source && source !== "local-seed") {
-      // local-seed already written below; avoid double-write noise
-    }
-    writeToCache(source || "freedict", langParam, wordLower, result);
-    return NextResponse.json(result);
+    return NextResponse.json(
+      await finalize(result, langParam, wordLower, source),
+    );
   }
 
-  // ── Fuzzy: suggestions + auto-correct for EN / ES / FR (and others) ──
   const suggestions = await buildSuggestions(wordLower, langParam, 5);
   const auto = pickAutoCorrect(wordLower, suggestions);
 
   if (auto) {
-    const corrected = await exactLookup(auto.toLowerCase(), langParam);
+    const corrected = await exactLookup(auto.toLowerCase(), langParam, {
+      allowTranslateFallback: false,
+    });
     if (corrected.result && corrected.result.entries.length > 0) {
-      const payload: DictResponse = {
+      const enriched = await enrichDictResponse({
         ...corrected.result,
         word: corrected.result.word || auto,
         correctedFrom: word,
         suggestions: suggestions.filter(
           (s) => s.toLowerCase() !== auto.toLowerCase(),
         ),
-      };
-      // Cache under the typo key so repeat lookups are instant
-      writeToCache("local-seed", langParam, wordLower, payload);
+      });
+      writeToCache("local-seed", langParam, wordLower, enriched);
       if (corrected.source) {
-        writeToCache(corrected.source, langParam, auto.toLowerCase(), corrected.result);
+        writeToCache(
+          corrected.source,
+          langParam,
+          auto.toLowerCase(),
+          enriched,
+        );
       }
-      return NextResponse.json(payload);
+      return NextResponse.json(enriched);
+    }
+  }
+
+  // FreeDict ES/FR/ZH rarely has entries — translate into an English gloss.
+  if (langParam !== "en") {
+    const fb = await exactLookup(wordLower, langParam, {
+      allowTranslateFallback: true,
+    });
+    if (fb.result && fb.result.entries.length > 0) {
+      return NextResponse.json(
+        await finalize(fb.result, langParam, wordLower, fb.source || "translate"),
+      );
     }
   }
 

@@ -279,6 +279,8 @@ export function saveAccounts(store: AccountsStore): void {
     if (active) {
       localStorage.setItem(PROFILE_KEY, JSON.stringify(active.profile));
     }
+    // Push to server so accounts are shared across devices (fire-and-forget)
+    void pushAccountsToServer(next);
   } catch {
     // ignore
   }
@@ -550,4 +552,68 @@ export function curriculumPromptLines(profile: StudentProfile): string[] {
     "Science: Honors/AP Biology, Chemistry, Physics. Literary analysis, research papers.",
     "If grade 12: act as research advisor for capstone projects — methodology coaching, not drills.",
   ];
+}
+
+/** ----- Server-side accounts sync (cross-device) ----- */
+
+/**
+ * Fetch the global account list from the server and merge with local.
+ * Server accounts are authoritative; any local-only accounts are uploaded.
+ * Returns the merged store (already saved to localStorage).
+ */
+export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
+  const local = loadAccounts();
+  try {
+    const res = await fetch("/api/accounts");
+    if (!res.ok) return local;
+    const data = (await res.json()) as { accounts: AccountRecord[] | null; version?: number };
+    if (!data.accounts || !Array.isArray(data.accounts)) return local;
+
+    const serverStore: AccountsStore = {
+      version: 1,
+      activeId: local.activeId,
+      accounts: data.accounts,
+    };
+
+    const merged = mergeServerAccounts(local, serverStore);
+    saveAccounts(merged);
+    return merged;
+  } catch {
+    return local;
+  }
+}
+
+/**
+ * Push the current local accounts store to the server (fire-and-forget).
+ * The server becomes the shared source of truth for all devices.
+ */
+export function pushAccountsToServer(store?: AccountsStore): void {
+  try {
+    const payload = store ?? loadAccounts();
+    void fetch("/api/accounts", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // non-critical
+  }
+}
+
+/** Server baseline + add any local-only accounts, ensure Ryan exists. */
+function mergeServerAccounts(local: AccountsStore, server: AccountsStore): AccountsStore {
+  const serverIds = new Set(server.accounts.map((a) => a.id));
+  const mergedAccounts = [...server.accounts];
+
+  for (const acct of local.accounts) {
+    if (!serverIds.has(acct.id)) {
+      mergedAccounts.push(acct);
+    }
+  }
+
+  return ensureDefaultAccount({
+    version: 1,
+    activeId: local.activeId,
+    accounts: mergedAccounts,
+  });
 }

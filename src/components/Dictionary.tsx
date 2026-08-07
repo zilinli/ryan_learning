@@ -98,7 +98,13 @@ function EntryCard({ entry }: { entry: DictEntry }) {
         </span>
         {entry.source ? (
           <span className="text-[10px] uppercase tracking-wider text-[var(--ink-muted)]/60">
-            {entry.source === "merriam-webster" ? "MW" : entry.source === "freedict" ? "FD" : "粵"}
+            {entry.source === "merriam-webster"
+              ? "MW"
+              : entry.source === "freedict"
+                ? "FD"
+                : entry.source === "translate"
+                  ? "TR"
+                  : "粵"}
           </span>
         ) : null}
       </div>
@@ -109,18 +115,62 @@ function EntryCard({ entry }: { entry: DictEntry }) {
             <p className="text-[var(--ink)]">{s.definition}</p>
             {s.example ? (
               <p className="mt-1 text-sm text-[var(--ink-muted)] italic">
-                "{s.example}"
+                &ldquo;{s.example}&rdquo;
+                {s.exampleTranslation ? (
+                  <span className="not-italic text-[var(--ink-muted)]">
+                    {" "}
+                    — {s.exampleTranslation}
+                  </span>
+                ) : null}
               </p>
             ) : null}
             {s.translations?.length ? (
               <p className="mt-1 text-sm text-[var(--teal)]">
-                {s.translations.map((t) => `${t.text} (${DICT_LANG_LABELS[t.lang]})`).join(" · ")}
+                {s.translations.map((t) => `${DICT_LANG_LABELS[t.lang]}: ${t.text}`).join(" · ")}
               </p>
             ) : null}
           </li>
         ))}
       </ul>
     </article>
+  );
+}
+
+function CrossTranslationsPanel({
+  items,
+  queryLang,
+}: {
+  items: { lang: DictLang; text: string }[];
+  queryLang: DictLang;
+}) {
+  if (!items.length) return null;
+  const title =
+    queryLang === "en" ? "Translations" : "English";
+  return (
+    <div className="animate-fade-up rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/6 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--teal)]">
+        {title}
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((t) => (
+          <li
+            key={`${t.lang}:${t.text}`}
+            className="flex flex-wrap items-baseline gap-x-2 text-[15px]"
+          >
+            {queryLang === "en" ? (
+              <>
+                <span className="min-w-[4.5rem] text-xs font-medium text-[var(--ink-muted)]">
+                  {DICT_LANG_LABELS[t.lang]}
+                </span>
+                <span className="font-medium text-[var(--ink)]">{t.text}</span>
+              </>
+            ) : (
+              <span className="font-medium text-[var(--ink)]">{t.text}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -460,9 +510,17 @@ export function Dictionary() {
               ) : null}
             </div>
           ) : hasResults ? (
-            resultEntries.map((entry, i) => (
-              <EntryCard key={`${entry.headword}-${entry.partOfSpeech}-${i}`} entry={entry} />
-            ))
+            <>
+              {results?.crossTranslations?.length ? (
+                <CrossTranslationsPanel
+                  items={results.crossTranslations}
+                  queryLang={lang}
+                />
+              ) : null}
+              {resultEntries.map((entry, i) => (
+                <EntryCard key={`${entry.headword}-${entry.partOfSpeech}-${i}`} entry={entry} />
+              ))}
+            </>
           ) : query.trim().length >= 2 && !loading ? (
             <p className="text-[var(--ink-muted)]">
               Enter a word to look up definitions, translations, and pronunciations.

@@ -6,7 +6,9 @@ import AccountAvatar, { getInitial } from "./AccountAvatar";
 import {
   createAccount,
   getActiveAccount,
+  hydrateAccountsFromServer,
   loadAccounts,
+  pushAccountsToServer,
   RYAN_ACCOUNT_ID,
   saveAccounts,
   saveRyanAccount,
@@ -38,6 +40,11 @@ export function AccountHome() {
     setSubjects(active.profile.curriculum?.subjects?.length
       ? [...active.profile.curriculum.subjects]
       : ["math"]);
+
+    // Hydrate accounts from server so list is up-to-date across devices
+    void hydrateAccountsFromServer().then((hydrated) => {
+      setStore(hydrated);
+    });
   }, []);
 
   if (!store) {
@@ -68,7 +75,7 @@ export function AccountHome() {
       return;
     }
     if (store.accounts.length >= MAX_ACCOUNTS) {
-      setNotice(`You have ${MAX_ACCOUNTS} accounts — that's the limit for this device. Remove one to add another.`);
+      setNotice(`${MAX_ACCOUNTS} accounts max. Remove one to add another.`);
       return;
     }
     refresh(createAccount(trimmed, {
