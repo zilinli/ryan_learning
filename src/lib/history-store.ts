@@ -40,8 +40,15 @@ function safeId(sessionId: string): string | null {
 }
 
 function dataDir(accountId: string = "default"): string {
-  if (accountId === "default") return LEGACY_CONV_DIR;
-  return path.join(HISTORY_DIR, accountId);
+  const canonical = toServerAccountId(accountId);
+  if (canonical === "default") return LEGACY_CONV_DIR;
+  return path.join(HISTORY_DIR, canonical);
+}
+
+/** Map client accountId → server storage accountId. "acct_ryan" → "default" for backward compat. */
+function toServerAccountId(clientId: string): string {
+  if (clientId === "acct_ryan" || clientId === "default") return "default";
+  return clientId;
 }
 
 function filePath(sessionId: string, accountId: string = "default"): string {

@@ -17,9 +17,15 @@ async function ensureDir(): Promise<void> {
 }
 
 function fileForAccount(accountId: string): string {
-  // Default "default" maps to the existing flat file for backward compat
-  if (accountId === "default") return DEFAULT_FILE;
-  return path.join(LEARNING_DIR, `${accountId}.json`);
+  const canonical = toServerId(accountId);
+  if (canonical === "default") return DEFAULT_FILE;
+  return path.join(LEARNING_DIR, `${canonical}.json`);
+}
+
+/** Map client accountId → server storage. "acct_ryan" → "default" for backward compat. */
+function toServerId(clientId: string): string {
+  if (clientId === "acct_ryan" || clientId === "default") return "default";
+  return clientId;
 }
 
 export async function readServerLearningMemory(accountId: string = "default"): Promise<LearningMemory> {
