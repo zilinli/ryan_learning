@@ -53,10 +53,10 @@ Beyond text, the code agent accepts:
 
 | Input | How |
 |-------|-----|
-| **📎 File upload** | Click the paperclip — supports images (jpg/png/gif/webp), PDFs, text files (txt/md/csv/json/log), and code files (ts/tsx/js/jsx/py). Up to 9 attachments. |
-| **📷 Camera** | Take a photo directly from your device camera |
-| **🎤 Voice** | Tap the mic to record → automatic STT transcription in the input box |
-| **zh/en** | Toggle voice language between Chinese and English |
+| 📎 **File upload** | Click the paperclip — supports images (jpg/png/gif/webp), PDFs, text files (txt/md/csv/json/log), and code files (ts/tsx/js/jsx/py). Up to 9 attachments. |
+| 📷 **Camera** | Click the camera to open a live viewfinder — snap homework pages, flip cameras, or pick from album. Uses the same `CameraCapture` modal as the main chat. |
+| 🎤 **Voice** | Tap the mic to record → automatic STT transcription in the input box |
+| zh/en | Toggle voice language between Chinese and English |
 
 ### What you can ask
 

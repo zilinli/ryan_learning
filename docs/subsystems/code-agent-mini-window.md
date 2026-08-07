@@ -64,7 +64,7 @@ TutorShell.tsx
                           │   ├── applied → auto-reset after 3s
                           │   └── error → retryable error banner
                           │
-                          ├── Composer (single-line, Enter=send)
+                          ├── Composer (single-line, Enter=send; 📷 uses CameraCapture live viewfinder)
                           │
                           └── Connection to /api/console/chat (SSE)
                               ├── Uses Cursor SDK agent
@@ -79,7 +79,7 @@ The underlying infrastructure is already complete:
 - `console-harness.ts` — 8 sandboxed code editing tools (read, search, edit, test, diff, apply, revert, list)
 - `console-session-store.ts` — server-side session persistence
 - `MiniConsoleThread.tsx` — chat display (already built, just needs wiring)
-- `ConsoleComposer.tsx` — input with Enter-to-send
+- `ConsoleComposer.tsx` — input with Enter-to-send; camera uses `CameraCapture` modal (live viewfinder, same as main chat Composer)
 - `MiniDiffViewer.tsx` — diff with apply/cancel
 - `PinGate.tsx` — parental PIN before code changes
 
