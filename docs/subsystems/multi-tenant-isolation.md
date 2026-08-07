@@ -1,7 +1,7 @@
 # Multi-Tenant Account Isolation Design
 
-> Version 0.1 · August 2026
-> Status: Design — data isolation for multi-student Spark usage
+> Version 1.1 · August 2026
+> Status: ✅ Implemented — data isolation + global cross-device account sync
 > References: Blockly profiles UX (Wonder Workshop), Khan Academy Kids multi-user,
 >   localStorage namespace patterns (greatstorage, LSNS, persistme)
 
@@ -502,3 +502,51 @@ Each phase independently shippable. Phases A–C can be deployed without visible
 - **LSNS convention** — Application code prefixes keys with root subpath. Libraries prefix with their domain. No central authority needed.
 - **Shared iPad** (Apple, iPadOS 13.4+) — User partitions isolate apps, data, and preferences per student. Managed Apple ID for sign-in. Our localStorage namespace pattern mirrors this at the app level.
 - **Local-first software** (Kleppmann et al.) — CRDTs and merge strategies for cross-device sync. Spark's `mergeLearningMemory` and `mergeConversationLists` already follow this pattern; scope to `accountId` is the only change.
+
+---
+
+## 13. Global Cross-Device Account Sync (v1.1)
+
+### 13.1 Problem
+
+Accounts were stored purely in `localStorage` (`spark.accounts.v1`). An account created on one device was invisible on another device. The account list was local-only.
+
+### 13.2 Solution
+
+Server-side accounts persistence via `GET/PUT /api/accounts`, backed by `data/accounts/accounts.json` (atomic write via `lockedWriteJson`).
+
+```
+┌──────────────────────────────────────────────────────┐
+│                  Server (accounts.json)              │
+│  { version: 1, activeId: "acct_ryan",               │
+│    accounts: [ryan, emma, alex, ...] }              │
+└──────┬───────────────────────────────┬──────────────┘
+       │                               │
+  PUT /api/accounts               GET /api/accounts
+       │                               │
+  ┌────▼──────┐                  ┌─────▼──────┐
+  │  iPad     │                  │  Laptop    │
+  │  creates  │                  │  fetches   │
+  │  "Emma"   │                  │  list →    │
+  │  account  │                  │  Emma      │
+  │           │                  │  appears!  │
+  └───────────┘                  └────────────┘
+```
+
+### 13.3 Components
+
+| Component | File | Role |
+|-----------|------|------|
+| Server store | `src/lib/accounts-store.ts` | Read/write `data/accounts/accounts.json` atomically |
+| API route | `src/app/api/accounts/route.ts` | `GET` → return server accounts; `PUT` → upsert full store |
+| Client hydrate | `student-profile.ts: hydrateAccountsFromServer()` | Fetch server list, merge with local, save merged |
+| Client push | `student-profile.ts: pushAccountsToServer()` | Fire-and-forget push on every `saveAccounts()` call |
+| Init hook | `TutorShell.tsx` | Calls `hydrateAccountsFromServer()` on page load |
+| Account page | `AccountHome.tsx` | Calls `hydrateAccountsFromServer()` on mount |
+
+### 13.4 Sync Strategy
+
+- **Last-write-wins**: `saveAccounts()` pushes the full local store to server on every change (create, switch, delete).
+- **Hydrate on load**: `TutorShell` and `AccountHome` fetch server accounts on init and merge.
+- **Merge logic** (`mergeServerAccounts`): server accounts are the baseline; any account present locally but not on server is added to the merged list. Ryan is always guaranteed present via `ensureDefaultAccount()`.
+- **No auth**: Accounts are identified by random UUID (`acct_<uuid>`). No passwords, no email. Intended for shared family/classroom devices.

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraCapture } from "@/components/CameraCapture";
+import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 import { translateSentence } from "@/lib/dict-client";
 import { compressImageDataUrl } from "@/lib/image-process";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
+import { sttLangFromDictLang } from "@/lib/stt-lang";
 import type {
   DictLang,
   SentenceTranslateResponse,
@@ -208,13 +210,22 @@ export function SentenceTranslate() {
 
       {/* Text */}
       <div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          placeholder="Type or paste a sentence… or snap a photo of text"
-          className="w-full resize-y rounded-2xl border border-[var(--line)] bg-white/90 px-4 py-3 text-[15px] leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
-        />
+        <div className="flex gap-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            placeholder="Type or paste a sentence… or snap a photo of text"
+            className="min-h-[6.5rem] w-full flex-1 resize-y rounded-2xl border border-[var(--line)] bg-white/90 px-4 py-3 text-[15px] leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10"
+          />
+          <MicTranscribeButton
+            language={sttLangFromDictLang(from === "auto" ? to : from)}
+            disabled={loading}
+            onTranscript={(t) => {
+              setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t));
+            }}
+          />
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {(Object.keys(SAMPLE_SENTENCES) as DictLang[]).slice(0, 3).map((l) => (
             <button

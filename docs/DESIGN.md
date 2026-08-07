@@ -1,6 +1,6 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.3.1 · August 2026  
+> Version 0.3.2 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---

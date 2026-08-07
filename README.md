@@ -45,7 +45,7 @@ Word lookup **and** AI sentence/photo translation in one page:
 **Word (dictionary)**
 - **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese)
 - **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY)
-- **Voice input** — Hold the mic to speak a word (SenseVoice + faster-whisper)
+- **Voice input** — Hold/tap mic (same 16 kHz WAV + `/api/transcribe` pipeline as the main tutor; language follows the selected dict pill)
 - **Text-to-speech** — 🔊 beside each headword (edge-tts)
 - **Caching** — 24-hour server-side cache; cross-language glosses on results
 

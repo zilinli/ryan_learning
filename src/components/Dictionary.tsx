@@ -6,7 +6,9 @@ import type { DictEntry, DictLang, DictPageMode, DictResponse, RecentSearch } fr
 import { DICT_LANG_LABELS } from "@/lib/dict-types";
 import { dictLookup, loadRecentSearches, saveRecentSearch } from "@/lib/dict-client";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
+import { sttLangFromDictLang } from "@/lib/stt-lang";
 import { SentenceTranslate } from "@/components/SentenceTranslate";
+import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 
 const SAMPLE_WORDS: Record<DictLang, string[]> = {
   en: ["hello", "the", "dictionary", "water", "beautiful", "imagination"],
@@ -15,28 +17,6 @@ const SAMPLE_WORDS: Record<DictLang, string[]> = {
   zh: ["你好", "谢谢", "水", "学习", "字典", "美丽"],
   yue: ["我", "你", "係", "好靚", "食飯", "唔該"],
 };
-
-// ── Mic recording ──
-
-function filenameForAudioBlob(blob: Blob): string {
-  if (blob.type.includes("webm")) return "recording.webm";
-  if (blob.type.includes("ogg")) return "recording.ogg";
-  return "recording.wav";
-}
-
-async function blobLooksSilent(blob: Blob): Promise<boolean> {
-  if (blob.size < 200) return true;
-  try {
-    const ctx = new OfflineAudioContext(1, 44100, 44100);
-    const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const data = buf.getChannelData(0);
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) sum += data[i]! * data[i]!;
-    return Math.sqrt(sum / data.length) < 0.002;
-  } catch {
-    return false;
-  }
-}
 
 // ── Entry card ──
 
@@ -185,10 +165,6 @@ export function Dictionary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [recents, setRecents] = useState<RecentSearch[]>([]);
-  const [micRecording, setMicRecording] = useState(false);
-  const [micError, setMicError] = useState("");
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -250,76 +226,22 @@ export function Dictionary() {
     [query, doLookup],
   );
 
-  // ── Mic recording ──
-  const startMic = useCallback(async () => {
-    setMicError("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg",
-      });
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setMicRecording(false);
-        const blob = new Blob(chunksRef.current, {
-          type: rec.mimeType || "audio/webm",
-        });
-        if (blob.size < 200) return;
-        try {
-          if (await blobLooksSilent(blob)) {
-            setMicError("Too quiet — try speaking closer to the mic.");
-            return;
-          }
-          const body = new FormData();
-          body.append("audio", blob, filenameForAudioBlob(blob));
-          const res = await fetch("/api/transcribe", {
-            method: "POST",
-            body,
-            signal: AbortSignal.timeout(60_000),
-          });
-          const data = (await res.json().catch(() => null)) as { text?: string; error?: string } | null;
-          if (!res.ok) throw new Error(data?.error || "Recognition failed");
-          const text = (data?.text || "").trim();
-          if (!text) {
-            setMicError("Didn't catch that — please try again.");
-            return;
-          }
-          setQuery(text);
-          doLookup(text, lang);
-        } catch (err) {
-          setMicError(
-            err instanceof Error
-              ? err.message.includes("abort") || err.message.includes("timeout")
-                ? "Recognition timed out. Try a shorter word."
-                : err.message
-              : "Recognition failed",
-          );
-        }
-      };
-      recorderRef.current = rec;
-      rec.start();
-      setMicRecording(true);
-    } catch {
-      setMicError("Microphone access denied. Please allow mic in browser settings.");
-    }
-  }, [lang, doLookup]);
-
-  const stopMic = useCallback(() => {
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-    }
-  }, []);
+  // ── Mic: shared WAV STT (same pipeline as main tutor) ──
+  const onMicTranscript = useCallback(
+    (text: string) => {
+      const word = text.trim();
+      if (!word) return;
+      setQuery(word);
+      void doLookup(word, lang);
+    },
+    [doLookup, lang],
+  );
 
   // Cleanup
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       abortRef.current?.abort();
-      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     };
   }, []);
 
@@ -437,36 +359,12 @@ export function Dictionary() {
               ) : null}
             </div>
 
-            {/* Mic button */}
-            <button
-              type="button"
-              onPointerDown={startMic}
-              onPointerUp={stopMic}
-              onPointerLeave={stopMic}
-              className={`flex-shrink-0 rounded-xl border p-3 transition active:scale-95 ${
-                micRecording
-                  ? "border-[var(--coral)] bg-[var(--coral)] text-white animate-pulse-ring"
-                  : "border-[var(--line)] bg-white/80 text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] dark:bg-white/10"
-              }`}
-              aria-label="Hold to speak"
-              title="Hold to speak a word"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
+            <MicTranscribeButton
+              language={sttLangFromDictLang(lang)}
+              disabled={loading}
+              onTranscript={onMicTranscript}
+            />
           </div>
-          {micRecording ? (
-            <p className="mt-1.5 text-xs text-[var(--coral)] animate-pulse">
-              Listening… release to search
-            </p>
-          ) : null}
-          {micError ? (
-            <p className="mt-1.5 text-xs text-[var(--coral)]">{micError}</p>
-          ) : null}
         </div>
 
         {/* Sample words */}

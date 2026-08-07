@@ -109,6 +109,7 @@ File cache: `data/dict-cache/{source}/{lang}/{word}.json` · TTL 24h · MW prefe
 ## 7.0 Word UI notes
 
 - Language pills · debounced search (~450ms) · mic STT · TTS · Did-you-mean · cross-translations panel
+- **Mic** reuses the main-tutor pipeline: `startWavRecorder` (16 kHz WAV) → `POST /api/transcribe` with `language` from the selected dict pill (`MicTranscribeButton`). Avoids MediaRecorder WebM (short clips often fail ffmpeg).
 - Rate limit: 120/min; seeds / translate still available when limited
 
 ## 8.0 Testing
