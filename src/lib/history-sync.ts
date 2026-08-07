@@ -105,9 +105,10 @@ export async function repairMissingMedia(
 /** Merge server list into the local store (server is shared across devices). */
 export async function hydrateFromServer(
   local: ConversationsStore,
+  accountId: string = RYAN_ACCOUNT,
 ): Promise<ConversationsStore> {
   try {
-    const remote = await fetchServerHistory();
+    const remote = await fetchServerHistory(accountId);
     return mergeConversationLists(
       local.conversations,
       remote,
@@ -150,6 +151,7 @@ function applyServerMediaIds(
 /** Push non-empty chats to the shared server store (persists homework photos). */
 export async function pushStoreToServer(
   store: ConversationsStore,
+  accountId: string = RYAN_ACCOUNT,
 ): Promise<ConversationsStore> {
   const conversations = store.conversations.filter((c) => c.messages.length > 0);
   if (!conversations.length) return store;
@@ -157,7 +159,7 @@ export async function pushStoreToServer(
     const res = await fetch("/api/history", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversations }),
+      body: JSON.stringify({ accountId, conversations }),
     });
     if (!res.ok) return store;
     const data = (await res.json()) as {
@@ -172,9 +174,9 @@ export async function pushStoreToServer(
   return store;
 }
 
-export async function deleteServerChat(sessionId: string): Promise<void> {
+export async function deleteServerChat(sessionId: string, accountId: string = RYAN_ACCOUNT): Promise<void> {
   try {
-    await fetch(`/api/history?sessionId=${encodeURIComponent(sessionId)}`, {
+    await fetch(`/api/history?sessionId=${encodeURIComponent(sessionId)}&accountId=${encodeURIComponent(accountId)}`, {
       method: "DELETE",
     });
   } catch {

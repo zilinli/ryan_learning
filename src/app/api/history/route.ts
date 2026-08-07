@@ -12,12 +12,18 @@ import type { ConversationRecord } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET — all chats, optional ?q= keyword search, ?sessionId=, ?stats=1 */
+function getAccountId(req: Request): string {
+  const url = new URL(req.url);
+  return url.searchParams.get("accountId") || "default";
+}
+
+/** GET — all chats, optional ?q= keyword search, ?sessionId=, ?stats=1, ?accountId= */
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const accountId = getAccountId(req);
   const sessionId = url.searchParams.get("sessionId");
   if (sessionId) {
-    const one = await getServerConversation(sessionId);
+    const one = await getServerConversation(sessionId, accountId);
     if (!one) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
@@ -25,13 +31,13 @@ export async function GET(req: Request) {
   }
 
   if (url.searchParams.get("stats") === "1") {
-    const stats = await historyStats();
+    const stats = await historyStats(accountId);
     return Response.json({ stats });
   }
 
   const q = (url.searchParams.get("q") || "").trim();
   if (q) {
-    const hits = await searchServerConversations(q);
+    const hits = await searchServerConversations(q, accountId);
     return Response.json({
       version: 3,
       query: q,
@@ -44,8 +50,8 @@ export async function GET(req: Request) {
     });
   }
 
-  const conversations = await listServerConversations();
-  const stats = await historyStats();
+  const conversations = await listServerConversations(accountId);
+  const stats = await historyStats(accountId);
   return Response.json({
     version: 3,
     conversations,
@@ -53,11 +59,12 @@ export async function GET(req: Request) {
   });
 }
 
-/** PUT — upsert one or many conversations into global history. */
+/** PUT — upsert one or many conversations into account-scoped history. */
 export async function PUT(req: Request) {
   let body: {
     conversation?: ConversationRecord;
     conversations?: ConversationRecord[];
+    accountId?: string;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -65,8 +72,10 @@ export async function PUT(req: Request) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const accountId = body.accountId || "default";
+
   if (body.conversation) {
-    const saved = await upsertServerConversation(body.conversation);
+    const saved = await upsertServerConversation(body.conversation, accountId);
     if (!saved) {
       return Response.json(
         { error: "Nothing to save (empty chat or bad id)" },
@@ -77,7 +86,7 @@ export async function PUT(req: Request) {
   }
 
   if (Array.isArray(body.conversations)) {
-    const saved = await upsertServerConversations(body.conversations);
+    const saved = await upsertServerConversations(body.conversations, accountId);
     return Response.json({ ok: true, saved: saved.length, conversations: saved });
   }
 
@@ -87,12 +96,14 @@ export async function PUT(req: Request) {
   );
 }
 
-/** DELETE — remove a chat from global history (?sessionId=). */
+/** DELETE — remove a chat from account-scoped history (?sessionId=&accountId=). */
 export async function DELETE(req: Request) {
-  const sessionId = new URL(req.url).searchParams.get("sessionId");
+  const url = new URL(req.url);
+  const sessionId = url.searchParams.get("sessionId");
   if (!sessionId) {
     return Response.json({ error: "Missing sessionId" }, { status: 400 });
   }
-  const ok = await deleteServerConversation(sessionId);
+  const accountId = getAccountId(req);
+  const ok = await deleteServerConversation(sessionId, accountId);
   return Response.json({ ok });
 }

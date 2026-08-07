@@ -19,8 +19,10 @@ import {
 } from "./media-store";
 import { lockedWriteJson } from "./file-lock";
 
-/** Server-side durable chat history (shared across browsers / devices). */
-const DATA_DIR = path.join(process.cwd(), "data", "conversations");
+/** Server-side durable chat history (account-scoped, shared across browsers / devices). */
+const BASE_DIR = path.join(process.cwd(), "data");
+const HISTORY_DIR = path.join(BASE_DIR, "history");
+const LEGACY_CONV_DIR = path.join(BASE_DIR, "conversations");
 export const SERVER_MAX_CONVERSATIONS = 200;
 
 export {
@@ -37,12 +39,17 @@ function safeId(sessionId: string): string | null {
   return id;
 }
 
-function filePath(sessionId: string): string {
-  return path.join(DATA_DIR, `${sessionId}.json`);
+function dataDir(accountId: string = "default"): string {
+  if (accountId === "default") return LEGACY_CONV_DIR;
+  return path.join(HISTORY_DIR, accountId);
 }
 
-async function ensureDir(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+function filePath(sessionId: string, accountId: string = "default"): string {
+  return path.join(dataDir(accountId), `${sessionId}.json`);
+}
+
+async function ensureDir(accountId: string = "default"): Promise<void> {
+  await fs.mkdir(dataDir(accountId), { recursive: true });
 }
 
 /**
@@ -85,14 +92,20 @@ export async function prepareConversationForServer(
   return sanitizeForServer(withMedia);
 }
 
-async function readAllFromDisk(): Promise<ConversationRecord[]> {
-  await ensureDir();
-  const names = await fs.readdir(DATA_DIR);
+async function readAllFromDisk(accountId: string = "default"): Promise<ConversationRecord[]> {
+  const dir = dataDir(accountId);
+  await ensureDir(accountId);
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch {
+    return [];
+  }
   const out: ConversationRecord[] = [];
   for (const name of names) {
     if (!name.endsWith(".json") || name.startsWith("_")) continue;
     try {
-      const raw = await fs.readFile(path.join(DATA_DIR, name), "utf8");
+      const raw = await fs.readFile(path.join(dir, name), "utf8");
       const parsed = JSON.parse(raw) as ConversationRecord;
       if (parsed?.sessionId && Array.isArray(parsed.messages)) {
         out.push(sanitizeForServer(parsed));
@@ -108,13 +121,13 @@ async function readAllFromDisk(): Promise<ConversationRecord[]> {
  * Drop oldest chats / trim messages so we stay under the message budget.
  * Deletes pruned conversation files and orphan media from disk.
  */
-export async function enforceServerRetention(): Promise<{
+export async function enforceServerRetention(accountId: string = "default"): Promise<{
   conversations: number;
   messages: number;
   bytes: number;
   removed: number;
 }> {
-  const before = await readAllFromDisk();
+  const before = await readAllFromDisk(accountId);
   const kept = enforceHistoryRetention(before, {
     maxMessages: MAX_TOTAL_MESSAGES,
     maxBytes: MAX_HISTORY_BYTES,
@@ -126,7 +139,7 @@ export async function enforceServerRetention(): Promise<{
   for (const c of before) {
     if (keepIds.has(c.sessionId)) continue;
     try {
-      await fs.unlink(filePath(c.sessionId));
+      await fs.unlink(filePath(c.sessionId, accountId));
       await deleteMediaForSession(c.sessionId);
       removed += 1;
     } catch {
@@ -138,7 +151,7 @@ export async function enforceServerRetention(): Promise<{
   for (const c of kept) {
     const prev = before.find((x) => x.sessionId === c.sessionId);
     if (prev && prev.messages.length !== c.messages.length) {
-      await lockedWriteJson(filePath(c.sessionId), c);
+      await lockedWriteJson(filePath(c.sessionId, accountId), c);
     }
   }
 
@@ -153,8 +166,8 @@ export async function enforceServerRetention(): Promise<{
   };
 }
 
-export async function listServerConversations(): Promise<ConversationRecord[]> {
-  const all = await readAllFromDisk();
+export async function listServerConversations(accountId: string = "default"): Promise<ConversationRecord[]> {
+  const all = await readAllFromDisk(accountId);
   const kept = enforceHistoryRetention(all).slice(0, SERVER_MAX_CONVERSATIONS);
   kept.sort((a, b) => b.updatedAt - a.updatedAt);
   return kept;
@@ -162,18 +175,20 @@ export async function listServerConversations(): Promise<ConversationRecord[]> {
 
 export async function searchServerConversations(
   query: string,
+  accountId: string = "default",
 ): Promise<HistorySearchHit[]> {
-  const list = await listServerConversations();
+  const list = await listServerConversations(accountId);
   return searchConversations(list, query);
 }
 
 export async function getServerConversation(
   sessionId: string,
+  accountId: string = "default",
 ): Promise<ConversationRecord | null> {
   const id = safeId(sessionId);
   if (!id) return null;
   try {
-    const raw = await fs.readFile(filePath(id), "utf8");
+    const raw = await fs.readFile(filePath(id, accountId), "utf8");
     const parsed = JSON.parse(raw) as ConversationRecord;
     if (!parsed?.sessionId) return null;
     return sanitizeForServer(parsed);
@@ -184,43 +199,46 @@ export async function getServerConversation(
 
 export async function upsertServerConversation(
   record: ConversationRecord,
+  accountId: string = "default",
 ): Promise<ConversationRecord | null> {
   const id = safeId(record.sessionId);
   if (!id) return null;
   if (!record.messages?.length) {
     return null;
   }
-  await ensureDir();
+  await ensureDir(accountId);
   const clean = await prepareConversationForServer({ ...record, sessionId: id });
-  await lockedWriteJson(filePath(id), clean);
-  await enforceServerRetention();
+  await lockedWriteJson(filePath(id, accountId), clean);
+  await enforceServerRetention(accountId);
   return clean;
 }
 
 export async function upsertServerConversations(
   records: ConversationRecord[],
+  accountId: string = "default",
 ): Promise<ConversationRecord[]> {
   const saved: ConversationRecord[] = [];
-  await ensureDir();
+  await ensureDir(accountId);
   for (const rec of records) {
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
     const clean = await prepareConversationForServer({ ...rec, sessionId: id });
-    await lockedWriteJson(filePath(id), clean);
+    await lockedWriteJson(filePath(id, accountId), clean);
     saved.push(clean);
   }
-  if (saved.length > 0) await enforceServerRetention();
+  if (saved.length > 0) await enforceServerRetention(accountId);
   return saved;
 }
 
 export async function deleteServerConversation(
   sessionId: string,
+  accountId: string = "default",
 ): Promise<boolean> {
   const id = safeId(sessionId);
   if (!id) return false;
   let removedJson = false;
   try {
-    await fs.unlink(filePath(id));
+    await fs.unlink(filePath(id, accountId));
     removedJson = true;
   } catch {
     // Already gone — still clean media below
@@ -229,14 +247,14 @@ export async function deleteServerConversation(
   return removedJson || removedMedia > 0;
 }
 
-export async function historyStats(): Promise<{
+export async function historyStats(accountId: string = "default"): Promise<{
   conversations: number;
   messages: number;
   bytes: number;
   maxMessages: number;
   maxBytes: number;
 }> {
-  const list = await listServerConversations();
+  const list = await listServerConversations(accountId);
   return {
     conversations: list.length,
     messages: countMessages(list),

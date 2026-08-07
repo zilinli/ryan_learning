@@ -6,6 +6,7 @@ import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { CodeAgentPanel } from "./CodeAgentPanel";
 import { SetupPanel } from "./SetupPanel";
+import AccountSwitcher from "./AccountSwitcher";
 import {
   loadSpeakEnabled,
   loadVoiceId,
@@ -39,8 +40,13 @@ import {
   getActiveAccount,
   loadAccounts,
   loadStudentProfile,
+  RYAN_ACCOUNT_ID,
+  switchAccount,
   syncProfileFromSkills,
+  type AccountRecord,
+  type AccountsStore,
 } from "@/lib/student-profile";
+import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
 import {
   hydrateLearningMemoryFromServer,
   learningMemorySummary,
@@ -256,6 +262,8 @@ export function TutorShell() {
     null,
   );
   const [accountName, setAccountName] = useState("");
+  const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
+  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
@@ -266,16 +274,21 @@ export function TutorShell() {
   const voiceIdRef = useRef<TutorVoiceId>("auto");
 
   useEffect(() => {
-    const enabled = loadSpeakEnabled();
+    const accts = loadAccounts();
+    const active = getActiveAccount(accts);
+    const aid = active.id;
+    setAccounts(accts.accounts);
+    setAccountId(aid);
+    setAccountName(active.profile.name);
+    const enabled = loadSpeakEnabled(aid);
     setVoiceEnabled(enabled);
     voiceEnabledRef.current = enabled;
-    const vid = loadVoiceId();
+    const vid = loadVoiceId(aid);
     setVoiceId(vid);
     voiceIdRef.current = vid;
-    setEngagement(loadEngagement());
-    setLearningMemory(loadLearningMemory());
-    setAccountName(getActiveAccount(loadAccounts()).profile.name);
-    void hydrateLearningMemoryFromServer().then(setLearningMemory);
+    setEngagement(loadEngagement(aid));
+    setLearningMemory(loadLearningMemory(aid));
+    void hydrateLearningMemoryFromServer(aid).then(setLearningMemory);
   }, []);
 
   useEffect(() => {
@@ -291,7 +304,7 @@ export function TutorShell() {
   }, []);
 
   useEffect(() => {
-    const loaded = loadConversations();
+    const loaded = loadConversations(accountId);
     setStore(loaded);
     setReady(true);
 
@@ -317,11 +330,11 @@ export function TutorShell() {
       await ingestStorePhotos(final);
       await pruneVaultToStore(final);
       setStore(final);
-      saveConversations(final);
+      saveConversations(final, accountId);
       const withMedia = await pushStoreToServer(final);
       if (withMedia !== final) {
         setStore(withMedia);
-        saveConversations(withMedia);
+        saveConversations(withMedia, accountId);
       }
     })();
 
@@ -332,7 +345,7 @@ export function TutorShell() {
         setKeyMissing(data.configured === false);
       })
       .catch(() => setKeyMissing(false));
-  }, []);
+  }, [accountId]);
 
   // Debounce localStorage + server sync while streaming — sync writes freeze the UI on iPad
   useEffect(() => {
@@ -340,11 +353,11 @@ export function TutorShell() {
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const delay = busy ? 1500 : 280;
     saveTimerRef.current = window.setTimeout(() => {
-      saveConversations(store);
+      saveConversations(store, accountId);
       if (!busy) {
         void (async () => {
           await ingestStorePhotos(store);
-          const withMedia = await pushStoreToServer(store);
+          const withMedia = await pushStoreToServer(store, accountId);
           if (withMedia !== store) {
             setStore(withMedia);
           }
@@ -375,13 +388,47 @@ export function TutorShell() {
 
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
 
+  const handleSwitchAccount = (id: string) => {
+    if (id === accountId || busy) return;
+    // Save current state
+    if (store) saveConversations(store, accountId);
+    if (learningMemory) {
+      saveLearningMemory(learningMemory, accountId);
+      void pushLearningMemoryToServer(learningMemory, accountId);
+    }
+    // Switch
+    const updatedStore = switchAccount(id);
+    const switchedAcct = getActiveAccount(updatedStore);
+    setAccounts(updatedStore.accounts);
+    setAccountId(id);
+    setAccountName(switchedAcct.profile.name);
+    // Reload all per-account data
+    setVoiceEnabled(loadSpeakEnabled(id));
+    voiceEnabledRef.current = loadSpeakEnabled(id);
+    const vid = loadVoiceId(id);
+    setVoiceId(vid);
+    voiceIdRef.current = vid;
+    setEngagement(loadEngagement(id));
+    const mem = loadLearningMemory(id);
+    setLearningMemory(mem);
+    void hydrateLearningMemoryFromServer(id).then(setLearningMemory);
+    // Reset chat to fresh empty session
+    const store = loadConversations(id);
+    setStore(store);
+    setError("");
+    speakApiRef.current?.stop();
+    if (store.conversations.length > 0) {
+      setUrlSession(store.activeId);
+    }
+  };
+
   const startNewSession = () => {
     if (!store || busy) return;
 
     // Generate a digest for the session we're leaving (if it has meaningful messages)
     const prevActive = getActiveConversation(store);
     if (prevActive && prevActive.messages.length >= 2) {
-      const mem = learningMemory || loadLearningMemory();
+      const mem = learningMemory || loadLearningMemory(accountId);
       const digest = autoGenerateDigest(
         prevActive.messages.map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
@@ -392,8 +439,8 @@ export function TutorShell() {
       if (digest) {
         const nextMem = appendDigestToMemory(mem, digest);
         setLearningMemory(nextMem);
-        saveLearningMemory(nextMem);
-        void pushLearningMemoryToServer(nextMem);
+        saveLearningMemory(nextMem, accountId);
+        void pushLearningMemoryToServer(nextMem, accountId);
       }
     }
 
@@ -465,7 +512,7 @@ export function TutorShell() {
     setStore(nextStore);
     setError("");
     // Drop server JSON + data/media, and local IndexedDB photos for this chat
-    void deleteServerChat(id);
+    void deleteServerChat(id, accountId);
     if (doomed) {
       void deletePhotosFromVault(vaultIdsFromConversation(doomed));
     }
@@ -532,8 +579,8 @@ export function TutorShell() {
 
     try {
       const profile = loadStudentProfile();
-      const mem = learningMemory || loadLearningMemory();
-      const eng = engagement || loadEngagement();
+      const mem = learningMemory || loadLearningMemory(accountId);
+      const eng = engagement || loadEngagement(accountId);
       const recentTitles = store.conversations
         .filter((c) => c.sessionId !== sessionId && c.messages.length > 0)
         .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -613,7 +660,7 @@ export function TutorShell() {
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
-      setEngagement(recordLearningTurn());
+      setEngagement(recordLearningTurn(undefined, accountId));
       const nextMem = recordLearningTurnMemory(mem, {
         userText: payload.text,
         assistantText: full,
@@ -621,7 +668,7 @@ export function TutorShell() {
       });
       setLearningMemory(nextMem);
       syncProfileFromSkills(profile, nextMem);
-      void pushLearningMemoryToServer(nextMem);
+      void pushLearningMemoryToServer(nextMem, accountId);
       if (shouldSpeak) {
         speakApiRef.current?.finish(full);
       }
@@ -753,13 +800,13 @@ export function TutorShell() {
             <span className="font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
               ✨ The Answer Book
             </span>
-            <a
-              href="/account"
-              className="hidden text-sm text-[var(--ink-muted)] underline-offset-2 hover:text-[var(--teal)] hover:underline sm:inline"
-              title="Switch account"
-            >
-              · {accountName}
-            </a>
+            <AccountSwitcher
+              accounts={accounts}
+              activeId={accountId}
+              accountName={accountName}
+              onSwitch={handleSwitchAccount}
+              onManage={() => { window.location.href = "/account"; }}
+            />
           </div>
           {/* Voice toggle in header */}
           <button
