@@ -269,6 +269,44 @@ Each account gets its own empty state message:
 
 ## 6. UI Component Changes
 
+### 6.0 Header Layout (Key UX Pattern)
+
+**Problem**: The v0.1 AccountSwitcher lives inline with the app title as a small text link — invisible to children and parents alike. Tapping it requires knowing it exists.
+
+**Industry standard**: Khan Academy Kids, ABCmouse, and shadcn/ui's Multi-Account Switcher all use a **prominent avatar button in the top-right corner**. It feels like a "user profile" affordance. Tapping it reveals the account list. This follows Fukasawa's "design dissolving in behavior" principle — the UI element looks exactly like what users expect to tap for identity-related actions.
+
+**New header layout**:
+```
+┌──────────────────────────────────────────────┐
+│ ☰  ✨ The Answer Book        [🔊]  [👤 Ryan] │
+│                                              │
+│                Chat area                     │
+│                                              │
+└──────────────────────────────────────────────┘
+
+Tap [👤 Ryan] → dropdown:
+┌──────────────────────────┐
+│ 👤 Ryan    G4 · Current  │ ← active account
+│ 👤 Emma    G8 · Switch   │
+│ ＋ Manage accounts       │
+└──────────────────────────┘
+```
+
+**Design references**:
+- **[shadcn/ui Multi-Account Switcher](https://www.shadcn.io/examples/dropdown-menu-multi-account-switcher)** — Wide trigger button with `ChevronsUpDown` icon, account list with `Check` on active, `Plus` to add. Used by SaaS apps and dashboards.
+- **[Khan Academy Kids](https://khankids.zendesk.com/hc/en-us/articles/360007053871)** — User avatar in top-right corner of Home screen. Tap → user list + Grown-Ups options. The avatar is the **primary** interaction point for identity.
+- **[ABCmouse](https://support.abcmouse.com/hc/en-us/articles/1500005164961)** — Avatar icon at top of child Homepage. Tap → Change User pop-up. "Switching profiles is super simple!"
+- **[Duolingo Account Switcher (UX case study)](https://www.jessicatiao.com/work/duolingo-designing-an-account-switcher)** — "Click. Click. Awesome." mantra. After 3 rounds of usability testing with 15 users, the winning design placed the switcher prominently with clear visual hierarchy.
+
+**Key design decisions for Spark**:
+| Decision | Rationale |
+|----------|-----------|
+| Right-aligned avatar button | Users look top-right for account/identity actions (web convention) |
+| Show avatar + name in trigger | Gives context ("who am I?") at a glance |
+| Chevron-down indicator | Teaches "this opens a menu" |
+| No PIN for switching | Kids switch freely between siblings; PIN only for management/deletion |
+| "Manage accounts" at dropdown bottom | Always one tap away from adding/removing |
+
 ### 6.1 New Components
 
 | Component | Purpose |

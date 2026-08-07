@@ -776,7 +776,7 @@ export function TutorShell() {
       />
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg0)]">
-        <header className="safe-top flex w-full shrink-0 items-center justify-between gap-2 px-3 py-2 sm:px-4" style={{ minHeight: 48 }}>
+        <header className="safe-top flex w-full shrink-0 items-center gap-2 px-3 py-2 sm:px-4" style={{ minHeight: 48 }}>
           <button
             type="button"
             onClick={() => setSidebarOpen((p) => !p)}
@@ -796,10 +796,28 @@ export function TutorShell() {
               </svg>
             )}
           </button>
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
-              ✨ The Answer Book
-            </span>
+          <span className="flex-1 truncate text-center font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
+            ✨ The Answer Book
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setVoiceEnabled((v) => !v)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+                voiceEnabled
+                  ? "bg-[var(--teal)]/10 text-[var(--teal)]"
+                  : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+              }`}
+              aria-label={voiceEnabled ? "Speak on" : "Speak off"}
+              title={voiceEnabled ? "Speak on — tap to mute" : "Speak off — tap to speak"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
             <AccountSwitcher
               accounts={accounts}
               activeId={accountId}
@@ -808,25 +826,6 @@ export function TutorShell() {
               onManage={() => { window.location.href = "/account"; }}
             />
           </div>
-          {/* Voice toggle in header */}
-          <button
-            type="button"
-            onClick={() => setVoiceEnabled((v) => !v)}
-            className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
-              voiceEnabled
-                ? "bg-[var(--teal)]/10 text-[var(--teal)]"
-                : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
-            }`}
-            aria-label={voiceEnabled ? "Speak on" : "Speak off"}
-            title={voiceEnabled ? "Speak on — tap to mute" : "Speak off — tap to speak"}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          </button>
         </header>
 
         <main
