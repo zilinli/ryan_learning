@@ -133,6 +133,16 @@ input {
   animation-delay: -6s;
 }
 
+html.dark .atmosphere-blob-a {
+  background: #5a3d28;
+  opacity: 0.35;
+}
+
+html.dark .atmosphere-blob-b {
+  background: #4a3020;
+  opacity: 0.3;
+}
+
 .atmosphere-grain {
   position: absolute;
   inset: 0;
