@@ -13,6 +13,7 @@
 
 import {
   applySm2Decay,
+  bktDefaultsForBand,
   DEFAULT_BKT,
   DEFAULT_ELO,
   DEFAULT_SM2,
@@ -63,6 +64,13 @@ export type SkillMastery = {
   eloState: EloState;
 };
 
+/** Auto-advance suggestion when mastery exceeds current band ceiling. Parent opt-in; not auto-applied. */
+export type AdvanceSuggestion = {
+  suggestedBand: "early" | "elementary" | "middle" | "high";
+  confidence: number;
+  skillsReady: number;
+};
+
 export type LearningMemory = {
   topics: TopicMastery[];
   skills: SkillMastery[];
@@ -70,6 +78,8 @@ export type LearningMemory = {
   recentWins: string[];
   /** Conversation digests from past sessions — max MAX_DIGESTS, newest first */
   sessionDigests: SessionDigest[];
+  /** Auto-advance suggestion — set by autoAdvanceCheck, cleared when parent approves */
+  advanceSuggestion?: AdvanceSuggestion | null;
   updatedAt: number;
 };
 
@@ -891,6 +901,46 @@ export function detectConfidenceMismatch(
   return best;
 }
 
+// ── Auto-Advance Check (Phase 12D) ──────────────────────────────────
+
+const BANDS: Array<"early" | "elementary" | "middle" | "high"> = ["early", "elementary", "middle", "high"];
+const ADVANCE_THRESHOLD = 0.85;
+
+function nextBand(current: "early" | "elementary" | "middle" | "high"): "early" | "elementary" | "middle" | "high" {
+  const idx = BANDS.indexOf(current);
+  if (idx < 0 || idx >= BANDS.length - 1) return current;
+  return BANDS[idx + 1];
+}
+
+/**
+ * Check if all active-band skills have pKnown > 0.85, suggesting the
+ * student is ready for the next grade band. Returns null if no advance
+ * is warranted, or if already at the highest band.
+ */
+export function autoAdvanceCheck(
+  mem: LearningMemory,
+  band: "early" | "elementary" | "middle" | "high",
+): AdvanceSuggestion | null {
+  if (band === "high") return null; // already at ceiling
+
+  const normalized = normalizeMemory(mem);
+  // Filter skills that have been attempted and are active for this band
+  // (we don't know exact band from skill defs alone in this module, so
+  //  we check all attempted skills with pKnown above threshold)
+  const activeSkills = normalized.skills.filter((s) => s.attempts > 0);
+  if (activeSkills.length < 3) return null; // not enough data
+
+  const ready = activeSkills.filter((s) => s.pKnown > ADVANCE_THRESHOLD);
+  const ratio = ready.length / activeSkills.length;
+  if (ratio < 0.75 || ready.length < 3) return null; // most skills need to be ready
+
+  const suggested = nextBand(band);
+  if (suggested === band) return null;
+
+  const confidence = Math.min(0.95, ratio * 1.1); // cap at 0.95
+  return { suggestedBand: suggested, confidence, skillsReady: ready.length };
+}
+
 // ── Prompt Lines ────────────────────────────────────────────────────
 
 /** Compact lines for the tutor system prompt */
@@ -982,6 +1032,12 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
   if (m.recentStruggles.length) {
     lines.push(`Recent struggles: ${m.recentStruggles.join(" · ")}.`);
   }
+  // Auto-advance suggestion (Phase 12D)
+  if (m.advanceSuggestion) {
+    lines.push(
+      `[Auto-advance] ${Math.round(m.advanceSuggestion.confidence * 100)}% confidence the student may be ready for ${m.advanceSuggestion.suggestedBand}-band material (${m.advanceSuggestion.skillsReady} skills above 85%). You may occasionally offer harder challenges or check with the student if they'd like more advanced work.`,
+    );
+  }
   lines.push(
     "When asking a question: briefly tailor difficulty to the skill map (easier if weak; richer if strong).",
     "Continuity: on a fresh thread, ONE short offer to continue a weak or recent topic is OK.",
@@ -1036,6 +1092,7 @@ export function serializeLearningMemoryForChat(
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),
     sessionDigests: m.sessionDigests.slice(0, MAX_DIGESTS),
+    advanceSuggestion: m.advanceSuggestion ?? undefined,
     updatedAt: m.updatedAt,
   };
 }

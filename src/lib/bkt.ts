@@ -53,6 +53,24 @@ export const DEFAULT_BKT: BktParams = {
   pGuess: 0.2,
 };
 
+/**
+ * BKT parameter defaults by grade band.
+ * Younger students: higher guess (random tapping), faster learning once engaged.
+ * Older students: more deliberate, lower guess, slower concept change.
+ */
+export function bktDefaultsForBand(band: "early" | "elementary" | "middle" | "high"): BktParams {
+  switch (band) {
+    case "early":
+      return { pInit: 0.30, pLearn: 0.22, pSlip: 0.15, pGuess: 0.25 };
+    case "elementary":
+      return { ...DEFAULT_BKT }; // baseline
+    case "middle":
+      return { pInit: 0.20, pLearn: 0.15, pSlip: 0.08, pGuess: 0.15 };
+    case "high":
+      return { pInit: 0.15, pLearn: 0.12, pSlip: 0.06, pGuess: 0.10 };
+  }
+}
+
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0.001, Math.min(0.999, n));

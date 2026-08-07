@@ -8,6 +8,41 @@ const STT_URL = process.env.STT_URL || "http://127.0.0.1:8765/transcribe";
 
 const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr"]);
 
+/** Map browser / BCP-47 tags (e.g. zh-CN) onto STT backend codes. */
+export function normalizeTranscribeLang(raw: string): string {
+  const aliases: Record<string, string> = {
+    "": "auto",
+    auto: "auto",
+    en: "en",
+    eng: "en",
+    english: "en",
+    "en-us": "en",
+    "en-gb": "en",
+    zh: "zh",
+    "zh-cn": "zh",
+    "zh-tw": "zh",
+    cmn: "zh",
+    mandarin: "zh",
+    chinese: "zh",
+    yue: "yue",
+    "zh-hk": "yue",
+    "zh-yue": "yue",
+    cantonese: "yue",
+    es: "es",
+    spa: "es",
+    spanish: "es",
+    "es-es": "es",
+    "es-mx": "es",
+    fr: "fr",
+    fra: "fr",
+    french: "fr",
+    "fr-fr": "fr",
+  };
+  const key = String(raw || "auto").trim().toLowerCase();
+  const mapped = aliases[key] || key;
+  return ALLOWED.has(mapped) ? mapped : "auto";
+}
+
 function pickFilename(audio: Blob): string {
   const named = (audio as File).name;
   if (named && /\.(wav|webm|ogg|mp3|mp4|m4a|aac)$/i.test(named)) {
@@ -63,8 +98,9 @@ export async function POST(req: Request) {
       );
     }
 
-    let language = String(form.get("language") || "auto").toLowerCase();
-    if (!ALLOWED.has(language)) language = "auto";
+    const language = normalizeTranscribeLang(
+      String(form.get("language") || "auto"),
+    );
 
     let { res, data } = await forwardOnce(audio, language);
 

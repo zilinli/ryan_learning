@@ -9,40 +9,41 @@ User=root
 Group=root
 WorkingDirectory=/root/codes/ryan_learning
 
-# Environment
+# Environment — SenseVoice-first preload avoids dual-model OOM on 4GB hosts
 Environment=STT_HOST=127.0.0.1
 Environment=STT_PORT=8765
 Environment=STT_MODEL=small
+Environment=STT_PRELOAD=sensevoice
 Environment=SENSEVOICE_THREADS=2
 Environment=PYTHONUNBUFFERED=1
+Environment=LD_LIBRARY_PATH=/usr/local/lib/python3.9/site-packages/sherpa_onnx/lib
 
-# Start command with pre-flight port check
+# Free stale listeners, then start
 ExecStartPre=/usr/bin/bash -c 'lsof -ti tcp:8765 | xargs -r kill -TERM 2>/dev/null; sleep 1'
 ExecStart=/usr/bin/python3 scripts/stt_server.py
 
-# Restart policy — prevents crash-loop
+# Restart policy — stop OOM crash storms (was Restart=always)
 Restart=on-failure
-RestartSec=5
-StartLimitInterval=300
-StartLimitBurst=6
+RestartSec=15
+StartLimitIntervalSec=300
+StartLimitBurst=4
+TimeoutStartSec=600
 
-# Resource limits for 4GB box
-MemoryMax=2G
-MemoryHigh=1.8G
+# Soft cap; leave headroom for Next.js on 4GB box
+MemoryMax=2.5G
+MemoryHigh=2.2G
 CPUQuota=150%
 TasksMax=32
 
-# Security hardening
+# HF cache + logs need write access under /root (no ProtectHome)
 NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/root/codes/ryan_learning/scripts
+ReadWritePaths=/root/codes/ryan_learning
+ReadWritePaths=/root/.cache
 ReadWritePaths=/tmp
 PrivateTmp=false
 
-# Logging
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/root/codes/ryan_learning/logs/stt.log
+StandardError=append:/root/codes/ryan_learning/logs/stt.log
 SyslogIdentifier=spark-stt
 
 [Install]

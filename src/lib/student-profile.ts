@@ -1,4 +1,4 @@
-/** Ryan / family student profile + BASIS G4 context (local, editable). */
+/** Student profile — grade-agnostic, supports G1–G12. Ryan's profile is a saved account, not the system default. */
 
 import {
   skillStrengths,
@@ -8,22 +8,67 @@ import {
 
 export type ChineseDialectPref = "zh" | "yue";
 
+/** Grade band grouping shared pedagogical characteristics. */
+export type GradeBand = "early" | "elementary" | "middle" | "high";
+
+/** Derive grade band from a numeric grade (1–12). */
+export function gradeBandForGrade(g: number): GradeBand {
+  if (g <= 2) return "early";
+  if (g <= 5) return "elementary";
+  if (g <= 8) return "middle";
+  return "high";
+}
+
+/** School curriculum context — null means auto-detect from grade. */
+export type Curriculum = {
+  label: string;
+  grade: number;
+  subjects: string[];
+  textbookHints?: string;
+};
+
 export type StudentProfile = {
   name: string;
   age: number;
-  grade: string;
+  /** Numeric grade 1–12 (was a string in v0; migrated on load). */
+  grade: number;
+  /** Band derived from grade — controls skill pool, BKT priors, language style. */
+  gradeBand: GradeBand;
   school: string;
+  /** School curriculum — null = auto-detect from grade. */
+  curriculum: Curriculum | null;
   /** Auto Chinese: default 粤语 / Cantonese (use 云希 for 普通话) */
   preferredChinese: ChineseDialectPref;
   stronger: string[];
   focusAreas: string[];
 };
 
+/** Grade-agnostic default — prompt user on first launch. */
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
+  name: "",
+  age: 9,
+  grade: 4,
+  gradeBand: "elementary",
+  school: "",
+  curriculum: null,
+  preferredChinese: "yue",
+  stronger: [],
+  focusAreas: [],
+};
+
+/** Ryan's complete profile — preserved as a named export, not the system default. */
+export const RYAN_PROFILE: StudentProfile = {
   name: "Ryan",
   age: 9,
-  grade: "Grade 4 (G4)",
+  grade: 4,
+  gradeBand: "elementary",
   school: "BASIS International School",
+  curriculum: {
+    label: "BASIS G4 (Envision Math G5 accelerated)",
+    grade: 4,
+    subjects: ["math", "science", "humanities", "ela"],
+    textbookHints: "BASIS G5 Envision Mathematics (Savvas, ISBN 978-1-4188-4685-5)",
+  },
   preferredChinese: "yue",
   stronger: ["science curiosity", "trying again after a short break"],
   focusAreas: [
@@ -97,16 +142,44 @@ export type AccountsStore = {
 };
 
 function normalizeProfile(partial?: Partial<StudentProfile> | null): StudentProfile {
-  const parsed = partial ?? {};
+  const parsed = partial ?? ({} as Partial<StudentProfile>);
+  // Handle legacy string grade → numeric migration
+  let gradeNum = 4;
+  if (typeof (parsed as Record<string, unknown>).grade === "number") {
+    gradeNum = (parsed as Record<string, unknown>).grade as number;
+  } else if (typeof (parsed as Record<string, unknown>).grade === "string") {
+    const match = String((parsed as Record<string, unknown>).grade).match(/Grade (\d+)/i);
+    if (match) gradeNum = parseInt(match[1], 10);
+  }
+  const band = gradeBandForGrade(gradeNum);
+
+  // Handle curriculum: null = auto-detect, otherwise normalize
+  const curRaw = (parsed as Record<string, unknown>).curriculum;
+  let curriculum: Curriculum | null = null;
+  if (curRaw && typeof curRaw === "object") {
+    const c = curRaw as Record<string, unknown>;
+    curriculum = {
+      label: typeof c.label === "string" ? c.label : "",
+      grade: typeof c.grade === "number" ? c.grade : gradeNum,
+      subjects: Array.isArray(c.subjects) ? c.subjects.filter((s): s is string => typeof s === "string") : [],
+      textbookHints: typeof c.textbookHints === "string" ? c.textbookHints : undefined,
+    };
+  }
+
   return {
     ...DEFAULT_STUDENT_PROFILE,
-    ...parsed,
-    preferredChinese: parsed.preferredChinese === "zh" ? "zh" : "yue",
+    name: typeof parsed.name === "string" ? parsed.name.trim() : DEFAULT_STUDENT_PROFILE.name,
+    age: typeof parsed.age === "number" ? parsed.age : DEFAULT_STUDENT_PROFILE.age,
+    grade: gradeNum,
+    gradeBand: band,
+    school: typeof parsed.school === "string" ? parsed.school : DEFAULT_STUDENT_PROFILE.school,
+    curriculum,
+    preferredChinese: (parsed as Record<string, unknown>).preferredChinese === "zh" ? "zh" : "yue",
     stronger: Array.isArray(parsed.stronger)
-      ? parsed.stronger
+      ? parsed.stronger.filter((s): s is string => typeof s === "string")
       : DEFAULT_STUDENT_PROFILE.stronger,
     focusAreas: Array.isArray(parsed.focusAreas)
-      ? parsed.focusAreas
+      ? parsed.focusAreas.filter((s): s is string => typeof s === "string")
       : DEFAULT_STUDENT_PROFILE.focusAreas,
   };
 }
@@ -121,19 +194,22 @@ function newAccountId(): string {
 function ryanAccount(now = Date.now()): AccountRecord {
   return {
     id: RYAN_ACCOUNT_ID,
-    profile: { ...DEFAULT_STUDENT_PROFILE },
+    profile: { ...RYAN_PROFILE },
     createdAt: now,
     updatedAt: now,
   };
 }
 
-function ensureRyan(store: AccountsStore): AccountsStore {
+function ensureDefaultAccount(store: AccountsStore): AccountsStore {
   if (store.accounts.some((a) => a.id === RYAN_ACCOUNT_ID)) return store;
   return {
     ...store,
     accounts: [ryanAccount(), ...store.accounts],
   };
 }
+
+/** @deprecated — use ensureDefaultAccount */
+const ensureRyan = ensureDefaultAccount;
 
 function emptyAccountsStore(): AccountsStore {
   const ryan = ryanAccount();
@@ -155,7 +231,7 @@ export function loadAccounts(): AccountsStore {
             createdAt: a.createdAt || Date.now(),
             updatedAt: a.updatedAt || Date.now(),
           }));
-        const withRyan = ensureRyan({
+        const withRyan = ensureDefaultAccount({
           version: 1,
           activeId: parsed.activeId || RYAN_ACCOUNT_ID,
           accounts,
@@ -197,7 +273,7 @@ export function loadAccounts(): AccountsStore {
 export function saveAccounts(store: AccountsStore): void {
   if (typeof window === "undefined") return;
   try {
-    const next = ensureRyan(store);
+    const next = ensureDefaultAccount(store);
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
     const active = next.accounts.find((a) => a.id === next.activeId);
     if (active) {
@@ -216,9 +292,33 @@ export function getActiveAccount(store: AccountsStore): AccountRecord {
   );
 }
 
-/** Create a new account from a typed name and switch to it. */
-export function createAccount(name: string, store?: AccountsStore): AccountsStore {
-  const base = store ?? loadAccounts();
+/** Create a new account from a typed name (and optional grade/profile overrides) and switch to it. */
+export function createAccount(
+  name: string,
+  storeOrProfile?: AccountsStore | Partial<StudentProfile>,
+  maybeStore?: AccountsStore,
+): AccountsStore {
+  // Flexible overload: createAccount(name) — simple; createAccount(name, store) — legacy;
+  // createAccount(name, { grade: 8 }) — new partial profile; createAccount(name, profilePartial, store)
+  let store: AccountsStore;
+  let profileOverrides: Partial<StudentProfile> = {};
+
+  if (maybeStore !== undefined) {
+    // 3-arg form: createAccount(name, profileOverrides, store)
+    profileOverrides = (storeOrProfile as Partial<StudentProfile>) || {};
+    store = maybeStore;
+  } else if (storeOrProfile && typeof storeOrProfile === "object" && "version" in storeOrProfile) {
+    // 2-arg legacy: createAccount(name, store)
+    store = storeOrProfile as AccountsStore;
+  } else if (storeOrProfile && typeof storeOrProfile === "object") {
+    // 2-arg new: createAccount(name, profileOverrides)
+    profileOverrides = storeOrProfile as Partial<StudentProfile>;
+    store = loadAccounts();
+  } else {
+    store = loadAccounts();
+  }
+
+  const base = store;
   const trimmed = name.trim();
   if (!trimmed) return base;
   const now = Date.now();
@@ -234,7 +334,7 @@ export function createAccount(name: string, store?: AccountsStore): AccountsStor
         a.id === RYAN_ACCOUNT_ID
           ? {
               ...a,
-              profile: { ...a.profile, name: "Ryan" },
+              profile: normalizeProfile({ ...a.profile, name: "Ryan" }),
               updatedAt: now,
             }
           : a,
@@ -243,12 +343,11 @@ export function createAccount(name: string, store?: AccountsStore): AccountsStor
     saveAccounts(next);
     return next;
   }
+  // New accounts get grade-agnostic defaults + overrides (not Ryan's copy)
+  const profile = normalizeProfile({ ...DEFAULT_STUDENT_PROFILE, name: trimmed, ...profileOverrides });
   const record: AccountRecord = {
     id,
-    profile: {
-      ...DEFAULT_STUDENT_PROFILE,
-      name: trimmed,
-    },
+    profile,
     createdAt: now,
     updatedAt: now,
   };
@@ -272,7 +371,7 @@ export function switchAccount(accountId: string, store?: AccountsStore): Account
 
 /** Ensure Ryan exists as a saved account and optionally switch to it. */
 export function saveRyanAccount(switchTo = false, store?: AccountsStore): AccountsStore {
-  const base = ensureRyan(store ?? loadAccounts());
+  const base = ensureDefaultAccount(store ?? loadAccounts());
   const now = Date.now();
   const next: AccountsStore = {
     ...base,
@@ -281,7 +380,7 @@ export function saveRyanAccount(switchTo = false, store?: AccountsStore): Accoun
       a.id === RYAN_ACCOUNT_ID
         ? {
             ...a,
-            profile: { ...DEFAULT_STUDENT_PROFILE, ...a.profile, name: "Ryan" },
+            profile: { ...RYAN_PROFILE, ...a.profile, name: "Ryan" },
             updatedAt: now,
           }
         : a,
@@ -351,20 +450,104 @@ export function syncProfileFromSkills(
 
 /** Lines injected into every tutor prompt */
 export function studentProfilePromptLines(
-  profile: StudentProfile = DEFAULT_STUDENT_PROFILE,
+  profile: StudentProfile = RYAN_PROFILE,
 ): string[] {
+  const gradeLabel = `Grade ${profile.grade}`;
+  const schoolText = profile.school || "(no school set)";
+  const curLines = profile.curriculum
+    ? `Curriculum: ${profile.curriculum.label} — subjects: ${profile.curriculum.subjects.join(", ")}.`
+    : `Curriculum: grade-appropriate general topics (auto-detected from Grade ${profile.grade}).`;
   return [
     "",
     "[Student profile — know this learner]",
-    `Name: ${profile.name} (${profile.age} years old).`,
-    `School: ${profile.school}, ${profile.grade}.`,
+    `Name: ${profile.name || "(new student)"} (${profile.age} years old).`,
+    `School: ${schoolText}, ${gradeLabel}.`,
+    `Grade band: ${profile.gradeBand} (controls difficulty, vocabulary, and skill scope).`,
     `Stronger / likes: ${profile.stronger.join("; ") || "—"}.`,
     `Watch / support: ${profile.focusAreas.join("; ") || "—"}.`,
     `Chinese preference for Auto mode: ${
       profile.preferredChinese === "yue" ? "粤语 / Cantonese" : "普通话 / Mandarin"
     }.`,
-    `Curriculum map (BASIS G4 — use when relevant, do not quiz the syllabus): ${BASIS_G4_CURRICULUM}.`,
-    `Address the student as ${profile.name} naturally sometimes. Remember frustration moments and celebrate small wins.`,
+    curLines,
+    profile.name
+      ? `Address the student as ${profile.name} naturally sometimes. Remember frustration moments and celebrate small wins.`
+      : `Ask the student what they'd like to be called. Remember frustration moments and celebrate small wins.`,
     "If starting a fresh thread, you may briefly recall a recent topic from [Recent chats] if provided.",
+  ];
+}
+
+/**
+ * Generate grade-band-appropriate curriculum hints for the system prompt.
+ * Called by buildTutorPrompt — replaces the hardcoded ENVISION_G5_PROMPT_HINT.
+ */
+export function curriculumPromptLines(profile: StudentProfile): string[] {
+  const band = profile.gradeBand;
+  const cur = profile.curriculum;
+
+  if (cur && cur.label.includes("BASIS")) {
+    // BASIS-specific textbook refs by band
+    const refs: string[] = [];
+    if (profile.grade <= 5 && cur.subjects.includes("math")) {
+      refs.push(
+        "BASIS Accelerated Math: Envision Mathematics G6 (Savvas, ISBN 978-1-4188-4908-5).",
+        "Fractions denominators: 2,3,4,5,6,8,10,12,100 (Common Core G5).",
+        "Multi-digit ÷: up to 4-digit ÷ 2-digit. Word problems: multi-step with bar models (Singapore CPA).",
+      );
+    } else if (profile.grade >= 6 && profile.grade <= 8 && cur.subjects.includes("math")) {
+      refs.push(
+        `BASIS Math: ${profile.grade === 6 ? "Envision Mathematics Accelerated G7" : profile.grade === 7 ? "Envision A|G|A Algebra 1 (ISBN 978-1-4188-5436-2)" : "Envision A|G|A Algebra 2 (ISBN 978-1-4188-5452-2)"}.`,
+        "Fractions extend to rational numbers, ratios, and proportional reasoning.",
+        "Multi-step equation solving. Geometry: angles, transformations, volume.",
+      );
+    } else if (profile.grade >= 9 && cur.subjects.includes("math")) {
+      refs.push(
+        "BASIS Honors/AP Math track. AP Calculus references: Larson/Stewart.",
+        "Rational functions, asymptotes, complex fractions. Formal proofs expected.",
+        "Khan Academy as supplemental resource.",
+      );
+    }
+    if (profile.grade >= 6 && cur.subjects.some((s) => s === "science")) {
+      refs.push(
+        "BASIS three-science model: Biology, Chemistry, Physics taught concurrently.",
+      );
+    }
+    if (refs.length) {
+      return ["", "[BASIS Curriculum — grade-band alignment]", ...refs];
+    }
+  }
+
+  // Generic grade-band curriculum hints
+  if (band === "early") {
+    return [
+      "",
+      "[Curriculum — K-2]",
+      "Math: counting, shapes, addition/subtraction within 20, place value to 100.",
+      "Reading: letter sounds, sight words, simple sentences. Concrete examples, lots of encouragement.",
+    ];
+  }
+  if (band === "elementary") {
+    return [
+      "",
+      "[Curriculum — G3-5]",
+      "Math: fractions, decimals, multiplication/division fluency, multi-step word problems.",
+      "Fractions denominator range: 2,3,4,5,6,8,10,12,100. Use food/sharing metaphors.",
+      "Science: ecosystems, solar system, simple experiments. Humanities: ancient civilizations.",
+    ];
+  }
+  if (band === "middle") {
+    return [
+      "",
+      "[Curriculum — G6-8]",
+      "Math: pre-algebra, algebra I, geometry, statistics. Fractions → rational numbers, proportional reasoning.",
+      "Science: Biology, Chemistry, Physics (often concurrent). Argumentative writing, text analysis.",
+    ];
+  }
+  // high
+  return [
+    "",
+    "[Curriculum — G9-12]",
+    "Math: Algebra II, trig, pre-calc, calculus. Statistics, functions, modeling.",
+    "Science: Honors/AP Biology, Chemistry, Physics. Literary analysis, research papers.",
+    "If grade 12: act as research advisor for capstone projects — methodology coaching, not drills.",
   ];
 }

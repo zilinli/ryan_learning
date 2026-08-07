@@ -20,6 +20,23 @@ const ALLOWED_VOICES = new Set([
   "es-US-PalomaNeural",
 ]);
 
+async function fetchTtsOnce(
+  text: string,
+  voice: string,
+): Promise<{ res: Response; errorBody: { error?: string } | null }> {
+  const res = await fetch(TTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (res.ok) return { res, errorBody: null };
+  const errorBody = (await res.json().catch(() => null)) as {
+    error?: string;
+  } | null;
+  return { res, errorBody };
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { text?: string; voice?: string };
@@ -32,24 +49,28 @@ export async function POST(req: Request) {
         ? body.voice
         : "en-US-AvaNeural";
 
-    const res = await fetch(TTS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice }),
-      signal: AbortSignal.timeout(90_000),
-    });
+    let { res, errorBody } = await fetchTtsOnce(text, voice);
+
+    // One retry on transient TTS failures (busy / edge blip)
+    if (!res.ok && res.status >= 500) {
+      await new Promise((r) => setTimeout(r, 350));
+      ({ res, errorBody } = await fetchTtsOnce(text, voice));
+    }
 
     if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
       return Response.json(
-        { error: data?.error || "TTS failed" },
+        { error: errorBody?.error || "TTS failed" },
         { status: 502 },
       );
     }
 
     const audio = await res.arrayBuffer();
+    if (audio.byteLength < 100) {
+      return Response.json(
+        { error: "TTS returned empty audio" },
+        { status: 502 },
+      );
+    }
     return new Response(audio, {
       headers: {
         "Content-Type": "audio/mpeg",
@@ -58,6 +79,14 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "TTS failed";
-    return Response.json({ error: msg }, { status: 503 });
+    const busy = /fetch|ECONNREFUSED|timeout|AbortError|undici/i.test(msg);
+    return Response.json(
+      {
+        error: busy
+          ? "Voice service starting up — wait a few seconds and try again."
+          : msg,
+      },
+      { status: 503 },
+    );
   }
 }

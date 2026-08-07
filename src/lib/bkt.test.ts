@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySm2Decay,
+  bktDefaultsForBand,
   bktUpdate,
   DEFAULT_BKT,
   DEFAULT_SM2,
@@ -326,6 +327,50 @@ describe("difficultyAdjustedBktParams", () => {
       expect(params.pSlip).toBeLessThan(1);
       expect(params.pGuess).toBeGreaterThan(0);
       expect(params.pGuess).toBeLessThan(1);
+    }
+  });
+});
+
+describe("bktDefaultsForBand", () => {
+  it("returns elementary defaults as baseline (current DEFAULT_BKT)", () => {
+    const params = bktDefaultsForBand("elementary");
+    expect(params.pInit).toBe(DEFAULT_BKT.pInit);
+    expect(params.pLearn).toBe(DEFAULT_BKT.pLearn);
+    expect(params.pSlip).toBe(DEFAULT_BKT.pSlip);
+    expect(params.pGuess).toBe(DEFAULT_BKT.pGuess);
+  });
+
+  it("early band has higher pInit and pGuess (younger learners)", () => {
+    const params = bktDefaultsForBand("early");
+    expect(params.pInit).toBeGreaterThan(DEFAULT_BKT.pInit);
+    expect(params.pGuess).toBeGreaterThan(DEFAULT_BKT.pGuess);
+    expect(params.pSlip).toBeGreaterThan(DEFAULT_BKT.pSlip);
+  });
+
+  it("middle band has lower pInit and pGuess than elementary", () => {
+    const params = bktDefaultsForBand("middle");
+    expect(params.pInit).toBeLessThan(DEFAULT_BKT.pInit);
+    expect(params.pGuess).toBeLessThan(DEFAULT_BKT.pGuess);
+  });
+
+  it("high band has the lowest pInit, pSlip, and pGuess", () => {
+    const params = bktDefaultsForBand("high");
+    expect(params.pInit).toBeLessThan(0.18);
+    expect(params.pSlip).toBeLessThan(0.1);
+    expect(params.pGuess).toBeLessThan(0.15);
+  });
+
+  it("all bands return valid BKT params in (0,1)", () => {
+    for (const band of ["early", "elementary", "middle", "high"] as const) {
+      const params = bktDefaultsForBand(band);
+      expect(params.pInit).toBeGreaterThan(0);
+      expect(params.pInit).toBeLessThan(1);
+      expect(params.pLearn).toBeGreaterThan(0);
+      expect(params.pLearn).toBeLessThan(0.5);
+      expect(params.pSlip).toBeGreaterThan(0);
+      expect(params.pSlip).toBeLessThan(0.3);
+      expect(params.pGuess).toBeGreaterThan(0);
+      expect(params.pGuess).toBeLessThan(0.3);
     }
   });
 });

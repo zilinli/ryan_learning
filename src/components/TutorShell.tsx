@@ -255,7 +255,7 @@ export function TutorShell() {
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
   );
-  const [accountName, setAccountName] = useState("Ryan");
+  const [accountName, setAccountName] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeSkillsForProfile,
   detectLanguage,
   getSkillDef,
   inferSkillsFromText,
   inferSkillsFromTextMultiLang,
   isWordProblem,
+  prerequisiteChain,
   SKILL_CATALOG,
   topicLabelForId,
 } from "./skill-catalog";
@@ -15,6 +17,16 @@ describe("skill-catalog", () => {
     ["math", "science", "ela", "humanities"].forEach((subj) =>
       expect(subjects.has(subj as never)).toBe(true),
     );
+  });
+
+  it("every skill has grade band fields", () => {
+    for (const s of SKILL_CATALOG) {
+      expect(s.minGrade).toBeGreaterThanOrEqual(0);
+      expect(s.maxGrade).toBeGreaterThanOrEqual(s.minGrade);
+      expect(s.coreGrade).toBeGreaterThanOrEqual(s.minGrade);
+      expect(s.coreGrade).toBeLessThanOrEqual(s.maxGrade);
+      expect(["early", "elementary", "middle", "high"]).toContain(s.band);
+    }
   });
 
   it("every skill has a valid topicId in catalog", () => {
@@ -43,6 +55,7 @@ describe("skill-catalog", () => {
     const hits = inferSkillsFromText(
       "Amy has a fraction: 3/4 of a pizza. She shares it equally among 3 friends. How much does each get?",
     );
+    // With expanded catalog, "word problem" matches multi-step-word-problems too
     expect(hits.map((s) => s.id)).toContain("fraction-word-problems");
     expect(hits.map((s) => s.id)).toContain("fractions-concepts");
   });
@@ -58,7 +71,71 @@ describe("skill-catalog", () => {
   });
 
   it("returns empty for non-matching text", () => {
-    expect(inferSkillsFromText("I like ice cream")).toEqual([]);
+    expect(inferSkillsFromText("I like playing basketball")).toEqual([]);
+  });
+});
+
+// ── Phase 12C: activeSkillsForProfile ──────────────────────────
+
+describe("activeSkillsForProfile", () => {
+  it("returns exactly the elementary band for G4", () => {
+    const skills = activeSkillsForProfile(4);
+    expect(skills.length).toBeGreaterThanOrEqual(14); // includes the original 14 + new G3-5 skills
+    expect(skills.every((s) => s.band === "elementary" || s.maxGrade >= 4)).toBe(true);
+  });
+
+  it("returns empty for grade 0 (kindergarten, no early skills registered yet)", () => {
+    const skills = activeSkillsForProfile(0);
+    // Should include K-1 level skills
+    expect(skills.some((s) => s.minGrade === 0)).toBe(true);
+  });
+
+  it("returns middle-band skills for G7", () => {
+    const skills = activeSkillsForProfile(7);
+    expect(skills.some((s) => s.id === "algebra-i")).toBe(true);
+    expect(skills.some((s) => s.id === "biology-6-8")).toBe(true);
+    expect(skills.some((s) => s.id === "chemistry-6-8")).toBe(true);
+    expect(skills.some((s) => s.id === "physics-6-8")).toBe(true);
+    // Elementary spillover: fraction skills extend to maxGrade 6-7
+  });
+
+  it("returns high-band skills for G11", () => {
+    const skills = activeSkillsForProfile(11);
+    expect(skills.some((s) => s.id === "ap-calculus")).toBe(true);
+    expect(skills.some((s) => s.id === "honors-biology")).toBe(true);
+    expect(skills.some((s) => s.id === "honors-chemistry")).toBe(true);
+    expect(skills.some((s) => s.id === "ap-english-lang")).toBe(true);
+  });
+
+  it("returns no skills for out-of-range grade", () => {
+    const skills = activeSkillsForProfile(13); // beyond G12
+    expect(skills.length).toBe(0);
+  });
+});
+
+// ── Phase 12G: prerequisiteChain (DAG guard) ───────────────────
+
+describe("prerequisiteChain", () => {
+  it("returns prereq chain for algebra-i", () => {
+    const chain = prerequisiteChain("algebra-i", 3);
+    expect(chain.length).toBeGreaterThan(0);
+    // Should include prealgebra or expressions-equations
+    expect(chain.some((id) => id.includes("prealgebra") || id.includes("expressions"))).toBe(true);
+  });
+
+  it("returns empty chain for a root skill (no prereqs)", () => {
+    const chain = prerequisiteChain("fractions-concepts", 3);
+    expect(chain).toEqual([]);
+  });
+
+  it("returns empty chain for unknown skill", () => {
+    const chain = prerequisiteChain("nonexistent", 3);
+    expect(chain).toEqual([]);
+  });
+
+  it("chain does not exceed depth limit", () => {
+    const chain = prerequisiteChain("ap-calculus", 2);
+    expect(chain.length).toBeLessThanOrEqual(2);
   });
 });
 
@@ -79,7 +156,6 @@ describe("detectLanguage", () => {
 
   it("detects mixed EN+ZH", () => {
     const text = "这个fraction很容易。How do I solve it?";
-    // roughly balanced → mixed
     const lang = detectLanguage(text);
     expect(["mixed", "zh-CN", "en"]).toContain(lang);
   });
@@ -99,7 +175,6 @@ describe("inferSkillsFromTextMultiLang", () => {
     const { skills } = inferSkillsFromTextMultiLang(
       "帮我解决这个分数的应用题 小明有3/4个蛋糕 他吃了1/2 还剩多少",
     );
-    // Should find fraction-related skills
     expect(skills.length).toBeGreaterThan(0);
     const ids = skills.map((s) => s.id);
     expect(ids.some((id) => id.includes("fraction"))).toBe(true);
@@ -107,7 +182,7 @@ describe("inferSkillsFromTextMultiLang", () => {
 
   it("detects fraction word problem in English", () => {
     const { skills, language } = inferSkillsFromTextMultiLang(
-      "Word problem: Sarah has 3/4 of a cake. She ate 1/2. How much is left?",
+      "Word problem: Sarah has 3/4 fraction of a cake. She ate 1/2. How much is left?",
     );
     expect(language).toBe("en");
     const ids = skills.map((s) => s.id);

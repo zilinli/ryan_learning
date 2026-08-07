@@ -285,14 +285,27 @@ export class NeuralSpeechEngine {
     a.src = url;
     a.muted = false;
     a.volume = 1;
+    // Helps Safari pick up the new blob before play()
+    try {
+      a.load();
+    } catch {
+      // ignore
+    }
 
     try {
       await a.play();
     } catch {
-      // Gesture may have expired — caller should have unlocked on Send; try once more
-      // without revokeUrl of current blob
+      // Gesture may have expired — re-unlock silently then retry once
+      try {
+        await this.unlock();
+      } catch {
+        // continue to retry play anyway
+      }
+      if (gen !== this.generation) return;
       a.src = url;
       this.objectUrl = url;
+      a.muted = false;
+      a.volume = 1;
       await a.play();
     }
 
@@ -319,20 +332,33 @@ export class NeuralSpeechEngine {
     h: SpeakHandlers,
   ): Promise<ArrayBuffer> {
     const voice = this.resolveVoice(text, h);
-    const res = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice }),
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      throw new Error(data?.error || `TTS HTTP ${res.status}`);
+    const attempt = async (): Promise<ArrayBuffer> => {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error || `TTS HTTP ${res.status}`);
+      }
+      const ab = await res.arrayBuffer();
+      if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
+      return ab;
+    };
+    try {
+      return await attempt();
+    } catch (err) {
+      // One client-side retry — covers brief STT/TTS service blips
+      await new Promise((r) => setTimeout(r, 280));
+      try {
+        return await attempt();
+      } catch {
+        throw err instanceof Error ? err : new Error("TTS failed");
+      }
     }
-    const ab = await res.arrayBuffer();
-    if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
-    return ab;
   }
 
   private async pump() {

@@ -26,10 +26,10 @@ describe("wav-recorder helpers", () => {
   });
 
   it("normalizes quiet peaks", () => {
-    // Input peak 0.05 → gain 0.85/0.05=17 (under 20x cap) → output peak ≈0.85
+    // Input peak 0.05 → gain 0.9/0.05=18 (under 24x cap) → output peak ≈0.9
     const quiet = new Float32Array(1000);
     for (let i = 0; i < quiet.length; i += 1) quiet[i] = 0.05 * Math.sin(i / 5);
-    const out = normalizePeak(quiet, 0.85);
+    const out = normalizePeak(quiet, 0.9);
     expect(pcmRms(out)).toBeGreaterThan(pcmRms(quiet));
     let peak = 0;
     for (let i = 0; i < out.length; i += 1) peak = Math.max(peak, Math.abs(out[i]!));

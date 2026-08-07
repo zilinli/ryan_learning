@@ -85,21 +85,21 @@ export function downsampleTo16k(
  *  Phone mics at 16-bit can produce peak values as low as 0.001–0.003
  *  for a normal speaking voice at arm's length. Without normalization
  *  the audio is below Whisper's effective dynamic range.
- *  Target 0.85 to leave headroom and prevent clipping on transients.
+ *  Target 0.9 to leave a little headroom while boosting quiet speech.
  */
 export function normalizePeak(
   samples: Float32Array,
-  target = 0.85,
+  target = 0.9,
 ): Float32Array {
   let peak = 0;
   for (let i = 0; i < samples.length; i += 1) {
     const a = Math.abs(samples[i] ?? 0);
     if (a > peak) peak = a;
   }
-  // Boost quiet but non-silent clips (peak 0.001+). Only skip if near-zero
+  // Boost quiet but non-silent clips (peak 0.0005+). Only skip if near-zero
   // (dead air) or already loud enough.
-  if (peak < 0.0008 || peak >= target) return samples;
-  const gain = Math.min(target / peak, 20.0); // cap gain at 20x to avoid noise boost
+  if (peak < 0.0005 || peak >= target) return samples;
+  const gain = Math.min(target / peak, 24.0); // cap gain at 24x
   const out = new Float32Array(samples.length);
   for (let i = 0; i < samples.length; i += 1) {
     out[i] = Math.max(-1, Math.min(1, (samples[i] ?? 0) * gain));
@@ -129,27 +129,39 @@ async function getMicStream(): Promise<MediaStream> {
   }
   // Prefer clean mono capture; AGC + noise suppression help quiet phone mics.
   // Ideal 48 kHz is downsampled to 16 kHz for STT (native Whisper/SenseVoice rate).
+  // voiceIsolation (Chrome) further reduces keyboard / room noise when available.
+  const baseConstraints: MediaTrackConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    channelCount: { ideal: 1 },
+    sampleRate: { ideal: 48000 },
+  };
   try {
     return await devices.getUserMedia({
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: { ideal: 1 },
-        sampleRate: { ideal: 48000 },
+        ...baseConstraints,
+        ...({ voiceIsolation: true } as MediaTrackConstraints),
       },
       video: false,
     });
   } catch {
-    return devices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-      video: false,
-    });
+    try {
+      return await devices.getUserMedia({
+        audio: baseConstraints,
+        video: false,
+      });
+    } catch {
+      return devices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+        video: false,
+      });
+    }
   }
 }
 

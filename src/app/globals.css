@@ -1,31 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #12323a;
-  --ink-muted: #5d7680;
-  --teal: #1f8a7f;
-  --coral: #e06b5c;
-  --mist: #e7f3f1;
-  --line: rgba(18, 50, 58, 0.12);
-  --bg0: #f3faf8;
-  --bg1: #dceef5;
-  --bg2: #e8f6ef;
+  /* Light brown palette */
+  --ink: #3d2b1f;
+  --ink-muted: #7a6555;
+  --teal: #6b8f71;
+  --coral: #c4785a;
+  --mist: #ebe0d2;
+  --line: rgba(61, 43, 31, 0.14);
+  --bg0: #f3ebe0;
+  --bg1: #e6d5c0;
+  --bg2: #dcc8b0;
+  --bg-base-top: #f7f0e6;
+  --bg-base-mid: #efe4d4;
+  --bg-base-bot: #e8dcc8;
   --background: var(--bg0);
   --foreground: var(--ink);
 }
 
-/* Dark mode — toggled via class on <html> */
+/* Dark brown — toggled via class on <html> */
 .dark,
 html.dark {
-  --ink: #d4e4ea;
-  --ink-muted: #8aa0a8;
-  --teal: #4ad1c0;
-  --coral: #f0887a;
-  --mist: rgba(30, 60, 65, 0.35);
-  --line: rgba(180, 210, 220, 0.15);
-  --bg0: #0f1a1e;
-  --bg1: rgba(20, 80, 90, 0.18);
-  --bg2: rgba(15, 70, 60, 0.14);
+  --ink: #e8dcc8;
+  --ink-muted: #a89078;
+  --teal: #8fb896;
+  --coral: #e09a7a;
+  --mist: rgba(60, 40, 25, 0.45);
+  --line: rgba(232, 220, 200, 0.14);
+  --bg0: #1a120c;
+  --bg1: rgba(90, 60, 35, 0.28);
+  --bg2: rgba(70, 45, 25, 0.22);
+  --bg-base-top: #1f1510;
+  --bg-base-mid: #18110c;
+  --bg-base-bot: #140e0a;
   --background: var(--bg0);
   --foreground: var(--ink);
   color-scheme: dark;
@@ -52,7 +59,12 @@ body {
   background:
     radial-gradient(1200px 600px at 10% -10%, var(--bg1), transparent 55%),
     radial-gradient(900px 500px at 90% 0%, var(--bg2), transparent 50%),
-    linear-gradient(180deg, #f7fcfb 0%, #eef6f4 45%, #f4f8f6 100%);
+    linear-gradient(
+      180deg,
+      var(--bg-base-top) 0%,
+      var(--bg-base-mid) 45%,
+      var(--bg-base-bot) 100%
+    );
   /* Avoid iOS rubber-band exposing empty areas behind the app chrome */
   overscroll-behavior-y: none;
 }
@@ -109,7 +121,7 @@ input {
   left: -4rem;
   width: 22rem;
   height: 22rem;
-  background: #9fd6e8;
+  background: #d4b896;
 }
 
 .atmosphere-blob-b {
@@ -117,7 +129,7 @@ input {
   top: 20%;
   width: 18rem;
   height: 18rem;
-  background: #a8e0c8;
+  background: #c4a882;
   animation-delay: -6s;
 }
 
@@ -159,10 +171,10 @@ input {
 
 @keyframes pulse-ring {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(31,138,127,0.35);
+    box-shadow: 0 0 0 0 rgba(107, 143, 113, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(31,138,127,0);
+    box-shadow: 0 0 0 8px rgba(107, 143, 113, 0);
   }
 }
 

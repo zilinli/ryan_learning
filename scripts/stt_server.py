@@ -46,6 +46,10 @@ HOST = os.environ.get("STT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("STT_PORT", "8765"))
 # Multilingual Whisper (not *.en). small ≫ base for zh/es on CPU.
 MODEL_SIZE = os.environ.get("STT_MODEL", "small")
+# On 4GB boxes, eager dual-load OOMs. Default: SenseVoice only;
+# Whisper loads lazily on first en/es/auto fallback request.
+# Values: sensevoice | whisper | both | none
+STT_PRELOAD = os.environ.get("STT_PRELOAD", "sensevoice").strip().lower()
 # Default neural voice (clients may override per request)
 TTS_VOICE = os.environ.get("TTS_VOICE", "en-US-AvaNeural")
 ALLOWED_STT_LANGS = {"auto", "en", "zh", "yue", "es"}
@@ -505,6 +509,7 @@ def health():
         {
             "ok": True,
             "model": MODEL_SIZE,
+            "preload": STT_PRELOAD,
             "whisper_loaded": model is not None,
             "sensevoice_loaded": sv_ok,
             "sensevoice_error": sense_voice_error,
@@ -662,18 +667,69 @@ def tts():
         return jsonify({"error": str(exc)}), 500
 
 
+def _preload_models() -> None:
+    """Load models per STT_PRELOAD without dual-eager OOM on 4GB hosts.
+
+    sensevoice (default): load SenseVoice only; Whisper on first need.
+    whisper: load Whisper only; SenseVoice on first zh/yue/auto need.
+    both: sequential load with GC between (peak RAM — avoid on 4GB).
+    none: defer everything until first /transcribe.
+    """
+    import gc
+
+    want_sv = STT_PRELOAD in ("sensevoice", "both")
+    want_wh = STT_PRELOAD in ("whisper", "both")
+    if STT_PRELOAD == "none":
+        print("[stt] STT_PRELOAD=none — models load on first request", flush=True)
+        return
+
+    print(f"[stt] Loading models (preload={STT_PRELOAD})...", flush=True)
+
+    if want_sv:
+        try:
+            get_sense_voice()
+            if sense_voice_pool:
+                print("[stt] SenseVoice ready", flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"[stt] WARNING: SenseVoice load failed: {e}", flush=True)
+        gc.collect()
+
+    if want_wh:
+        try:
+            get_model()
+            print("[stt] Whisper ready", flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"[stt] WARNING: Whisper load failed: {e}", flush=True)
+        gc.collect()
+
+    # If the preferred engine failed, try the other once so the service can start.
+    if model is None and not sense_voice_pool:
+        print("[stt] Preferred preload empty — trying fallback engine...", flush=True)
+        if not want_sv:
+            try:
+                get_sense_voice()
+            except Exception as e:  # noqa: BLE001
+                print(f"[stt] WARNING: SenseVoice fallback failed: {e}", flush=True)
+            gc.collect()
+        if model is None and not sense_voice_pool and not want_wh:
+            try:
+                get_model()
+            except Exception as e:  # noqa: BLE001
+                print(f"[stt] WARNING: Whisper fallback failed: {e}", flush=True)
+            gc.collect()
+
+
 if __name__ == "__main__":
     # Pre-flight: check port is free
     if not _check_port_free(HOST, PORT):
         print(f"[stt] Port {HOST}:{PORT} already in use — killing existing...", flush=True)
-        pid = None
         try:
-            import subprocess
             out = subprocess.check_output(["lsof", "-ti", f"tcp:{PORT}"], text=True, timeout=5)
             pid = out.strip()
             if pid:
                 subprocess.run(["kill", "-TERM", pid], timeout=5)
                 import time
+
                 time.sleep(2)
         except Exception:
             pass
@@ -681,22 +737,9 @@ if __name__ == "__main__":
             print(f"[stt] ERROR: Port {HOST}:{PORT} still in use — exiting", flush=True)
             sys.exit(1)
 
-    # Sequential model loading with error isolation
-    print("[stt] Loading models...", flush=True)
-    try:
-        get_model()
-        print("[stt] Whisper ready", flush=True)
-    except Exception as e:
-        print(f"[stt] WARNING: Whisper load failed: {e}", flush=True)
+    _preload_models()
 
-    try:
-        get_sense_voice()
-        if sense_voice_pool:
-            print("[stt] SenseVoice ready", flush=True)
-    except Exception as e:
-        print(f"[stt] WARNING: SenseVoice load failed: {e}", flush=True)
-
-    if model is None and not sense_voice_pool:
+    if model is None and not sense_voice_pool and STT_PRELOAD != "none":
         print("[stt] FATAL: No STT models loaded — exiting", flush=True)
         sys.exit(1)
 
@@ -705,9 +748,9 @@ if __name__ == "__main__":
 
         print(
             f"[stt] waitress on {HOST}:{PORT} whisper={MODEL_SIZE}"
-            f"({'loaded' if model else 'FAILED'}) "
-            f"sensevoice={'on' if sense_voice_pool else 'off'} "
-            f"voice={TTS_VOICE}",
+            f"({'loaded' if model else 'lazy'}) "
+            f"sensevoice={'on' if sense_voice_pool else 'lazy'} "
+            f"preload={STT_PRELOAD} voice={TTS_VOICE}",
             flush=True,
         )
         serve(app, host=HOST, port=PORT, threads=2, channel_timeout=120)

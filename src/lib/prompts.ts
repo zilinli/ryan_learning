@@ -6,8 +6,10 @@ import {
 } from "./voices";
 import {
   DEFAULT_STUDENT_PROFILE,
-  ENVISION_G5_PROMPT_HINT,
+  RYAN_PROFILE,
+  curriculumPromptLines,
   studentProfilePromptLines,
+  type GradeBand,
   type StudentProfile,
 } from "./student-profile";
 import {
@@ -19,6 +21,54 @@ import type { EngagementState } from "./engagement";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
+
+// ── Age-Adaptive Language Presets (Phase 12B) ─────────────────────
+
+/** Coaching language tuned to developmental stage — same hint ladder, different vocabulary. */
+export type LanguagePreset = {
+  confirm: string;
+  encourage: string;
+  stuck: string;
+  error: string;
+  thinkAloud: string;
+};
+
+export function languageForBand(band: GradeBand): LanguagePreset {
+  switch (band) {
+    case "early":
+      return {
+        confirm: "Yes! You got it!",
+        encourage: "Keep going — you're doing great!",
+        stuck: "Let's try together",
+        error: "Almost! Want to try again?",
+        thinkAloud: "Can you tell me what you're thinking?",
+      };
+    case "elementary":
+      return {
+        confirm: "That's correct",
+        encourage: "Great thinking!",
+        stuck: "What do you notice about...",
+        error: "That's not quite right — let's look again",
+        thinkAloud: "Walk me through what you're thinking",
+      };
+    case "middle":
+      return {
+        confirm: "Correct",
+        encourage: "Good — keep reasoning",
+        stuck: "Consider the relationship between...",
+        error: "Re-examine your approach",
+        thinkAloud: "Explain your reasoning step by step",
+      };
+    case "high":
+      return {
+        confirm: "That works",
+        encourage: "Sound logic",
+        stuck: "What assumptions are you making?",
+        error: "Review step 3 — there's an error",
+        thinkAloud: "Walk me through your proof",
+      };
+  }
+}
 
 function formatHistory(history?: HistoryTurn[]): string[] {
   if (!history?.length) return [];
@@ -119,7 +169,14 @@ const RECALL_VS_CONCEPT = [
   "When unsure between B and C, prefer a tiny hint/check once — never leap to the final number on turn 1 for multi-digit work.",
 ].join("\n");
 
-function subjectCoachingLines(): string {
+function subjectCoachingLines(band?: GradeBand): string {
+  const lang = languageForBand(band || "elementary");
+  const mathFractionHint =
+    band === "early" ? "Fractions: use concrete objects (cookies, blocks, pizza slices). Keep it visual and hands-on." :
+    band === "middle" ? "Fractions: extend to rational numbers, ratios, and proportional reasoning." :
+    band === "high" ? "Fractions: rational functions, asymptotes, complex fraction operations." :
+    "Fractions: anchor to «same-size pieces», not just rules. Use food or sharing metaphors (G4–G5 accessible).";
+
   return [
     "",
     "[Subject-specific coaching — math / reading / science / writing]",
@@ -127,32 +184,32 @@ function subjectCoachingLines(): string {
     "► MATH:",
     "- Always use LaTeX for equations, numbers, and symbols.",
     "- For word problems: restate given/asked, draw Singapore bar models when helpful.",
-    "- Hint ladder: (1) 「what do you know?」→ (2) 「what should we find?」→ (3) 「can you draw it?」→ (4) scaffold a similar-but-simpler problem.",
+    `- Hint ladder: ${lang.stuck} → (2) 「what should we find?」→ (3) 「can you draw it?」→ (4) scaffold a similar-but-simpler problem.`,
     "- For mental math: offer estimation first, then precise calculation.",
-    "- Fractions: anchor to «same-size pieces», not just rules. Use food or sharing metaphors (G4–G5 accessible).",
+    `- ${mathFractionHint}`,
     "- Praise the process — not just the answer — especially when they self-correct.",
     "",
     "► READING / COMPREHENSION:",
     "- Point to text with blockquotes. Never give an interpretation without the evidence.",
-    "- Ask: 「which sentence tells you that?」before any conclusion.",
-    "- When the answer is explicit in the text: confirm and ask 「can you find another clue?」",
-    "- When the answer requires inference: scaffold with 「what do you already know about…?」then 「what does the text add?」",
+    `- Ask: «which sentence tells you that?» before any conclusion. ${lang.thinkAloud}.`,
+    "- When the answer is explicit in the text: confirm and ask «can you find another clue?»",
+    "- When the answer requires inference: scaffold with «what do you already know about…?» then «what does the text add?»",
     "- Vocabulary: define with context first, not a dictionary dump. Ask them to invent their own sentence.",
     "",
     "► SCIENCE:",
-    "- Connect to something they've seen or touched (「remember when you dropped both balls?」).",
-    "- Use «what if…?」 to probe understanding. Invite small predictions.",
+    "- Connect to something they've seen or touched («remember when you dropped both balls?»).",
+    "- Use «what if…?» to probe understanding. Invite small predictions.",
     "- Diagrams via draw_geometry for models / cycles / comparisons.",
     "- Avoid jargon unless they've heard it — define in simple words first.",
     "",
     "► WRITING:",
     "- Focus on one paragraph or one paragraph element at a time (topic sentence today, details tomorrow, conclusion next).",
-    "- Give a tiny specific tip (「start your sentence with the subject」), not a rewrite.",
+    "- Give a tiny specific tip («start your sentence with the subject»), not a rewrite.",
     "- Ask them to read their sentence aloud — catches many issues faster than rereading.",
-    "- Praise specific choices: 「nice verb here」, 「good detail about the dog's ears」.",
+    "- Praise specific choices: «nice verb here», «good detail about the dog's ears».",
     "",
     "► MIXED / UNKNOWN:",
-    "- Ask 「is this math, reading, science, or writing?」then switch to the right mode.",
+    "- Ask «is this math, reading, science, or writing?» then switch to the right mode.",
     "Progressive disclosure: when showing step-by-step work, wrap each step in a",
     "`~~~step` code fence (numbered), so the UI can reveal them one at a time.",
     "",
@@ -174,19 +231,20 @@ function crossDisciplineLines(): string {
   ].join("\n");
 }
 
-function confidenceMismatchPromptLines(mem?: LearningMemory | null): string[] {
+function confidenceMismatchPromptLines(mem?: LearningMemory | null, studentName?: string): string[] {
+  const name = studentName || "the student";
   if (!mem) return [];
   const mismatch = detectConfidenceMismatch(mem);
   if (!mismatch) return [];
   if (mismatch.type === "underconfident") {
     return [
       "",
-      `[Confidence note: Ryan rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT shows ~${Math.round(mismatch.pKnown * 100)}%. He may know more than he thinks — encourage him gently if this topic comes up.]`,
+      `[Confidence note: ${name} rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT shows ~${Math.round(mismatch.pKnown * 100)}%. They may know more than they think — encourage them gently if this topic comes up.]`,
     ];
   }
   return [
     "",
-    `[Confidence note: Ryan rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT tracks ~${Math.round(mismatch.pKnown * 100)}%. If this topic comes up, gently check his reasoning — celebrate his enthusiasm while confirming understanding.]`,
+    `[Confidence note: ${name} rated confidence ${mismatch.confidence}/3 on "${mismatch.label}" but BKT tracks ~${Math.round(mismatch.pKnown * 100)}%. If this topic comes up, gently check their reasoning — celebrate enthusiasm while confirming understanding.]`,
   ];
 }
 
@@ -234,7 +292,7 @@ export function buildTutorPrompt(params: {
 }): string {
   const { userText, imageCount, fileSummaries = [], history } = params;
   const hasHomework = imageCount > 0 || fileSummaries.length > 0;
-  const profile = params.studentProfile || DEFAULT_STUDENT_PROFILE;
+  const profile = params.studentProfile || RYAN_PROFILE;
 
   const mode: ReplyLangMode =
     params.replyLanguage === "auto" ||
@@ -356,19 +414,22 @@ export function buildTutorPrompt(params: {
         "Invite scratch work: they can type steps or photo a page of working — coach the off-track step.",
       ].join("\n");
 
+  const lang = languageForBand(profile.gradeBand);
+
   return [
     "[Tutor context]",
     audienceLine(mode),
     styleLine(mode),
+    `[Language style — ${profile.gradeBand} band] Confirm: "${lang.confirm}". Encourage: "${lang.encourage}". When stuck: "${lang.stuck}". On error: "${lang.error}". Prefer "${lang.thinkAloud}" before giving answers.`,
     ...studentProfilePromptLines(profile),
-    ENVISION_G5_PROMPT_HINT,
-    ...subjectCoachingLines(),
+    ...curriculumPromptLines(profile),
+    ...subjectCoachingLines(profile.gradeBand),
     ...crossDisciplineLines(),
     ...learningMemoryPromptLines(params.learningMemory),
-    ...confidenceMismatchPromptLines(params.learningMemory),
+    ...confidenceMismatchPromptLines(params.learningMemory, profile.name),
     ...formatEngagementLines(params.engagement),
     "You have lightweight tools: web_search, fetch_page, run_python, run_js, draw_geometry, recall_learner_skills. Use them silently when helpful; never narrate the tool call.",
-    "Skill memory: the prompt already includes Ryan’s BKT strengths/weaknesses — use that when asking questions. Call recall_learner_skills if you need a fresh snapshot.",
+    "Skill memory: the prompt already includes the student's BKT strengths/weaknesses — use that when asking questions. Call recall_learner_skills if you need a fresh snapshot.",
     "Visuals: the app renders LaTeX, ```svg diagrams, ```mermaid, and https images — use diagrams for geometry/science so the student can see the figure.",
     ...replyLanguageInstructions(mode),
     ...mediaLines,
