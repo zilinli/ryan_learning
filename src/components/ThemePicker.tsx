@@ -54,13 +54,12 @@ export function ThemePicker() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Restore the persisted theme post-hydration; deferred so no setState
-    // runs synchronously in the effect.
-    const t = setTimeout(() => {
-      const theme = loadTheme();
-      setActive(theme);
-      applyTheme(theme);
-    }, 0);
+    // Restore the persisted theme post-hydration. The DOM/localStorage
+    // application is synchronous (no React state involved); only the state
+    // sync is deferred so no setState runs in the effect body.
+    const theme = loadTheme();
+    applyTheme(theme);
+    const t = setTimeout(() => setActive(theme), 0);
     return () => clearTimeout(t);
   }, []);
 
