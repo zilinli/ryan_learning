@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import AccountAvatar, { getInitial } from "./AccountAvatar";
+import AccountAvatar from "./AccountAvatar";
 import {
   createAccount,
   getActiveAccount,
   hydrateAccountsFromServer,
   loadAccounts,
-  pushAccountsToServer,
   RYAN_ACCOUNT_ID,
   saveAccounts,
   saveRyanAccount,
@@ -21,30 +20,29 @@ const MAX_ACCOUNTS = 6;
 const SUBJECTS = ["math", "science", "reading", "writing", "general"] as const;
 
 export function AccountHome() {
-  const [store, setStore] = useState<AccountsStore | null>(null);
-  const [name, setName] = useState("");
-  const [grade, setGrade] = useState(4);
-  const [school, setSchool] = useState("");
-  const [subjects, setSubjects] = useState<string[]>(["math"]);
+  const [initialStore] = useState<AccountsStore>(loadAccounts);
+  const [store, setStore] = useState<AccountsStore | null>(initialStore);
+  const activeProfile = getActiveAccount(initialStore).profile;
+  const [name, setName] = useState(activeProfile.name);
+  const [grade, setGrade] = useState(activeProfile.grade);
+  const [school, setSchool] = useState(activeProfile.school || "");
+  const [subjects, setSubjects] = useState<string[]>(
+    activeProfile.curriculum?.subjects?.length
+      ? [...activeProfile.curriculum.subjects]
+      : ["math"],
+  );
   const [notice, setNotice] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState(0);
 
   useEffect(() => {
-    const loaded = loadAccounts();
-    setStore(loaded);
-    const active = getActiveAccount(loaded);
-    setName(active.profile.name);
-    setGrade(active.profile.grade);
-    setSchool(active.profile.school || "");
-    setSubjects(active.profile.curriculum?.subjects?.length
-      ? [...active.profile.curriculum.subjects]
-      : ["math"]);
-
-    // Hydrate accounts from server so list is up-to-date across devices
+    let cancelled = false;
     void hydrateAccountsFromServer().then((hydrated) => {
-      setStore(hydrated);
+      if (!cancelled) setStore(hydrated);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!store) {

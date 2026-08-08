@@ -78,7 +78,7 @@ async function getOrCreateAgent(
           customTools: HARNESS_TOOLS,
         },
       });
-    } catch (err) {
+    } catch {
       // Clear stale mapping — fall through to create fresh
       clearAgentId(sessionId);
     }

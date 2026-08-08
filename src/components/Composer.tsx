@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { MAX_ATTACHMENTS } from "@/lib/attachments";
 import {
   attachmentFromCameraCapture,
@@ -42,7 +42,11 @@ export function Composer({
   const [cameraOpen, setCameraOpen] = useState(false);
   const fileId = useId();
   const attachmentsRef = useRef<ClientAttachment[]>([]);
-  attachmentsRef.current = attachments;
+  // Keep a ref of the latest attachments for stable event-handler closures
+  // (addFiles/submit are recreated or memoized without deps).
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
   const addFiles = useCallback(async (fileList: FileList | File[] | null) => {
     if (!fileList || fileList.length === 0) return;

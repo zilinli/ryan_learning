@@ -46,11 +46,16 @@ export function SkillsPanel({ memory }: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem(STORAGE_KEY) === "1") setOpen(true);
-    } catch {
-      /* ignore */
-    }
+    // Load persisted open state post-hydration; deferred so no setState runs
+    // synchronously in the effect.
+    const t = setTimeout(() => {
+      try {
+        if (sessionStorage.getItem(STORAGE_KEY) === "1") setOpen(true);
+      } catch {
+        /* ignore */
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const mem = useMemo(

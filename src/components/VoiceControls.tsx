@@ -84,16 +84,26 @@ export function VoiceControls({
   const voiceIdRef = useRef<TutorVoiceId>("auto");
   const onSpeakApiRef = useRef(onSpeakApi);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  onSpeakApiRef.current = onSpeakApi;
+  useEffect(() => {
+    onSpeakApiRef.current = onSpeakApi;
+  }, [onSpeakApi]);
 
   useEffect(() => {
-    const id = loadVoiceId();
-    setVoiceId(id);
-    voiceIdRef.current = id;
-    onVoiceIdChange?.(id);
-    const enabled = loadSpeakEnabled();
-    wantSpeakRef.current = enabled;
-    if (enabled !== voiceEnabled) onVoiceEnabledChange(enabled);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      const id = loadVoiceId();
+      setVoiceId(id);
+      voiceIdRef.current = id;
+      onVoiceIdChange?.(id);
+      const enabled = loadSpeakEnabled();
+      wantSpeakRef.current = enabled;
+      if (enabled !== voiceEnabled) onVoiceEnabledChange(enabled);
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,23 +113,28 @@ export function VoiceControls({
   }, [voiceEnabled]);
 
   useEffect(() => {
-    setTouchMode(isCoarsePointer());
-    const secure = isSecureMediaContext();
-    const upgrade = `https://${window.location.hostname}${window.location.pathname}`;
-    if (!secure) {
-      setSupported(false);
-      setHttpsLink(upgrade);
-      setHint("Needs HTTPS for mic & voice.");
-      if (window.location.protocol === "http:") {
-        window.location.replace(upgrade);
+    // Capability + coarse-pointer detection is corrected post-hydration.
+    // Deferred so the initial SSR render isn't a setState-synchronously-in-effect.
+    const t = setTimeout(() => {
+      setTouchMode(isCoarsePointer());
+      const secure = isSecureMediaContext();
+      const upgrade = `https://${window.location.hostname}${window.location.pathname}`;
+      if (!secure) {
+        setSupported(false);
+        setHttpsLink(upgrade);
+        setHint("Needs HTTPS for mic & voice.");
+        if (window.location.protocol === "http:") {
+          window.location.replace(upgrade);
+        }
+        return;
       }
-      return;
-    }
-    if (!canRecordAudio()) {
-      setHttpsLink("");
-      setHint("Mic unavailable — typing works. Speak may still work.");
-    }
-    setSupported(true);
+      if (!canRecordAudio()) {
+        setHttpsLink("");
+        setHint("Mic unavailable — typing works. Speak may still work.");
+      }
+      setSupported(true);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   // Close voice menu on outside click
@@ -307,7 +322,7 @@ export function VoiceControls({
       setStatus("");
       setHint("Microphone blocked — allow mic in browser address bar");
     }
-  }, [busy, disabled, stopSpeaking, touchMode]);
+  }, [busy, disabled, stopSpeaking]);
 
   const stopListening = useCallback(async () => {
     const session = recorderRef.current;

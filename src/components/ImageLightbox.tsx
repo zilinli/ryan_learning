@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
   ZOOM_MIN,
-  ZOOM_STEP,
   zoomIn as zoomInFn,
   zoomOut as zoomOutFn,
   formatZoomPercent,
@@ -28,7 +27,13 @@ type Props = {
  */
 
 export function ImageLightbox({ src, alt, onClose }: Props) {
-  const [mounted, setMounted] = useState(false);
+  // Hydration-safe client detection: render nothing on the server / first
+  // hydration pass, then portal to <body> once mounted on the client.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [zoom, setZoom] = useState(ZOOM_MIN);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{
@@ -38,11 +43,6 @@ export function ImageLightbox({ src, alt, onClose }: Props) {
     offsetY: number;
   } | null>(null);
   const moveTotal = useRef(0);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
 
   const zoomIn = useCallback(() => setZoom((z) => zoomInFn(z)), []);
   const zoomOut = useCallback(() => setZoom((z) => zoomOutFn(z)), []);

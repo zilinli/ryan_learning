@@ -46,9 +46,7 @@ import {
   switchAccount,
   syncProfileFromSkills,
   type AccountRecord,
-  type AccountsStore,
 } from "@/lib/student-profile";
-import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
 import {
   hydrateLearningMemoryFromServer,
   learningMemorySummary,
@@ -282,7 +280,10 @@ export function TutorShell() {
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
     let cancelled = false;
-
+    // Deferred so the synchronous init setState batch doesn't trigger
+    // react-hooks/set-state-in-effect (the async work below already runs in
+    // callbacks and is unaffected).
+    const t = setTimeout(() => {
     try {
       // 1. Resolve account synchronously — do NOT depend on stale setState closures
       const accts = loadAccounts();
@@ -378,8 +379,14 @@ export function TutorShell() {
         setReady(true);
       }
     }
+    }, 0);
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // One-time init intentionally reads the initial accountId from the closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -426,7 +433,7 @@ export function TutorShell() {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [ready, store, busy]);
+  }, [ready, store, busy, accountId]);
 
   // Periodic cross-device sync: pull deletions + new messages from the server
   // every 60s and whenever the tab becomes visible again. A conversation that

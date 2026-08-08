@@ -91,15 +91,19 @@ export function CameraCapture({
   const [livePaused, setLivePaused] = useState(false);
   const [aspectClass, setAspectClass] = useState("aspect-[3/4]");
 
-  // Detect coarse-pointer → portrait phone; fine → landscape desktop/tablet
+  // Detect coarse-pointer → portrait phone; fine → landscape desktop/tablet.
+  // Deferred post-hydration so the initial SSR render isn't a
+  // setState-synchronously-in-effect.
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    const t = setTimeout(() => {
       setAspectClass(
         window.matchMedia("(pointer: coarse)").matches
           ? "aspect-[3/4]"
           : "aspect-[4/3]",
       );
-    }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const stopStream = useCallback(() => {
@@ -107,7 +111,6 @@ export function CameraCapture({
     streamRef.current = null;
     const video = videoRef.current;
     if (video) video.srcObject = null;
-    setReady(false);
   }, []);
 
   const startStream = useCallback(async () => {
@@ -188,15 +191,20 @@ export function CameraCapture({
   useEffect(() => {
     if (!open) {
       stopStream();
-      setLivePaused(false);
-      setError("");
-      return;
+      const t = setTimeout(() => {
+        setLivePaused(false);
+        setError("");
+      }, 0);
+      return () => clearTimeout(t);
     }
     if (livePaused) {
       return;
     }
-    void startStream();
-    return () => stopStream();
+    const t = setTimeout(() => void startStream(), 0);
+    return () => {
+      clearTimeout(t);
+      stopStream();
+    };
   }, [open, facingMode, livePaused, startStream, stopStream]);
 
   const resumeLive = () => {

@@ -1,6 +1,6 @@
 /** @vitest-environment node */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseFreeDict, freeDictLookup } from "./freedict-client";
 
 describe("parseFreeDict", () => {
@@ -20,7 +20,7 @@ describe("parseFreeDict", () => {
         ],
       },
     ];
-    const entries = parseFreeDict(data, "hello", "en");
+    const entries = parseFreeDict(data, "hello");
     expect(entries).toHaveLength(1);
     expect(entries[0]!.headword).toBe("hello");
     expect(entries[0]!.pronunciation).toBe("/həˈloʊ/");
@@ -46,7 +46,7 @@ describe("parseFreeDict", () => {
         ],
       },
     ];
-    const entries = parseFreeDict(data, "test", "en");
+    const entries = parseFreeDict(data, "test");
     expect(entries[0]!.pronunciation).toBe("/tɛst/");
     expect(entries[0]!.audioUrl).toBe("https://example.com/test.mp3");
   });
@@ -65,7 +65,7 @@ describe("parseFreeDict", () => {
         ],
       },
     ];
-    const entries = parseFreeDict(data, "test", "en");
+    const entries = parseFreeDict(data, "test");
     expect(entries[0]!.pronunciation).toBe("/top_level/");
   });
 
@@ -85,12 +85,12 @@ describe("parseFreeDict", () => {
         ],
       },
     ];
-    const entries = parseFreeDict(data, "run", "en");
+    const entries = parseFreeDict(data, "run");
     expect(entries).toHaveLength(1);
   });
 
   it("handles empty response gracefully", () => {
-    const entries = parseFreeDict([], "word", "en");
+    const entries = parseFreeDict([], "word");
     expect(entries).toEqual([]);
   });
 });

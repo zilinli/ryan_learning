@@ -211,9 +211,6 @@ function ensureDefaultAccount(store: AccountsStore): AccountsStore {
   };
 }
 
-/** @deprecated — use ensureDefaultAccount */
-const ensureRyan = ensureDefaultAccount;
-
 function emptyAccountsStore(): AccountsStore {
   const ryan = ryanAccount();
   return { version: 1, activeId: ryan.id, accounts: [ryan] };

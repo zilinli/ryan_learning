@@ -262,8 +262,6 @@ export const DEFAULT_ELO: EloState = {
   lastUpdate: 0,
 };
 
-const ELO_DEFAULT_K = 32;
-
 /**
  * Dynamic K-factor for Elo updates.
  * Large K for new topics (uncertain), smaller K for familiar topics.

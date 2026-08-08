@@ -87,7 +87,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     const c = new AbortController(); ab.current = c;
 
     /** Read SSE stream with watchdog — retries once on network drop. */
-    const streamRequest = async (isRetry: boolean): Promise<string> => {
+    const streamRequest = async (): Promise<string> => {
       const res = await fetch("/api/console/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -108,9 +108,8 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
       while (true) {
         // watchdog: if no bytes arrive in 45s, assume connection dropped
         let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
-        let dataArrived = false;
         const readWithWatchdog = Promise.race([
-          reader.read().then(v => { dataArrived = true; return v; }),
+          reader.read(),
           new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
             watchdogTimer = setTimeout(() => reject(new Error("watchdog")), 45_000);
           }),
@@ -173,7 +172,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     while (retries <= 1) {
       try {
         retries++;
-        const full = await streamRequest(retries > 1);
+        const full = await streamRequest();
         setStreamingContent(""); setStatusText("");
         const hasDiff = /\+\+\+|diff --git/i.test(full);
         setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "assistant", content: full || "Done!", createdAt: Date.now(), tools: runningTools.length ? runningTools : undefined }]);

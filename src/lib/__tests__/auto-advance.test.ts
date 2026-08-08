@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   autoAdvanceCheck,
   emptyLearningMemory,
-  normalizeMemory,
   type LearningMemory,
   type SkillMastery,
 } from "../learning-memory";

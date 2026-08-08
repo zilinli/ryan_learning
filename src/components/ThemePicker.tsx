@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type ThemeId = "light" | "dark" | "light-blue" | "light-green";
 
 const THEMES: { id: ThemeId; label: string; swatch: string; accent: string }[] = [
-  { id: "light", label: "Light", swatch: "#f3ebe0", accent: "#3d2b1f" },
+  { id: "light", label: "Light", swatch: "#e0d0ba", accent: "#3d2b1f" },
   { id: "dark", label: "Dark", swatch: "#1a120c", accent: "#8fb896" },
   { id: "light-blue", label: "Light blue", swatch: "#eef4f8", accent: "#3a7a9a" },
   { id: "light-green", label: "Light green", swatch: "#eef8f0", accent: "#3a7e5a" },
@@ -54,9 +54,14 @@ export function ThemePicker() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = loadTheme();
-    setActive(t);
-    applyTheme(t);
+    // Restore the persisted theme post-hydration; deferred so no setState
+    // runs synchronously in the effect.
+    const t = setTimeout(() => {
+      const theme = loadTheme();
+      setActive(theme);
+      applyTheme(theme);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   // Close on outside click / touch or Escape

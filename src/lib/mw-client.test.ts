@@ -13,7 +13,7 @@ describe("parseMwCollegiate", () => {
   };
 
   it("parses a basic collegiate entry", () => {
-    const entries = parseMwCollegiate([sampleEntry], "hello");
+    const entries = parseMwCollegiate([sampleEntry]);
     expect(entries).toHaveLength(1);
     expect(entries[0]!.headword).toBe("hello");
     expect(entries[0]!.pronunciation).toBe("hə-ˈlō");
@@ -24,20 +24,20 @@ describe("parseMwCollegiate", () => {
   });
 
   it("generates correct audio URL", () => {
-    const entries = parseMwCollegiate([sampleEntry], "hello");
+    const entries = parseMwCollegiate([sampleEntry]);
     expect(entries[0]!.audioUrl).toContain("media.merriam-webster.com");
     expect(entries[0]!.audioUrl).toContain("hello001.mp3");
   });
 
   it("strips asterisks from headword", () => {
     const entry = { ...sampleEntry, hwi: { hw: "dic*tio*nary", prs: [] } };
-    const entries = parseMwCollegiate([entry], "dictionary");
+    const entries = parseMwCollegiate([entry]);
     expect(entries[0]!.headword).toBe("dictionary");
   });
 
   it("filters out suggestion strings", () => {
     const mixed = [sampleEntry, "suggestion" as unknown as never, sampleEntry];
-    const entries = parseMwCollegiate(mixed, "hello");
+    const entries = parseMwCollegiate(mixed);
     expect(entries).toHaveLength(2);
   });
 
@@ -63,7 +63,7 @@ describe("parseMwCollegiate", () => {
         },
       ],
     };
-    const entries = parseMwCollegiate([entry as never], "beautiful");
+    const entries = parseMwCollegiate([entry as never]);
     expect(entries).toHaveLength(1);
     expect(entries[0]!.senses[0]!.example).toContain("beautiful");
   });
@@ -79,7 +79,7 @@ describe("parseMwSpanish", () => {
   };
 
   it("parses Spanish-English entry", () => {
-    const entries = parseMwSpanish([sampleEntry], "hola");
+    const entries = parseMwSpanish([sampleEntry]);
     expect(entries).toHaveLength(1);
     expect(entries[0]!.headword).toBe("hola");
     expect(entries[0]!.senses[0]!.definition).toBe("hello");
@@ -87,7 +87,7 @@ describe("parseMwSpanish", () => {
   });
 
   it("generates Spanish audio URL", () => {
-    const entries = parseMwSpanish([sampleEntry], "hola");
+    const entries = parseMwSpanish([sampleEntry]);
     expect(entries[0]!.audioUrl).toContain("/es/me/mp3/");
   });
 });

@@ -37,7 +37,6 @@ const FALLBACK_CACHE_SOURCES = [
   "local-seed",
   "translate",
 ] as const;
-const CACHE_SOURCES = [...MW_CACHE_SOURCES, ...FALLBACK_CACHE_SOURCES] as const;
 
 const rateMap = new Map<string, number[]>();
 const RATE_LIMIT = 120;

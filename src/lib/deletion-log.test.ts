@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { readDeletionLog, writeTombstone, getDeletionLogTTL, isTombstoned } from "./deletion-log";
 import { promises as fs } from "node:fs";
 import path from "node:path";

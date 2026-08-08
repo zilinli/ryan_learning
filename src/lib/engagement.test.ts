@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyEngagement, engagementForPrompt, engagementSummary, loadEngagement, recordLearningTurn, saveEngagement } from "./engagement";
+import { emptyEngagement, engagementForPrompt, engagementSummary, recordLearningTurn } from "./engagement";
 
 describe("engagement state", () => {
   it("emptyEngagement returns zero state", () => {

@@ -82,7 +82,32 @@ export function ChatThread({ messages, streaming }: Props) {
   const [userScrolled, setUserScrolled] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const seenIdsRef = useRef<Set<string>>(new Set());
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+
+  // Mark all current messages as seen so only genuinely new messages animate
+  // in. Deferred to the next macrotask: React schedules the re-render after
+  // commit anyway, and the rule forbids synchronous setState in an effect.
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      setSeenIds((prev) => {
+        let changed = false;
+        const next = new Set(prev);
+        for (const m of messages) {
+          if (!next.has(m.id)) {
+            next.add(m.id);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [messages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,8 +207,7 @@ export function ChatThread({ messages, streaming }: Props) {
       {messages.map((m) => {
         const attachments = messageAttachments(m);
         const isUser = m.role === "user";
-        const wasSeen = seenIdsRef.current.has(m.id);
-        if (!wasSeen) seenIdsRef.current.add(m.id);
+        const wasSeen = seenIds.has(m.id);
         const animateIn =
           !wasSeen &&
           m.content.length < 120 &&

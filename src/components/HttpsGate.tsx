@@ -10,26 +10,32 @@ export function HttpsGate({ children }: { children: React.ReactNode }) {
   const [httpsUrl, setHttpsUrl] = useState("");
 
   useEffect(() => {
-    const { protocol, hostname, port, pathname, search, hash } = window.location;
-    const local =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1";
+    // Redirect decisions run post-hydration only, and the state updates are
+    // deferred so no setState runs synchronously in the effect.
+    const t = setTimeout(() => {
+      const { protocol, hostname, port, pathname, search, hash } =
+        window.location;
+      const local =
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1";
 
-    if (protocol === "https:" || local) {
-      setBlocked(false);
-      return;
-    }
+      if (protocol === "https:" || local) {
+        setBlocked(false);
+        return;
+      }
 
-    // Strip non-443 ports like :3000 so we land on nginx HTTPS
-    const target = `https://${hostname}${pathname}${search}${hash}`;
-    setHttpsUrl(target);
+      // Strip non-443 ports like :3000 so we land on nginx HTTPS
+      const target = `https://${hostname}${pathname}${search}${hash}`;
+      setHttpsUrl(target);
 
-    // If user opened plain http or :3000, bounce to https
-    if (protocol === "http:" || port === "3000") {
-      window.location.replace(target);
-      setBlocked(true);
-    }
+      // If user opened plain http or :3000, bounce to https
+      if (protocol === "http:" || port === "3000") {
+        window.location.replace(target);
+        setBlocked(true);
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   if (blocked) {

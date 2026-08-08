@@ -250,7 +250,6 @@ function incompleteDiagramStart(buf: string): number {
   // Mid-URI leftovers already in buffer (no ![ prefix) — hold from first %3Csvg / data:image
   const mid = buf.search(/data:image\/svg\+xml,%3C|%3Csvg\b/i);
   if (mid >= 0) {
-    const after = buf.slice(mid);
     // If this isn't part of a complete markdown image earlier, hold it
     const before = buf.slice(0, mid);
     const openImg = before.lastIndexOf("![");

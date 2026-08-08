@@ -2,28 +2,28 @@
 
 /* ── 4-Theme System via data-theme ── */
 
-/* Light (warm cream/brown, default) */
+/* Light (warm latte brown, default) */
 :root,
 [data-theme="light"] {
   --ink: #3d2b1f;
-  --ink-muted: #7a6555;
-  --teal: #6b8f71;
-  --coral: #b96f52;
-  --mist: #ebe0d2;
+  --ink-muted: #5c4a3c;
+  --teal: #4f7356;
+  --coral: #a85f42;
+  --mist: #d8c8b4;
   --line: rgba(61, 43, 31, 0.14);
-  --bg0: #f3ebe0;
-  --bg1: #e6d5c0;
-  --bg2: #dcc8b0;
-  --bg-base-top: #f7f0e6;
-  --bg-base-mid: #efe4d4;
-  --bg-base-bot: #e8dcc8;
+  --bg0: #e0d0ba;
+  --bg1: #d0ba9e;
+  --bg2: #c4a88a;
+  --bg-base-top: #e6d8c4;
+  --bg-base-mid: #dcc8b0;
+  --bg-base-bot: #d2bea4;
   --background: var(--bg0);
   --foreground: var(--ink);
   --surface: #ffffff;
   --surface-muted: rgba(255,255,255,0.72);
   --surface-hover: rgba(255,255,255,0.55);
-  --blob-a: #d4b896;
-  --blob-b: #c4a882;
+  --blob-a: #c4a882;
+  --blob-b: #b49870;
   --blob-a-opacity: 0.45;
   --blob-b-opacity: 0.45;
   --diff-code-bg: rgba(255, 255, 255, 0.6);

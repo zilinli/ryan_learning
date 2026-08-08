@@ -72,7 +72,6 @@ function mwExampleText(raw: unknown): string | undefined {
 
 export function parseMwCollegiate(
   data: MwCollegiateEntry[],
-  word: string,
 ): DictEntry[] {
   return data
     .filter((d): d is MwCollegiateEntry => typeof d === "object" && "shortdef" in d)
@@ -116,7 +115,7 @@ async function mwEnglishReferenceLookup(
     if (!Array.isArray(data) || data.length === 0) return null;
     // Suggestion-only responses are string arrays
     if (typeof data[0] === "string") return null;
-    const entries = parseMwCollegiate(data, word);
+    const entries = parseMwCollegiate(data);
     if (!entries.length) return null;
     return { word, lang: "en", entries };
   } catch {
@@ -165,7 +164,6 @@ function mwSpanishAudioUrl(audio: string): string {
 
 export function parseMwSpanish(
   data: MwSpanishEntry[],
-  word: string,
 ): DictEntry[] {
   return data
     .filter((d): d is MwSpanishEntry => typeof d === "object" && "shortdef" in d)
@@ -208,7 +206,7 @@ export async function mwSpanishLookup(
     return {
       word,
       lang: "es",
-      entries: parseMwSpanish(data, word),
+      entries: parseMwSpanish(data),
     };
   } catch {
     return null;

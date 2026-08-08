@@ -34,7 +34,6 @@ type FreeDictEntry = {
 export function parseFreeDict(
   data: FreeDictEntry[],
   word: string,
-  lang: DictLang,
 ): DictEntry[] {
   const entries: DictEntry[] = [];
   const seen = new Set<string>();
@@ -77,7 +76,7 @@ export async function freeDictLookup(
     if (!res.ok) return null;
     const data = (await res.json()) as FreeDictEntry[];
     if (!Array.isArray(data) || data.length === 0) return null;
-    const entries = parseFreeDict(data, word, lang);
+    const entries = parseFreeDict(data, word);
     if (entries.length === 0) return null;
     return { word, lang, entries };
   } catch {

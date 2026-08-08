@@ -19,10 +19,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-function sseEncode(event: string, data: unknown): string {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
 function friendlyStatus(raw: string): string | null {
   const s = (raw || "").trim();
   if (!s) return null;

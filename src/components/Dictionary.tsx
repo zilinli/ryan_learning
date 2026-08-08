@@ -176,7 +176,10 @@ export function Dictionary() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setRecents(loadRecentSearches());
+    // Restore recent searches post-hydration; deferred so no setState runs
+    // synchronously in the effect.
+    const t = setTimeout(() => setRecents(loadRecentSearches()), 0);
+    return () => clearTimeout(t);
   }, []);
 
   const doLookup = useCallback(

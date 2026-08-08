@@ -10,7 +10,6 @@ import {
 } from "./history-retention";
 import {
   FLAT_KEYS,
-  isAccountMigrated,
   markMigrated,
   nsKey,
   readFlatKey,

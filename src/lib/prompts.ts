@@ -5,7 +5,6 @@ import {
   type ReplyLangMode,
 } from "./voices";
 import {
-  DEFAULT_STUDENT_PROFILE,
   RYAN_PROFILE,
   curriculumPromptLines,
   studentProfilePromptLines,

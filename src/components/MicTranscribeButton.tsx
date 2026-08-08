@@ -54,24 +54,33 @@ export function MicTranscribeButton({
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
   const languageRef = useRef(language);
-  languageRef.current = language;
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   useEffect(() => {
-    setTouchMode(isCoarsePointer());
-    const secure = isSecureMediaContext();
-    const upgrade = `https://${window.location.hostname}${window.location.pathname}`;
-    if (!secure) {
-      setSupported(false);
-      setHttpsLink(upgrade);
-      setHint("Needs HTTPS for mic.");
-      return;
-    }
-    if (!canRecordAudio()) {
-      setHint("Mic unavailable in this browser.");
-    }
-    setSupported(true);
+    // Capability + coarse-pointer detection is corrected post-hydration.
+    // Deferred so the initial SSR render isn't a setState-synchronously-in-effect.
+    const t = setTimeout(() => {
+      setTouchMode(isCoarsePointer());
+      const secure = isSecureMediaContext();
+      const upgrade = `https://${window.location.hostname}${window.location.pathname}`;
+      if (!secure) {
+        setSupported(false);
+        setHttpsLink(upgrade);
+        setHint("Needs HTTPS for mic.");
+        return;
+      }
+      if (!canRecordAudio()) {
+        setHint("Mic unavailable in this browser.");
+      }
+      setSupported(true);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(

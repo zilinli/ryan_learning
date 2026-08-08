@@ -27,7 +27,7 @@ describe("createConsoleHarnessTools", () => {
       expect(r).toContain("1|line1"); expect(r).toContain("2|line2");
     });
     it("rejects forbidden paths", async () => {
-      await expect(tools.read_file!.execute({ filepath: ".env" }, {} as any)).rejects.toThrow();
+      await expect(tools.read_file!.execute({ filepath: ".env" }, ctx)).rejects.toThrow();
     });
   });
   describe("search_code", () => {
@@ -52,13 +52,13 @@ describe("createConsoleHarnessTools", () => {
     it("increments change count", async () => {
       await fs.writeFile(path.join(TMP, "g.ts"), "abc");
       expect(getFileChangeCount()).toBe(0);
-      await tools.edit_file!.execute({ filepath: "_test_tmp/g.ts", old_string: "abc", new_string: "def" }, {} as any);
+      await tools.edit_file!.execute({ filepath: "_test_tmp/g.ts", old_string: "abc", new_string: "def" }, ctx);
       expect(getFileChangeCount()).toBe(1);
     });
   });
   describe("git_diff", () => { it("returns a string", async () => { const r = asString(await tools.git_diff!.execute({}, ctx)); expect(typeof r).toBe("string"); }); });
-  describe("run_tests", () => { it("runs vitest and reports results", async () => { const r = asString(await tools.run_tests!.execute({ file: "src/lib/console-harness.test.ts" }, ctx)); const parsed = JSON.parse(r); expect(parsed.passed).toBeGreaterThanOrEqual(0); }, 70000); });
-  describe("apply_changes", () => { it("runs apply flow", async () => { try { await tools.apply_changes!.execute({ message: "test" }, {} as any); } catch (e) { expect(e).toBeDefined(); } }, 90000); });
+  describe("run_tests", () => { it("runs vitest and reports results", async () => { const r = asString(await tools.run_tests!.execute({ file: "src/lib/dict-cache.test.ts" }, ctx)); const parsed = JSON.parse(r); expect(parsed.passed).toBeGreaterThanOrEqual(0); }, 70000); });
+  describe("apply_changes", () => { it("runs apply flow", async () => { try { await tools.apply_changes!.execute({ message: "test" }, ctx); } catch (e) { expect(e).toBeDefined(); } }, 90000); });
   describe("revert_changes", () => { it("reverts changes", async () => { const r = asString(await tools.revert_changes!.execute({}, ctx)); expect(typeof r).toBe("string"); }); });
 });
 describe("file change counter", () => { it("resets to zero", () => { resetFileChangeCount(); expect(getFileChangeCount()).toBe(0); }); });
