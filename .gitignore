@@ -49,6 +49,7 @@ yarn-error.log*
 /data/history/
 /data/learning/
 /data/deletions/
+/data/dialect-feedback.jsonl
 
 # agent-chat build cache
 agent-chat/.next/

@@ -9,8 +9,6 @@ import { ImageLightbox } from "./ImageLightbox";
 type Props = {
   messages: ChatMessage[];
   streaming?: boolean;
-  /** Active dialect reply mode, so dialect feedback only shows when relevant. */
-  dialect?: "teo" | "hak";
 };
 
 function formatTime(epochMs: number): string {
@@ -73,7 +71,7 @@ function triggerDownload(href: string, filename: string) {
   a.remove();
 }
 
-export function ChatThread({ messages, streaming, dialect }: Props) {
+export function ChatThread({ messages, streaming }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
     alt: string;
@@ -81,7 +79,6 @@ export function ChatThread({ messages, streaming, dialect }: Props) {
   const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
   const [vaultChecked, setVaultChecked] = useState<Record<string, true>>({});
   const [loadFailed, setLoadFailed] = useState<Record<string, true>>({});
-  const [feedbackSent, setFeedbackSent] = useState<Record<string, true>>({});
   const [userScrolled, setUserScrolled] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -180,29 +177,6 @@ export function ChatThread({ messages, streaming, dialect }: Props) {
   const scrollToBottom = () => {
     setUserScrolled(false);
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const sendDialectFeedback = async (m: ChatMessage) => {
-    if (!dialect || feedbackSent[m.id]) return;
-    setFeedbackSent((prev) => ({ ...prev, [m.id]: true }));
-    try {
-      await fetch("/api/dialect-feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: m.content,
-          dialect,
-          timestamp: Date.now(),
-        }),
-      });
-    } catch {
-      // Failed to persist — allow retry next click
-      setFeedbackSent((prev) => {
-        const next = { ...prev };
-        delete next[m.id];
-        return next;
-      });
-    }
   };
 
   if (messages.length === 0) {
@@ -384,31 +358,6 @@ export function ChatThread({ messages, streaming, dialect }: Props) {
               m.role === "assistant" &&
               m === messages[messages.length - 1] ? (
                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-[var(--teal)] align-middle" />
-              ) : null}
-              {!isUser && dialect && m.content ? (
-                <div className="mt-1.5 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => void sendDialectFeedback(m)}
-                    disabled={Boolean(feedbackSent[m.id])}
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] transition ${
-                      feedbackSent[m.id]
-                        ? "text-[var(--teal)]"
-                        : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
-                    }`}
-                    title={
-                      dialect === "teo"
-                        ? "这句话不像潮汕话？点击反馈"
-                        : "这句话不像客家话？点击反馈"
-                    }
-                  >
-                    {feedbackSent[m.id] ? (
-                      <>✓ 已反馈</>
-                    ) : (
-                      <>🗣️ 这句不像{dialect === "teo" ? "潮汕话" : "客家话"}</>
-                    )}
-                  </button>
-                </div>
               ) : null}
             </div>
           </article>
