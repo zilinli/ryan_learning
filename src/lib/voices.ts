@@ -202,7 +202,7 @@ export function detectSpeechLang(text: string): SpeechLang {
   return "en";
 }
 
-function edgeVoiceForLang(lang: SpeechLang): string {
+export function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "yue" || lang === "teo" || lang === "hak")
     return "zh-HK-WanLungNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";

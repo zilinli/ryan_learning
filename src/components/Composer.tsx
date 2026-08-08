@@ -9,7 +9,7 @@ import {
 } from "@/lib/file-payload";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
-import type { TutorVoiceId } from "@/lib/voices";
+import { getTutorVoice, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 
 type Props = {
@@ -40,6 +40,9 @@ export function Composer({
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
+  const [dialectPending, setDialectPending] = useState(false);
+  const dialectTokenRef = useRef(0);
   const fileId = useId();
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   // Keep a ref of the latest attachments for stable event-handler closures
@@ -78,6 +81,7 @@ export function Composer({
     setText("");
     setAttachments([]);
     setError("");
+    setDialectPending(false);
     // Unlock TTS in this user gesture, then send (iPad/iPhone autoplay policy)
     void (async () => {
       if (voiceEnabled) {
@@ -134,6 +138,13 @@ export function Composer({
         </div>
       ) : null}
 
+      {dialectPending ? (
+        <div className="mb-1.5 flex items-center gap-2 rounded-lg border border-[var(--teal)]/30 bg-[var(--teal)]/5 px-3 py-2 text-xs text-[var(--ink)] animate-fade-up">
+          <span aria-hidden>🪶</span>
+          <span className="flex-1">正在校对方言转写…</span>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
         <textarea
           value={text}
@@ -142,6 +153,9 @@ export function Composer({
           placeholder="Ask anything about your homework…"
           onChange={(e) => {
             setText(e.target.value);
+            // 用户手动输入时视为放弃本次自动纠错覆盖
+            dialectTokenRef.current += 1;
+            setDialectPending(false);
             // Auto-expand height to a max of 4 lines
             const el = e.target;
             el.style.height = "auto";
@@ -212,9 +226,43 @@ export function Composer({
             disabled={disabled || adding}
             voiceEnabled={voiceEnabled}
             onVoiceEnabledChange={onVoiceEnabledChange}
-            onVoiceIdChange={onVoiceIdChange}
+            onVoiceIdChange={(id) => {
+              setVoiceId(id);
+              onVoiceIdChange?.(id);
+            }}
             onSpeakApi={onSpeakApi}
             onTranscript={(t) => {
+              const lang = getTutorVoice(voiceId).lang;
+              if (lang === "teo" || lang === "hak") {
+                // 方言模式：不自动发送；纠错后填入输入框，由用户确认/编辑后再发送
+                const token = dialectTokenRef.current + 1;
+                dialectTokenRef.current = token;
+                setText(t);
+                setDialectPending(true);
+                void (async () => {
+                  try {
+                    const res = await fetch("/api/dialect-correct", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ text: t, dialect: lang }),
+                      signal: AbortSignal.timeout(20_000),
+                    });
+                    const data = (await res.json().catch(() => null)) as {
+                      corrected?: string;
+                    } | null;
+                    // 用户已手动输入或已发送时，丢弃纠错结果
+                    if (token !== dialectTokenRef.current) return;
+                    if (data?.corrected) setText(data.corrected);
+                  } catch {
+                    // 纠错失败：保留原始转写文本，仍然交给用户确认
+                  } finally {
+                    if (token === dialectTokenRef.current) {
+                      setDialectPending(false);
+                    }
+                  }
+                })();
+                return;
+              }
               setText(t);
               window.setTimeout(() => submit(t), 0);
             }}

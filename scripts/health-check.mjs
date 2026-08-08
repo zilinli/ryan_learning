@@ -8,10 +8,13 @@
  *   - spark  http://127.0.0.1:3000/api/setup   (30s timeout)
  *   - page   http://127.0.0.1:3000/            (15s timeout)
  *   - acc    http://127.0.0.1:3001/api/setup   (15s timeout)
+ *   - tts-cache  data/tts-cache 磁盘巡检（超 3GB 上限 → FAIL 并触发清理）
  *
  * Usage: node scripts/health-check.mjs [--json] [--timeout=<ms>]
  */
 import { setTimeout as sleep } from "node:timers/promises";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 const SERVICES = [
   { name: "stt", url: "http://127.0.0.1:8765/health", timeoutMs: 60_000, check: (d) => d.ok === true },
@@ -19,6 +22,63 @@ const SERVICES = [
   { name: "page", url: "http://127.0.0.1:3000/", timeoutMs: 15_000, check: () => true },
   { name: "acc", url: "http://127.0.0.1:3001/api/setup", timeoutMs: 15_000, check: (d) => d.ok === true },
 ];
+
+const TTS_CACHE_MAX_BYTES = Number(process.env.TTS_CACHE_MAX_BYTES || 3 * 1024 * 1024 * 1024);
+const TTS_CACHE_TTL_MS = Number(process.env.TTS_CACHE_TTL_MS || 48 * 3600 * 1000);
+
+/** 磁盘缓存巡检：目录不存在=健康；超过硬上限则 LRU 清理最旧文件后重测。 */
+async function checkTtsCache() {
+  const dir = path.join(process.env.SPARK_DATA_DIR || process.cwd() + "/data", "tts-cache");
+  let bytes = 0;
+  let files = 0;
+  try {
+    const names = await fs.readdir(dir);
+    const stats = await Promise.all(
+      names.filter((n) => n.endsWith(".mp3")).map(async (n) => {
+        try {
+          const s = await fs.stat(path.join(dir, n));
+          return { n, size: s.size, mtimeMs: s.mtimeMs };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const valid = stats.filter(Boolean);
+    bytes = valid.reduce((a, e) => a + e.size, 0);
+    files = valid.length;
+
+    // 超时长的旧文件直接删
+    const now = Date.now();
+    const stale = valid.filter((e) => now - e.mtimeMs > TTS_CACHE_TTL_MS);
+    for (const e of stale) {
+      try { await fs.unlink(path.join(dir, e.n)); bytes -= e.size; files -= 1; } catch { /* ignore */ }
+    }
+
+    // 仍超上限 → 按 mtime 从旧到新删
+    if (bytes > TTS_CACHE_MAX_BYTES) {
+      const sorted = valid.filter((e) => now - e.mtimeMs <= TTS_CACHE_TTL_MS).sort((a, b) => a.mtimeMs - b.mtimeMs);
+      for (const e of sorted) {
+        if (bytes <= TTS_CACHE_MAX_BYTES) break;
+        try { await fs.unlink(path.join(dir, e.n)); bytes -= e.size; files -= 1; } catch { /* ignore */ }
+      }
+    }
+
+    const healthy = bytes <= TTS_CACHE_MAX_BYTES;
+    return { name: "tts-cache", url: dir, healthy, status: healthy ? 200 : 500, latencyMs: 0, detail: `${formatBytes(bytes)} / ${formatBytes(TTS_CACHE_MAX_BYTES)} (${files} files)` };
+  } catch (err) {
+    // 目录不存在 → 尚无缓存，视为健康
+    if (err && err.code === "ENOENT") {
+      return { name: "tts-cache", url: dir, healthy: true, status: 200, latencyMs: 0, detail: "empty (no cache dir)" };
+    }
+    return { name: "tts-cache", url: dir, healthy: false, status: 0, latencyMs: 0, detail: String(err).slice(0, 200) };
+  }
+}
+
+function formatBytes(n) {
+  if (n >= 1024 * 1024 * 1024) return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+  if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+  return n + " B";
+}
 
 function parseArgs(argv) {
   const args = { json: false, timeoutMs: null, only: null };
@@ -69,10 +129,14 @@ async function main() {
     ? SERVICES.filter((s) => s.name === args.only)
     : SERVICES;
   if (!targets.length) {
-    console.error(`Unknown service: ${args.only}. Valid: ${SERVICES.map((s) => s.name).join(", ")}`);
+    console.error(`Unknown service: ${args.only}. Valid: ${SERVICES.map((s) => s.name).join(", ")}, tts-cache`);
     process.exit(2);
   }
   const results = await Promise.all(targets.map((s) => probe(s, args)));
+  if (!args.only) {
+    // 默认全量巡检时附加上 tts-cache 磁盘检查
+    results.push(await checkTtsCache());
+  }
   const allHealthy = results.every((r) => r.healthy);
   const summary = { ok: allHealthy, time: new Date().toISOString(), services: results };
 

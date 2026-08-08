@@ -343,11 +343,16 @@ export class NeuralSpeechEngine {
       }
     }
     const voice = this.resolveVoice(ttsText, h);
+    const dialectLang =
+      h.voiceId != null
+        ? getTutorVoice(h.voiceId).lang
+        : undefined;
+    const ttsLang = dialectLang === "teo" || dialectLang === "hak" ? dialectLang : undefined;
     const attempt = async (): Promise<ArrayBuffer> => {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: ttsText, voice }),
+        body: JSON.stringify({ text: ttsText, voice, lang: ttsLang }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {

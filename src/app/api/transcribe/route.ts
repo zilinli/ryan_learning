@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  loadIflytekConfig,
+  transcribeWithIflytek,
+} from "@/lib/iflytek-asr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,6 +94,36 @@ async function forwardOnce(
   return { res, data };
 }
 
+/**
+ * 方言模式优先尝试讯飞方言识别大模型（若已配置 Key）。
+ * 失败/超时/无文本 → 返回 null，由调用方 fallback 本地 Whisper。
+ */
+async function tryIflytekDialect(
+  audio: Blob,
+  language: string,
+): Promise<{ text: string; language: string } | null> {
+  const config = loadIflytekConfig();
+  if (!config) return null;
+  // 仅方言模式走讯飞
+  if (language !== "teo" && language !== "hak") return null;
+
+  try {
+    const wavBytes = new Uint8Array(await audio.arrayBuffer());
+    const { text } = await transcribeWithIflytek(config, wavBytes, {
+      timeoutMs: 30_000,
+    });
+    const clean = (text || "").trim();
+    if (!clean) return null;
+    return { text: clean, language };
+  } catch (err) {
+    console.warn(
+      `[transcribe] iflytek dialect STT failed for ${language}, falling back to local Whisper:`,
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const form = await req.formData();
@@ -110,6 +144,16 @@ export async function POST(req: Request) {
     const language = normalizeTranscribeLang(
       String(form.get("language") || "auto"),
     );
+
+    // 方言模式：优先讯飞方言识别（已配置 Key 时），失败自动回退本地 Whisper
+    const iflytekResult = await tryIflytekDialect(audio, language);
+    if (iflytekResult) {
+      return NextResponse.json({
+        text: iflytekResult.text,
+        language: iflytekResult.language,
+        engine: "iflytek",
+      });
+    }
 
     let { res, data } = await forwardOnce(audio, language);
 
