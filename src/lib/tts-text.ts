@@ -1,5 +1,7 @@
 /** Prepare tutor replies for natural neural TTS playback. */
 
+import type { SpeechLang } from "./voices";
+
 const CJK_CHAR = /[\u4e00-\u9fff\u3400-\u4dbf]/;
 const CJK_OR_PUNCT = /[\u4e00-\u9fff\u3400-\u4dbf。！？，、；：""''（）【】]/;
 
@@ -359,4 +361,45 @@ export function pullSpeakableFromBuffer(
   }
 
   return { ready: merged, rest: buf + held };
+}
+
+/** Character-level substitutions so the Cantonese TTS voice reads dialect text
+ *  more naturally (Cantonese pronunciation of 汝/涯/勿 is jarring).
+ *
+ *  This is a lossy approximation — the goal is to avoid the most jarring
+ *  mispronunciations, not to produce true Cantonese text. */
+export function normalizeForTTS(text: string, lang: SpeechLang): string {
+  if (lang !== "teo" && lang !== "hak") return text;
+
+  let t = text;
+
+  if (lang === "teo") {
+    t = t.replace(/汝/g, "你");        // "you" → Cantonese 你
+    t = t.replace(/勿/g, "唔好");      // "don't" → Cantonese periphrasis
+    t = t.replace(/乜个/g, "乜嘢");     // "what" → Cantonese 乜嘢
+    t = t.replace(/怎呢/g, "點樣");     // "how" → Cantonese 點樣
+    t = t.replace(/做呢/g, "點樣");     // alternate "how"
+    t = t.replace(/㩼/g, "多");         // "many" → Cantonese 多
+    t = t.replace(/佮/g, "同");         // "and/with" → Cantonese 同
+    t = t.replace(/孬/g, "坏");         // "bad" → Cantonese 壞
+    t = t.replace(/只\s*(?=[个道])/g, "呢");  // "this" → Cantonese 呢
+    // 食, 睇, 唔 — shared with Cantonese, intentionally kept
+  }
+
+  if (lang === "hak") {
+    t = t.replace(/涯/g, "我");         // "I/me" → Cantonese 我
+    t = t.replace(/麼个/g, "乜嘢");     // "what" → Cantonese 乜嘢
+    t = t.replace(/仰般/g, "點樣");     // "how" → Cantonese 點樣
+    t = t.replace(/樣般/g, "點樣");     // alternate "how"
+    t = t.replace(/莫/g, "唔好");       // "don't" → Cantonese periphrasis
+    t = t.replace(/毋好/g, "唔好");     // alternate "don't"
+    t = t.replace(/當\s*(?=好|多)/g, "好"); // "very" → Cantonese 好
+    // 冇, 但係, 食 — shared with Cantonese, intentionally kept
+  }
+
+  // After pronoun substitutions: replace possessive 个 with Cantonese 嘅
+  // (Pronoun+个 is the dominant possessive pattern in both dialects.)
+  t = t.replace(/([我你佢])个/g, "$1嘅");
+
+  return t;
 }

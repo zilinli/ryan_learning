@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chunkForNeuralTts,
   cleanTutorSpeechText,
+  normalizeForTTS,
   pullSpeakableFromBuffer,
 } from "./tts-text";
 
@@ -143,5 +144,90 @@ describe("pullSpeakableFromBuffer", () => {
     expect(ready.length).toBe(1);
     expect(ready[0]!.length).toBeGreaterThan(28);
     expect(ready[0]!.startsWith("word0")).toBe(true);
+  });
+});
+
+describe("normalizeForTTS", () => {
+  it("returns text unchanged for non-dialect languages", () => {
+    expect(normalizeForTTS("Hello world", "en")).toBe("Hello world");
+    expect(normalizeForTTS("你好，世界", "zh")).toBe("你好，世界");
+    expect(normalizeForTTS("Hola mundo", "es")).toBe("Hola mundo");
+  });
+
+  it("replaces Teochew 'you' 汝 with Cantonese 你", () => {
+    expect(normalizeForTTS("汝好，食饭未？", "teo")).toBe(
+      "你好，食饭未？",
+    );
+  });
+
+  it("replaces Teochew 'don't' 勿 with Cantonese 唔好", () => {
+    expect(normalizeForTTS("勿惊，慢慢来", "teo")).toBe(
+      "唔好惊，慢慢来",
+    );
+  });
+
+  it("replaces Teochew 'what' 乜个 with Cantonese 乜嘢", () => {
+    expect(normalizeForTTS("汝想买乜个？", "teo")).toBe(
+      "你想买乜嘢？",
+    );
+  });
+
+  it("replaces Teochew 'how' 怎呢 with Cantonese 點樣", () => {
+    expect(normalizeForTTS("汝觉得怎呢？", "teo")).toBe(
+      "你觉得點樣？",
+    );
+  });
+
+  it("replaces Teochew 'many' 㩼 with Cantonese 多", () => {
+    expect(normalizeForTTS("㩼谢汝个帮助", "teo")).toBe(
+      "多谢你嘅帮助",
+    );
+  });
+
+  it("replaces Hakka 'I' 涯 with Cantonese 我", () => {
+    expect(normalizeForTTS("涯係學生，涯想學數學", "hak")).toBe(
+      "我係學生，我想學數學",
+    );
+  });
+
+  it("replaces Hakka 'what' 麼个 with Cantonese 乜嘢", () => {
+    expect(normalizeForTTS("你想做麼个？", "hak")).toBe(
+      "你想做乜嘢？",
+    );
+  });
+
+  it("replaces Hakka 'how' 仰般 with Cantonese 點樣", () => {
+    expect(normalizeForTTS("仰般做这道题？", "hak")).toBe(
+      "點樣做这道题？",
+    );
+  });
+
+  it("replaces Hakka 'don't' 莫 with Cantonese 唔好", () => {
+    expect(normalizeForTTS("莫惊，涯会帮你", "hak")).toBe(
+      "唔好惊，我会帮你",
+    );
+  });
+
+  it("preserves shared dialect+Cantonese characters", () => {
+    // 食, 唔, 睇 are shared — should not be touched
+    expect(normalizeForTTS("唔食睇唔到", "teo")).toBe("唔食睇唔到");
+    // 冇, 但係 are shared — should not be touched
+    expect(normalizeForTTS("冇错，但係好难", "hak")).toBe("冇错，但係好难");
+  });
+
+  it("handles mixed sentences with multiple substitutions", () => {
+    // Hakka mixed sentence: 你好 (not 汝好), 涯→我, 麼个→乜嘢
+    const out = normalizeForTTS(
+      "你好！涯係先生，你有麼个问题？",
+      "hak",
+    );
+    expect(out).toBe("你好！我係先生，你有乜嘢问题？");
+
+    // Teochew mixed sentence: 汝→你, 乜个→乜嘢, 怎呢→點樣
+    const out2 = normalizeForTTS(
+      "汝好！汝有乜个问题？怎呢做？",
+      "teo",
+    );
+    expect(out2).toBe("你好！你有乜嘢问题？點樣做？");
   });
 });

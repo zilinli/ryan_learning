@@ -88,6 +88,59 @@
 
 ---
 
+### Phase G: Teochew/Min Nan & Hakka STT/TTS Speech Optimization
+
+> **Design:** [subsystems/dialect-speech-optimization-stt-tts.md](subsystems/dialect-speech-optimization-stt-tts.md) — comprehensive research into 2024-2026 open-source dialect speech models, three-tier optimization strategy (immediate → model-backed → cloud-GPU).
+
+**Current state:** STT uses `auto` mode (Whisper maps dialect audio → garbled zh tokens, ~60-70% WER). TTS uses Cantonese voice fallback — native speakers find it jarring. Design research found viable CPU-suitable models for both directions.
+
+#### G.1 — Tier 1 Immediate (no new models, 2-4h)
+
+- [ ] **G.1.1** — `stt_server.py`: add `teo`/`hak` as STT languages with dialect-specific `initial_prompt` (Whisper decoder biasing toward dialect function words 个唔勿食涯冇麼个但係)
+- [ ] **G.1.2** — `tts-text.ts` (new): `normalizeForTTS(text, lang)` — dialect→Cantonese character substitutions (汝→你, 涯→我, 勿→唔好 etc.) for better Cantonese TTS output
+- [ ] **G.1.3** — `stt-lang.ts` + `voices.ts`: wire teo/hak STT mappings; update voice picker labels
+- [ ] **G.1.4** — Unit tests for normalizer + STT routing
+
+#### G.2 — Tier 2 Hakka TTS (VoxHakka, CPU-suitable, 3-5d)
+
+- [ ] **G.2.1** — Accept HF gated access for `formospeech/yourtts-htia-240704` (CC-BY-4.0)
+- [ ] **G.2.2** — Install `formog2p.hakka.g2p` frontend + load YourTTS model
+- [ ] **G.2.3** — Create `scripts/hakka_tts.py` inference module (text→G2P→phonemes→audio)
+- [ ] **G.2.4** — Wire into `stt_server.py` (new `/tts/hakka` or extend `/tts` with voice="voxhakka")
+- [ ] **G.2.5** — Frontend: route hakka voice → voxhakka TTS endpoint
+- [ ] **G.2.6** — Memory profiling: verify VoxHakka + existing services fit in 4GB
+- [ ] **G.2.7** — Integration tests + manual smoke test (hear native Hakka speech)
+
+#### G.3 — Tier 2 Teochew TTS (Hybrid FastSpeech2-Canton + Teochew Vocoder, 5-7d)
+
+- [ ] **G.3.1** — Install PaddleSpeech + `fastspeech2_canton` preset + `pyPengIm` G2P
+- [ ] **G.3.2** — Build inference pipeline: pyPengIm (text→Peng'im) → FastSpeech2 (mel) → HiFi-GAN/BigVGAN teochew (wav)
+- [ ] **G.3.3** — Subjective MOS evaluation: hybrid vs raw Cantonese TTS
+- [ ] **G.3.4** — Wire into `stt_server.py` if quality acceptable
+
+#### G.4 — Tier 2 STT (Whisper-Tiny + LoRA ONNX INT8, CPU-suitable, 1-2wk)
+
+- [ ] **G.4.1** — Train Teochew LoRA adapter on `teochew_wild` (GPU Colab, ~4-6h)
+- [ ] **G.4.2** — Train Hakka LoRA adapter on Hakka radio data (GPU Colab, ~4-6h)
+- [ ] **G.4.3** — Merge + export ONNX INT8 (~110 MB per model)
+- [ ] **G.4.4** — Integrate with `stt_server.py` (ONNX runtime path for teo/hak)
+- [ ] **G.4.5** — Benchmark CER + RTF + RAM; A/B vs current auto mode
+
+#### G.5 — Tier 3 Cloud-GPU (Future, 2-4wk)
+
+- [ ] **G.5.1** — Evaluate Fun-ASR-Nano-2512 API for unified dialect STT (supports Min + Hakka natively)
+- [ ] **G.5.2** — Evaluate CosyVoice 3 for Teochew TTS (supports Minnan dialect, zero-shot clone)
+- [ ] **G.5.3** — GPT-SoVITS fine-tune on teochew_wild for native Teochew TTS
+
+**Key research findings (see design doc for full details):**
+- VoxHakka (YourTTS) is **CPU-suitable** and CC-BY-4.0 — the best Hakka TTS option
+- Whisper-tiny+LoRA INT8 is only ~110 MB RAM — fits on 4GB server, CER ~15-20% for dialects
+- Teochew has public vocoders (BigVGAN OVRL 3.10 ≈ ground truth) but no acoustic model checkpoint
+- Fun-ASR-Nano-2512 (Alibaba, 800M) supports Min+Hakka natively but needs GPU
+- No commercial API supports Teochew/Hakka at consumer pricing
+
+---
+
 ## Legacy Pending
 
 **Multi-tenant flat-key leak bug** — Non-Ryan accounts were inheriting Ryan's conversation history, learning memory, engagement, and voice preferences due to unguarded flat-key fallbacks. Fixed in all five loaders.

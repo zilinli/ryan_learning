@@ -11,8 +11,8 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromVoice("alvaro")).toBe("es");
     expect(sttLangFromVoice("jorge")).toBe("es");
     expect(sttLangFromVoice("henri")).toBe("fr");
-    expect(sttLangFromVoice("teochew")).toBe("auto");
-    expect(sttLangFromVoice("hakka")).toBe("auto");
+    expect(sttLangFromVoice("teochew")).toBe("teo");
+    expect(sttLangFromVoice("hakka")).toBe("hak");
   });
 
   it("honors legacy voice ids via normalizeVoiceId", () => {
@@ -26,10 +26,14 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromVoice(null)).toBe("auto");
   });
 
-  it("maps dialect dictionary languages to auto STT", () => {
-    expect(sttLangFromDictLang("teo")).toBe("auto");
-    expect(sttLangFromDictLang("hak")).toBe("auto");
+  it("maps dialect dictionary languages to their STT paths", () => {
+    expect(sttLangFromDictLang("teo")).toBe("teo");
+    expect(sttLangFromDictLang("hak")).toBe("hak");
     expect(sttLangFromDictLang("yue")).toBe("yue");
     expect(sttLangFromDictLang("zh")).toBe("zh");
+    expect(sttLangFromDictLang("en")).toBe("en");
+    expect(sttLangFromDictLang("es")).toBe("es");
+    expect(sttLangFromDictLang("fr")).toBe("fr");
+    expect(sttLangFromDictLang(null)).toBe("auto");
   });
 });

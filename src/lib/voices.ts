@@ -93,14 +93,14 @@ export const TUTOR_VOICES: TutorVoice[] = [
   },
   {
     id: "teochew",
-    label: "Teochew (Cantonese voice)",
+    label: "Teochew (潮汕话 STT + Cantonese TTS)",
     edgeVoice: "zh-HK-WanLungNeural",
     preview: "汝好，我係 Spark，我会用潮汕话同汝倾。",
     lang: "teo",
   },
   {
     id: "hakka",
-    label: "Hakka (Cantonese voice)",
+    label: "Hakka (客家话 STT + Cantonese TTS)",
     edgeVoice: "zh-HK-WanLungNeural",
     preview: "你好，我係 Spark，我会用客家话同你倾。",
     lang: "hak",

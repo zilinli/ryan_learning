@@ -52,7 +52,7 @@ MODEL_SIZE = os.environ.get("STT_MODEL", "small")
 STT_PRELOAD = os.environ.get("STT_PRELOAD", "sensevoice").strip().lower()
 # Default neural voice (clients may override per request)
 TTS_VOICE = os.environ.get("TTS_VOICE", "en-US-AvaNeural")
-ALLOWED_STT_LANGS = {"auto", "en", "zh", "yue", "es"}
+ALLOWED_STT_LANGS = {"auto", "en", "zh", "yue", "es", "teo", "hak"}
 ALLOWED_VOICES = {
     "en-US-AvaNeural",
     "en-GB-RyanNeural",
@@ -249,6 +249,12 @@ def _normalize_stt_lang(raw: str | None) -> str:
         "spanish": "es",
         "es-es": "es",
         "es-mx": "es",
+        "teo": "teo",
+        "teochew": "teo",
+        "teochow": "teo",
+        "hak": "hak",
+        "hakka": "hak",
+        "kejiahua": "hak",
     }
     lang = aliases.get(lang, lang)
     if lang not in ALLOWED_STT_LANGS:
@@ -316,6 +322,30 @@ def _transcribe_kwargs(lang: str, *, vad: bool = True) -> dict:
         else:
             base["language"] = "zh"
             base["initial_prompt"] = "以下係廣東話口述。請用中文寫出粤语内容。"
+        return base
+    if lang == "teo":
+        base["language"] = "zh"
+        base["initial_prompt"] = (
+            "呢段话係潮州话。个嘅唔係勿食睇乜个怎呢做呢。"
+            # Common Teochew function-words bias the decoder toward dialect
+            # characters instead of standard Mandarin substitutions.
+        )
+        base["beam_size"] = 3
+        base["best_of"] = 3
+        base["log_prob_threshold"] = -1.6  # more permissive for unclear dialect audio
+        base["no_speech_threshold"] = 0.30
+        return base
+    if lang == "hak":
+        base["language"] = "zh"
+        base["initial_prompt"] = (
+            "呢段话係客家话。涯个唔冇麼个當好但係做得樣般。"
+            # Common Hakka function-words bias the decoder toward Hakka
+            # character conventions (涯 for I, 冇 for not-have, 麼个 for what).
+        )
+        base["beam_size"] = 3
+        base["best_of"] = 3
+        base["log_prob_threshold"] = -1.6
+        base["no_speech_threshold"] = 0.30
         return base
     base["language"] = None
     return base

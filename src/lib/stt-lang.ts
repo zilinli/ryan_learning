@@ -2,7 +2,7 @@ import { normalizeVoiceId, type TutorVoiceId } from "./voices";
 import type { DictLang } from "./dict-types";
 
 /** Languages the STT backend understands */
-export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr";
+export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
 
 /** Map tutor voice preference → recognition language hint */
 export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang {
@@ -20,10 +20,11 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
     case "henri":
       return "fr";
     case "teochew":
+      // Dedicated dialect STT path — Whisper with Teochew function-word
+      // initial_prompt biases the decoder toward dialect characters.
+      return "teo";
     case "hakka":
-      // No dedicated dialect ASR — let SenseVoice/Whisper auto-detect;
-      // dialect speech is typically mapped to Chinese characters anyway.
-      return "auto";
+      return "hak";
     case "auto":
     default:
       return "auto";
@@ -40,9 +41,9 @@ export function sttLangFromDictLang(lang: DictLang | string | null): SttLang {
     case "yue":
       return lang;
     case "teo":
+      return "teo";
     case "hak":
-      // Dialect dictionaries share the auto-recognition pipeline.
-      return "auto";
+      return "hak";
     default:
       return "auto";
   }
