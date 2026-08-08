@@ -9,8 +9,8 @@ import {
 } from "./teochew-dict";
 
 describe("Teochew dictionary dataset", () => {
-  it("contains at least 100 entries", () => {
-    expect(TEOCHEW_DICT.length).toBeGreaterThanOrEqual(100);
+  it("contains at least 500 entries", () => {
+    expect(TEOCHEW_DICT.length).toBeGreaterThanOrEqual(500);
   });
 
   it("all entries have required fields", () => {
@@ -22,6 +22,28 @@ describe("Teochew dictionary dataset", () => {
       expect(e.tone).toBeGreaterThanOrEqual(1);
       expect(e.tone).toBeLessThanOrEqual(8);
       expect(e.gloss).toBeTruthy();
+    }
+  });
+
+  it("grades every entry with source + confidence", () => {
+    for (const e of TEOCHEW_DICT) {
+      expect(["community-verified", "llm-suggested"]).toContain(e.source);
+      expect(typeof e.confidence).toBe("number");
+      expect(e.confidence).toBeGreaterThan(0);
+      expect(e.confidence).toBeLessThanOrEqual(1);
+    }
+    // High-frequency core particles should be community-verified
+    expect(TEOCHEW_DICT.find((e) => e.traditional === "个")?.source).toBe(
+      "community-verified",
+    );
+  });
+
+  it("contains no duplicate (traditional, pengim) keys", () => {
+    const seen = new Set<string>();
+    for (const e of TEOCHEW_DICT) {
+      const key = `${e.traditional}:${e.pengim}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
     }
   });
 

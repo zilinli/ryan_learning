@@ -69,6 +69,9 @@ ALLOWED_VOICES = {
     "es-MX-DaliaNeural",
     "es-MX-JorgeNeural",
     "es-US-PalomaNeural",
+    # French
+    "fr-FR-HenriNeural",
+    "fr-FR-DeniseNeural",
 }
 
 SENSEVOICE_REPO = os.environ.get(

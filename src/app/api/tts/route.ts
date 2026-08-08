@@ -18,6 +18,8 @@ const ALLOWED_VOICES = new Set([
   "es-MX-DaliaNeural",
   "es-MX-JorgeNeural",
   "es-US-PalomaNeural",
+  "fr-FR-HenriNeural",
+  "fr-FR-DeniseNeural",
 ]);
 
 async function fetchTtsOnce(

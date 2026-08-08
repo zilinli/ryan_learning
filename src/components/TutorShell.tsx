@@ -1016,7 +1016,17 @@ export function TutorShell() {
           ref={scrollerRef}
           className="mx-auto mt-0.5 w-full max-w-2xl min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 sm:px-0"
         >
-          <ChatThread messages={messages} streaming={busy} />
+          <ChatThread
+            messages={messages}
+            streaming={busy}
+            dialect={
+              voiceId === "teochew"
+                ? "teo"
+                : voiceId === "hakka"
+                  ? "hak"
+                  : undefined
+            }
+          />
         </main>
 
         {agentStatus ? (

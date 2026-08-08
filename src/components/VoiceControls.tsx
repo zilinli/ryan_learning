@@ -76,6 +76,7 @@ export function VoiceControls({
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
   const [speakError, setSpeakError] = useState(false);
+  const [dialectNotice, setDialectNotice] = useState<string | null>(null);
 
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
@@ -399,7 +400,22 @@ export function VoiceControls({
     saveVoiceId(id);
     onVoiceIdChange?.(id);
     setVoiceMenuOpen(false);
-    const voice = getTutorVoice(id);
+    const picked = getTutorVoice(id);
+    if (picked.lang === "teo" || picked.lang === "hak") {
+      try {
+        if (!window.localStorage.getItem("spark-dialect-notice-v1")) {
+          window.localStorage.setItem("spark-dialect-notice-v1", "1");
+          setDialectNotice(
+            picked.lang === "teo"
+              ? "潮汕话为实验性书面方言模式，发音暂用粤语代替，正在接入真人方言语音。"
+              : "客家话为实验性书面方言模式，发音暂用粤语代替，正在接入真人方言语音。",
+          );
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const voice = picked;
     wantSpeakRef.current = true;
     if (!voiceEnabled) onVoiceEnabledChange(true);
     saveSpeakEnabled(true);
@@ -546,6 +562,25 @@ export function VoiceControls({
           </>
         ) : null}
       </div>
+
+      {/* One-time dialect mode notice */}
+      {dialectNotice ? (
+        <div className="basis-full w-full flex items-start gap-2 rounded-lg border border-[var(--teal)]/30 bg-[var(--teal)]/5 px-3 py-2 text-xs leading-snug text-[var(--ink)]">
+          <span aria-hidden>🪶</span>
+          <span className="flex-1">{dialectNotice}</span>
+          <button
+            type="button"
+            onClick={() => setDialectNotice(null)}
+            className="shrink-0 rounded p-0.5 text-[var(--ink-muted)] transition hover:text-[var(--ink)]"
+            aria-label="Dismiss notice"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      ) : null}
 
       {/* Status/errors must stay visible — toolbar is flex-wrap so basis-full drops to next line */}
       {status ? (

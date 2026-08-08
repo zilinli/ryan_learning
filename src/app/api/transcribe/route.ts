@@ -6,7 +6,7 @@ export const maxDuration = 120;
 
 const STT_URL = process.env.STT_URL || "http://127.0.0.1:8765/transcribe";
 
-const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr"]);
+const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr", "teo", "hak"]);
 
 /** Map browser / BCP-47 tags (e.g. zh-CN) onto STT backend codes. */
 export function normalizeTranscribeLang(raw: string): string {
@@ -37,6 +37,15 @@ export function normalizeTranscribeLang(raw: string): string {
     fra: "fr",
     french: "fr",
     "fr-fr": "fr",
+    teo: "teo",
+    teochew: "teo",
+    teochow: "teo",
+    teochiu: "teo",
+    chaoshan: "teo",
+    hak: "hak",
+    hakka: "hak",
+    kejiahua: "hak",
+    kejia: "hak",
   };
   const key = String(raw || "auto").trim().toLowerCase();
   const mapped = aliases[key] || key;

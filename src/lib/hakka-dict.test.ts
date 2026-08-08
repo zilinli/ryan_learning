@@ -9,8 +9,8 @@ import {
 } from "./hakka-dict";
 
 describe("Hakka dictionary dataset", () => {
-  it("contains at least 100 entries", () => {
-    expect(HAKKA_DICT.length).toBeGreaterThanOrEqual(100);
+  it("contains at least 500 entries", () => {
+    expect(HAKKA_DICT.length).toBeGreaterThanOrEqual(500);
   });
 
   it("all entries have required fields", () => {
@@ -19,6 +19,29 @@ describe("Hakka dictionary dataset", () => {
       expect(e.simplified).toBeTruthy();
       expect(e.roman).toBeTruthy();
       expect(e.gloss).toBeTruthy();
+    }
+  });
+
+  it("grades every entry with source + confidence", () => {
+    const validSources = ["moe-standard", "community-verified", "llm-suggested"];
+    for (const e of HAKKA_DICT) {
+      expect(validSources).toContain(e.source);
+      expect(typeof e.confidence).toBe("number");
+      expect(e.confidence).toBeGreaterThan(0);
+      expect(e.confidence).toBeLessThanOrEqual(1);
+    }
+    // Taiwan MOE recommended characters should be tagged moe-standard
+    expect(HAKKA_DICT.find((e) => e.traditional === "仰般")?.source).toBe(
+      "moe-standard",
+    );
+  });
+
+  it("contains no duplicate (traditional, roman) keys", () => {
+    const seen = new Set<string>();
+    for (const e of HAKKA_DICT) {
+      const key = `${e.traditional}:${e.roman}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
     }
   });
 
