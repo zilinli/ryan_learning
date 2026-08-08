@@ -78,7 +78,7 @@ describe("callAliyunCloneTts", () => {
     ).rejects.toThrow(TtsProviderNotConfiguredError);
   });
 
-  it("throws when the HTTP call returns non-ok JSON error", async () => {
+  it("throws when the HTTP call returns non-ok status", async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ message: "no permission", code: "1004" }), {
         status: 400,
@@ -89,10 +89,10 @@ describe("callAliyunCloneTts", () => {
 
     await expect(
       callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, { apiKey: "sk-x" }),
-    ).rejects.toThrow(/no permission/);
+    ).rejects.toThrow(/no permission|HTTP 400/);
 
     const [url, init] = mockFetch.mock.calls[0]!;
-    expect(String(url)).toContain("dashscope.aliyuncs.com");
+    expect(String(url)).toContain("SpeechSynthesizer");
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sk-x");
     const body = JSON.parse(init.body as string);
@@ -100,17 +100,25 @@ describe("callAliyunCloneTts", () => {
     expect(body.input.text).toBe("你好");
   });
 
-  it("returns mp3 buffer on success", async () => {
+  it("downloads audio from SpeechSynthesizer JSON url", async () => {
     const mp3 = Buffer.alloc(150, 0x55);
     mp3[0] = 0x49;
-    mp3[1] = 0x44;
-    mp3[2] = 0x33;
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(mp3, {
-        status: 200,
-        headers: { "Content-Type": "audio/mpeg" },
-      }),
-    );
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output: { audio: { url: "https://example.com/a.mp3" } },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(mp3, {
+          status: 200,
+          headers: { "Content-Type": "audio/mpeg" },
+        }),
+      );
     vi.stubGlobal("fetch", mockFetch);
 
     const audio = await callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, {
@@ -118,21 +126,22 @@ describe("callAliyunCloneTts", () => {
     });
     expect(audio.length).toBe(150);
     expect(audio[0]).toBe(0x49);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("throws on empty audio", async () => {
+  it("throws when JSON response has no audio", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(new Uint8Array(50), {
+        new Response(JSON.stringify({ output: { audio: {} } }), {
           status: 200,
-          headers: { "Content-Type": "audio/mpeg" },
+          headers: { "Content-Type": "application/json" },
         }),
       ),
     );
     await expect(
       callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, { apiKey: "sk-x" }),
-    ).rejects.toThrow(/empty audio/);
+    ).rejects.toThrow(/missing audio/);
   });
 
   it("throws on non-2xx without JSON body", async () => {

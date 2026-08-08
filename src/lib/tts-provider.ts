@@ -44,8 +44,10 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
 }
 
 /**
- * 阿里云百炼「声音复刻」音色合成（非实时 HTTP）。
- * 返回 mp3 Buffer。任何失败抛错，由调用方降级 edge。
+ * 阿里云百炼 CosyVoice / 声音复刻音色合成（非实时 HTTP SpeechSynthesizer）。
+ * 返回音频 Buffer（通常是 mp3/wav）。任何失败抛错，由调用方降级 edge。
+ *
+ * 文档：https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
  */
 export async function callAliyunCloneTts(
   text: string,
@@ -59,15 +61,22 @@ export async function callAliyunCloneTts(
       "阿里云百炼未配置 (ALIYUN_DASHSCOPE_API_KEY)",
     );
   }
-  const timeoutMs = opts.timeoutMs ?? 6_000;
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+  const workspaceId = process.env.ALIYUN_WORKSPACE_ID?.trim();
   const baseUrl =
     process.env.ALIYUN_DASHSCOPE_BASE_URL?.trim() ||
-    "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+    (workspaceId
+      ? `https://${workspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer`
+      : "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer");
 
   const body = {
     model,
-    input: { text, voice: voiceId },
-    parameters: { format: "mp3", sample_rate: 24000 },
+    input: {
+      text,
+      voice: voiceId,
+      format: "mp3",
+      sample_rate: 24000,
+    },
   };
 
   const res = await fetch(baseUrl, {
@@ -88,14 +97,34 @@ export async function callAliyunCloneTts(
   }
 
   const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    // 返回错误 JSON（如缺少权限/配额）
+  // SpeechSynthesizer 非流式返回 JSON，audio.url 指向 OSS
+  if (contentType.includes("application/json") || contentType.includes("text/json")) {
     const data = (await res.json().catch(() => null)) as {
       message?: string;
       code?: string;
+      output?: { audio?: { url?: string; data?: string } };
     } | null;
+    if (data?.code && data.code !== "Success") {
+      throw new Error(data.message || data.code || "aliyun TTS error");
+    }
+    const audioUrl = data?.output?.audio?.url;
+    const b64 = data?.output?.audio?.data;
+    if (b64 && b64.length > 100) {
+      return Buffer.from(b64, "base64");
+    }
+    if (audioUrl) {
+      const audioRes = await fetch(audioUrl, {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!audioRes.ok) {
+        throw new Error(`aliyun TTS audio download failed (HTTP ${audioRes.status})`);
+      }
+      const audio = Buffer.from(await audioRes.arrayBuffer());
+      if (audio.byteLength < 100) throw new Error("aliyun TTS returned empty audio");
+      return audio;
+    }
     throw new Error(
-      data?.message || data?.code || `aliyun clone TTS error (${res.status})`,
+      data?.message || data?.code || "aliyun TTS response missing audio",
     );
   }
 
