@@ -26,6 +26,7 @@ describe("deletion-log", () => {
   });
 
   it("multiple tombstones coexist", async () => {
+    await writeTombstone("sess_abc", AID);
     await writeTombstone("sess_xyz", AID);
     const log = await readDeletionLog(AID);
     expect(log["sess_abc"]).toBeDefined();
