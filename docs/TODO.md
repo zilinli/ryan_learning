@@ -148,35 +148,36 @@
 
 ### 15.1 — STT：讯飞方言识别大模型（P1 核心，更新版计划最高优先）
 
-- [ ] **15.1.1** — `src/lib/iflytek-asr.ts` 🆕：`buildIflytekWsUrl()`（HMAC-SHA256 签名纯函数）+ `wavToRawPcm()` + `appendIflytekFrame()` 帧解析 + `transcribeWithIflytek()`（Node≥22 原生 WebSocket，30s 超时）
-- [ ] **15.1.2** — `/api/transcribe/route.ts`：方言模式（teo/hak）有 Key → 优先讯飞；失败/超时/无文本 → fallback 本地 Whisper；透传 `engine` 字段
-- [ ] **15.1.3** — `.env.local.example` 新增 `IFYTEK_API_KEY` / `IFYTEK_API_SECRET`
+- [x] **15.1.1** — `src/lib/iflytek-asr.ts` 🆕：`buildIflytekWsUrl()`（HMAC-SHA256 签名纯函数）+ `wavToRawPcm()` + `appendIflytekFrame()` 帧解析 + `transcribeWithIflytek()`（Node≥22 原生 WebSocket，30s 超时；WAV→MP3 lame）
+- [x] **15.1.2** — `/api/transcribe/route.ts`：方言模式（teo/hak）有 Key → 优先讯飞；失败/超时/无文本 → fallback 本地 Whisper；透传 `engine` 字段
+- [x] **15.1.3** — `.env.local.example` 新增 `IFYTEK_APP_ID` / `IFYTEK_API_KEY` / `IFYTEK_API_SECRET`；线上已配置并实测 `engine: iflytek`
 
 ### 15.2 — TTS：阿里云百炼「声音复刻」+ CosyVoice（P1 核心，更新版计划首选）
 
-- [ ] **15.2.1** — `src/lib/tts-provider.ts` 🆕：`TtsProvider` union + `ttsProviderForLang()`（teo/hak 有 Key+复刻音色 → `aliyun-clone`，否则 fallback `zh-HK-WanLungNeural`）+ `callAliyunCloneTts()`（百炼合成端点，6s 超时）
-- [ ] **15.2.2** — `src/lib/tts-cache.ts` 🆕：`data/tts-cache/<sha256(text+voice)>.mp3`，原子写，`pruneTtsCache(maxBytes, maxAgeMs)` LRU（默认 3GB / 48h）
-- [ ] **15.2.3** — `/api/tts/route.ts`：`lang` 可选参数；方言走 provider + 缓存 + 云端失败 fallback edge；其余走现状白名单路径
-- [ ] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
-- [ ] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `ALIYUN_WORKSPACE_ID` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`
+- [x] **15.2.1** — `src/lib/tts-provider.ts` 🆕：`TtsProvider` union + `ttsProviderForLang()`（teo/hak 有 Key+复刻音色 → `aliyun-clone`，否则本地 edge；**不做粤语云 TTS 顶替**）
+- [x] **15.2.2** — `src/lib/tts-cache.ts` 🆕：`data/tts-cache/<sha256(text+voice)>.mp3`，原子写，`pruneTtsCache(maxBytes, maxAgeMs)` LRU（默认 3GB / 48h）
+- [x] **15.2.3** — `/api/tts/route.ts`：`lang` 可选参数；方言走 provider + 缓存 + 云端失败 fallback edge；其余走现状白名单路径
+- [x] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
+- [x] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`
+- [ ] **15.2.6** — POC：家人方言录音 → 百炼声音复刻 → 填入 `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` 后上线真人方言朗读
 
 ### 15.3 — STT 兜底：LLM 方言纠错 + 用户确认（P1，更新版计划 §4 步骤 5）
 
-- [ ] **15.3.1** — `src/lib/dialect-stt-correct.ts` 🆕：`buildDialectCorrectionPrompt()`（附词典高频词 + 只纠同音/禁扩写）+ `parseCorrectionResult()`（严格 JSON，失败回退 raw）
-- [ ] **15.3.2** — `/api/dialect-correct/route.ts` 🆕：复用 `/api/dict/translate` 的 Agent 非流式模式；`{ text, dialect }`；失败返回 `{ corrected: raw, changed: false }` 不阻塞
-- [ ] **15.3.3** — `VoiceControls.tsx`：方言 voice 转写后调 `/api/dialect-correct` 再回调
-- [ ] **15.3.4** — `Composer.tsx`：方言模式 `onTranscript` 只 setText **不自动发送**，提示"已识别，请确认后发送"；非方言保持现状
+- [x] **15.3.1** — `src/lib/dialect-stt-correct.ts` 🆕：`buildDialectCorrectionPrompt()`（附词典高频词 + 只纠同音/禁扩写）+ `parseCorrectionResult()`（严格 JSON，失败回退 raw）
+- [x] **15.3.2** — `/api/dialect-correct/route.ts` 🆕：复用 `/api/dict/translate` 的 Agent 非流式模式；`{ text, dialect }`；失败返回 `{ corrected: raw, changed: false }` 不阻塞
+- [x] **15.3.3** — `VoiceControls.tsx`：方言首次选择提示（讯飞 STT 已接入；TTS 待声音复刻）
+- [x] **15.3.4** — `Composer.tsx`：方言模式 `onTranscript` 只 setText **不自动发送**，调 `/api/dialect-correct` 后由用户确认；非方言保持现状
 
 ### 15.4 — 测试 + 文档
 
-- [ ] **15.4.1** — UT：`iflytek-asr.test.ts`（签名 URL 确定性 / WAV→PCM / 帧解析累积）
-- [ ] **15.4.2** — UT：`tts-provider.test.ts`（无 Key fallback / 有 Key+voiceId 走 aliyun-clone / edge voice 正确）
-- [ ] **15.4.3** — UT：`tts-cache.test.ts`（key 稳定 / 往返 / prune 超限删最旧 / TTL 过期 / tmp 无残留，SPARK_DATA_DIR 隔离）
-- [ ] **15.4.4** — UT：`dialect-stt-correct.test.ts`（prompt 含高频词 / parse 合法 / 非法回退 raw / changed 标志）
-- [ ] **15.4.5** — UT：`transcribe-route.test.ts`（方言：有 Key+mock 成功→iflytek；失败→whisper；无 Key→whisper）
-- [ ] **15.4.6** — 前端行为测试：方言不自动发送 / 非方言自动发送 / 纠错失败填入 raw
-- [ ] **15.4.7** — 全量 639+ tests 绿 + `next build` 通过
-- [ ] **15.4.8** — `docs/subsystems/dialect-cloud-tts-poc.md` 🆕：讯飞 ASR + 声音复刻 POC 记录模板（Key 获取 / 验证集 / 计费 / 连通性实测记录表）
+- [x] **15.4.1** — UT：`iflytek-asr.test.ts`（签名 URL 确定性 / WAV→PCM / 帧解析）
+- [x] **15.4.2** — UT：`tts-provider.test.ts`（无 Key fallback / 有 Key+voiceId 走 aliyun-clone / edge voice 正确）
+- [x] **15.4.3** — UT：`tts-cache.test.ts`（key 稳定 / 往返 / prune 超限删最旧 / TTL 过期 / tmp 无残留，SPARK_DATA_DIR 隔离）
+- [x] **15.4.4** — UT：`dialect-stt-correct.test.ts`（prompt 含高频词 / parse 合法 / 非法回退 raw / changed 标志）
+- [x] **15.4.5** — UT：`transcribe-route.test.ts`（方言：有 Key+mock 成功→iflytek；失败→whisper；无 Key→whisper）
+- [x] **15.4.6** — 前端：方言不自动发送 / 纠错填入输入框确认
+- [ ] **15.4.7** — 全量 tests 绿 + `next build` 通过 + 发布
+- [ ] **15.4.8** — `docs/subsystems/dialect-cloud-tts-poc.md` 🆕：声音复刻 POC 记录模板
 
 ### 15.5 — 降级项（更新版计划确认，标 backlog）
 

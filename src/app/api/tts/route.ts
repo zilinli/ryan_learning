@@ -65,26 +65,45 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
   return audio;
 }
 
-/** 方言模式：先查磁盘缓存；未命中走云端声音复刻；云端失败自动降级 edge。 */
+/**
+ * 方言 TTS：
+ * 1) 阿里声音复刻（有 Key + voiceId）
+ * 2) 失败或未配置 → 本地 edge 临时兜底（不做粤语云 TTS）
+ * 全程走磁盘缓存。
+ */
 async function synthesizeDialect(
   text: string,
-  provider: { kind: "aliyun-clone"; voiceId: string; model: string },
+  dialectLang: "teo" | "hak",
 ): Promise<Buffer> {
-  const cacheKey = `${text}\0${provider.voiceId}`;
-  const cached = await getCachedTts(text, provider.voiceId);
+  const provider = ttsProviderForLang(dialectLang);
+  const cacheVoice =
+    provider.kind === "aliyun-clone" ? provider.voiceId : provider.voice;
+
+  const cached = await getCachedTts(text, cacheVoice);
   if (cached) return cached;
 
-  try {
-    const audio = await callAliyunCloneTts(text, provider.voiceId, provider.model);
-    void setCachedTts(text, provider.voiceId, audio);
-    return audio;
-  } catch (err) {
-    console.warn(
-      `[tts] aliyun-clone failed, falling back to Cantonese edge:`,
-      err instanceof Error ? err.message : err,
-    );
-    return synthesizeEdge(text, "zh-HK-WanLungNeural");
+  if (provider.kind === "aliyun-clone") {
+    try {
+      const audio = await callAliyunCloneTts(
+        text,
+        provider.voiceId,
+        provider.model,
+      );
+      void setCachedTts(text, provider.voiceId, audio);
+      return audio;
+    } catch (err) {
+      console.warn(
+        `[tts] aliyun-clone failed for ${dialectLang}, falling back to local edge:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
+
+  const edgeVoice =
+    provider.kind === "edge" ? provider.voice : "zh-HK-WanLungNeural";
+  const audio = await synthesizeEdge(text, edgeVoice);
+  void setCachedTts(text, edgeVoice, audio);
+  return audio;
 }
 
 export async function POST(req: Request) {
@@ -100,29 +119,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "empty text" }, { status: 400 });
     }
 
-    // 方言模式 → provider 路由（无 Key/失败自动降级 edge）
+    // 方言模式 → 声音复刻（若配置）否则本地 edge；带缓存
     const dialectLang =
       body.lang === "teo" ? "teo" : body.lang === "hak" ? "hak" : null;
     if (dialectLang) {
-      const provider = ttsProviderForLang(dialectLang);
-      if (provider.kind === "aliyun-clone") {
-        try {
-          const audio = await synthesizeDialect(text, provider);
-          return new Response(audio, {
-            headers: {
-              "Content-Type": "audio/mpeg",
-              "Cache-Control": "no-store",
-            },
-          });
-        } catch {
-          // 云端+fallback 都失败 → 交给通用 503 处理
-        }
-      }
-      // provider=edge 或云端路径失败后：
-      const audio = await synthesizeEdge(
-        text,
-        provider.kind === "edge" ? provider.voice : "zh-HK-WanLungNeural",
-      );
+      const audio = await synthesizeDialect(text, dialectLang);
       return new Response(audio, {
         headers: {
           "Content-Type": "audio/mpeg",

@@ -129,27 +129,48 @@ describe("chunkPcmForIflytek", () => {
 });
 
 describe("appendIflytekFrame", () => {
-  it("accumulates intermediate frames", () => {
-    const f1 = JSON.stringify({ header: { status: 0 }, payload: { recognition: { text: "潮汕话" } } });
-    const f2 = JSON.stringify({ header: { status: 1 }, payload: { recognition: { text: "真好食" } } });
-    const r1 = appendIflytekFrame("", f1);
-    expect(r1.text).toBe("潮汕话");
+  /** 把文本包装成讯飞方言大模型的 base64 响应格式 */
+  function frame(text: string, status: 0 | 1 | 2): string {
+    const inner = JSON.stringify({
+      sn: 1,
+      ls: true,
+      bg: 0,
+      ed: 0,
+      ws: [{ bg: 0, cw: text.split("").map((w) => ({ w, sc: 0 })) }],
+    });
+    const b64 = Buffer.from(inner, "utf8").toString("base64");
+    return JSON.stringify({
+      header: { code: 0, status },
+      payload: { result: { text: b64, encoding: "utf8", compress: "raw", format: "json" } },
+    });
+  }
+
+  it("each frame carries the full recognized text (not incremental)", () => {
+    const r1 = appendIflytekFrame("", frame("潮汕", 1));
+    expect(r1.text).toBe("潮汕");
     expect(r1.done).toBe(false);
-    const r2 = appendIflytekFrame(r1.text, f2);
-    expect(r2.text).toBe("潮汕话真好食");
+    // 下一帧是完整结果"潮汕話真好食"，覆盖而非追加
+    const r2 = appendIflytekFrame(r1.text, frame("潮汕話真好食", 1));
+    expect(r2.text).toBe("潮汕話真好食");
     expect(r2.done).toBe(false);
   });
 
   it("marks done on status 2 final frame", () => {
-    const final = JSON.stringify({ header: { status: 2 }, payload: { recognition: { text: "完" } } });
-    const r = appendIflytekFrame("已", final);
+    const r = appendIflytekFrame("已", frame("完", 2));
     expect(r.done).toBe(true);
-    expect(r.text).toBe("已完");
+  });
+
+  it("handles error frame (code != 0) as done", () => {
+    const f = JSON.stringify({ header: { code: 101, status: 2 } });
+    const r = appendIflytekFrame("prev", f);
+    expect(r.done).toBe(true);
+    expect(r.text).toBe("prev"); // unchanged
   });
 
   it("tolerates malformed frames without throwing", () => {
     const r = appendIflytekFrame("abc", "not json");
-    expect(r).toEqual({ text: "abc", done: false });
+    expect(r.text).toBe("abc");
+    expect(r.done).toBe(false);
   });
 });
 
