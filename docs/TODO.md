@@ -159,7 +159,8 @@
 - [x] **15.2.3** — `/api/tts/route.ts`：`lang` 可选参数；方言走 provider + 缓存 + 云端失败 fallback edge；其余走现状白名单路径
 - [x] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
 - [x] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`（SpeechSynthesizer 端点）
-- [ ] **15.2.6** — POC：家人方言录音 → 百炼声音复刻 → 填入 `TEO_/HAK_CLONE_VOICE_ID`（API 链路已用官方样例打通；待真人口音）
+- [ ] **15.2.6** — 潮汕话：家人录音 → 百炼复刻 → `TEO_CLONE_VOICE_ID`（当前临时：百炼闽南话 `longanmin_v3`，非普通话）
+- [ ] **15.2.7** — **遗留 · 客家话 TTS**（2026-08-08 收工）：无可用云端预制；公开网络样音复刻听感差已停用；现状 hak → 本地 edge。待家人客家话录音 → `HAK_CLONE_VOICE_ID` 后再开；勿再用随机公开样音。详见 `dialect-cloud-tts-poc.md`
 
 ### 15.3 — STT 兜底：LLM 方言纠错 + 用户确认（P1，更新版计划 §4 步骤 5）
 
@@ -183,7 +184,7 @@
 
 - [ ] **15.5.1** — 百度潮汕话 TTS（企业定制音库产品，联系商务确认 API 形态后评估）
 - [ ] **15.5.2** — 闽南语替代潮汕话（仅"实在无潮汕话录音"时权宜，音系差异需实测）
-- [ ] **15.5.3** — 客家话本地量化模型（讯飞方言 ASR 更优；4GB 机器不常驻额外模型）
+- [ ] **15.5.3** — 客家话本地量化模型（VoxHakka / `mms-tts-hak` 等；4GB 机器不常驻；优先仍是家人复刻 15.2.7）
 
 ---
 
