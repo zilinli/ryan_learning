@@ -20,5 +20,29 @@ export async function readServerAccounts(): Promise<AccountsStore | null> {
 }
 
 export async function writeServerAccounts(store: AccountsStore): Promise<void> {
-  await lockedWriteJson(ACCOUNTS_FILE, store);
+  const existing = await readServerAccounts();
+  const merged = existing ? mergeAccounts(existing, store) : store;
+  await lockedWriteJson(ACCOUNTS_FILE, merged);
+}
+
+/**
+ * Merge a pushed store into the existing server store, preferring the freshest
+ * version of each account (by updatedAt) and keeping accounts that the pusher
+ * didn't send. This prevents a stale device from wiping server corrections
+ * (last-write-wins full replacement would lose newer profiles).
+ */
+function mergeAccounts(base: AccountsStore, incoming: AccountsStore): AccountsStore {
+  const out = new Map<string, AccountRecord>();
+  for (const a of base.accounts) out.set(a.id, a);
+  for (const a of incoming.accounts) {
+    const existing = out.get(a.id);
+    if (!existing || (a.updatedAt || 0) > (existing.updatedAt || 0)) {
+      out.set(a.id, a);
+    }
+  }
+  return {
+    version: 1,
+    activeId: incoming.activeId || base.activeId,
+    accounts: [...out.values()],
+  };
 }
