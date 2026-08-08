@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 type ThemeId = "light" | "dark" | "light-blue" | "light-green";
 
@@ -23,6 +23,26 @@ function loadTheme(): ThemeId {
   return DEFAULT_THEME;
 }
 
+/**
+ * Minimal external store so the picker can read the current theme
+ * hydration-safely without setState-in-effect. applyTheme() notifies
+ * subscribers, and the component re-reads the snapshot.
+ */
+const themeListeners = new Set<() => void>();
+function subscribeTheme(cb: () => void): () => void {
+  themeListeners.add(cb);
+  return () => themeListeners.delete(cb);
+}
+function emitThemeChanged() {
+  themeListeners.forEach((cb) => cb());
+}
+function getThemeSnapshot(): ThemeId {
+  return loadTheme();
+}
+function getThemeServerSnapshot(): ThemeId {
+  return DEFAULT_THEME;
+}
+
 function applyTheme(id: ThemeId) {
   try {
     localStorage.setItem("spark.theme", id);
@@ -41,6 +61,7 @@ function applyTheme(id: ThemeId) {
     }
     meta.setAttribute("content", swatch);
   }
+  emitThemeChanged();
 }
 
 /**
@@ -50,20 +71,13 @@ function applyTheme(id: ThemeId) {
  */
 export function ThemePicker() {
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<ThemeId>(DEFAULT_THEME);
+  const active = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getThemeServerSnapshot);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Restore the persisted theme post-hydration. The DOM/localStorage
-    // application is synchronous (no React state involved); only the state
-    // sync is deferred so no setState runs in the effect body.
+    // Apply the persisted theme to the DOM post-hydration (no setState involved)
     const theme = loadTheme();
     applyTheme(theme);
-    const t = setTimeout(() => {
-      if (typeof window === "undefined") return;
-      setActive(theme);
-    }, 0);
-    return () => clearTimeout(t);
   }, []);
 
   // Close on outside click / touch or Escape
@@ -88,7 +102,6 @@ export function ThemePicker() {
   }, [open]);
 
   const pick = useCallback((id: ThemeId) => {
-    setActive(id);
     applyTheme(id);
     setOpen(false);
   }, []);
