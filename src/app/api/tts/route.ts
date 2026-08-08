@@ -6,6 +6,7 @@ import {
   getCachedTts,
   setCachedTts,
 } from "@/lib/tts-cache";
+import { normalizeForTTS } from "@/lib/tts-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,13 +75,18 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
 async function synthesizeDialect(
   text: string,
   dialectLang: "teo" | "hak",
-): Promise<Buffer> {
+): Promise<{ audio: Buffer; engine: "aliyun-clone" | "edge" }> {
   const provider = ttsProviderForLang(dialectLang);
   const cacheVoice =
     provider.kind === "aliyun-clone" ? provider.voiceId : provider.voice;
 
   const cached = await getCachedTts(text, cacheVoice);
-  if (cached) return cached;
+  if (cached) {
+    return {
+      audio: cached,
+      engine: provider.kind === "aliyun-clone" ? "aliyun-clone" : "edge",
+    };
+  }
 
   if (provider.kind === "aliyun-clone") {
     try {
@@ -90,7 +96,10 @@ async function synthesizeDialect(
         provider.model,
       );
       void setCachedTts(text, provider.voiceId, audio);
-      return audio;
+      console.info(
+        `[tts] aliyun-clone ok for ${dialectLang} bytes=${audio.byteLength}`,
+      );
+      return { audio, engine: "aliyun-clone" };
     } catch (err) {
       console.warn(
         `[tts] aliyun-clone failed for ${dialectLang}, falling back to local edge:`,
@@ -99,11 +108,13 @@ async function synthesizeDialect(
     }
   }
 
+  // Edge fallback only: rewrite dialect chars toward Cantonese-readable form.
+  const edgeText = normalizeForTTS(text, dialectLang);
   const edgeVoice =
     provider.kind === "edge" ? provider.voice : "zh-HK-WanLungNeural";
-  const audio = await synthesizeEdge(text, edgeVoice);
+  const audio = await synthesizeEdge(edgeText, edgeVoice);
   void setCachedTts(text, edgeVoice, audio);
-  return audio;
+  return { audio, engine: "edge" };
 }
 
 export async function POST(req: Request) {
@@ -123,11 +134,12 @@ export async function POST(req: Request) {
     const dialectLang =
       body.lang === "teo" ? "teo" : body.lang === "hak" ? "hak" : null;
     if (dialectLang) {
-      const audio = await synthesizeDialect(text, dialectLang);
+      const { audio, engine } = await synthesizeDialect(text, dialectLang);
       return new Response(audio, {
         headers: {
           "Content-Type": "audio/mpeg",
           "Cache-Control": "no-store",
+          "X-TTS-Engine": engine,
         },
       });
     }

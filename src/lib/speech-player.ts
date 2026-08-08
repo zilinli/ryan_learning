@@ -1,7 +1,6 @@
 import {
   chunkForNeuralTts,
   joinSpeechParts,
-  normalizeForTTS,
   pullSpeakableFromBuffer,
 } from "./tts-text";
 import { getTutorVoice, resolveEdgeVoice, type TutorVoiceId } from "./voices";
@@ -332,27 +331,20 @@ export class NeuralSpeechEngine {
     text: string,
     h: SpeakHandlers,
   ): Promise<ArrayBuffer> {
-    let ttsText = text;
-    // Dialect → Cantonese TTS normalization: replace jarring characters
-    // (汝→你, 涯→我, 勿→唔好 etc.) so the Cantonese voice sounds closer
-    // to the intended dialect instead of garbled mispronunciations.
-    if (h.voiceId) {
-      const tv = getTutorVoice(h.voiceId);
-      if (tv.lang === "teo" || tv.lang === "hak") {
-        ttsText = normalizeForTTS(text, tv.lang);
-      }
-    }
-    const voice = this.resolveVoice(ttsText, h);
+    // Dialect: send original text + lang to /api/tts.
+    // Cantonese-ish normalizeForTTS is applied server-side only on edge
+    // fallback — never before Bailian voice-clone (would ruin dialect text).
     const dialectLang =
       h.voiceId != null
         ? getTutorVoice(h.voiceId).lang
         : undefined;
     const ttsLang = dialectLang === "teo" || dialectLang === "hak" ? dialectLang : undefined;
+    const voice = this.resolveVoice(text, h);
     const attempt = async (): Promise<ArrayBuffer> => {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: ttsText, voice, lang: ttsLang }),
+        body: JSON.stringify({ text, voice, lang: ttsLang }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
