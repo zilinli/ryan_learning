@@ -567,7 +567,12 @@ export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
     const res = await fetch("/api/accounts");
     if (!res.ok) return local;
     const data = (await res.json()) as { accounts: AccountRecord[] | null; version?: number };
-    if (!data.accounts || !Array.isArray(data.accounts)) return local;
+
+    // Server has no accounts yet → push local to bootstrap the shared store
+    if (!data.accounts || !Array.isArray(data.accounts) || data.accounts.length === 0) {
+      void pushAccountsToServer(local);
+      return local;
+    }
 
     const serverStore: AccountsStore = {
       version: 1,
