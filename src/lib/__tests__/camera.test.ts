@@ -335,7 +335,7 @@ describe("Constraint fallback chain", () => {
 // ---------------------------------------------------------------------------
 describe("releaseThenPick", () => {
   it("stops stream + pauses before click", () => {
-    let stopped = true; let paused = true;
+    const stopped = true; const paused = true;
     expect(stopped).toBe(true);
     expect(paused).toBe(true);
   });

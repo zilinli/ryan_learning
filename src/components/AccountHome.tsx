@@ -271,7 +271,7 @@ export function AccountHome() {
               {deleteStep === 1 ? (
                 <>
                   <p className="text-sm font-medium text-[var(--ink)]">
-                    Delete {deleteTarget.profile.name}'s account?
+                    Delete {deleteTarget.profile.name}&apos;s account?
                   </p>
                   <div className="flex gap-2">
                     <button

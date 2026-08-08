@@ -162,7 +162,7 @@ export function ChatThread({ messages, streaming }: Props) {
           Ask anything about your homework...
         </p>
         <p className="max-w-md text-sm leading-relaxed text-[var(--ink-muted)]">
-          Snap a photo, type a question, or use the mic. I'll guide you step by
+          Snap a photo, type a question, or use the mic. I&apos;ll guide you step by
           step — no spoilers.
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--ink-muted)]">

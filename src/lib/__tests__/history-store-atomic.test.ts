@@ -45,7 +45,7 @@ describe("lockedWriteJson (Atomic File Write)", () => {
     const writePromise = lockedWriteJson(filePath, largeData);
 
     // Try reading during write — should either fail (no file) or succeed with complete data
-    let partialSeen = false;
+    const partialSeen = false;
     for (let i = 0; i < 5; i++) {
       try {
         const content = await fs.readFile(filePath, "utf8");

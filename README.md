@@ -22,7 +22,7 @@ Most chatbots spoil homework. Spark is tuned for **thinking first**:
 | Medium computation (e.g. `256÷8`) | One scaffold first, then check |
 | Conceptual / homework | Hint ladder L0→L3 with **explain-your-reasoning**, second chances, analogies |
 
-Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English and Spanish TTS/STT.
+Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish and French TTS/STT, and experimental written-form **潮汕话 (Teochew)** / **客家话 (Hakka)** reply modes.
 
 ---
 
@@ -45,8 +45,8 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 Word lookup **and** AI sentence/photo translation in one page:
 
 **Word (dictionary)**
-- **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese)
-- **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY)
+- **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese) · 潮汕話 (Teochew) · 客家話 (Hakka)
+- **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY), plus local Teochew & Hakka seed lexicons
 - **Voice input** — Hold/tap mic (same 16 kHz WAV + `/api/transcribe` pipeline as the main tutor; language follows the selected dict pill)
 - **Text-to-speech** — 🔊 beside each headword (edge-tts)
 - **Caching** — 24-hour server-side cache; cross-language glosses on results
@@ -54,7 +54,7 @@ Word lookup **and** AI sentence/photo translation in one page:
 **Sentence (AI translation)**
 - Full sentences / paragraphs via Cursor Agent (LLM)
 - **Photo upload & camera** — OCR + translate worksheets, signs, screenshots (up to 3 images)
-- From / To language pickers (including Auto-detect → EN/ES/FR/中文/粵語)
+- From / To language pickers (including Auto-detect → EN/ES/FR/中文/粵語/潮汕話/客家話)
 - Learner-friendly notes + speak the translation aloud
 
 Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.
