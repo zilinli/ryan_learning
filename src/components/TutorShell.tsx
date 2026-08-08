@@ -61,6 +61,7 @@ import {
 } from "@/lib/learning-memory";
 import {
   deletePhotosFromVault,
+  fetchMissingPhotosFromServer,
   ingestStorePhotos,
   pruneVaultToStore,
   putPhotoInVault,
@@ -276,6 +277,10 @@ export function TutorShell() {
   const storeRef = useRef<ConversationsStore | null>(null);
   const busyRef = useRef(false);
   const syncRunningRef = useRef(false);
+  /** Gates server push until init hydration populates deletionCache (prevents
+   *  tombstoned conversations from being re-uploaded on fresh page loads). */
+  const hydrationDoneRef = useRef(false);
+  const accountsRef = useRef<AccountRecord[]>([]);
 
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
@@ -343,8 +348,9 @@ export function TutorShell() {
           await ingestStorePhotos(conversations);
           const merged = await hydrateFromServer(conversations, aid);
           const restored = await restoreStorePhotosFromVault(merged);
-          const { store: repaired } = await repairMissingMedia(restored);
-          const final = repaired !== restored ? repaired : restored;
+          const fetched = await fetchMissingPhotosFromServer(restored);
+          const { store: repaired } = await repairMissingMedia(fetched);
+          const final = repaired !== fetched ? repaired : fetched;
           await ingestStorePhotos(final);
           await pruneVaultToStore(final);
           if (cancelled || accountIdRef.current !== aid) return;
@@ -358,6 +364,10 @@ export function TutorShell() {
           }
         } catch {
           // Background hydration failures are non-critical — the UI is already live
+        } finally {
+          // Allow debounce pushes now that deletionCache has been populated (or
+          // the fetch definitively failed — holding the gate forever is worse).
+          hydrationDoneRef.current = true;
         }
       })();
 
@@ -394,6 +404,10 @@ export function TutorShell() {
   }, [accountId]);
 
   useEffect(() => {
+    accountsRef.current = accounts;
+  }, [accounts]);
+
+  useEffect(() => {
     storeRef.current = store;
   }, [store]);
 
@@ -420,7 +434,7 @@ export function TutorShell() {
     const delay = busy ? 1500 : 280;
     saveTimerRef.current = window.setTimeout(() => {
       saveConversations(store, accountId);
-      if (!busy) {
+      if (!busy && hydrationDoneRef.current) {
         void (async () => {
           await ingestStorePhotos(store);
           const withMedia = await pushStoreToServer(store, accountId);
@@ -435,9 +449,10 @@ export function TutorShell() {
     };
   }, [ready, store, busy, accountId]);
 
-  // Periodic cross-device sync: pull deletions + new messages from the server
-  // every 60s and whenever the tab becomes visible again. A conversation that
-  // was deleted on another device disappears from this screen without reload.
+  // Periodic cross-device sync: pull deletions + new messages + account changes
+  // from the server every 60s and whenever the tab becomes visible again. A
+  // conversation that was deleted on another device disappears from this screen
+  // without reload. New accounts created on other devices also appear.
   useEffect(() => {
     if (!ready) return;
     const sync = async () => {
@@ -445,15 +460,44 @@ export function TutorShell() {
       if (!cur || busyRef.current || syncRunningRef.current) return;
       syncRunningRef.current = true;
       try {
+        // 1. Sync account list (new accounts / remote deletions)
+        const hydratedAccts = await hydrateAccountsFromServer();
+        // Check for remote account deletions / additions
+        const curAcc = accountsRef.current;
+        const curIds = new Set(curAcc.map((a) => a.id));
+        const serverIds = new Set(hydratedAccts.accounts.map((a) => a.id));
+        const acctsChanged =
+          hydratedAccts.accounts.length !== curAcc.length ||
+          !hydratedAccts.accounts.every((a) => curIds.has(a.id));
+        // 2. Sync conversations
         const merged = await hydrateFromServer(cur, accountIdRef.current);
         const restored = await restoreStorePhotosFromVault(merged);
-        const changed =
-          restored.activeId !== cur.activeId ||
-          JSON.stringify(restored.conversations) !==
+        const fetched = await fetchMissingPhotosFromServer(restored);
+        const convsChanged =
+          fetched.activeId !== cur.activeId ||
+          JSON.stringify(fetched.conversations) !==
             JSON.stringify(cur.conversations);
-        if (changed) {
-          setStore(restored);
-          saveConversations(restored, accountIdRef.current);
+        if (convsChanged) {
+          setStore(fetched);
+          saveConversations(fetched, accountIdRef.current);
+        }
+        if (acctsChanged) {
+          setAccounts(hydratedAccts.accounts);
+          // If the active account was deleted remotely, switch to the first available
+          const stillActive = hydratedAccts.accounts.some(
+            (a) => a.id === accountIdRef.current,
+          );
+          if (!stillActive) {
+            const fallback = hydratedAccts.accounts[0];
+            if (fallback) {
+              accountIdRef.current = fallback.id;
+              setAccountId(fallback.id);
+              setAccountName(fallback.profile.name);
+              const nextStore = loadConversations(fallback.id);
+              setStore(nextStore);
+              saveConversations(nextStore, fallback.id);
+            }
+          }
         }
       } catch {
         // offline — next cycle retries
@@ -525,11 +569,18 @@ export function TutorShell() {
     if (nextStore.conversations.length > 0) {
       setUrlSession(nextStore.activeId);
     }
-    // Background: hydrate new account's conversations from server
-    void hydrateFromServer(nextStore, id).then((merged) => {
-      setStore(merged);
-      saveConversations(merged, id);
-    });
+    // Background: hydrate new account's conversations from server, restore
+    // photos from vault, and fetch any still-missing photos from server media.
+    void (async () => {
+      const merged = await hydrateFromServer(nextStore, id);
+      const restored = await restoreStorePhotosFromVault(merged);
+      const final = await fetchMissingPhotosFromServer(restored);
+      if (accountIdRef.current !== id) return;
+      setStore(final);
+      saveConversations(final, id);
+      await ingestStorePhotos(final);
+      void pushStoreToServer(final, id);
+    })();
   };
 
   const startNewSession = () => {

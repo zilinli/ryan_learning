@@ -250,3 +250,65 @@ export async function restoreStorePhotosFromVault(
   }
   return { ...store, conversations };
 }
+
+/**
+ * For attachments that have a mediaId but no dataUrl (e.g. photos uploaded
+ * from another device), fetch the binary from the server media store and
+ * construct a dataUrl, then cache it in the local vault for next time.
+ */
+export async function fetchMissingPhotosFromServer(
+  store: ConversationsStore,
+): Promise<ConversationsStore> {
+  let changed = false;
+  const conversations: ConversationRecord[] = [];
+  for (const c of store.conversations) {
+    const messages: ChatMessage[] = [];
+    for (const m of c.messages) {
+      let msgChanged = false;
+      let attachments = m.attachments;
+      if (attachments?.length) {
+        const next: ChatAttachment[] = [];
+        for (const a of attachments) {
+          if (!a.dataUrl && a.mediaId) {
+            try {
+              const res = await fetch(
+                `/api/media/${encodeURIComponent(a.mediaId)}`,
+                { cache: "force-cache" },
+              );
+              if (res.ok) {
+                const blob = await res.blob();
+                const dataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(blob);
+                });
+                // Cache in vault so next restoreStorePhotosFromVault picks it up
+                void putPhotoInVault({
+                  id: a.id,
+                  dataUrl,
+                  mimeType: a.mimeType || blob.type || "image/jpeg",
+                  name: a.name,
+                }).catch(() => {});
+                next.push({ ...a, dataUrl });
+                changed = true;
+                msgChanged = true;
+                continue;
+              }
+            } catch {
+              // Server offline, keep mediaId reference but no dataUrl
+            }
+          }
+          next.push(a);
+        }
+        if (msgChanged) attachments = next;
+      }
+      messages.push({
+        ...m,
+        ...(attachments ? { attachments } : {}),
+      });
+    }
+    conversations.push({ ...c, messages });
+  }
+  return changed ? { ...store, conversations } : store;
+}
