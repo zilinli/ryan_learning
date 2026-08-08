@@ -80,7 +80,11 @@
 - [x] **F.5** — Wire dict into pipeline: `DictLang` type, `dict-suggest.ts`, dictionary page
 - [x] **F.6** — Unit tests: voices, dict validation, STT lang mapping
 - [x] **F.7** — README update: dialect features section; design doc linked
-- [ ] **F.8** — Build + deploy + manual smoke test (Teochew/Hakka tutor replies + TTS audible)
+- [x] **F.8** — Build + deploy + manual smoke test (Teochew/Hakka tutor replies + TTS audible) — 2026-08-08
+  - Fixed `/dict` "This page couldn't load" outage: stale server (started 08-07) serving corrupted `.next` (incomplete build, missing `BUILD_ID`) → bundle mismatch errors (`Server Reference ID did not match`). Rebuilt + restarted `spark-tutor.service`.
+  - Freed system resources: killed runaway `npx` orphans + dozens of self-recursive vitest processes from `console-harness.test.ts` (its `run_tests` test ran vitest on itself → infinite process explosion). Now excludes `console-harness.test.ts` from harness-triggered runs and points the test at `dict-cache.test.ts`.
+  - Rewrote `ThemePicker` to `useSyncExternalStore` (removed deferred `setActive` timer that caused flaky jsdom teardown errors).
+  - `tsc --noEmit` clean, `eslint src` 0 warnings, `npm test` 611/611 stable ×3.
 
 ---
 
