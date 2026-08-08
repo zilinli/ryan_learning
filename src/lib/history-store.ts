@@ -238,6 +238,11 @@ export async function upsertServerConversation(
     { ...record, sessionId: id },
     accountId,
   );
+  // Never overwrite a newer server copy with stale device data (cross-device sync).
+  const existing = await getServerConversation(id, accountId);
+  if (existing && (existing.updatedAt || 0) > (clean.updatedAt || 0)) {
+    return existing;
+  }
   await lockedWriteJson(filePath(id, accountId), clean);
   await enforceServerRetention(accountId);
   return clean;
@@ -258,6 +263,11 @@ export async function upsertServerConversations(
       { ...rec, sessionId: id },
       accountId,
     );
+    // Cross-device protection: skip if the server already has a newer copy.
+    const existing = await getServerConversation(id, accountId);
+    if (existing && (existing.updatedAt || 0) > (clean.updatedAt || 0)) {
+      continue;
+    }
     await lockedWriteJson(filePath(id, accountId), clean);
     saved.push(clean);
   }

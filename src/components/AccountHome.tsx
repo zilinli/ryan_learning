@@ -9,6 +9,7 @@ import {
   gradeBandForGrade,
   hydrateAccountsFromServer,
   loadAccounts,
+  pushAccountDeletion,
   RYAN_ACCOUNT_ID,
   saveAccounts,
   saveRyanAccount,
@@ -158,6 +159,8 @@ export function AccountHome() {
         accounts: remaining,
       };
       saveAccounts(next);
+      // Notify the server so other devices drop this account too
+      pushAccountDeletion(deleteConfirm);
       refresh(next);
       setNotice(`Account deleted. Switched to ${getActiveAccount(next).profile.name}.`);
       setDeleteConfirm(null);

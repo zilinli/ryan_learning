@@ -2,6 +2,9 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import {
   hydrateFromServer,
   pushStoreToServer,
+  repairMissingMedia,
+  checkMissingMedia,
+  collectStoreMediaIds,
   __resetDeletionCacheForTests,
 } from "./history-sync";
 import type { ConversationRecord, ConversationsStore } from "./types";
@@ -26,6 +29,35 @@ function staleStore(): ConversationsStore {
     version: 3,
     activeId: "s2",
     conversations: [record("s1", "deleted-elsewhere"), record("s2", "keep-me")],
+  };
+}
+
+/** Conversation with one attachment that has both mediaId and dataUrl. */
+function mediaChat(sessionId: string, mediaId: string, dataUrl: string): ConversationRecord {
+  const now = Date.now();
+  return {
+    sessionId,
+    title: "homework",
+    messages: [
+      {
+        id: `m_${sessionId}`,
+        role: "user",
+        content: "photo",
+        createdAt: now,
+        attachments: [
+          {
+            id: `a_${sessionId}`,
+            name: "p.jpg",
+            mimeType: "image/jpeg",
+            kind: "image",
+            mediaId,
+            dataUrl,
+          },
+        ],
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
   };
 }
 
@@ -104,5 +136,129 @@ describe("history-sync deletion cache", () => {
       "s1",
       "s2",
     ]);
+  });
+});
+
+describe("history-sync media repair", () => {
+  it("collectStoreMediaIds gathers every attachment mediaId", () => {
+    const store: ConversationsStore = {
+      version: 3,
+      activeId: "a",
+      conversations: [
+        mediaChat("a", "media_aaa", "data:image/jpeg;base64,AAAA"),
+        mediaChat("b", "media_bbb", "data:image/jpeg;base64,BBBB"),
+      ],
+    };
+    expect(collectStoreMediaIds(store).sort()).toEqual(["media_aaa", "media_bbb"]);
+  });
+
+  it("checkMissingMedia queries /api/media/check and returns the missing set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ missing: ["media_bbb"] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const missing = await checkMissingMedia(["media_aaa", "media_bbb"]);
+    expect(missing.has("media_bbb")).toBe(true);
+    expect(missing.has("media_aaa")).toBe(false);
+    const call = fetchMock.mock.calls[0];
+    expect(call[0]).toContain("/api/media/check");
+    expect(call[0]).toContain("ids=media_aaa%2Cmedia_bbb");
+  });
+
+  it("repairMissingMedia re-uploads chats whose media is missing, scoped to the account", async () => {
+    const present = mediaChat("present", "media_present", "data:image/jpeg;base64,PRESENT");
+    const missingChat = mediaChat("missing", "media_missing", "data:image/jpeg;base64,MISSING");
+    const store: ConversationsStore = {
+      version: 3,
+      activeId: "missing",
+      conversations: [present, missingChat],
+    };
+    const fetchMock = vi
+      .fn()
+      // /api/media/check — only media_missing is gone on the server
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ missing: ["media_missing"] }),
+      })
+      // PUT /api/history — the repair upload
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ conversations: [missingChat] }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { repaired } = await repairMissingMedia(store, AID);
+    expect(repaired).toBe(1);
+
+    const putCall = fetchMock.mock.calls[1];
+    expect(putCall[0]).toContain("/api/history");
+    expect(putCall[1]?.method).toBe("PUT");
+    const body = JSON.parse(putCall[1]?.body as string) as {
+      accountId: string;
+      conversations: ConversationRecord[];
+    };
+    expect(body.accountId).toBe(AID);
+    // Only the conversation with missing media is re-uploaded
+    expect(body.conversations.map((c) => c.sessionId)).toEqual(["missing"]);
+  });
+
+  it("repairMissingMedia does nothing when all media exists on the server", async () => {
+    const store: ConversationsStore = {
+      version: 3,
+      activeId: "ok",
+      conversations: [mediaChat("ok", "media_ok", "data:image/jpeg;base64,OK")],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ missing: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { repaired } = await repairMissingMedia(store, AID);
+    expect(repaired).toBe(0);
+    // No PUT should be issued
+    expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PUT")).toBe(false);
+  });
+
+  it("repairMissingMedia skips chats with mediaId but no local dataUrl (nothing to upload)", async () => {
+    const noDataUrl: ConversationRecord = {
+      sessionId: "nodata",
+      title: "no data",
+      messages: [
+        {
+          id: "m_nodata",
+          role: "user",
+          content: "photo",
+          createdAt: Date.now(),
+          attachments: [
+            {
+              id: "a_nodata",
+              name: "p.jpg",
+              mimeType: "image/jpeg",
+              kind: "image",
+              mediaId: "media_nodata",
+              // no dataUrl — the browser does NOT have the bytes
+            },
+          ],
+        },
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ missing: ["media_nodata"] }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { repaired } = await repairMissingMedia(
+      { version: 3, activeId: "nodata", conversations: [noDataUrl] },
+      AID,
+    );
+    expect(repaired).toBe(0);
+    expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PUT")).toBe(false);
   });
 });

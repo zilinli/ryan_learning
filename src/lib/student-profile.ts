@@ -566,7 +566,11 @@ export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
   try {
     const res = await fetch("/api/accounts");
     if (!res.ok) return local;
-    const data = (await res.json()) as { accounts: AccountRecord[] | null; version?: number };
+    const data = (await res.json()) as {
+      accounts: AccountRecord[] | null;
+      deleted?: string[];
+      version?: number;
+    };
 
     // Server has no accounts yet → push local to bootstrap the shared store
     if (!data.accounts || !Array.isArray(data.accounts) || data.accounts.length === 0) {
@@ -574,23 +578,32 @@ export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
       return local;
     }
 
+    // Drop local accounts that were deleted on another device (server tombstones)
+    const tombstoned = new Set(Array.isArray(data.deleted) ? data.deleted : []);
+    let localAdjusted = local;
+    if (tombstoned.size > 0) {
+      const remaining = local.accounts.filter((a) => !tombstoned.has(a.id));
+      if (remaining.length !== local.accounts.length) {
+        localAdjusted = {
+          ...local,
+          activeId: remaining.some((a) => a.id === local.activeId)
+            ? local.activeId
+            : remaining[0]?.id || RYAN_ACCOUNT_ID,
+          accounts: remaining,
+        };
+      }
+    }
+
     const serverStore: AccountsStore = {
       version: 1,
-      activeId: local.activeId,
+      activeId: localAdjusted.activeId,
       accounts: data.accounts,
     };
 
-    const merged = mergeServerAccounts(local, serverStore);
-    // Track which account IDs are now shared across server + this device
-    recordServerSyncIds(merged.accounts);
-    // Push merged result (may include richer local data) so other devices see it too
-    if (merged.accounts.length > serverStore.accounts.length ||
-        merged.accounts.some((a) => {
-          const s = serverStore.accounts.find((srv) => srv.id === a.id);
-          return s && a.updatedAt > s.updatedAt;
-        })) {
-      void pushAccountsToServer(merged);
-    }
+    const merged = mergeServerAccounts(localAdjusted, serverStore);
+    // Remember ONLY server-confirmed IDs: a locally-created account whose push
+    // failed must never be mis-detected as "remotely deleted" on the next sync.
+    recordServerSyncIds(serverStore.accounts);
     saveAccounts(merged);
     return merged;
   } catch {
@@ -609,6 +622,20 @@ export function pushAccountsToServer(store?: AccountsStore): void {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+  } catch {
+    // non-critical
+  }
+}
+
+/**
+ * Tell the server an account was deleted locally so other devices drop it too.
+ * The server tombstones the ID; subsequent hydrates remove it everywhere.
+ */
+export function pushAccountDeletion(accountId: string): void {
+  try {
+    void fetch(`/api/accounts?id=${encodeURIComponent(accountId)}`, {
+      method: "DELETE",
     });
   } catch {
     // non-critical

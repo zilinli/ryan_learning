@@ -472,13 +472,19 @@ export function TutorShell() {
         const merged = await hydrateFromServer(cur, accountIdRef.current);
         const restored = await restoreStorePhotosFromVault(merged);
         const fetched = await fetchMissingPhotosFromServer(restored);
+        // Upload local-only media (browser has dataUrl, server missing file)
+        const { store: repaired } = await repairMissingMedia(
+          fetched,
+          accountIdRef.current,
+        );
+        const final = repaired !== fetched ? repaired : fetched;
         const convsChanged =
-          fetched.activeId !== cur.activeId ||
-          JSON.stringify(fetched.conversations) !==
+          final.activeId !== cur.activeId ||
+          JSON.stringify(final.conversations) !==
             JSON.stringify(cur.conversations);
         if (convsChanged) {
-          setStore(fetched);
-          saveConversations(fetched, accountIdRef.current);
+          setStore(final);
+          saveConversations(final, accountIdRef.current);
         }
         if (acctsChanged) {
           setAccounts(hydratedAccts.accounts);
@@ -573,7 +579,10 @@ export function TutorShell() {
     void (async () => {
       const merged = await hydrateFromServer(nextStore, id);
       const restored = await restoreStorePhotosFromVault(merged);
-      const final = await fetchMissingPhotosFromServer(restored);
+      const fetched = await fetchMissingPhotosFromServer(restored);
+      // Upload local-only media that the server no longer has
+      const { store: repaired } = await repairMissingMedia(fetched, id);
+      const final = repaired !== fetched ? repaired : fetched;
       if (accountIdRef.current !== id) return;
       setStore(final);
       saveConversations(final, id);

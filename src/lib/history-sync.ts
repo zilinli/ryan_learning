@@ -65,10 +65,12 @@ export async function checkMissingMedia(mediaIds: string[]): Promise<Set<string>
 /**
  * Re-persist conversations where attachments have dataUrl but media files
  * are missing on the server. This repairs orphaned media references after a
- * server rebuild or data/media wipe.
+ * server rebuild or data/media wipe — if the browser still has the photo
+ * (dataUrl in vault/localStorage), it is uploaded to the server again.
  */
 export async function repairMissingMedia(
   store: ConversationsStore,
+  accountId: string = RYAN_ACCOUNT,
 ): Promise<{ repaired: number; store: ConversationsStore }> {
   // Collect conversations that have dataUrl attachments with mediaIds
   const candidates: ConversationRecord[] = [];
@@ -109,7 +111,7 @@ export async function repairMissingMedia(
     const res = await fetch("/api/history", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversations: toRepair }),
+      body: JSON.stringify({ accountId, conversations: toRepair }),
     });
     if (!res.ok) return { repaired: 0, store };
     const data = (await res.json()) as {
