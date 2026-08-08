@@ -55,6 +55,19 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     );
   });
 
+  it("maps dialect voices to the Cantonese TTS fallback", () => {
+    expect(getTutorVoice("teochew").edgeVoice).toBe("zh-HK-WanLungNeural");
+    expect(getTutorVoice("teochew").lang).toBe("teo");
+    expect(getTutorVoice("hakka").edgeVoice).toBe("zh-HK-WanLungNeural");
+    expect(getTutorVoice("hakka").lang).toBe("hak");
+    expect(resolveEdgeVoice("teochew", "汝好，睇下这道题")).toBe(
+      "zh-HK-WanLungNeural",
+    );
+    expect(resolveEdgeVoice("hakka", "你好，看下这只题")).toBe(
+      "zh-HK-WanLungNeural",
+    );
+  });
+
   it("keeps fixed non-English voices even for English text", () => {
     expect(resolveEdgeVoice("yunxi", "Hello")).toBe("zh-CN-YunxiNeural");
     expect(resolveEdgeVoice("jorge", "Hello")).toBe("es-MX-JorgeNeural");
@@ -121,6 +134,8 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(replyLangFromVoice("wanLung")).toBe("yue");
     expect(replyLangFromVoice("alvaro")).toBe("es");
     expect(replyLangFromVoice("henri")).toBe("fr");
+    expect(replyLangFromVoice("teochew")).toBe("teo");
+    expect(replyLangFromVoice("hakka")).toBe("hak");
     expect(replyLangFromVoice("xiaoxiao")).toBe("zh");
   });
 
@@ -146,5 +161,24 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     const auto = replyLanguageInstructions("auto").join("\n");
     expect(auto).toMatch(/粤语|广东话/);
     expect(auto).toMatch(/defaults to 粤语|默认/);
+  });
+
+  it("locks dialect voices and emits dialect instruction blocks", () => {
+    expect(resolveReplyLanguage("teochew", "这一题怎么解？")).toBe("teo");
+    expect(resolveReplyLanguage("hakka", "这一题怎么解？")).toBe("hak");
+
+    const teo = replyLanguageInstructions("teo").join("\n");
+    expect(teo).toMatch(/潮汕话/);
+    expect(teo).toMatch(/REQUIRED/);
+    expect(teo).toMatch(/「个」/);
+    expect(teo).toMatch(/「唔」/);
+    expect(teo).toMatch(/食/);
+
+    const hak = replyLanguageInstructions("hak").join("\n");
+    expect(hak).toMatch(/客家话/);
+    expect(hak).toMatch(/REQUIRED/);
+    expect(hak).toMatch(/涯/);
+    expect(hak).toMatch(/仰般|样般/);
+    expect(hak).toMatch(/讲分|講分/);
   });
 });

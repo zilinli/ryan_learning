@@ -16,6 +16,17 @@ const SAMPLE_WORDS: Record<DictLang, string[]> = {
   fr: ["bonjour", "merci", "eau", "maison", "livre", "amour"],
   zh: ["你好", "谢谢", "水", "学习", "字典", "美丽"],
   yue: ["我", "你", "係", "好靚", "食飯", "唔該"],
+  teo: ["我", "食饭", "汝好", "唔是", "㩼谢", "睇"],
+  hak: ["涯", "食饭", "你好", "毋係", "多謝", "麼个"],
+};
+
+const SOURCE_BADGE: Record<DictEntry["source"], string> = {
+  "merriam-webster": "MW",
+  freedict: "FD",
+  translate: "TR",
+  "cantonese-local": "粵",
+  "teochew-local": "潮",
+  "hakka-local": "客",
 };
 
 // ── Entry card ──
@@ -81,13 +92,7 @@ function EntryCard({ entry }: { entry: DictEntry }) {
         </span>
         {entry.source ? (
           <span className="text-[10px] uppercase tracking-wider text-[var(--ink-muted)]/60">
-            {entry.source === "merriam-webster"
-              ? "MW"
-              : entry.source === "freedict"
-                ? "FD"
-                : entry.source === "translate"
-                  ? "TR"
-                  : "粵"}
+            {SOURCE_BADGE[entry.source] ?? "—"}
           </span>
         ) : null}
       </div>

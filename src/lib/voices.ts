@@ -6,11 +6,13 @@ export type TutorVoiceId =
   | "wanLung"
   | "alvaro"
   | "jorge"
-  | "henri";
+  | "henri"
+  | "teochew"
+  | "hakka";
 
 import { FLAT_KEYS, nsKey, readFlatKey, RYAN_ACCOUNT } from "./tenant-storage";
 
-export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr";
+export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
 
 export type TutorVoice = {
   id: TutorVoiceId;
@@ -88,6 +90,20 @@ export const TUTOR_VOICES: TutorVoice[] = [
     edgeVoice: "fr-FR-HenriNeural",
     preview: "Bonjour, je suis Spark. Je lirai les réponses en français.",
     lang: "fr",
+  },
+  {
+    id: "teochew",
+    label: "Teochew (Cantonese voice)",
+    edgeVoice: "zh-HK-WanLungNeural",
+    preview: "汝好，我係 Spark，我会用潮汕话同汝倾。",
+    lang: "teo",
+  },
+  {
+    id: "hakka",
+    label: "Hakka (Cantonese voice)",
+    edgeVoice: "zh-HK-WanLungNeural",
+    preview: "你好，我係 Spark，我会用客家话同你倾。",
+    lang: "hak",
   },
 ];
 
@@ -187,7 +203,8 @@ export function detectSpeechLang(text: string): SpeechLang {
 }
 
 function edgeVoiceForLang(lang: SpeechLang): string {
-  if (lang === "yue") return "zh-HK-WanLungNeural";
+  if (lang === "yue" || lang === "teo" || lang === "hak")
+    return "zh-HK-WanLungNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";
@@ -275,7 +292,7 @@ export function saveSpeakEnabled(enabled: boolean, accountId: string = RYAN_ACCO
 }
 
 /** Reply language locked by the voice picker (Auto = follow the student). */
-export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr";
+export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
 
 export function replyLangFromVoice(
   voiceId: TutorVoiceId | string | null | undefined,
@@ -293,6 +310,10 @@ export function replyLangFromVoice(
       return "es";
     case "henri":
       return "fr";
+    case "teochew":
+      return "teo";
+    case "hakka":
+      return "hak";
     case "auto":
     default:
       return "auto";
@@ -392,6 +413,55 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
       "- Les citations de photos/PDF doivent rester dans la langue d'origine.",
       "- Questions et indices aussi en français, p. ex. : « Regarde cette phrase : qu'est-ce que tu penses que ça veut dire ? »",
       "- Les formules peuvent rester en LaTeX ; les explications en français.",
+    ];
+  }
+  if (mode === "teo") {
+    return [
+      "",
+      "[Reply language — 潮汕话 — REQUIRED]",
+      "- 请用【潮汕话（潮州话）】与学生交流。用汉字书写，融入潮汕话的口语词汇和语法，不要用普通话。",
+      "- 必用词汇替换（务必遵守）：",
+      "  - 「的」→「个」　例：「我的」→「我个」",
+      "  - 「不」→「唔」　例：「不是」→「唔是」",
+      "  - 「不要」→「勿」　例：「不要怕」→「勿惊」",
+      "  - 「没有」→「无」　例：「没有错」→「无错」",
+      "  - 「吃/喝」→「食」（食饭、食水）",
+      "  - 「看」→「睇」　例：「看一下」→「睇下」",
+      "  - 「怎么」→「怎呢」或「做呢」",
+      "  - 「什么」→「乜个」",
+      "  - 「告诉」→「甲…知」　例：「告诉我」→「甲我知」",
+      "  - 「这/那」→「只/许」或保留「这/那」",
+      "  - 「可以」→「会」或「做得」",
+      "  - 「很」→「好」　例：「很好」→「好好」",
+      "  - 「和/跟」→「佮」",
+      "- 语气亲切，像家里的长辈教小孩子；句子要短，潮汕话是口头语言，长句显得不自然。",
+      "- 数学公式保留 LaTeX；解释和提问必须用潮汕话书面形式。",
+      "- 开场示例：「汝好！来，睇下只道题，汝觉得应该怎呢做？」",
+    ];
+  }
+  if (mode === "hak") {
+    return [
+      "",
+      "[Reply language — 客家话 — REQUIRED]",
+      "- 请用【客家话】与学生交流。用汉字书写，融入客家话的口语词汇和语法，不要用普通话。",
+      "- 必用词汇替换（务必遵守）：",
+      "  - 「我」→「涯」（口语常用）或「𠊎」（较正式）",
+      "  - 「的」→「个」　例：「我的」→「涯个」",
+      "  - 「不」→「唔」　例：「不是」→「唔係」",
+      "  - 「没有」→「冇」　例：「没有错」→「冇错」",
+      "  - 「不要」→「莫」或「毋好」　例：「不要怕」→「莫惊」",
+      "  - 「吃/喝」→「食」（食饭、食水）",
+      "  - 「看」→「看」（同普通话）或「䀴」",
+      "  - 「怎么」→「仰般」或「样般」",
+      "  - 「什么」→「麼个」",
+      "  - 「告诉」→「讲分…知」　例：「告诉我」→「讲分涯知」",
+      "  - 「这」→「呢」或保留「这」",
+      "  - 「可以」→「做得」",
+      "  - 「很」→「當」或「好」　例：「很好」→「當好」",
+      "  - 「但是」→「但係」",
+      "- 语气亲切稳重，像耐心的客家老师。注意客家话的自然语序（副词在动词前：「先行」而不是「行先」）。",
+      "- 数学公式保留 LaTeX；解释和提问必须用客家话书面形式。",
+      "- 开场示例：「你好！来，看下呢只题，你讲分涯知你样般想？」",
     ];
   }
   // es

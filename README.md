@@ -29,6 +29,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 ## Features
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
+- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français; plus experimental written-form support for **潮汕话 (Teochew)** and **客家话 (Hakka)** via LLM prompting with Cantonese TTS fallback. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching

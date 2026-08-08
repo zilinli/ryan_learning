@@ -30,6 +30,24 @@ describe("buildSentenceTranslatePrompt", () => {
     expect(p).toMatch(/photo/i);
     expect(p).toMatch(/Auto-detect|Detect the source/i);
   });
+
+  it("names dialect target languages", () => {
+    const teo = buildSentenceTranslatePrompt({
+      text: "hello",
+      from: "en",
+      to: "teo",
+      hasImages: false,
+    });
+    expect(teo).toMatch(/Teochew/);
+
+    const hak = buildSentenceTranslatePrompt({
+      text: "hello",
+      from: "en",
+      to: "hak",
+      hasImages: false,
+    });
+    expect(hak).toMatch(/Hakka/);
+  });
 });
 
 describe("parseSentenceTranslateJson", () => {

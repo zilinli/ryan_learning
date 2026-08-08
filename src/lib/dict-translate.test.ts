@@ -27,6 +27,15 @@ describe("dict-translate helpers", () => {
     expect(localTranslate("water", "en", "zh")).toBe("水");
     expect(localTranslate("water", "en", "yue")).toBe("水");
   });
+
+  it("localTranslate maps English to Teochew/Hakka and back", () => {
+    expect(localTranslate("I", "en", "teo")).toBe("我");
+    expect(localTranslate("water", "en", "teo")).toBe("水");
+    expect(localTranslate("I", "en", "hak")).toBe("涯");
+    expect(localTranslate("water", "en", "hak")).toBe("水");
+    expect(localTranslate("个", "teo", "en")).toContain("possessive");
+    expect(localTranslate("个", "hak", "en")).toContain("possessive");
+  });
 });
 
 describe("enrichDictResponse", () => {
@@ -71,6 +80,40 @@ describe("enrichDictResponse", () => {
     const out = await enrichDictResponse(input);
     expect(out.crossTranslations?.some((t) => t.lang === "en")).toBe(true);
     expect(out.crossTranslations![0]!.text.toLowerCase()).toContain("hello");
+  });
+
+  it("adds an English gloss for Teochew/Hakka lookups", async () => {
+    const teo: DictResponse = {
+      word: "个",
+      lang: "teo",
+      entries: [
+        {
+          headword: "个 (个)",
+          pronunciation: "gai7",
+          partOfSpeech: "",
+          senses: [{ definition: "possessive particle (的) / generic classifier" }],
+          source: "teochew-local",
+        },
+      ],
+    };
+    const outTeo = await enrichDictResponse(teo);
+    expect(outTeo.crossTranslations?.some((t) => t.lang === "en")).toBe(true);
+
+    const hak: DictResponse = {
+      word: "涯",
+      lang: "hak",
+      entries: [
+        {
+          headword: "涯 (涯)",
+          pronunciation: "ngaiˇ",
+          partOfSpeech: "",
+          senses: [{ definition: "I / me (common online form)" }],
+          source: "hakka-local",
+        },
+      ],
+    };
+    const outHak = await enrichDictResponse(hak);
+    expect(outHak.crossTranslations?.some((t) => t.lang === "en")).toBe(true);
   });
 });
 

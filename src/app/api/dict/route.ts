@@ -13,6 +13,8 @@ import { readFromCache, writeToCache } from "@/lib/dict-cache";
 import { mwCollegiateLookup, mwSpanishLookup } from "@/lib/mw-client";
 import { freeDictLookup } from "@/lib/freedict-client";
 import { cantoneseLookup } from "@/lib/cantonese-dict";
+import { teochewLookup } from "@/lib/teochew-dict";
+import { hakkaLookup } from "@/lib/hakka-dict";
 import { localSeedLookup } from "@/lib/local-seeds";
 import {
   buildSuggestions,
@@ -30,6 +32,8 @@ const MW_CACHE_SOURCES = ["mw", "mw-es"] as const;
 const FALLBACK_CACHE_SOURCES = [
   "freedict",
   "cantonese-local",
+  "teochew-local",
+  "hakka-local",
   "local-seed",
   "translate",
 ] as const;
@@ -96,6 +100,16 @@ async function exactLookup(
   } else if (lang === "yue") {
     const yue = cantoneseLookup(wordLower);
     if (yue.entries.length > 0) return { result: yue, source: "cantonese-local" };
+    const fd = await freeDictLookup(wordLower, "zh");
+    if (fd?.entries.length) return { result: fd, source: "freedict" };
+  } else if (lang === "teo") {
+    const teo = teochewLookup(wordLower);
+    if (teo.entries.length > 0) return { result: teo, source: "teochew-local" };
+    const fd = await freeDictLookup(wordLower, "zh");
+    if (fd?.entries.length) return { result: fd, source: "freedict" };
+  } else if (lang === "hak") {
+    const hak = hakkaLookup(wordLower);
+    if (hak.entries.length > 0) return { result: hak, source: "hakka-local" };
     const fd = await freeDictLookup(wordLower, "zh");
     if (fd?.entries.length) return { result: fd, source: "freedict" };
   }

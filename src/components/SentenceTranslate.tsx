@@ -23,6 +23,8 @@ const SAMPLE_SENTENCES: Record<DictLang, string> = {
   fr: "Peux-tu m'aider avec ces devoirs, s'il te plaît ?",
   zh: "你能帮我做这道作业题吗？",
   yue: "你可唔可以幫我做呢份功課？",
+  teo: "汝会唔会帮我睇下这道题？",
+  hak: "你得唔得閒帮涯看下这只题？",
 };
 
 type PhotoAtt = TranslateImagePayload & { id: string };

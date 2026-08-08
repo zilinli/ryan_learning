@@ -11,6 +11,8 @@
 import type { DictEntry, DictLang, DictResponse, DictSense } from "./dict-types";
 import { localSeedLookup, listSeedWords } from "./local-seeds";
 import { searchCantonese } from "./cantonese-dict";
+import { searchTeochew } from "./teochew-dict";
+import { searchHakka } from "./hakka-dict";
 import { freeDictLookup } from "./freedict-client";
 
 /** Target languages shown when the query language is English. */
@@ -22,6 +24,8 @@ const GTX_CODES: Record<DictLang, string> = {
   fr: "fr",
   zh: "zh-CN",
   yue: "zh-TW", // closest free MT proxy; prefer local Cantonese when available
+  teo: "zh-CN", // no Teochew engine on Google — closest is simplified Chinese
+  hak: "zh-CN", // no Hakka engine on Google — closest is simplified Chinese
 };
 
 /** Extract a short English gloss from a seed-style definition. */
@@ -149,9 +153,14 @@ export function localTranslate(
   const hit = map.get(key);
   if (hit) return hit;
 
-  // Cantonese: search by English gloss or character
-  if (to === "yue" && from === "en") {
-    const hits = searchCantonese(word, 5);
+  // Cantonese / Teochew / Hakka: search by English gloss or character
+  if ((to === "yue" || to === "teo" || to === "hak") && from === "en") {
+    const hits =
+      to === "yue"
+        ? searchCantonese(word, 5)
+        : to === "teo"
+          ? searchTeochew(word, 5)
+          : searchHakka(word, 5);
     const exact = hits.find(
       (e) =>
         e.gloss.toLowerCase() === word.toLowerCase() ||
@@ -164,8 +173,13 @@ export function localTranslate(
       return hits[0].traditional;
     }
   }
-  if (from === "yue" && to === "en") {
-    const hits = searchCantonese(word, 3);
+  if ((from === "yue" || from === "teo" || from === "hak") && to === "en") {
+    const hits =
+      from === "yue"
+        ? searchCantonese(word, 3)
+        : from === "teo"
+          ? searchTeochew(word, 3)
+          : searchHakka(word, 3);
     if (hits[0]?.gloss) return primaryGloss(hits[0].gloss);
   }
 

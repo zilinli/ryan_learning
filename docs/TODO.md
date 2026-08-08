@@ -67,6 +67,21 @@
 - [x] **E.5** — Tests updated: ThemePicker (collapsed menu, default, Escape), theme-contrast adds `--action-*` ≥ 4.5:1
 - [x] **E.6** — README + design doc updated (v0.3)
 
+### Phase F: Teochew & Hakka Dialect Support (Plan A, design 2026-08-08)
+
+**Scope:** Written-form dialect replies via LLM prompting + Cantonese TTS fallback + local dictionary seeds. No dedicated TTS/STT models needed.
+
+> **Design:** [subsystems/dialect-support-teochew-hakka.md](subsystems/dialect-support-teochew-hakka.md) — LLM prompt templates for Teochew/Hakka grammar & vocabulary, Cantonese TTS as fallback rationale, ~150-entry local dictionaries.
+
+- [ ] **F.1** — Extend `SpeechLang` / `ReplyLangMode` types + voice entries in `TUTOR_VOICES` (teochew, hakka)
+- [ ] **F.2** — `replyLanguageInstructions("teo")` / `("hak")` prompt templates
+- [ ] **F.3** — TTS routing: `edgeVoiceForLang` maps teo/hak → `zh-HK-WanLungNeural`; STT: teo/hak → `"auto"`
+- [ ] **F.4** — Local dictionary files: `teochew-dict.ts` (~150 entries), `hakka-dict.ts` (~150 entries)
+- [ ] **F.5** — Wire dict into pipeline: `DictLang` type, `dict-suggest.ts`, dictionary page
+- [ ] **F.6** — Unit tests: voices, dict validation, STT lang mapping
+- [ ] **F.7** — README update: dialect features section; design doc linked
+- [ ] **F.8** — Build + deploy + manual smoke test (Teochew/Hakka tutor replies + TTS audible)
+
 ---
 
 ## Legacy Pending
