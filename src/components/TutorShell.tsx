@@ -465,7 +465,6 @@ export function TutorShell() {
         // Check for remote account deletions / additions
         const curAcc = accountsRef.current;
         const curIds = new Set(curAcc.map((a) => a.id));
-        const serverIds = new Set(hydratedAccts.accounts.map((a) => a.id));
         const acctsChanged =
           hydratedAccts.accounts.length !== curAcc.length ||
           !hydratedAccts.accounts.every((a) => curIds.has(a.id));

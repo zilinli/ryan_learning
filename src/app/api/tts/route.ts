@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const voice =
       body.voice && ALLOWED_VOICES.has(body.voice)
         ? body.voice
-        : "en-US-AvaNeural";
+        : "en-GB-RyanNeural";
 
     let { res, errorBody } = await fetchTtsOnce(text, voice);
 

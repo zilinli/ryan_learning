@@ -159,6 +159,14 @@
 - [x] Unit tests: `accounts-store.test.ts` (round-trip write+read)
 - [x] 49 test files, 551 tests all passing
 
+**2026-08-08 — Cross-device sync patches** (4 race-condition fixes)
+
+- [x] **P1: Race condition** — debounce `pushStoreToServer` could fire before `hydrateFromServer` populated `deletionCache` on fresh page loads, re-uploading a tombstoned conversation. Added `hydrationDoneRef` gate.
+- [x] **P2: Stale account list in periodic sync** — The 60s periodic sync only refreshed conversations, not accounts. Accounts created/deleted on another device never appeared until a full page reload. Periodic sync now calls `hydrateAccountsFromServer()` and detects remote additions/removals.
+- [x] **P3: Account switch missing photo restore** — `handleSwitchAccount` only hydrated conversations from server but never restored photos from vault, nor fetched missing cross-device photos. Now runs the full chain: hydrate → restore vault → fetch from server.
+- [x] **P4: Cross-device photo gap** — Photos uploaded from another device had `mediaId` but no `dataUrl`. The vault only held local-device photos. New `fetchMissingPhotosFromServer()` in `photo-vault.ts` fetches binary from `/api/media/[mediaId]` for any attachment with `mediaId` but no `dataUrl`, and caches in the local vault.
+- [x] `tsc`, `eslint`, 56 test files / 623 tests all pass.
+
 ## ✅ Completed (2026-08-07) — Dictionary / Translation
 
 - [x] `/dict` retitled **Dictionary / Translation** (sidebar + page)

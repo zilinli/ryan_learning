@@ -51,7 +51,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
       "es-ES-AlvaroNeural",
     );
     expect(resolveEdgeVoice("auto", "Let's look at this sentence.")).toBe(
-      "en-US-AvaNeural",
+      "en-GB-RyanNeural",
     );
   });
 

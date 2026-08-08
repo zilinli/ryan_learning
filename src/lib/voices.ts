@@ -43,17 +43,17 @@ export const TUTOR_VOICES: TutorVoice[] = [
     lang: "auto",
   },
   {
-    id: "ava",
-    label: "Ava (English)",
-    edgeVoice: "en-US-AvaNeural",
-    preview: "Hi, I'm Spark. I'll read replies in this voice.",
+    id: "ryan",
+    label: "Ryan (British English)",
+    edgeVoice: "en-GB-RyanNeural",
+    preview: "Hi, I'm Spark. I'll read replies in this British voice.",
     lang: "en",
   },
   {
-    id: "ryan",
-    label: "Ryan (English)",
-    edgeVoice: "en-GB-RyanNeural",
-    preview: "Hi, I'm Spark. I'll read replies in this British voice.",
+    id: "ava",
+    label: "Ava (American English)",
+    edgeVoice: "en-US-AvaNeural",
+    preview: "Hi, I'm Spark. I'll read replies in this American voice.",
     lang: "en",
   },
   {
@@ -208,7 +208,8 @@ function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";
-  return "en-US-AvaNeural";
+  // English defaults to British (Ryan) — American (Ava) is the explicit choice.
+  return "en-GB-RyanNeural";
 }
 
 /** Map preference + chunk text → edge-tts ShortName */
