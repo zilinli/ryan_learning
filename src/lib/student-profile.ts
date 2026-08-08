@@ -581,8 +581,16 @@ export async function hydrateAccountsFromServer(): Promise<AccountsStore> {
     };
 
     const merged = mergeServerAccounts(local, serverStore);
-    // Remember server IDs so we can detect deletions on next sync
-    recordServerSyncIds(serverStore.accounts);
+    // Track which account IDs are now shared across server + this device
+    recordServerSyncIds(merged.accounts);
+    // Push merged result (may include richer local data) so other devices see it too
+    if (merged.accounts.length > serverStore.accounts.length ||
+        merged.accounts.some((a) => {
+          const s = serverStore.accounts.find((srv) => srv.id === a.id);
+          return s && a.updatedAt > s.updatedAt;
+        })) {
+      void pushAccountsToServer(merged);
+    }
     saveAccounts(merged);
     return merged;
   } catch {
@@ -608,23 +616,41 @@ export function pushAccountsToServer(store?: AccountsStore): void {
 }
 
 /** Server baseline + add any local-only accounts, ensure Ryan exists.
- *  Accounts that were previously on the server but are now missing → deleted remotely → drop locally. */
+ *  Accounts that were on the server before but are now missing → deleted remotely → drop locally.
+ *  When both sides have the same account, pick the one with the higher updatedAt so that
+ *  a device's richer local profile (with learning progress) wins over sparse server defaults. */
 function mergeServerAccounts(local: AccountsStore, server: AccountsStore): AccountsStore {
-  const serverIds = new Set(server.accounts.map((a) => a.id));
+  const serverMap = new Map(server.accounts.map((a) => [a.id, a]));
   const prevServerIds = readServerSyncIds();
-  const mergedAccounts = [...server.accounts];
+  const mergedAccounts: AccountRecord[] = [];
   let changed = false;
 
-  for (const acct of local.accounts) {
-    if (serverIds.has(acct.id)) continue;
-    // Local-only account → was it known from a previous server sync?
-    if (prevServerIds.has(acct.id)) {
-      // This account was on the server before but is now missing → deleted on another device
-      changed = true;
-      continue; // drop it
+  // Walk every account from both sides, picking the freshest version
+  const allIds = new Set([
+    ...server.accounts.map((a) => a.id),
+    ...local.accounts.map((a) => a.id),
+  ]);
+
+  for (const id of allIds) {
+    const srv = serverMap.get(id);
+    const loc = local.accounts.find((a) => a.id === id);
+
+    if (srv && loc) {
+      // Both sides exist → use the more recently updated one
+      mergedAccounts.push(loc.updatedAt >= srv.updatedAt ? loc : srv);
+    } else if (srv && !loc) {
+      // Server-only → keep it
+      mergedAccounts.push(srv);
+    } else if (!srv && loc) {
+      // Local-only → was it previously known on the server?
+      if (prevServerIds.has(id)) {
+        // It was on the server before but is now missing → deleted remotely → drop it
+        changed = true;
+        continue;
+      }
+      // Genuinely new local account → add to merged list + will be pushed to server
+      mergedAccounts.push(loc);
     }
-    // Genuinely new local account → add to merged list + will be pushed to server
-    mergedAccounts.push(acct);
   }
 
   const result = ensureDefaultAccount({

@@ -6,6 +6,7 @@ import AccountAvatar from "./AccountAvatar";
 import {
   createAccount,
   getActiveAccount,
+  gradeBandForGrade,
   hydrateAccountsFromServer,
   loadAccounts,
   RYAN_ACCOUNT_ID,
@@ -88,6 +89,41 @@ export function AccountHome() {
     setNotice(`Created account "${trimmed}" (Grade ${grade}).`);
   };
 
+  const handleUpdate = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNotice("Type a name first.");
+      return;
+    }
+    const now = Date.now();
+    const next: AccountsStore = {
+      ...store,
+      accounts: store.accounts.map((a) =>
+        a.id === store.activeId
+          ? {
+              ...a,
+              profile: {
+                ...a.profile,
+                name: trimmed,
+                grade,
+                gradeBand: gradeBandForGrade(grade),
+                school: school.trim(),
+                curriculum: {
+                  label: school.trim() ? `${school.trim()} G${grade}` : `Grade ${grade}`,
+                  grade,
+                  subjects,
+                },
+              },
+              updatedAt: now,
+            }
+          : a,
+      ),
+    };
+    saveAccounts(next);
+    refresh(next);
+    setNotice(`Updated ${trimmed}'s account.`);
+  };
+
   const handleSaveRyan = () => {
     refresh(saveRyanAccount(false, store));
     setNotice("Ryan is saved as another account — tap Switch to use it.");
@@ -135,6 +171,7 @@ export function AccountHome() {
   };
 
   const canCreate = store.accounts.length < MAX_ACCOUNTS;
+  const isExisting = active.profile.name.trim().length > 0;
   const deleteTarget = deleteConfirm
     ? store.accounts.find((a) => a.id === deleteConfirm)
     : null;
@@ -242,14 +279,24 @@ export function AccountHome() {
           </fieldset>
 
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!canCreate}
-              className="flex-1 rounded-full bg-[var(--teal)] px-5 py-3 text-sm font-medium text-white transition hover:brightness-105 disabled:opacity-50"
-            >
-              {canCreate ? "Make account" : `${MAX_ACCOUNTS} max`}
-            </button>
+            {isExisting ? (
+              <button
+                type="button"
+                onClick={handleUpdate}
+                className="flex-1 rounded-full bg-[var(--teal)] px-5 py-3 text-sm font-medium text-white transition hover:brightness-105"
+              >
+                Update account
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!canCreate}
+                className="flex-1 rounded-full bg-[var(--teal)] px-5 py-3 text-sm font-medium text-white transition hover:brightness-105 disabled:opacity-50"
+              >
+                {canCreate ? "Make account" : `${MAX_ACCOUNTS} max`}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSaveRyan}
