@@ -2,19 +2,29 @@
  * TTS Provider 路由。
  *
  * 方言模式（teo/hak）：
- *   - 若配置了阿里云百炼 Key + 对应方言的复刻音色 voiceId → 走「声音复刻」合成。
- *   - 否则（无 Key / 未配置音色）→ 本地 edge-tts 临时兜底（不做粤语云 TTS 顶替）。
+ *   1) 配置了家人「声音复刻」voiceId → 百炼 CosyVoice 复刻音色（最理想）
+ *   2) 潮汕话未复刻但有百炼 Key → 百炼系统音色「龙安闽」闽南话（官方最接近潮汕；**绝不走普通话**）
+ *   3) 客家话未复刻 / 无 Key / 云端失败 → 本地 edge 临时兜底
  *
- * 非方言语言 → 直接走 edge-tts 音色映射（现状不变）。
- * 云端调用包在 try/catch + 超时内，绝不成为单点故障。
+ * 对比结论（2026-08-08）：
+ *   - 讯飞在线 TTS：无潮汕话/客家话/闽南话发音人（仅粤/川/湘等 11 种方言）→ 不采用
+ *   - 百炼 CosyVoice：有闽南话系统音色 longanmin_v3 + 声音复刻 → 采用百炼
+ *
+ * 非方言语言 → edge-tts 音色映射（现状不变）。
  */
 import { edgeVoiceForLang, type SpeechLang } from "./voices";
 
 export type TtsProvider =
   | { kind: "edge"; voice: string }
-  | { kind: "aliyun-clone"; voiceId: string; model: string };
+  | {
+      kind: "aliyun-clone";
+      voiceId: string;
+      model: string;
+      /** 复刻音色 vs 系统方言音色（便于日志 / X-TTS-Engine） */
+      source: "clone" | "minnan-system";
+    };
 
-/** 未配置百炼 Key 或未配置方言复刻音色时抛出，由上层降级 edge。 */
+/** 未配置百炼 Key 时抛出，由上层降级 edge。 */
 export class TtsProviderNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
@@ -28,16 +38,39 @@ export function aliyunCloneVoiceIdForLang(lang: SpeechLang): string | null {
   return null;
 }
 
-/** 方言复刻音色使用的合成模型（须与创建音色时 target_model 一致）。 */
+/** 家人复刻音色默认合成模型（须与 create_voice 的 target_model 一致）。 */
 export const ALIYUN_CLONE_MODEL = "cosyvoice-v3-plus";
+
+/**
+ * 潮汕话临时系统音色：CosyVoice「龙安闽」闽南话。
+ * 官方音色列表标注语言为闽南话（与潮汕同属闽南语支）；实测需 cosyvoice-v3-flash。
+ * 文档：https://help.aliyun.com/zh/model-studio/cosyvoice-voice-list
+ */
+export const ALIYUN_TEO_SYSTEM_VOICE = "longanmin_v3";
+export const ALIYUN_TEO_SYSTEM_MODEL = "cosyvoice-v3-flash";
 
 export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   if (lang === "teo" || lang === "hak") {
     const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
     const voiceId = aliyunCloneVoiceIdForLang(lang);
     if (key && voiceId) {
-      return { kind: "aliyun-clone", voiceId, model: ALIYUN_CLONE_MODEL };
+      return {
+        kind: "aliyun-clone",
+        voiceId,
+        model: ALIYUN_CLONE_MODEL,
+        source: "clone",
+      };
     }
+    // 潮汕话：无复刻时用百炼闽南话系统音色（禁止普通话样例 / 普通话系统音色）
+    if (lang === "teo" && key) {
+      return {
+        kind: "aliyun-clone",
+        voiceId: ALIYUN_TEO_SYSTEM_VOICE,
+        model: ALIYUN_TEO_SYSTEM_MODEL,
+        source: "minnan-system",
+      };
+    }
+    // 客家话暂无云端方言音色；未复刻时本地 edge（仍非普通话）
     return { kind: "edge", voice: "zh-HK-WanLungNeural" };
   }
   return { kind: "edge", voice: edgeVoiceForLang(lang) };

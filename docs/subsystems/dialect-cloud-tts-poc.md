@@ -7,7 +7,16 @@
 | 能力 | 厂商 | 验收标准 |
 |------|------|----------|
 | 方言 STT | 讯飞方言识别大模型 | `POST /api/transcribe` 方言模式返回 `engine: "iflytek"`，失败回退 Whisper |
-| 方言 TTS | 阿里云百炼 CosyVoice 声音复刻 | 配置 `TEO_/HAK_CLONE_VOICE_ID` 后走 `SpeechSynthesizer`；未配置/失败 → 本地 edge（**不做粤语云 TTS**） |
+| 方言 TTS | **百炼 CosyVoice**（对比后选用；讯飞 TTS 无潮汕/客家/闽南） | 潮汕：家人复刻优先，否则系统音色 `longanmin_v3`（闽南话）；客家：需复刻；**禁止普通话音色**；失败 → 本地 edge |
+
+## TTS 选型对比（2026-08-08）
+
+| 厂商 | 潮汕话 | 客家话 | 闽南话 | 结论 |
+|------|--------|--------|--------|------|
+| 讯飞在线 TTS | ❌ | ❌ | ❌（仅粤/川/湘等 11 种） | **不采用** |
+| 百炼 CosyVoice | ❌ 预制；✅ 复刻 | ❌ 预制；✅ 复刻 | ✅ `longanmin_v3`（v3-flash） | **采用**；潮汕临时用闽南话系统音色，**不用普通话** |
+
+实测：`cosyvoice-v3-flash` + `longanmin_v3` 对潮汕书面句可合成；`cosyvoice-v3-plus` + 同音色返回 418。
 
 ## 官方文档（接入依据）
 

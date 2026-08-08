@@ -72,24 +72,31 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
  * 2) 失败或未配置 → 本地 edge 临时兜底（不做粤语云 TTS）
  * 全程走磁盘缓存。
  */
+type DialectTtsEngine = "aliyun-clone" | "aliyun-minnan" | "edge";
+
 async function synthesizeDialect(
   text: string,
   dialectLang: "teo" | "hak",
-): Promise<{ audio: Buffer; engine: "aliyun-clone" | "edge" }> {
+): Promise<{ audio: Buffer; engine: DialectTtsEngine }> {
   const provider = ttsProviderForLang(dialectLang);
   const cacheVoice =
     provider.kind === "aliyun-clone" ? provider.voiceId : provider.voice;
+  const aliyunEngine: DialectTtsEngine =
+    provider.kind === "aliyun-clone" && provider.source === "minnan-system"
+      ? "aliyun-minnan"
+      : "aliyun-clone";
 
   const cached = await getCachedTts(text, cacheVoice);
   if (cached) {
     return {
       audio: cached,
-      engine: provider.kind === "aliyun-clone" ? "aliyun-clone" : "edge",
+      engine: provider.kind === "aliyun-clone" ? aliyunEngine : "edge",
     };
   }
 
   if (provider.kind === "aliyun-clone") {
     try {
+      // 百炼路径：原文直送，不做粤语/普通话改写
       const audio = await callAliyunCloneTts(
         text,
         provider.voiceId,
@@ -97,18 +104,19 @@ async function synthesizeDialect(
       );
       void setCachedTts(text, provider.voiceId, audio);
       console.info(
-        `[tts] aliyun-clone ok for ${dialectLang} bytes=${audio.byteLength}`,
+        `[tts] ${aliyunEngine} ok for ${dialectLang} voice=${provider.voiceId} bytes=${audio.byteLength}`,
       );
-      return { audio, engine: "aliyun-clone" };
+      return { audio, engine: aliyunEngine };
     } catch (err) {
       console.warn(
-        `[tts] aliyun-clone failed for ${dialectLang}, falling back to local edge:`,
+        `[tts] ${aliyunEngine} failed for ${dialectLang}, falling back to local edge:`,
         err instanceof Error ? err.message : err,
       );
     }
   }
 
   // Edge fallback only: rewrite dialect chars toward Cantonese-readable form.
+  // Never rewrite toward Mandarin.
   const edgeText = normalizeForTTS(text, dialectLang);
   const edgeVoice =
     provider.kind === "edge" ? provider.voice : "zh-HK-WanLungNeural";

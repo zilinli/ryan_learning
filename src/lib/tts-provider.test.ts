@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ALIYUN_CLONE_MODEL,
+  ALIYUN_TEO_SYSTEM_MODEL,
+  ALIYUN_TEO_SYSTEM_VOICE,
   aliyunCloneVoiceIdForLang,
   callAliyunCloneTts,
   ttsProviderForLang,
@@ -37,18 +39,34 @@ describe("ttsProviderForLang", () => {
       kind: "aliyun-clone",
       voiceId: "cosyvoice-v3-plus-teochew-01",
       model: ALIYUN_CLONE_MODEL,
+      source: "clone",
     });
     expect(ttsProviderForLang("hak")).toEqual({
       kind: "aliyun-clone",
       voiceId: "cosyvoice-v3-plus-hakka-01",
       model: ALIYUN_CLONE_MODEL,
+      source: "clone",
     });
   });
 
-  it("falls back to edge when key exists but voiceId missing", () => {
+  it("routes teo to Bailian Minnan system voice when key exists but no clone (never Mandarin)", () => {
     process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     delete process.env.TEO_CLONE_VOICE_ID;
-    expect(ttsProviderForLang("teo").kind).toBe("edge");
+    expect(ttsProviderForLang("teo")).toEqual({
+      kind: "aliyun-clone",
+      voiceId: ALIYUN_TEO_SYSTEM_VOICE,
+      model: ALIYUN_TEO_SYSTEM_MODEL,
+      source: "minnan-system",
+    });
+  });
+
+  it("keeps hak on edge when key exists but no Hakka clone (no Mandarin substitute)", () => {
+    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
+    delete process.env.HAK_CLONE_VOICE_ID;
+    expect(ttsProviderForLang("hak")).toEqual({
+      kind: "edge",
+      voice: "zh-HK-WanLungNeural",
+    });
   });
 
   it("keeps other languages on edge voices", () => {

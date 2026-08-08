@@ -403,12 +403,12 @@ export function VoiceControls({
     const picked = getTutorVoice(id);
     if (picked.lang === "teo" || picked.lang === "hak") {
       try {
-        if (!window.localStorage.getItem("spark-dialect-notice-v3")) {
-          window.localStorage.setItem("spark-dialect-notice-v3", "1");
+        if (!window.localStorage.getItem("spark-dialect-notice-v4")) {
+          window.localStorage.setItem("spark-dialect-notice-v4", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "潮汕话：识别走讯飞方言模型；朗读优先百炼声音复刻（未配置音色时本地兜底）。识别结果会填入输入框，请确认后再发送。"
-              : "客家话：识别走讯飞方言模型；朗读优先百炼声音复刻（未配置音色时本地兜底）。识别结果会填入输入框，请确认后再发送。",
+              ? "潮汕话：识别走讯飞；朗读走百炼（家人复刻优先，否则用闽南话系统音色，不用普通话）。识别结果请确认后再发送。"
+              : "客家话：识别走讯飞；朗读需家人声音复刻（未配置前本地临时兜底，不用普通话）。识别结果请确认后再发送。",
           );
         }
       } catch {

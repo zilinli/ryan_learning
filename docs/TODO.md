@@ -154,7 +154,7 @@
 
 ### 15.2 — TTS：阿里云百炼「声音复刻」+ CosyVoice（P1 核心，更新版计划首选）
 
-- [x] **15.2.1** — `src/lib/tts-provider.ts` 🆕：`TtsProvider` union + `ttsProviderForLang()`（teo/hak 有 Key+复刻音色 → `aliyun-clone`，否则本地 edge；**不做粤语云 TTS 顶替**）
+- [x] **15.2.1** — `src/lib/tts-provider.ts`：百炼优先（讯飞 TTS 无潮汕/客家/闽南）；teo 无复刻 → `longanmin_v3` 闽南话系统音色；**禁止普通话音色**；hak 无复刻 → edge
 - [x] **15.2.2** — `src/lib/tts-cache.ts` 🆕：`data/tts-cache/<sha256(text+voice)>.mp3`，原子写，`pruneTtsCache(maxBytes, maxAgeMs)` LRU（默认 3GB / 48h）
 - [x] **15.2.3** — `/api/tts/route.ts`：`lang` 可选参数；方言走 provider + 缓存 + 云端失败 fallback edge；其余走现状白名单路径
 - [x] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
