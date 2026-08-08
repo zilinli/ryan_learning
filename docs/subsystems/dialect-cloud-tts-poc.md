@@ -67,11 +67,24 @@ HAK_CLONE_VOICE_ID=
 | Speak 朗读（已配置 `TEO_CLONE_VOICE_ID`） | 走百炼复刻音色；失败则 edge |
 | Speak 朗读（未配置复刻 ID） | 本地 edge，不阻塞 |
 
+## 客家话公开资源落地（2026-08-08）
+
+网上可找到的客家话 TTS 相关资源（大厂预制仍无）：
+
+| 资源 | 说明 | 本项目用法 |
+|------|------|------------|
+| HF `hungshinlee/hakkaradio_sixian` | 台湾四县腔广播公开 wav | ✅ 已用于百炼 `create_voice` → `HAK_CLONE_VOICE_ID` |
+| [VoxHakka](https://voxhakka.github.io/) / `formospeech/yourtts-htia-240704` | 台湾客家多腔调 YourTTS | 备选本机模型（需 G2P；偏台湾腔） |
+| `facebook/mms-tts-hak` | Meta MMS 客家 VITS（~36M，CC-BY-NC） | 备选本机；需拉丁/客语文本前端 |
+| 乡音阁 | 页面宣传客家话 API，博文仍写「即将上线」 | 暂不接入 |
+
+当前线上客家话：百炼复刻音色（公开四县腔样音），**非普通话**。家人真人口音可随时替换同一环境变量。
+
 ## 家人真人口音（待办 · 15.2.6）
 
-当前可用的测试 `voice_id` 来自**官方普通话样例**，仅用于打通链路，**不是**潮汕话/客家话真人音色。
+潮汕话仍建议录家人音频替换；客家话可用公开样音过渡，有家人录音后替换 `HAK_CLONE_VOICE_ID`。
 
-上线家庭音色步骤：
+上线/替换家庭音色步骤：
 
 1. 录家人说方言清晰音频（建议 ≥10s，mp3/wav，公网可访问 URL 或 OSS）  
 2. `create_voice`：`target_model=cosyvoice-v3-plus`，`prefix` ≤10 字母数字  
