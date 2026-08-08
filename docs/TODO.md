@@ -158,14 +158,14 @@
 - [x] **15.2.2** — `src/lib/tts-cache.ts` 🆕：`data/tts-cache/<sha256(text+voice)>.mp3`，原子写，`pruneTtsCache(maxBytes, maxAgeMs)` LRU（默认 3GB / 48h）
 - [x] **15.2.3** — `/api/tts/route.ts`：`lang` 可选参数；方言走 provider + 缓存 + 云端失败 fallback edge；其余走现状白名单路径
 - [x] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
-- [x] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`
-- [ ] **15.2.6** — POC：家人方言录音 → 百炼声音复刻 → 填入 `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` 后上线真人方言朗读
+- [x] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`（SpeechSynthesizer 端点）
+- [ ] **15.2.6** — POC：家人方言录音 → 百炼声音复刻 → 填入 `TEO_/HAK_CLONE_VOICE_ID`（API 链路已用官方样例打通；待真人口音）
 
 ### 15.3 — STT 兜底：LLM 方言纠错 + 用户确认（P1，更新版计划 §4 步骤 5）
 
 - [x] **15.3.1** — `src/lib/dialect-stt-correct.ts` 🆕：`buildDialectCorrectionPrompt()`（附词典高频词 + 只纠同音/禁扩写）+ `parseCorrectionResult()`（严格 JSON，失败回退 raw）
 - [x] **15.3.2** — `/api/dialect-correct/route.ts` 🆕：复用 `/api/dict/translate` 的 Agent 非流式模式；`{ text, dialect }`；失败返回 `{ corrected: raw, changed: false }` 不阻塞
-- [x] **15.3.3** — `VoiceControls.tsx`：方言首次选择提示（讯飞 STT 已接入；TTS 待声音复刻）
+- [x] **15.3.3** — `VoiceControls.tsx`：方言首次选择提示（讯飞 STT + 百炼复刻 TTS / 未配置本地兜底）
 - [x] **15.3.4** — `Composer.tsx`：方言模式 `onTranscript` 只 setText **不自动发送**，调 `/api/dialect-correct` 后由用户确认；非方言保持现状
 
 ### 15.4 — 测试 + 文档
@@ -176,8 +176,8 @@
 - [x] **15.4.4** — UT：`dialect-stt-correct.test.ts`（prompt 含高频词 / parse 合法 / 非法回退 raw / changed 标志）
 - [x] **15.4.5** — UT：`transcribe-route.test.ts`（方言：有 Key+mock 成功→iflytek；失败→whisper；无 Key→whisper）
 - [x] **15.4.6** — 前端：方言不自动发送 / 纠错填入输入框确认
-- [ ] **15.4.7** — 全量 tests 绿 + `next build` 通过 + 发布
-- [ ] **15.4.8** — `docs/subsystems/dialect-cloud-tts-poc.md` 🆕：声音复刻 POC 记录模板
+- [x] **15.4.7** — 全量 tests 绿 + `next build` 通过 + 发布（见 `dialect-cloud-tts-poc.md`）
+- [x] **15.4.8** — `docs/subsystems/dialect-cloud-tts-poc.md` 🆕：声音复刻 / 讯飞 POC 记录与主页验收清单
 
 ### 15.5 — 降级项（更新版计划确认，标 backlog）
 
