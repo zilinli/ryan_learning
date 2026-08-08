@@ -59,7 +59,10 @@ export function ThemePicker() {
     // sync is deferred so no setState runs in the effect body.
     const theme = loadTheme();
     applyTheme(theme);
-    const t = setTimeout(() => setActive(theme), 0);
+    const t = setTimeout(() => {
+      if (typeof window === "undefined") return;
+      setActive(theme);
+    }, 0);
     return () => clearTimeout(t);
   }, []);
 
