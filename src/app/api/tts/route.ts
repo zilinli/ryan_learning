@@ -1,12 +1,13 @@
 import {
   callAliyunCloneTts,
+  callFormospeechTts,
+  DialectTtsUnavailableError,
   ttsProviderForLang,
 } from "@/lib/tts-provider";
 import {
   getCachedTts,
   setCachedTts,
 } from "@/lib/tts-cache";
-import { normalizeForTTS } from "@/lib/tts-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ async function fetchTtsOnce(
   return { res, errorBody };
 }
 
-/** 通过本地 edge-tts (stt_server.py) 合成；含一次 5xx 重试。 */
+/** 非方言：本地 edge-tts（含粤语 yue）。方言路径禁止调用。 */
 async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
   let { res, errorBody } = await fetchTtsOnce(text, voice);
   if (!res.ok && res.status >= 500) {
@@ -66,63 +67,57 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
   return audio;
 }
 
-/**
- * 方言 TTS：
- * 1) 阿里声音复刻（有 Key + voiceId）
- * 2) 失败或未配置 → 本地 edge 临时兜底（不做粤语云 TTS）
- * 全程走磁盘缓存。
- */
-type DialectTtsEngine = "aliyun-clone" | "aliyun-minnan" | "edge";
+type DialectTtsEngine =
+  | "aliyun-clone"
+  | "aliyun-minnan"
+  | "formospeech"
+  | "formospeech-cache";
 
+/**
+ * 方言 TTS：潮汕话 / 客家话。
+ * **永不**回退粤语 edge（zh-HK）。
+ */
 async function synthesizeDialect(
   text: string,
   dialectLang: "teo" | "hak",
 ): Promise<{ audio: Buffer; engine: DialectTtsEngine }> {
   const provider = ttsProviderForLang(dialectLang);
-  const cacheVoice =
-    provider.kind === "aliyun-clone" ? provider.voiceId : provider.voice;
-  const aliyunEngine: DialectTtsEngine =
-    provider.kind === "aliyun-clone" && provider.source === "minnan-system"
-      ? "aliyun-minnan"
-      : "aliyun-clone";
-
-  const cached = await getCachedTts(text, cacheVoice);
-  if (cached) {
-    return {
-      audio: cached,
-      engine: provider.kind === "aliyun-clone" ? aliyunEngine : "edge",
-    };
-  }
 
   if (provider.kind === "aliyun-clone") {
-    try {
-      // 百炼路径：原文直送，不做粤语/普通话改写
-      const audio = await callAliyunCloneTts(
-        text,
-        provider.voiceId,
-        provider.model,
-      );
-      void setCachedTts(text, provider.voiceId, audio);
-      console.info(
-        `[tts] ${aliyunEngine} ok for ${dialectLang} voice=${provider.voiceId} bytes=${audio.byteLength}`,
-      );
-      return { audio, engine: aliyunEngine };
-    } catch (err) {
-      console.warn(
-        `[tts] ${aliyunEngine} failed for ${dialectLang}, falling back to local edge:`,
-        err instanceof Error ? err.message : err,
-      );
-    }
+    const cacheVoice = provider.voiceId;
+    const engine: DialectTtsEngine =
+      provider.source === "minnan-system" ? "aliyun-minnan" : "aliyun-clone";
+    const cached = await getCachedTts(text, cacheVoice);
+    if (cached) return { audio: cached, engine };
+
+    const audio = await callAliyunCloneTts(
+      text,
+      provider.voiceId,
+      provider.model,
+    );
+    void setCachedTts(text, provider.voiceId, audio);
+    console.info(
+      `[tts] ${engine} ok for ${dialectLang} voice=${provider.voiceId} bytes=${audio.byteLength}`,
+    );
+    return { audio, engine };
   }
 
-  // Edge fallback only: rewrite dialect chars toward Cantonese-readable form.
-  // Never rewrite toward Mandarin.
-  const edgeText = normalizeForTTS(text, dialectLang);
-  const edgeVoice =
-    provider.kind === "edge" ? provider.voice : "zh-HK-WanLungNeural";
-  const audio = await synthesizeEdge(edgeText, edgeVoice);
-  void setCachedTts(text, edgeVoice, audio);
-  return { audio, engine: "edge" };
+  if (provider.kind === "formospeech") {
+    const cached = await getCachedTts(text, provider.voice);
+    if (cached) {
+      return { audio: cached, engine: "formospeech-cache" };
+    }
+    const audio = await callFormospeechTts(text, provider.voice);
+    void setCachedTts(text, provider.voice, audio);
+    console.info(
+      `[tts] formospeech ok for hak voice=${provider.voice} bytes=${audio.byteLength}`,
+    );
+    return { audio, engine: "formospeech" };
+  }
+
+  throw new DialectTtsUnavailableError(
+    `${dialectLang} TTS provider misconfigured (unexpected edge)`,
+  );
 }
 
 export async function POST(req: Request) {
@@ -130,7 +125,6 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       text?: string;
       voice?: string;
-      /** 可选：方言模式传入 "teo"|"hak"，触发云端 provider 路由 */
       lang?: string;
     };
     const text = (body.text || "").trim();
@@ -138,21 +132,34 @@ export async function POST(req: Request) {
       return Response.json({ error: "empty text" }, { status: 400 });
     }
 
-    // 方言模式 → 声音复刻（若配置）否则本地 edge；带缓存
     const dialectLang =
       body.lang === "teo" ? "teo" : body.lang === "hak" ? "hak" : null;
     if (dialectLang) {
-      const { audio, engine } = await synthesizeDialect(text, dialectLang);
-      return new Response(audio, {
-        headers: {
-          "Content-Type": "audio/mpeg",
-          "Cache-Control": "no-store",
-          "X-TTS-Engine": engine,
-        },
-      });
+      try {
+        const { audio, engine } = await synthesizeDialect(text, dialectLang);
+        return new Response(audio, {
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Cache-Control": "no-store",
+            "X-TTS-Engine": engine,
+          },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Dialect TTS failed";
+        console.warn(`[tts] dialect ${dialectLang} unavailable:`, msg);
+        return Response.json(
+          {
+            error: msg,
+            hint:
+              dialectLang === "hak"
+                ? "客家话请先离线预合成（scripts/formospeech_presynth.py）或配置 FORMOSPEECH_TTS_URL / HAK_CLONE_VOICE_ID；不使用粤语顶替。"
+                : "潮汕话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
+          },
+          { status: 503 },
+        );
+      }
     }
 
-    // 非方言：现状白名单 + edge
     const voice =
       body.voice && ALLOWED_VOICES.has(body.voice)
         ? body.voice

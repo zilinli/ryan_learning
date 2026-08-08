@@ -51,6 +51,8 @@ yarn-error.log*
 /data/deletions/
 /data/dialect-feedback.jsonl
 /data/tts-cache/
+/vendor/taiwanese-hakka-tts/
+/.venv-formospeech/
 
 # agent-chat build cache
 agent-chat/.next/

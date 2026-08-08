@@ -1,18 +1,19 @@
 /**
  * TTS Provider 路由。
  *
- * 方言模式（teo/hak）：
- *   1) 配置了家人「声音复刻」voiceId → 百炼 CosyVoice 复刻音色（最理想）
- *   2) 潮汕话未复刻但有百炼 Key → 百炼系统音色「龙安闽」闽南话（官方最接近潮汕；**绝不走普通话**）
- *   3) 客家话未复刻 / 无 Key / 云端失败 → 本地 edge 临时兜底
+ * 方言模式（teo/hak）—— **禁止粤语 zh-HK edge 顶替**：
+ *   teo: 家人复刻 → 百炼闽南话系统音色 longanmin_v3 → 失败抛错
+ *   hak: 家人复刻 → FormoSpeech（预合成缓存 / 可选 sidecar）→ 失败抛错
  *
- * 对比结论（2026-08-08）：
- *   - 讯飞在线 TTS：无潮汕话/客家话/闽南话发音人（仅粤/川/湘等 11 种方言）→ 不采用
- *   - 百炼 CosyVoice：有闽南话系统音色 longanmin_v3 + 声音复刻 → 采用百炼
+ * FormoSpeech：formospeech/yourtts-htia-240704（客语微调 YourTTS，CC BY-NC）。
+ * 本机不常驻推理；默认只读磁盘缓存，见 docs/subsystems/formospeech-hakka-tts.md。
  *
- * 非方言语言 → edge-tts 音色映射（现状不变）。
+ * 非方言语言 → edge-tts 音色映射（粤语 yue 仍可用 zh-HK）。
  */
 import { edgeVoiceForLang, type SpeechLang } from "./voices";
+
+/** FormoSpeech 四縣腔缓存 / sidecar 使用的 voice 标识（写入 tts-cache key）。 */
+export const FORMOSPEECH_HAK_VOICE = "formospeech-sixian";
 
 export type TtsProvider =
   | { kind: "edge"; voice: string }
@@ -20,15 +21,22 @@ export type TtsProvider =
       kind: "aliyun-clone";
       voiceId: string;
       model: string;
-      /** 复刻音色 vs 系统方言音色（便于日志 / X-TTS-Engine） */
       source: "clone" | "minnan-system";
-    };
+    }
+  | { kind: "formospeech"; voice: string };
 
-/** 未配置百炼 Key 时抛出，由上层降级 edge。 */
 export class TtsProviderNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "TtsProviderNotConfiguredError";
+  }
+}
+
+/** 方言路径明确不可用（无缓存 / 无云端），上层返回 503，不回退粤语。 */
+export class DialectTtsUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DialectTtsUnavailableError";
   }
 }
 
@@ -38,21 +46,14 @@ export function aliyunCloneVoiceIdForLang(lang: SpeechLang): string | null {
   return null;
 }
 
-/** 家人复刻音色默认合成模型（须与 create_voice 的 target_model 一致）。 */
 export const ALIYUN_CLONE_MODEL = "cosyvoice-v3-plus";
-
-/**
- * 潮汕话临时系统音色：CosyVoice「龙安闽」闽南话。
- * 官方音色列表标注语言为闽南话（与潮汕同属闽南语支）；实测需 cosyvoice-v3-flash。
- * 文档：https://help.aliyun.com/zh/model-studio/cosyvoice-voice-list
- */
 export const ALIYUN_TEO_SYSTEM_VOICE = "longanmin_v3";
 export const ALIYUN_TEO_SYSTEM_MODEL = "cosyvoice-v3-flash";
 
 export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
-  if (lang === "teo" || lang === "hak") {
+  if (lang === "teo") {
     const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
-    const voiceId = aliyunCloneVoiceIdForLang(lang);
+    const voiceId = aliyunCloneVoiceIdForLang("teo");
     if (key && voiceId) {
       return {
         kind: "aliyun-clone",
@@ -61,8 +62,7 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
         source: "clone",
       };
     }
-    // 潮汕话：无复刻时用百炼闽南话系统音色（禁止普通话样例 / 普通话系统音色）
-    if (lang === "teo" && key) {
+    if (key) {
       return {
         kind: "aliyun-clone",
         voiceId: ALIYUN_TEO_SYSTEM_VOICE,
@@ -70,16 +70,65 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
         source: "minnan-system",
       };
     }
-    // 客家话暂无云端方言音色；未复刻时本地 edge（仍非普通话）
-    return { kind: "edge", voice: "zh-HK-WanLungNeural" };
+    throw new DialectTtsUnavailableError(
+      "潮汕话朗读未配置百炼（ALIYUN_DASHSCOPE_API_KEY）；不做粤语顶替",
+    );
   }
+
+  if (lang === "hak") {
+    const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
+    const voiceId = aliyunCloneVoiceIdForLang("hak");
+    if (key && voiceId) {
+      return {
+        kind: "aliyun-clone",
+        voiceId,
+        model: ALIYUN_CLONE_MODEL,
+        source: "clone",
+      };
+    }
+    // FormoSpeech 客语微调：缓存 / sidecar（永不走粤语 edge）
+    return { kind: "formospeech", voice: FORMOSPEECH_HAK_VOICE };
+  }
+
   return { kind: "edge", voice: edgeVoiceForLang(lang) };
 }
 
 /**
+ * 可选 FormoSpeech sidecar（离线预合成未命中时）。
+ * POST JSON { text, voice? } → audio/mpeg 或 wav bytes。
+ */
+export async function callFormospeechTts(
+  text: string,
+  voice: string = FORMOSPEECH_HAK_VOICE,
+  opts: { timeoutMs?: number; baseUrl?: string } = {},
+): Promise<Buffer> {
+  const baseUrl =
+    opts.baseUrl?.trim() || process.env.FORMOSPEECH_TTS_URL?.trim();
+  if (!baseUrl) {
+    throw new DialectTtsUnavailableError(
+      "客家话 FormoSpeech 未命中预合成缓存，且未配置 FORMOSPEECH_TTS_URL",
+    );
+  }
+  const timeoutMs = opts.timeoutMs ?? 60_000;
+  const res = await fetch(baseUrl.replace(/\/$/, "") + "/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) {
+    const errBody = (await res.text().catch(() => "")).slice(0, 300);
+    throw new Error(`formospeech TTS failed (HTTP ${res.status}): ${errBody}`);
+  }
+  const audio = Buffer.from(await res.arrayBuffer());
+  if (audio.byteLength < 100) {
+    throw new Error("formospeech TTS returned empty audio");
+  }
+  return audio;
+}
+
+/**
  * 阿里云百炼 CosyVoice / 声音复刻音色合成（非实时 HTTP SpeechSynthesizer）。
- * 返回音频 Buffer（通常是 mp3/wav）。任何失败抛错，由调用方降级 edge。
- *
  * 文档：https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
  */
 export async function callAliyunCloneTts(
@@ -130,7 +179,6 @@ export async function callAliyunCloneTts(
   }
 
   const contentType = res.headers.get("content-type") || "";
-  // SpeechSynthesizer 非流式返回 JSON，audio.url 指向 OSS
   if (contentType.includes("application/json") || contentType.includes("text/json")) {
     const data = (await res.json().catch(() => null)) as {
       message?: string;

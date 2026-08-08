@@ -331,9 +331,7 @@ export class NeuralSpeechEngine {
     text: string,
     h: SpeakHandlers,
   ): Promise<ArrayBuffer> {
-    // Dialect: send original text + lang to /api/tts.
-    // Cantonese-ish normalizeForTTS is applied server-side only on edge
-    // fallback — never before Bailian voice-clone (would ruin dialect text).
+    // Dialect: send original text + lang to /api/tts (teo/hak never use粤语 edge).
     const dialectLang =
       h.voiceId != null
         ? getTutorVoice(h.voiceId).lang

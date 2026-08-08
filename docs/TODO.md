@@ -160,7 +160,8 @@
 - [x] **15.2.4** — `scripts/health-check.mjs` 新增 `tts-cache` 巡检（超限告警 + 触发 prune）
 - [x] **15.2.5** — `.env.local.example` 新增 `ALIYUN_DASHSCOPE_API_KEY` / `TEO_CLONE_VOICE_ID` / `HAK_CLONE_VOICE_ID` / `TTS_CACHE_MAX_BYTES`（SpeechSynthesizer 端点）
 - [ ] **15.2.6** — 潮汕话：家人录音 → 百炼复刻 → `TEO_CLONE_VOICE_ID`（当前临时：百炼闽南话 `longanmin_v3`，非普通话）
-- [ ] **15.2.7** — **遗留 · 客家话 TTS**（2026-08-08 收工）：无可用云端预制；公开网络样音复刻听感差已停用；现状 hak → 本地 edge。待家人客家话录音 → `HAK_CLONE_VOICE_ID` 后再开；勿再用随机公开样音。详见 `dialect-cloud-tts-poc.md`
+- [x] **15.2.7** — 客家话 TTS：FormoSpeech `yourtts-htia` 离线预合成 → `tts-cache`（voice=`formospeech-sixian`）；可选 `FORMOSPEECH_TTS_URL`；**禁止粤语 edge 顶替**。设计见 `formospeech-hakka-tts.md`
+- [x] **15.2.8** — 潮汕话/客家话路径全面去掉粤语 TTS 回退（失败返回 503 + hint）
 
 ### 15.3 — STT 兜底：LLM 方言纠错 + 用户确认（P1，更新版计划 §4 步骤 5）
 

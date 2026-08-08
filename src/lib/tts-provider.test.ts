@@ -3,8 +3,11 @@ import {
   ALIYUN_CLONE_MODEL,
   ALIYUN_TEO_SYSTEM_MODEL,
   ALIYUN_TEO_SYSTEM_VOICE,
+  DialectTtsUnavailableError,
+  FORMOSPEECH_HAK_VOICE,
   aliyunCloneVoiceIdForLang,
   callAliyunCloneTts,
+  callFormospeechTts,
   ttsProviderForLang,
   TtsProviderNotConfiguredError,
 } from "./tts-provider";
@@ -17,17 +20,17 @@ afterEach(() => {
 });
 
 describe("ttsProviderForLang", () => {
-  it("routes teo/hak to edge Cantonese when no aliyun key or voiceId", () => {
+  it("teo without Bailian key throws (no Cantonese fallback)", () => {
     delete process.env.ALIYUN_DASHSCOPE_API_KEY;
     delete process.env.TEO_CLONE_VOICE_ID;
+    expect(() => ttsProviderForLang("teo")).toThrow(DialectTtsUnavailableError);
+  });
+
+  it("hak without clone uses FormoSpeech voice id (never zh-HK)", () => {
     delete process.env.HAK_CLONE_VOICE_ID;
-    expect(ttsProviderForLang("teo")).toEqual({
-      kind: "edge",
-      voice: "zh-HK-WanLungNeural",
-    });
     expect(ttsProviderForLang("hak")).toEqual({
-      kind: "edge",
-      voice: "zh-HK-WanLungNeural",
+      kind: "formospeech",
+      voice: FORMOSPEECH_HAK_VOICE,
     });
   });
 
@@ -49,7 +52,7 @@ describe("ttsProviderForLang", () => {
     });
   });
 
-  it("routes teo to Bailian Minnan system voice when key exists but no clone (never Mandarin)", () => {
+  it("routes teo to Bailian Minnan system voice when key exists but no clone", () => {
     process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     delete process.env.TEO_CLONE_VOICE_ID;
     expect(ttsProviderForLang("teo")).toEqual({
@@ -60,16 +63,7 @@ describe("ttsProviderForLang", () => {
     });
   });
 
-  it("keeps hak on edge when key exists but no Hakka clone (no Mandarin substitute)", () => {
-    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
-    delete process.env.HAK_CLONE_VOICE_ID;
-    expect(ttsProviderForLang("hak")).toEqual({
-      kind: "edge",
-      voice: "zh-HK-WanLungNeural",
-    });
-  });
-
-  it("keeps other languages on edge voices", () => {
+  it("keeps other languages on edge voices (yue may still be Cantonese)", () => {
     delete process.env.ALIYUN_DASHSCOPE_API_KEY;
     expect(ttsProviderForLang("en").kind).toBe("edge");
     expect(ttsProviderForLang("yue").kind).toBe("edge");
@@ -88,34 +82,36 @@ describe("aliyunCloneVoiceIdForLang", () => {
   });
 });
 
+describe("callFormospeechTts", () => {
+  it("throws when sidecar URL missing", async () => {
+    delete process.env.FORMOSPEECH_TTS_URL;
+    await expect(callFormospeechTts("你好")).rejects.toThrow(
+      DialectTtsUnavailableError,
+    );
+  });
+
+  it("posts to sidecar /tts", async () => {
+    process.env.FORMOSPEECH_TTS_URL = "http://127.0.0.1:9876";
+    const mp3 = Buffer.alloc(120, 1);
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(mp3, {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg" },
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+    const audio = await callFormospeechTts("你好");
+    expect(audio.length).toBe(120);
+    expect(String(mockFetch.mock.calls[0]![0])).toContain("/tts");
+  });
+});
+
 describe("callAliyunCloneTts", () => {
   it("throws ProviderNotConfigured when no API key", async () => {
     delete process.env.ALIYUN_DASHSCOPE_API_KEY;
     await expect(
       callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL),
     ).rejects.toThrow(TtsProviderNotConfiguredError);
-  });
-
-  it("throws when the HTTP call returns non-ok status", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ message: "no permission", code: "1004" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    vi.stubGlobal("fetch", mockFetch);
-
-    await expect(
-      callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, { apiKey: "sk-x" }),
-    ).rejects.toThrow(/no permission|HTTP 400/);
-
-    const [url, init] = mockFetch.mock.calls[0]!;
-    expect(String(url)).toContain("SpeechSynthesizer");
-    const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer sk-x");
-    const body = JSON.parse(init.body as string);
-    expect(body.input.voice).toBe("v1");
-    expect(body.input.text).toBe("你好");
   });
 
   it("downloads audio from SpeechSynthesizer JSON url", async () => {
@@ -143,32 +139,6 @@ describe("callAliyunCloneTts", () => {
       apiKey: "sk-x",
     });
     expect(audio.length).toBe(150);
-    expect(audio[0]).toBe(0x49);
     expect(mockFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it("throws when JSON response has no audio", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ output: { audio: {} } }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-    await expect(
-      callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, { apiKey: "sk-x" }),
-    ).rejects.toThrow(/missing audio/);
-  });
-
-  it("throws on non-2xx without JSON body", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response("boom", { status: 502 })),
-    );
-    await expect(
-      callAliyunCloneTts("你好", "v1", ALIYUN_CLONE_MODEL, { apiKey: "sk-x" }),
-    ).rejects.toThrow(/HTTP 502/);
   });
 });

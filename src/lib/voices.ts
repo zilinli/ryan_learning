@@ -93,15 +93,17 @@ export const TUTOR_VOICES: TutorVoice[] = [
   },
   {
     id: "teochew",
-    label: "Teochew (潮汕话 STT + Cantonese TTS)",
-    edgeVoice: "zh-HK-WanLungNeural",
+    label: "Teochew (潮汕话 · 百炼闽南/复刻 TTS)",
+    // 方言不走 edge（禁止粤语/普通话顶替）；实际 /api/tts?lang=teo
+    edgeVoice: "en-GB-RyanNeural",
     preview: "汝好，我係 Spark，我会用潮汕话同汝倾。",
     lang: "teo",
   },
   {
     id: "hakka",
-    label: "Hakka (客家话 STT + Cantonese TTS)",
-    edgeVoice: "zh-HK-WanLungNeural",
+    label: "Hakka (客家话 · FormoSpeech TTS)",
+    // 方言不走 edge；实际 /api/tts?lang=hak → FormoSpeech 缓存
+    edgeVoice: "en-GB-RyanNeural",
     preview: "你好，我係 Spark，我会用客家话同你倾。",
     lang: "hak",
   },
@@ -203,8 +205,9 @@ export function detectSpeechLang(text: string): SpeechLang {
 }
 
 export function edgeVoiceForLang(lang: SpeechLang): string {
-  if (lang === "yue" || lang === "teo" || lang === "hak")
-    return "zh-HK-WanLungNeural";
+  if (lang === "yue") return "zh-HK-WanLungNeural";
+  // teo/hak 禁止粤语/普通话 edge 顶替；朗读走 /api/tts dialect provider
+  if (lang === "teo" || lang === "hak") return "en-GB-RyanNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";

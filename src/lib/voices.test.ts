@@ -55,17 +55,18 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     );
   });
 
-  it("maps dialect voices to the Cantonese TTS fallback", () => {
-    expect(getTutorVoice("teochew").edgeVoice).toBe("zh-HK-WanLungNeural");
+  it("maps dialect voices to teo/hak langs without Cantonese TTS fallback", () => {
     expect(getTutorVoice("teochew").lang).toBe("teo");
-    expect(getTutorVoice("hakka").edgeVoice).toBe("zh-HK-WanLungNeural");
     expect(getTutorVoice("hakka").lang).toBe("hak");
-    expect(resolveEdgeVoice("teochew", "汝好，睇下这道题")).toBe(
-      "zh-HK-WanLungNeural",
+    expect(getTutorVoice("teochew").label).toMatch(/潮汕话/);
+    expect(getTutorVoice("hakka").label).toMatch(/FormoSpeech|客家话/);
+    // edgeVoice 字段仅为兼容；方言朗读走 /api/tts?lang=，禁止粤语顶替
+    expect(getTutorVoice("teochew").edgeVoice).not.toMatch(/^zh-HK/);
+    expect(getTutorVoice("hakka").edgeVoice).not.toMatch(/^zh-HK/);
+    expect(resolveEdgeVoice("teochew", "汝好，睇下这道题")).not.toMatch(
+      /^zh-HK/,
     );
-    expect(resolveEdgeVoice("hakka", "你好，看下这只题")).toBe(
-      "zh-HK-WanLungNeural",
-    );
+    expect(resolveEdgeVoice("hakka", "你好，看下这只题")).not.toMatch(/^zh-HK/);
   });
 
   it("keeps fixed non-English voices even for English text", () => {
