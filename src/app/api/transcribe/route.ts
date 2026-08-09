@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  loadBailianAsrConfig,
+  transcribeWithBailian,
+} from "@/lib/bailian-asr";
+import {
   loadIflytekConfig,
   transcribeWithIflytek,
 } from "@/lib/iflytek-asr";
@@ -56,6 +60,12 @@ export function normalizeTranscribeLang(raw: string): string {
   return ALLOWED.has(mapped) ? mapped : "auto";
 }
 
+/** 讯飞仅作显式备份：STT_BACKUP_IFYTEK=1 才启用（默认关，控费）。 */
+export function isIflytekBackupEnabled(): boolean {
+  const v = process.env.STT_BACKUP_IFYTEK?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 function pickFilename(audio: Blob): string {
   const named = (audio as File).name;
   if (named && /\.(wav|webm|ogg|mp3|mp4|m4a|aac)$/i.test(named)) {
@@ -74,7 +84,10 @@ function pickFilename(audio: Blob): string {
 async function forwardOnce(
   audio: Blob,
   language: string,
-): Promise<{ res: Response; data: { text?: string; language?: string; error?: string } | null }> {
+): Promise<{
+  res: Response;
+  data: { text?: string; language?: string; error?: string } | null;
+}> {
   const forward = new FormData();
   forward.append("audio", audio, pickFilename(audio));
   forward.append("language", language);
@@ -95,16 +108,46 @@ async function forwardOnce(
 }
 
 /**
- * 方言模式优先尝试讯飞方言识别大模型（若已配置 Key）。
- * 失败/超时/无文本 → 返回 null，由调用方 fallback 本地 Whisper。
+ * 主路径：百炼 Fun-ASR-Flash（客家/闽南/粤等方言）+ Qwen3 降级。
  */
-async function tryIflytekDialect(
+async function tryBailianAsr(
+  audio: Blob,
+  language: string,
+): Promise<{ text: string; language: string; model: string } | null> {
+  if (!loadBailianAsrConfig()) return null;
+  try {
+    const bytes = new Uint8Array(await audio.arrayBuffer());
+    const result = await transcribeWithBailian(bytes, {
+      language,
+      mimeHint: audio.type,
+      timeoutMs: 45_000,
+    });
+    const clean = (result.text || "").trim();
+    if (!clean) return null;
+    return {
+      text: clean,
+      language: result.language || language,
+      model: result.model,
+    };
+  } catch (err) {
+    console.warn(
+      `[transcribe] bailian ASR failed for ${language}:`,
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
+
+/**
+ * 备份：讯飞方言识别（仅 teo/hak，且 STT_BACKUP_IFYTEK=1）。
+ */
+async function tryIflytekDialectBackup(
   audio: Blob,
   language: string,
 ): Promise<{ text: string; language: string } | null> {
+  if (!isIflytekBackupEnabled()) return null;
   const config = loadIflytekConfig();
   if (!config) return null;
-  // 仅方言模式走讯飞
   if (language !== "teo" && language !== "hak") return null;
 
   try {
@@ -117,7 +160,7 @@ async function tryIflytekDialect(
     return { text: clean, language };
   } catch (err) {
     console.warn(
-      `[transcribe] iflytek dialect STT failed for ${language}, falling back to local Whisper:`,
+      `[transcribe] iflytek backup STT failed for ${language}:`,
       err instanceof Error ? err.message : err,
     );
     return null;
@@ -145,19 +188,30 @@ export async function POST(req: Request) {
       String(form.get("language") || "auto"),
     );
 
-    // 方言模式：优先讯飞方言识别（已配置 Key 时），失败自动回退本地 Whisper
-    const iflytekResult = await tryIflytekDialect(audio, language);
-    if (iflytekResult) {
+    // ① 百炼主识别
+    const bailian = await tryBailianAsr(audio, language);
+    if (bailian) {
       return NextResponse.json({
-        text: iflytekResult.text,
-        language: iflytekResult.language,
+        text: bailian.text,
+        language: bailian.language,
+        engine: "bailian",
+        model: bailian.model,
+      });
+    }
+
+    // ② 可选讯飞备份（默认关闭）
+    const iflytek = await tryIflytekDialectBackup(audio, language);
+    if (iflytek) {
+      return NextResponse.json({
+        text: iflytek.text,
+        language: iflytek.language,
         engine: "iflytek",
       });
     }
 
+    // ③ 本地 Whisper / SenseVoice
     let { res, data } = await forwardOnce(audio, language);
 
-    // One retry on transient STT failures (queue / restart / decode blip)
     if (!res.ok && res.status >= 500) {
       await new Promise((r) => setTimeout(r, 400));
       ({ res, data } = await forwardOnce(audio, language));
@@ -190,6 +244,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       text,
       language: data?.language || language,
+      engine: "local",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Transcribe failed";

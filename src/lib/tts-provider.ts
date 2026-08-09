@@ -3,13 +3,10 @@
  *
  * 方言模式（teo/hak）—— **禁止粤语 zh-HK edge 顶替**：
  *   teo: 家人复刻 → 百炼闽南话系统音色 longanmin_v3 → 失败抛错
- *   hak: 家人复刻 → FormoSpeech（预合成缓存 / 可选 sidecar）→ 失败抛错
+ *   hak: FormoSpeech（预合成缓存 / sidecar；本周不改）→ 失败抛错
  *
- * FormoSpeech：formospeech/yourtts-htia-240704（客语微调 YourTTS，CC BY-NC）。
- * 磁盘缓存优先；未命中则调 FORMOSPEECH_TTS_URL（默认 127.0.0.1:9876）。
- * 见 docs/subsystems/formospeech-hakka-tts.md。
- *
- * 非方言语言 → edge-tts 音色映射（粤语 yue 仍可用 zh-HK）。
+ * 非方言（zh/yue/en…）：百炼 CosyVoice 系统音色优先，失败再 edge-tts。
+ * 见 docs/subsystems/bailian-stt-tts.md。
  */
 import { edgeVoiceForLang, type SpeechLang } from "./voices";
 
@@ -22,7 +19,7 @@ export type TtsProvider =
       kind: "aliyun-clone";
       voiceId: string;
       model: string;
-      source: "clone" | "minnan-system";
+      source: "clone" | "minnan-system" | "system";
     }
   | { kind: "formospeech"; voice: string };
 
@@ -49,7 +46,39 @@ export function aliyunCloneVoiceIdForLang(lang: SpeechLang): string | null {
 
 export const ALIYUN_CLONE_MODEL = "cosyvoice-v3-plus";
 export const ALIYUN_TEO_SYSTEM_VOICE = "longanmin_v3";
-export const ALIYUN_TEO_SYSTEM_MODEL = "cosyvoice-v3-flash";
+export const ALIYUN_SYSTEM_MODEL = "cosyvoice-v3-flash";
+/** @deprecated use ALIYUN_SYSTEM_MODEL */
+export const ALIYUN_TEO_SYSTEM_MODEL = ALIYUN_SYSTEM_MODEL;
+
+/**
+ * Map legacy edge-tts ShortName → Bailian CosyVoice system voice.
+ * Returns null when we should stay on edge (e.g. Spanish/French).
+ */
+export function bailianSystemVoiceForEdge(
+  edgeVoice: string,
+): { voiceId: string; model: string } | null {
+  if (!process.env.ALIYUN_DASHSCOPE_API_KEY?.trim()) return null;
+  const v = edgeVoice.trim();
+  // Cantonese
+  if (v.startsWith("zh-HK")) {
+    return { voiceId: "longanyue_v3", model: ALIYUN_SYSTEM_MODEL };
+  }
+  // Mandarin
+  if (v.startsWith("zh-CN") || v.startsWith("zh-")) {
+    return { voiceId: "longanyang", model: ALIYUN_SYSTEM_MODEL };
+  }
+  // English (prefer male/female roughly matching edge picks)
+  if (v.includes("Ryan") || v.includes("Thomas") || v.includes("Jorge") || v.includes("Alvaro") || v.includes("Henri")) {
+    if (v.startsWith("en-")) {
+      return { voiceId: "loongandy_v3", model: ALIYUN_SYSTEM_MODEL };
+    }
+  }
+  if (v.startsWith("en-")) {
+    return { voiceId: "loongemily_v3", model: ALIYUN_SYSTEM_MODEL };
+  }
+  // es/fr: no dedicated CosyVoice yet → edge
+  return null;
+}
 
 export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   if (lang === "teo") {
@@ -67,7 +96,7 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
       return {
         kind: "aliyun-clone",
         voiceId: ALIYUN_TEO_SYSTEM_VOICE,
-        model: ALIYUN_TEO_SYSTEM_MODEL,
+        model: ALIYUN_SYSTEM_MODEL,
         source: "minnan-system",
       };
     }
@@ -77,6 +106,7 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   }
 
   if (lang === "hak") {
+    // 本周客家话朗读固定 FormoSpeech（家人复刻 HAK_CLONE 仍可用作覆盖）
     const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
     const voiceId = aliyunCloneVoiceIdForLang("hak");
     if (key && voiceId) {
@@ -87,11 +117,20 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
         source: "clone",
       };
     }
-    // FormoSpeech 客语微调：缓存 / sidecar（永不走粤语 edge）
     return { kind: "formospeech", voice: FORMOSPEECH_HAK_VOICE };
   }
 
-  return { kind: "edge", voice: edgeVoiceForLang(lang) };
+  const edge = edgeVoiceForLang(lang);
+  const bailian = bailianSystemVoiceForEdge(edge);
+  if (bailian) {
+    return {
+      kind: "aliyun-clone",
+      voiceId: bailian.voiceId,
+      model: bailian.model,
+      source: "system",
+    };
+  }
+  return { kind: "edge", voice: edge };
 }
 
 /**

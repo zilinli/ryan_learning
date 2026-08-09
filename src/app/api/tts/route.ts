@@ -1,4 +1,5 @@
 import {
+  bailianSystemVoiceForEdge,
   callAliyunCloneTts,
   callFormospeechTts,
   DialectTtsUnavailableError,
@@ -71,6 +72,7 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
 type DialectTtsEngine =
   | "aliyun-clone"
   | "aliyun-minnan"
+  | "aliyun-system"
   | "formospeech"
   | "formospeech-cache";
 
@@ -87,7 +89,11 @@ async function synthesizeDialect(
   if (provider.kind === "aliyun-clone") {
     const cacheVoice = provider.voiceId;
     const engine: DialectTtsEngine =
-      provider.source === "minnan-system" ? "aliyun-minnan" : "aliyun-clone";
+      provider.source === "minnan-system"
+        ? "aliyun-minnan"
+        : provider.source === "system"
+          ? "aliyun-system"
+          : "aliyun-clone";
     const cached = await getCachedTts(text, cacheVoice);
     if (cached) return { audio: cached, engine };
 
@@ -168,11 +174,50 @@ export async function POST(req: Request) {
         ? body.voice
         : "en-GB-RyanNeural";
 
+    // 非方言：百炼 CosyVoice 优先，失败回退本地 edge-tts
+    const bailian = bailianSystemVoiceForEdge(voice);
+    if (bailian) {
+      try {
+        const cached = await getCachedTts(text, bailian.voiceId);
+        if (cached) {
+          return new Response(cached, {
+            headers: {
+              "Content-Type": "audio/mpeg",
+              "Cache-Control": "no-store",
+              "X-TTS-Engine": "aliyun-system-cache",
+            },
+          });
+        }
+        const audio = await callAliyunCloneTts(
+          text,
+          bailian.voiceId,
+          bailian.model,
+        );
+        void setCachedTts(text, bailian.voiceId, audio);
+        console.info(
+          `[tts] aliyun-system ok voice=${bailian.voiceId} bytes=${audio.byteLength}`,
+        );
+        return new Response(audio, {
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Cache-Control": "no-store",
+            "X-TTS-Engine": "aliyun-system",
+          },
+        });
+      } catch (err) {
+        console.warn(
+          `[tts] bailian system TTS failed, falling back to edge:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+
     const audio = await synthesizeEdge(text, voice);
     return new Response(audio, {
       headers: {
         "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
+        "X-TTS-Engine": "edge",
       },
     });
   } catch (err) {

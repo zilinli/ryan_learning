@@ -144,13 +144,15 @@
 ## 🔴 Phase 15: 方言 STT/TTS 云端 API 弥合（2026-08-08）
 
 > **Design:** [subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md) — 对 `dialect-stt-tts-gap-closure-plan.md`（更新版：讯飞方言 ASR + 阿里云声音复刻）的详细方案设计与可行性分析
-> **核心原则：** ① 云端依赖永不成为单点故障（失败/超时/无 Key 自动降级回本地 Whisper / 粤语 edge-tts）② 磁盘缓存硬上限 + LRU ③ 方言转写结果必须用户可编辑确认后发送 ④ 本机零常驻算力新增。
+> **核心原则：** ① 云端依赖永不成为单点故障（失败/超时/无 Key 自动降级）② 磁盘缓存硬上限 + LRU ③ 方言转写结果必须用户可编辑确认后发送 ④ 本机零常驻算力新增。  
+> **2026-08-09 调整：** STT 主路径改百炼 Fun-ASR；讯飞默认关闭（`STT_BACKUP_IFYTEK`）；TTS 非客家话切百炼 CosyVoice；客家话朗读仍 FormoSpeech。见 `bailian-stt-tts.md`。
 
-### 15.1 — STT：讯飞方言识别大模型（P1 核心，更新版计划最高优先）
+### 15.1 — STT：百炼主路径 + 讯飞可选备份
 
-- [x] **15.1.1** — `src/lib/iflytek-asr.ts` 🆕：`buildIflytekWsUrl()`（HMAC-SHA256 签名纯函数）+ `wavToRawPcm()` + `appendIflytekFrame()` 帧解析 + `transcribeWithIflytek()`（Node≥22 原生 WebSocket，30s 超时；WAV→MP3 lame）
-- [x] **15.1.2** — `/api/transcribe/route.ts`：方言模式（teo/hak）有 Key → 优先讯飞；失败/超时/无文本 → fallback 本地 Whisper；透传 `engine` 字段
-- [x] **15.1.3** — `.env.local.example` 新增 `IFYTEK_APP_ID` / `IFYTEK_API_KEY` / `IFYTEK_API_SECRET`；线上已配置并实测 `engine: iflytek`
+- [x] **15.1.1** — `src/lib/iflytek-asr.ts`：讯飞客户端保留（备份）
+- [x] **15.1.2** — `/api/transcribe`：① 百炼 Fun-ASR-Flash → ② `STT_BACKUP_IFYTEK=1` 时讯飞 → ③ 本地 Whisper；`engine` 字段
+- [x] **15.1.3** — `src/lib/bailian-asr.ts` + env（`ALIYUN_ASR_*` / `STT_BACKUP_IFYTEK`）；设计见 `bailian-stt-tts.md`
+- [x] **15.1.4**（历史）讯飞曾作主路径；2026-08-09 起默认关闭控费
 
 ### 15.2 — TTS：阿里云百炼「声音复刻」+ CosyVoice（P1 核心，更新版计划首选）
 

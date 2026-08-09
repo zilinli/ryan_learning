@@ -417,12 +417,12 @@ export function VoiceControls({
     const picked = getTutorVoice(id);
     if (picked.lang === "teo" || picked.lang === "hak") {
       try {
-        if (!window.localStorage.getItem("spark-dialect-notice-v8")) {
-          window.localStorage.setItem("spark-dialect-notice-v8", "1");
+        if (!window.localStorage.getItem("spark-dialect-notice-v9")) {
+          window.localStorage.setItem("spark-dialect-notice-v9", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "潮汕话：识别走讯飞；朗读走百炼（复刻/闽南话），不用粤语顶替。识别结果请确认后再发送。"
-              : "客家话：识别走讯飞；朗读走 FormoSpeech 真客语（繁体用字；不用粤语顶替）。识别结果请确认后再发送。",
+              ? "潮汕话：识别走百炼 Fun-ASR；朗读走百炼（复刻/闽南话），不用粤语顶替。识别结果请确认后再发送。"
+              : "客家话：识别走百炼 Fun-ASR；朗读走 FormoSpeech 真客语（繁体用字；不用粤语顶替）。识别结果请确认后再发送。",
           );
         }
       } catch {

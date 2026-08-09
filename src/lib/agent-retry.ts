@@ -1,4 +1,4 @@
-import { CursorAgentError } from "@cursor/sdk";
+import { AgentBusyError, CursorAgentError } from "@cursor/sdk";
 
 export interface RetryConfig {
   maxRetries: number;        // default: 3
@@ -21,8 +21,18 @@ export function isStaleSessionError(err: unknown): boolean {
   return false;
 }
 
+/** Previous local run still in progress — cancel + retry (or new agent). */
+export function isAgentBusyError(err: unknown): boolean {
+  if (err instanceof AgentBusyError) return true;
+  if (err instanceof Error && /already has active run/i.test(err.message)) {
+    return true;
+  }
+  return false;
+}
+
 /** Retryable Cursor SDK errors (rate limits, transient auth). */
 export function isRetryableError(err: unknown): boolean {
+  if (isAgentBusyError(err)) return true;
   if (err instanceof CursorAgentError && err.isRetryable) return true;
   // Rate limit with proto error 8
   if (err instanceof CursorAgentError && (err as unknown as Record<string, unknown>).protoErrorCode === 8) return true;

@@ -67,7 +67,8 @@ flowchart TB
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** | Cross-device deletion sync (tombstones + PUT guard) + 4-theme system |
 | **[subsystems/dialect-support-teochew-hakka.md](subsystems/dialect-support-teochew-hakka.md)** | Teochew & Hakka dialect support (Plan A — LLM prompting + dictionary) |
-| **[subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md)** | Dialect cloud STT/TTS (iFlytek ASR + Bailian voice clone) + correction UX |
+| **[subsystems/bailian-stt-tts.md](subsystems/bailian-stt-tts.md)** | Bailian Fun-ASR primary STT + CosyVoice TTS；讯飞可选备份；客家朗读 FormoSpeech |
+| **[subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md)** | Dialect cloud STT/TTS + correction UX（历史设计；STT 主路径已迁百炼） |
 | **[subsystems/dialect-cloud-tts-poc.md](subsystems/dialect-cloud-tts-poc.md)** | POC verification notes & homepage acceptance checklist |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |

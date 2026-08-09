@@ -1,6 +1,7 @@
 import path from "node:path";
-import { Agent, Cursor, CursorAgentError } from "@cursor/sdk";
-import type { SDKAgent, SDKImage } from "@cursor/sdk";
+import { Agent, AgentBusyError, Cursor, CursorAgentError } from "@cursor/sdk";
+import type { Run, SDKAgent, SDKImage } from "@cursor/sdk";
+import { isAgentBusyError } from "./agent-retry";
 import { DEFAULT_CURSOR_API_KEY } from "./default-api-key";
 import {
   clearAgentId,
@@ -17,6 +18,61 @@ import { appendRunLog } from "./run-log";
 
 const TUTOR_CWD = path.join(process.cwd(), "tutor-workspace");
 const HARNESS_TOOLS = createTutorHarnessTools();
+
+/** Serialize chat turns per browser session — overlapping send() → AgentBusyError. */
+const sessionGates = new Map<string, Promise<void>>();
+
+async function withSessionGate<T>(
+  sessionId: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = sessionGates.get(sessionId) ?? Promise.resolve();
+  let release!: () => void;
+  const held = new Promise<void>((r) => {
+    release = r;
+  });
+  sessionGates.set(
+    sessionId,
+    prev.then(() => held).catch(() => held),
+  );
+  await prev.catch(() => {});
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (sessionGates.get(sessionId) === held) sessionGates.delete(sessionId);
+  }
+}
+
+/** Cancel leftover local runs so the next send is not blocked. */
+async function cancelRunningRuns(agentId: string): Promise<void> {
+  try {
+    const { items } = await Agent.listRuns(agentId, {
+      runtime: "local",
+      cwd: TUTOR_CWD,
+      limit: 8,
+    });
+    await Promise.all(
+      items
+        .filter((r) => r.status === "running")
+        .map(async (r) => {
+          try {
+            if (r.supports("cancel")) await r.cancel();
+            else {
+              await Agent.cancelRun(r.id, {
+                runtime: "local",
+                cwd: TUTOR_CWD,
+              });
+            }
+          } catch {
+            // ignore
+          }
+        }),
+    );
+  } catch {
+    // ignore — fall through to fresh-agent retry
+  }
+}
 
 // Safety net: catch unhandled rejections that bypass application try/catch
 // (e.g., SDK internal gRPC errors)
