@@ -4,13 +4,50 @@
 
 import {
   getLegalGomokuMoves,
+  initGomoku,
   isWinAt,
   placeGomoku,
   type GomokuState,
   type Stone,
 } from "./gomoku";
 
-export type AiDifficulty = "easy" | "medium" | "hard";
+export type AiDifficulty = "easy" | "medium" | "hard" | "expert" | "master";
+
+export const AI_DIFFICULTIES: AiDifficulty[] = [
+  "easy",
+  "medium",
+  "hard",
+  "expert",
+  "master",
+];
+
+function defendWeight(difficulty: AiDifficulty): number {
+  switch (difficulty) {
+    case "medium":
+      return 0.9;
+    case "hard":
+      return 0.95;
+    case "expert":
+      return 1.05;
+    case "master":
+      return 1.15;
+    default:
+      return 0.9;
+  }
+}
+
+function replyLookahead(difficulty: AiDifficulty): { count: number; weight: number } {
+  switch (difficulty) {
+    case "hard":
+      return { count: 20, weight: 0.5 };
+    case "expert":
+      return { count: 28, weight: 0.65 };
+    case "master":
+      return { count: 36, weight: 0.8 };
+    default:
+      return { count: 0, weight: 0 };
+  }
+}
 
 function countOpen(
   board: (Stone | null)[][],
@@ -117,6 +154,8 @@ export function chooseGomokuAiMove(
   const opp: Stone = me === "black" ? "white" : "black";
   const board = state.board.map((r) => [...r]);
   const cands = candidateMoves(state);
+  const dWeight = defendWeight(difficulty);
+  const look = replyLookahead(difficulty);
 
   let best = cands[0];
   let bestScore = -Infinity;
@@ -125,9 +164,9 @@ export function chooseGomokuAiMove(
     const [r, c] = m.split(",").map(Number);
     const attack = scorePoint(board, r, c, me, state.size);
     const defend = scorePoint(board, r, c, opp, state.size);
-    let score = attack + defend * 0.9;
+    let score = attack + defend * dWeight;
 
-    if (difficulty === "hard" && attack < 100000) {
+    if (look.count > 0 && attack < 100000) {
       // One-ply opponent reply penalty
       board[r][c] = me;
       let worst = 0;
@@ -136,13 +175,13 @@ export function chooseGomokuAiMove(
         board,
         turn: opp,
         moveCount: state.moveCount + 1,
-      }).slice(0, 20);
+      }).slice(0, look.count);
       for (const rm of replies) {
         const [rr, rc] = rm.split(",").map(Number);
         worst = Math.max(worst, scorePoint(board, rr, rc, opp, state.size));
       }
       board[r][c] = null;
-      score -= worst * 0.5;
+      score -= worst * look.weight;
     }
 
     if (score > bestScore) {

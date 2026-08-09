@@ -1,6 +1,6 @@
 # 📋 Downstream Development TODO
 
-> Version 0.8 · 2026-08-09  
+> Version 0.9 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 27 test files, 243 tests, service `active` at :3001  
 > New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
@@ -8,11 +8,30 @@
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
-> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.4 — Ultimate TTT + local AI board games)
+> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.5 — 5-level AI difficulty + PST Xiangqi)
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Ultimate Tic-Tac-Toe (ENT3)
+## 🔴 In Progress (2026-08-09) — Board AI Difficulty Upgrade (ENT4)
+
+**Goal** — Xiangqi (and Chess) AI too weak at `hard` (depth 2). Industry research → 5 levels + PST eval + deeper α-β; tests D1–D6; deploy.
+
+> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §1.2 / §3.9
+
+### Phase ENT4: Stronger / finer AI difficulty
+
+- [x] **ENT4.1** — Open-source research (yingwang depths, Pikafish deferred, PST + quiescence)
+- [x] **ENT4.2** — Design doc v0.5 + test plan D1–D6 + this TODO
+- [x] **ENT4.3** — `xiangqi-local.ts`: PST eval, depths 2/3/4, expert/master, quiescence on master
+- [x] **ENT4.4** — `chess-local.ts`: bump depths + 5 levels aligned with design table
+- [x] **ENT4.5** — UI pills on Xiangqi/Chess: easy→master
+- [x] **ENT4.6** — Unit tests D1–D6 green
+- [ ] **ENT4.7** — Build + PM2 restart + git push
+- [x] **ENT4.8** — Go / Gomoku / UTTT: 5-level AI + UI pills (heuristic depth ladder)
+
+---
+
+## ✅ Done (2026-08-09) — Ultimate Tic-Tac-Toe (ENT3)
 
 **Goal** — Add Ultimate Tic-Tac-Toe to `/entertain` with Wikipedia-standard rules, local AI (easy/medium/hard), full unit tests, deploy.
 

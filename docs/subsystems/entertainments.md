@@ -1,6 +1,6 @@
 # Entertainments · Engine Design & Test Plan
 
-> Version 0.4 · 2026-08-09  
+> Version 0.5 · 2026-08-09  
 > Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski
 
 ---
@@ -9,8 +9,8 @@
 
 | Game | Reference | UI pattern | Test pattern |
 |------|-----------|------------|--------------|
-| Chess | [jhlywa/chess.js](https://github.com/jhlywa/chess.js) + Lichess Chessground | Logic ≠ UI; FEN + SAN | `chess-local.ts` minimax + difficulty |
-| Xiangqi | [lengyanyu258/xiangqi.js](https://github.com/lengyanyu258/xiangqi.js) + xiangqiground | Pieces on **intersections**; SVG | `xiangqi-local.ts` material α-β, easy/med/hard |
+| Chess | [jhlywa/chess.js](https://github.com/jhlywa/chess.js) + Lichess Chessground | Logic ≠ UI; FEN + SAN | `chess-local.ts` minimax + 5-level difficulty |
+| Xiangqi | [lengyanyu258/xiangqi.js](https://github.com/lengyanyu258/xiangqi.js) + [yingwang/chinese_chess](https://github.com/yingwang/chinese_chess) + PST eval blogs | Pieces on **intersections**; SVG | `xiangqi-local.ts` material+PST α-β, 5 levels |
 | Go | [SabakiHQ/go-board](https://github.com/SabakiHQ/go-board) | suicide / ko / capturing | `go-local.ts` liberty/capture heuristics |
 | Gomoku | ZoliQua/Gomoku-Game pattern AI | 15×15 freestyle | `gomoku-local.ts` open-four / block |
 | **Ultimate TTT** | [Wikipedia rules](https://en.wikipedia.org/wiki/Ultimate_tic-tac-toe); [jacobcohn/ultimate-tic-tac-toe-ai](https://github.com/jacobcohn/ultimate-tic-tac-toe-ai); [thehav0k/ultimate-tic-tac-toe](https://github.com/thehav0k/ultimate-tic-tac-toe); [colinschepers MCTS](https://github.com/colinschepers/UltimateTicTacToeJS); [Math with Bad Drawings](https://mathwithbaddrawings.com/2013/06/16/ultimate-tic-tac-toe/) | 3×3 of 3×3; highlight active board; big X/O overlay | Legal routing + board win + meta win + local α-β |
@@ -20,7 +20,33 @@
 | Sokoban | ecyrbe/sokoban | Undo stack | Push / win |
 | Klotski | CoderLim/klotski-solver | Cao Cao exit | Collision + win |
 
-**AI policy (v0.4):** Chess / Xiangqi / Go / Gomoku / Ultimate TTT use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard`.
+**AI policy (v0.5):** Chess / Xiangqi / Go / Gomoku / Ultimate TTT use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard` | `expert` | `master`.
+
+### 1.2 Difficulty upgrade research (2026-08-09)
+
+**Problem:** v0.4 Xiangqi/Chess `hard` was only α-β depth **2** with material-only eval — too weak for challenge play.
+
+| Source | Finding |
+|--------|---------|
+| [yingwang/chinese_chess](https://github.com/yingwang/chinese_chess) (browser) | 5 levels by **search depth**: Beginner 2 · Intermediate 3 · Advanced 4 · Professional 5 · Master 7 (+ optional ONNX). Techniques: α-β, iterative deepening, TT, killer/history, quiescence, opening book. |
+| [yingwang/chinese_chess_mobile](https://github.com/yingwang/chinese_chess_mobile) | Pikafish NNUE; depths 3–20 (~1600–3000 Elo). Too heavy for our 4GB host / no WASM in this pass. |
+| [Pikafish](https://github.com/official-pikafish/Pikafish) | Stockfish-fork NNUE; Skill Level / UCI_LimitStrength. Deferred (binary + GPL + deploy complexity). |
+| [ryoi/xiangqi](https://github.com/ryoi/xiangqi) | Skill 1–6 + adaptive; α-β + TT + killer/history. |
+| Tencent Cloud Xiangqi AI tutorials | **PST** + MVV-LVA ordering + quiescence ≈ one strength tier without deeper ply. |
+
+**Decision for Spark (fit 4GB / <400ms UX, pure TS):**
+
+| Level | Xiangqi depth | Chess depth | Eval / extras |
+|-------|---------------|-------------|---------------|
+| `easy` | 1-ply pick from top-half scored | random legal | Weak noise |
+| `medium` | 2 | 2 | Material + PST |
+| `hard` | 3 | 2 + ID timebox | + capture-first ordering |
+| `expert` | 3 + ID | 3 + ID | + stronger check bias (Chess) |
+| `master` | 3 + quiescence (legal captures) | 3 + quiescence | Resolve hanging captures at leaf |
+
+Go/Gomoku/UTTT also use 5 pills: deeper reply look / defend weight / α-β depth (UTTT master depth 5). Iterative deepening + soft time budgets keep Chess/Xiangqi under ~400ms.
+
+**Risks:** Depth 4+ without TT can stutter on mobile → α-β + MVV ordering + ID timebox; tests assert hard+ take hanging major pieces.
 
 ### 1.1 Ultimate Tic-Tac-Toe — feasibility (2026-08-09)
 
@@ -184,6 +210,17 @@ If Cursor SDK fails → `pickHeuristicMove(game, legalMoves)` must return ∈ `l
 | U11 | Local AI easy/medium/hard always returns ∈ legal |
 | U12 | Hard AI takes immediate meta-winning move when available |
 | U13 | `applyMove` increments `moveCount` and flips turn |
+
+### 3.9 Difficulty upgrade (`xiangqi-local.test.ts` / `chess-local.test.ts`)
+
+| ID | Case |
+|----|------|
+| D1 | All 5 levels return ∈ legal moves (Xiangqi + Chess) |
+| D2 | Xiangqi hard/expert/master captures hanging rook when available |
+| D3 | Chess hard+ captures hanging queen when available |
+| D4 | Xiangqi medium move under 400ms from early midgame |
+| D5 | Depth monotonicity: `searchDepth(easy) < … < searchDepth(master)` helper |
+| D6 | Master uses quiescence flag (`usesQuiescence("master") === true`) |
 
 ### Self-verify gate
 

@@ -3,14 +3,14 @@ import { applyMove, getLegalMoves, initUttt, type UtttState } from "./uttt";
 import { chooseUtttAiMove, evaluate } from "./uttt-local";
 
 describe("Ultimate TTT local AI", () => {
-  it("U11: easy/medium/hard return legal moves", () => {
+  it("U11: all difficulty levels return legal moves", () => {
     let s = applyMove(initUttt(), "4,4");
     expect(s.turn).toBe("O");
-    for (const d of ["easy", "medium", "hard"] as const) {
+    for (const d of ["easy", "medium", "hard", "expert", "master"] as const) {
       const m = chooseUtttAiMove(s, d);
       expect(getLegalMoves(s)).toContain(m);
     }
-  });
+  }, 15000);
 
   it("U12: hard AI takes immediate meta-winning move", () => {
     // O to move; completing board 2 wins meta (boards 0,1 already O)
@@ -28,6 +28,8 @@ describe("Ultimate TTT local AI", () => {
     };
     const m = chooseUtttAiMove(s, "hard");
     expect(m).toBe("2,2");
+    expect(chooseUtttAiMove(s, "expert")).toBe("2,2");
+    expect(chooseUtttAiMove(s, "master")).toBe("2,2");
     const next = applyMove(s, m);
     expect(next.status).toBe("O_win");
   });

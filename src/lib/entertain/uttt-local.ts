@@ -1,6 +1,6 @@
 /**
  * Local Ultimate TTT AI — heuristic + shallow α-β (jacobcohn / thehav0k style).
- * No network. Difficulty: easy | medium | hard.
+ * No network. Difficulty: easy | medium | hard | expert | master.
  */
 
 import {
@@ -13,7 +13,30 @@ import {
   type UtttState,
 } from "./uttt";
 
-export type AiDifficulty = "easy" | "medium" | "hard";
+export type AiDifficulty = "easy" | "medium" | "hard" | "expert" | "master";
+
+export const AI_DIFFICULTIES: AiDifficulty[] = [
+  "easy",
+  "medium",
+  "hard",
+  "expert",
+  "master",
+];
+
+export function searchDepth(difficulty: AiDifficulty): number {
+  switch (difficulty) {
+    case "easy":
+      return 1;
+    case "medium":
+      return 2;
+    case "hard":
+      return 3;
+    case "expert":
+      return 4;
+    case "master":
+      return 5;
+  }
+}
 
 const LINES: number[][] = [
   [0, 1, 2],
@@ -144,7 +167,7 @@ export function chooseUtttAiMove(
     return moves[Math.floor(Math.random() * moves.length)];
   }
 
-  const depth = difficulty === "hard" ? 3 : 2;
+  const depth = searchDepth(difficulty);
   const perspective = state.turn;
   let best = moves[0];
   let bestScore = -Infinity;

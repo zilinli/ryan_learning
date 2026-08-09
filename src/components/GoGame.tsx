@@ -11,6 +11,7 @@ import {
 } from "@/lib/entertain/go-logic";
 import {
   chooseGoAiMove,
+  AI_DIFFICULTIES,
   type AiDifficulty,
 } from "@/lib/entertain/go-local";
 
@@ -122,7 +123,7 @@ export function GoGame() {
         {mode === "ai" && (
           <>
             <span className="ml-1 text-xs text-[var(--ink-muted)]">Level:</span>
-            {(["easy", "medium", "hard"] as AiDifficulty[]).map((d) => (
+            {AI_DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"

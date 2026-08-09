@@ -1,5 +1,6 @@
 /**
  * Local Go AI — liberty / capture heuristics (Sabaki-style analyze), no network.
+ * Levels: easy | medium | hard | expert | master
  */
 
 import {
@@ -9,7 +10,42 @@ import {
   type GoState,
 } from "./go-logic";
 
-export type AiDifficulty = "easy" | "medium" | "hard";
+export type AiDifficulty = "easy" | "medium" | "hard" | "expert" | "master";
+
+export const AI_DIFFICULTIES: AiDifficulty[] = [
+  "easy",
+  "medium",
+  "hard",
+  "expert",
+  "master",
+];
+
+function replySampleSize(difficulty: AiDifficulty): number {
+  switch (difficulty) {
+    case "easy":
+    case "medium":
+      return 0;
+    case "hard":
+      return 24;
+    case "expert":
+      return 40;
+    case "master":
+      return 64;
+  }
+}
+
+function replyPenalty(difficulty: AiDifficulty): number {
+  switch (difficulty) {
+    case "hard":
+      return 0.6;
+    case "expert":
+      return 0.75;
+    case "master":
+      return 0.9;
+    default:
+      return 0;
+  }
+}
 
 function scoreMove(state: GoState, move: string): number {
   if (move === "pass") return -100;
@@ -65,23 +101,39 @@ export function chooseGoAiMove(
     return pool[Math.floor(Math.random() * pool.length)].m;
   }
 
-  // medium / hard: pick best; hard looks one reply capture
+  const sample = replySampleSize(difficulty);
+  const penalty = replyPenalty(difficulty);
   let best = legal[0];
   let bestScore = -Infinity;
 
   for (const m of legal) {
     let s = scoreMove(state, m);
-    if (difficulty === "hard") {
+    if (sample > 0 && m !== "pass") {
       const [r, c] = m.split(",").map(Number);
       const next = placeStone(state, { row: r, col: c });
       if (next !== state) {
-        const replies = getLegalGoMoves(next).slice(0, 24);
+        const replies = getLegalGoMoves(next).slice(0, sample);
         let worst = 0;
         for (const rm of replies) {
           const rs = scoreMove(next, rm);
           if (rs > worst) worst = rs;
         }
-        s -= worst * 0.6;
+        s -= worst * penalty;
+
+        // Master: one extra opponent-threat peek on top replies
+        if (difficulty === "master") {
+          let second = 0;
+          for (const rm of replies.slice(0, 12)) {
+            if (rm === "pass") continue;
+            const [rr, rc] = rm.split(",").map(Number);
+            const after = placeStone(next, { row: rr, col: rc });
+            if (after === next) continue;
+            for (const r2 of getLegalGoMoves(after).slice(0, 8)) {
+              second = Math.max(second, scoreMove(after, r2));
+            }
+          }
+          s += second * 0.25;
+        }
       }
     }
     if (s > bestScore) {

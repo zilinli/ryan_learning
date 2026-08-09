@@ -12,10 +12,10 @@ describe("Go local AI", () => {
     expect(legal).toContain(ai);
   });
 
-  it("easy / hard return legal moves", () => {
+  it("easy / hard / master return legal moves", () => {
     let state = initGo(9);
     state = placeStone(state, { row: 2, col: 2 });
-    for (const d of ["easy", "hard"] as const) {
+    for (const d of ["easy", "hard", "master"] as const) {
       const ai = chooseGoAiMove(state, d);
       expect(getLegalGoMoves(state)).toContain(ai);
     }

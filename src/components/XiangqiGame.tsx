@@ -13,6 +13,7 @@ import {
   applyXiangqiMove,
   chooseXiangqiAiMove,
   type AiDifficulty,
+  AI_DIFFICULTIES,
 } from "@/lib/entertain/xiangqi-local";
 
 type GameMode = "ai" | "pvp";
@@ -219,7 +220,7 @@ export function XiangqiGame() {
         {mode === "ai" && (
           <>
             <span className="ml-1 text-xs text-[var(--ink-muted)]">Level:</span>
-            {(["easy", "medium", "hard"] as AiDifficulty[]).map((d) => (
+            {AI_DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"

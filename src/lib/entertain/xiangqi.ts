@@ -314,6 +314,24 @@ export function getAllLegalMoveStrings(board: XiangqiBoard, color: XiangqiColor)
   return out;
 }
 
+/** Pseudo-legal moves (no self-check filter) — for deep α-β search speed. */
+export function getAllPseudoLegalMoveStrings(
+  board: XiangqiBoard,
+  color: XiangqiColor,
+): string[] {
+  const out: string[] = [];
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (!piece || pieceColor(piece) !== color) continue;
+      for (const to of getRawMoves(board, { row: r, col: c })) {
+        out.push(`${r},${c}-${to.row},${to.col}`);
+      }
+    }
+  }
+  return out;
+}
+
 export function makeMove(state: XiangqiState, to: XiangqiPosition): XiangqiState {
   if (!state.selectedCell) return state;
   const from = state.selectedCell;

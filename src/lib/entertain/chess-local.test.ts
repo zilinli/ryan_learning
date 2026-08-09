@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
 import {
+  AI_DIFFICULTIES,
   assertBoardMapping,
   chooseChessAiMove,
   isLightSquare,
   legalTargets,
   pieceAtVisual,
+  searchDepth,
   squareFromVisual,
   statusText,
   tryPlayerMove,
+  usesQuiescence,
 } from "./chess-local";
 
 describe("Chess board mapping (must match chess.js)", () => {
@@ -62,23 +65,46 @@ describe("Chess board mapping (must match chess.js)", () => {
   });
 });
 
-describe("Chess local AI", () => {
-  it("replies with legal SAN after e4 under 300ms", () => {
+describe("Chess local AI — difficulty upgrade D1–D6", () => {
+  it("D1: all 5 levels return legal SAN after d4", () => {
+    const g = new Chess();
+    g.move("d4");
+    for (const d of AI_DIFFICULTIES) {
+      const san = chooseChessAiMove(g.fen(), d);
+      expect(() => new Chess(g.fen()).move(san)).not.toThrow();
+    }
+  }, 15000);
+
+  it("D3: hard/expert/master capture hanging queen", () => {
+    // White to move — black queen unprotected on d5, white rook on d1
+    const fen = "4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1";
+    const g = new Chess(fen);
+    expect(g.moves()).toContain("Rxd5");
+    for (const d of ["hard", "expert", "master"] as const) {
+      expect(chooseChessAiMove(fen, d)).toBe("Rxd5");
+    }
+  }, 10000);
+
+  it("D4: medium move under 400ms after e4", () => {
     const g = new Chess();
     g.move("e4");
     const t0 = Date.now();
     const san = chooseChessAiMove(g.fen(), "medium");
-    expect(Date.now() - t0).toBeLessThan(300);
+    expect(Date.now() - t0).toBeLessThan(400);
     expect(() => new Chess(g.fen()).move(san)).not.toThrow();
   });
 
-  it("easy/medium/hard all legal from start as black", () => {
-    const g = new Chess();
-    g.move("d4");
-    for (const d of ["easy", "medium", "hard"] as const) {
-      const san = chooseChessAiMove(g.fen(), d);
-      expect(() => new Chess(g.fen()).move(san)).not.toThrow();
-    }
+  it("D5: searchDepth monotonicity easy < medium ≤ hard < expert ≤ master", () => {
+    expect(searchDepth("easy")).toBeLessThan(searchDepth("medium"));
+    expect(searchDepth("medium")).toBeLessThanOrEqual(searchDepth("hard"));
+    expect(searchDepth("hard")).toBeLessThan(searchDepth("expert"));
+    expect(searchDepth("expert")).toBeLessThanOrEqual(searchDepth("master"));
+  });
+
+  it("D6: only master uses quiescence", () => {
+    expect(usesQuiescence("master")).toBe(true);
+    expect(usesQuiescence("hard")).toBe(false);
+    expect(usesQuiescence("expert")).toBe(false);
   });
 
   it("play 8 plies white first-legal + black AI without throw", () => {

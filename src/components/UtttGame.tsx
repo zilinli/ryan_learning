@@ -9,6 +9,7 @@ import {
 } from "@/lib/entertain/uttt";
 import {
   chooseUtttAiMove,
+  AI_DIFFICULTIES,
   type AiDifficulty,
 } from "@/lib/entertain/uttt-local";
 
@@ -110,7 +111,7 @@ export function UtttGame() {
         {mode === "ai" && (
           <>
             <span className="ml-1 text-xs text-[var(--ink-muted)]">Level:</span>
-            {(["easy", "medium", "hard"] as AiDifficulty[]).map((d) => (
+            {AI_DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"
