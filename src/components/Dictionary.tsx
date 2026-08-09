@@ -6,7 +6,7 @@ import type { DictEntry, DictLang, DictPageMode, DictResponse, RecentSearch } fr
 import { DICT_LANG_LABELS } from "@/lib/dict-types";
 import { dictLookup, loadRecentSearches, saveRecentSearch } from "@/lib/dict-client";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
-import { sttLangFromDictLang } from "@/lib/stt-lang";
+import { sttLangFromDictLang, voiceIdFromDictLang } from "@/lib/stt-lang";
 import { SentenceTranslate } from "@/components/SentenceTranslate";
 import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 
@@ -31,7 +31,13 @@ const SOURCE_BADGE: Record<DictEntry["source"], string> = {
 
 // ── Entry card ──
 
-function EntryCard({ entry }: { entry: DictEntry }) {
+function EntryCard({
+  entry,
+  speakLang,
+}: {
+  entry: DictEntry;
+  speakLang: DictLang;
+}) {
   const [speaking, setSpeaking] = useState(false);
 
   const speak = useCallback(() => {
@@ -43,13 +49,16 @@ function EntryCard({ entry }: { entry: DictEntry }) {
       return;
     }
     setSpeaking(true);
+    const voiceId = voiceIdFromDictLang(speakLang);
+    void engine.unlock().catch(() => undefined);
     engine
       .speak(text, {
+        voiceId,
         onError: () => setSpeaking(false),
       })
       .then(() => setSpeaking(false))
       .catch(() => setSpeaking(false));
-  }, [entry.headword, speaking]);
+  }, [entry.headword, speakLang, speaking]);
 
   return (
     <article className="animate-fade-up rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-5 dark:bg-[var(--surface-muted)]">
@@ -468,7 +477,11 @@ export function Dictionary() {
                 />
               ) : null}
               {resultEntries.map((entry, i) => (
-                <EntryCard key={`${entry.headword}-${entry.partOfSpeech}-${i}`} entry={entry} />
+                <EntryCard
+                  key={`${entry.headword}-${entry.partOfSpeech}-${i}`}
+                  entry={entry}
+                  speakLang={lang}
+                />
               ))}
             </>
           ) : query.trim().length >= 2 && !loading ? (

@@ -1,23 +1,45 @@
 import { describe, it, expect, vi } from "vitest";
-import { isStaleSessionError, isRetryableError, executeWithRetry } from "../agent-retry";
-import { CursorAgentError } from "@cursor/sdk";
+import {
+  isAgentBusyError,
+  isStaleSessionError,
+  isRetryableError,
+  executeWithRetry,
+} from "../agent-retry";
+import { AgentBusyError, CursorAgentError } from "@cursor/sdk";
 
-vi.mock("@cursor/sdk", () => ({
-  CursorAgentError: class extends Error {
+vi.mock("@cursor/sdk", () => {
+  class MockCursorAgentError extends Error {
     isRetryable: boolean;
     protoErrorCode?: number;
-    constructor(msg: string, opts?: { isRetryable?: boolean; protoErrorCode?: number }) {
+    constructor(
+      msg: string,
+      opts?: { isRetryable?: boolean; protoErrorCode?: number },
+    ) {
       super(msg);
+      this.name = "CursorAgentError";
       this.isRetryable = opts?.isRetryable ?? false;
       this.protoErrorCode = opts?.protoErrorCode;
     }
-  },
-  Agent: {
-    create: vi.fn(),
-    resume: vi.fn(),
-  },
-  Cursor: { models: { list: vi.fn() } },
-}));
+  }
+  class MockAgentBusyError extends MockCursorAgentError {
+    constructor(
+      msg: string,
+      opts?: { isRetryable?: boolean; protoErrorCode?: number },
+    ) {
+      super(msg, opts);
+      this.name = "AgentBusyError";
+    }
+  }
+  return {
+    CursorAgentError: MockCursorAgentError,
+    AgentBusyError: MockAgentBusyError,
+    Agent: {
+      create: vi.fn(),
+      resume: vi.fn(),
+    },
+    Cursor: { models: { list: vi.fn() } },
+  };
+});
 
 describe("Agent Retry Wrapper", () => {
   /** Helper: create a mock CursorAgentError with protoErrorCode set. */
@@ -51,6 +73,20 @@ describe("Agent Retry Wrapper", () => {
     });
   });
 
+  describe("isAgentBusyError", () => {
+    it("detects AgentBusyError instances", () => {
+      expect(
+        isAgentBusyError(new AgentBusyError("Agent already has active run")),
+      ).toBe(true);
+    });
+
+    it("detects message match for active run", () => {
+      expect(
+        isAgentBusyError(new Error("Agent agent-xyz already has active run")),
+      ).toBe(true);
+    });
+  });
+
   describe("isRetryableError", () => {
     it("returns true for CursorAgentError with isRetryable=true", () => {
       const err = makeAgentError("rate limited", { isRetryable: true, protoErrorCode: 8 });
@@ -60,6 +96,12 @@ describe("Agent Retry Wrapper", () => {
     it("returns true for CursorAgentError with protoErrorCode=8 (rate limit)", () => {
       const err = makeAgentError("rate limited", { isRetryable: false, protoErrorCode: 8 });
       expect(isRetryableError(err)).toBe(true);
+    });
+
+    it("returns true for AgentBusyError", () => {
+      expect(
+        isRetryableError(new AgentBusyError("already has active run")),
+      ).toBe(true);
     });
 
     it("returns false for CursorAgentError not retryable", () => {

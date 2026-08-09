@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Shared mic → STT control used by Dictionary (and similar surfaces).
- * Same pipeline as the main tutor: 16 kHz WAV via startWavRecorder + /api/transcribe.
- * (MediaRecorder WebM is intentionally avoided — short clips often fail ffmpeg.)
+ * Shared mic → STT control used by Dictionary / Translation.
+ * Same pipeline as the main tutor: 16 kHz WAV + `/api/transcribe`
+ * (Bailian Fun-ASR primary for teo/hak; iFlytek only if STT_BACKUP_IFYTEK=1).
+ * MediaRecorder WebM is avoided — short clips often fail ffmpeg.
  */
 
 import {

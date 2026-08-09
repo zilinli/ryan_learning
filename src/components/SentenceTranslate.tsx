@@ -6,7 +6,7 @@ import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 import { translateSentence } from "@/lib/dict-client";
 import { compressImageDataUrl } from "@/lib/image-process";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
-import { sttLangFromDictLang } from "@/lib/stt-lang";
+import { sttLangFromDictLang, voiceIdFromDictLang } from "@/lib/stt-lang";
 import type {
   DictLang,
   SentenceTranslateResponse,
@@ -149,8 +149,12 @@ export function SentenceTranslate() {
       return;
     }
     setSpeaking(true);
+    // Same TTS routing as main tutor: teo→Bailian, hak→FormoSpeech, else edge
+    const voiceId = voiceIdFromDictLang(result.to);
+    void engine.unlock().catch(() => undefined);
     engine
       .speak(result.translation, {
+        voiceId,
         onError: () => setSpeaking(false),
       })
       .then(() => setSpeaking(false))
@@ -221,7 +225,8 @@ export function SentenceTranslate() {
             className="min-h-[6.5rem] w-full flex-1 resize-y rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-[15px] leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[var(--surface-muted)]"
           />
           <MicTranscribeButton
-            language={sttLangFromDictLang(from === "auto" ? to : from)}
+            // from=auto → recognize as auto; teo/hak use Bailian like main tutor
+            language={sttLangFromDictLang(from === "auto" ? "auto" : from)}
             disabled={loading}
             onTranscript={(t) => {
               setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t));

@@ -4,6 +4,31 @@ import type { DictLang } from "./dict-types";
 /** Languages the STT backend understands */
 export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
 
+/**
+ * Dictionary / Translation language → tutor voice id for TTS.
+ * teo/hak use the same providers as the main tutor (Bailian / FormoSpeech).
+ */
+export function voiceIdFromDictLang(lang: DictLang | string | null): TutorVoiceId {
+  switch (lang) {
+    case "en":
+      return "ryan";
+    case "zh":
+      return "yunxi";
+    case "yue":
+      return "wanLung";
+    case "es":
+      return "alvaro";
+    case "fr":
+      return "henri";
+    case "teo":
+      return "teochew";
+    case "hak":
+      return "hakka";
+    default:
+      return "auto";
+  }
+}
+
 /** Map tutor voice preference → recognition language hint */
 export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang {
   switch (normalizeVoiceId(voiceId)) {
@@ -31,7 +56,10 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
   }
 }
 
-/** Map dictionary language pill → STT hint (same codes as /api/transcribe). */
+/**
+ * Dictionary language pill → STT hint (same codes as /api/transcribe).
+ * teo/hak → Bailian Fun-ASR primary (identical to main tutor).
+ */
 export function sttLangFromDictLang(lang: DictLang | string | null): SttLang {
   switch (lang) {
     case "en":

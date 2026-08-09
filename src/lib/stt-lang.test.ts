@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { sttLangFromDictLang, sttLangFromVoice } from "./stt-lang";
+import {
+  sttLangFromDictLang,
+  sttLangFromVoice,
+  voiceIdFromDictLang,
+} from "./stt-lang";
 
 describe("sttLangFromVoice", () => {
   it("maps tutor voices to STT language hints", () => {
@@ -35,5 +39,15 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromDictLang("es")).toBe("es");
     expect(sttLangFromDictLang("fr")).toBe("fr");
     expect(sttLangFromDictLang(null)).toBe("auto");
+  });
+});
+
+describe("voiceIdFromDictLang", () => {
+  it("maps dialect dict langs to tutor voice ids for main-page TTS routing", () => {
+    expect(voiceIdFromDictLang("teo")).toBe("teochew");
+    expect(voiceIdFromDictLang("hak")).toBe("hakka");
+    expect(voiceIdFromDictLang("zh")).toBe("yunxi");
+    expect(voiceIdFromDictLang("yue")).toBe("wanLung");
+    expect(voiceIdFromDictLang("en")).toBe("ryan");
   });
 });

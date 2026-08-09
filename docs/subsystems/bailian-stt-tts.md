@@ -43,6 +43,7 @@ FORMOSPEECH_TTS_URL=http://127.0.0.1:9876
 - `src/app/api/transcribe/route.ts` — STT 路由
 - `src/lib/tts-provider.ts` — 方言路由（teo 百炼 / hak FormoSpeech）
 - `src/app/api/tts/route.ts` — zh/yue/en 等仍走 edge
+- Dictionary / Translation：`MicTranscribeButton` + `sttLangFromDictLang`（识别同主页）；朗读经 `voiceIdFromDictLang` → 同主页 TTS
 
 ## 观测「不用讯飞」影响
 
