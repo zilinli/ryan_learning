@@ -6,6 +6,7 @@ import { ChessGame } from "./ChessGame";
 import { XiangqiGame } from "./XiangqiGame";
 import { GoGame } from "./GoGame";
 import { GomokuGame } from "./GomokuGame";
+import { UtttGame } from "./UtttGame";
 import { TetrisGame } from "./TetrisGame";
 import { SnakeGame } from "./SnakeGame";
 import { SudokuGame } from "./SudokuGame";
@@ -25,6 +26,7 @@ const GAMES: GameInfo[] = [
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
   { id: "go", title: "Go", desc: "围棋 9×9 — local AI, 3 levels", icon: "⚫", category: "Board Games" },
   { id: "gomoku", title: "Gomoku", desc: "五子棋 — pattern AI, 3 levels", icon: "❺", category: "Board Games" },
+  { id: "uttt", title: "Ultimate TTT", desc: "9 boards — local AI, 3 levels", icon: "⊞", category: "Board Games" },
   { id: "blocks", title: "Blocks", desc: "Falling blocks — clear lines", icon: "▦", category: "Arcade" },
   { id: "snake", title: "Snake", desc: "Grow and avoid the walls", icon: "◎", category: "Arcade" },
   { id: "sudoku", title: "Sudoku", desc: "Classic number placement puzzle", icon: "9", category: "Logic Puzzles" },
@@ -37,6 +39,7 @@ const TITLES: Record<GameId, string> = {
   xiangqi: "Chinese Chess · 象棋",
   go: "Go · 围棋",
   gomoku: "Gomoku · 五子棋",
+  uttt: "Ultimate Tic-Tac-Toe",
   blocks: "Blocks",
   snake: "Snake",
   sudoku: "Sudoku",
@@ -56,6 +59,7 @@ export function EntertainPage() {
         {activeGame === "xiangqi" && <XiangqiGame />}
         {activeGame === "go" && <GoGame />}
         {activeGame === "gomoku" && <GomokuGame />}
+        {activeGame === "uttt" && <UtttGame />}
         {activeGame === "blocks" && <TetrisGame />}
         {activeGame === "snake" && <SnakeGame />}
         {activeGame === "sudoku" && <SudokuGame />}

@@ -3,6 +3,7 @@ export type GameId =
   | "xiangqi"
   | "go"
   | "gomoku"
+  | "uttt"
   | "blocks"
   | "snake"
   | "sudoku"

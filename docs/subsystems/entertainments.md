@@ -1,7 +1,7 @@
 # Entertainments · Engine Design & Test Plan
 
-> Version 0.3 · 2026-08-09  
-> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Blocks / Snake / Sudoku / Sokoban / Klotski
+> Version 0.4 · 2026-08-09  
+> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski
 
 ---
 
@@ -13,13 +13,24 @@
 | Xiangqi | [lengyanyu258/xiangqi.js](https://github.com/lengyanyu258/xiangqi.js) + xiangqiground | Pieces on **intersections**; SVG | `xiangqi-local.ts` material α-β, easy/med/hard |
 | Go | [SabakiHQ/go-board](https://github.com/SabakiHQ/go-board) | suicide / ko / capturing | `go-local.ts` liberty/capture heuristics |
 | Gomoku | ZoliQua/Gomoku-Game pattern AI | 15×15 freestyle | `gomoku-local.ts` open-four / block |
+| **Ultimate TTT** | [Wikipedia rules](https://en.wikipedia.org/wiki/Ultimate_tic-tac-toe); [jacobcohn/ultimate-tic-tac-toe-ai](https://github.com/jacobcohn/ultimate-tic-tac-toe-ai); [thehav0k/ultimate-tic-tac-toe](https://github.com/thehav0k/ultimate-tic-tac-toe); [colinschepers MCTS](https://github.com/colinschepers/UltimateTicTacToeJS); [Math with Bad Drawings](https://mathwithbaddrawings.com/2013/06/16/ultimate-tic-tac-toe/) | 3×3 of 3×3; highlight active board; big X/O overlay | Legal routing + board win + meta win + local α-β |
 | Blocks | oTetris / react-tetris-ts (Tetris™ name avoided) | grid + rAF/interval | lock / clear / rotate |
 | Snake | classic queue body | WASD / arrows | wall / grow / reverse reject |
 | Sudoku | sudokukit | Pure-TS generator | unique solution |
 | Sokoban | ecyrbe/sokoban | Undo stack | Push / win |
 | Klotski | CoderLim/klotski-solver | Cao Cao exit | Collision + win |
 
-**AI policy (v0.3):** Chess / Xiangqi / Go / Gomoku use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard`.
+**AI policy (v0.4):** Chess / Xiangqi / Go / Gomoku / Ultimate TTT use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard`.
+
+### 1.1 Ultimate Tic-Tac-Toe — feasibility (2026-08-09)
+
+| Question | Finding |
+|----------|---------|
+| Rules stable? | Yes — Wikipedia / Math-with-Bad-Drawings standard: move sends opponent to matching small board; finished board → free choice; meta 3-in-row wins. |
+| Fit our stack? | **High** — pure TS reducer like Gomoku; ~81 cells; no WASM/Rust needed for casual play. |
+| AI approach? | Literature prefers **MCTS** for strength; for this app (4GB host, &lt;100ms UX) use **material/threat heuristic + shallow α-β** (jacobcohn / thehav0k Hard pattern). Easy=random; Medium=depth 2; Hard=depth 3 + ordering. |
+| Dependencies? | **None** — avoid AGPL ultimatexo / npm AI packages; own MIT-style engine under `src/lib/entertain/`. |
+| Risks | Wrong “sent to finished board” free-move rule; UI not highlighting active board → unplayable. Mitigate with U1–U12 tests + active-board CSS. |
 
 ### Key bugs found in v1 (before this plan)
 
@@ -36,12 +47,40 @@
 ```
 src/lib/entertain/          ← pure logic (no React) — UNIT TESTED
   chess: chess.js (npm)
-  xiangqi.ts / go-logic.ts / sudoku.ts / sokoban.ts / klotski.ts
-  game-ai.ts                ← SDK + extractMove + heuristic fallback
+  xiangqi.ts / go-logic.ts / gomoku.ts / uttt.ts / …
+  *-local.ts                ← client AI (easy|medium|hard)
+  game-ai.ts                ← legacy SDK helper (board games no longer call it)
 
-src/components/*Game.tsx    ← UI only; calls lib + /api/entertain-ai
-src/app/api/entertain-ai/   ← thin POST wrapper
+src/components/*Game.tsx    ← UI only; local AI via *-local.ts
 ```
+
+### 2.1 Ultimate TTT data model
+
+```ts
+type Player = "X" | "O";
+type Cell = Player | null;
+type BoardWinner = Player | "draw" | null;
+
+interface UtttState {
+  boards: Cell[][];          // 9 boards × 9 cells
+  winners: BoardWinner[];    // per small board
+  activeBoard: number | null; // 0–8, or null = free choice
+  turn: Player;
+  status: "playing" | "X_win" | "O_win" | "draw";
+  lastMove: { board: number; cell: number } | null;
+  moveCount: number;
+}
+```
+
+Move string: `"board,cell"` (e.g. `"4,8"` = center board, bottom-right cell).
+
+**Legal move rules (normative)**
+
+1. First move: any empty cell on any unfinished board (`activeBoard === null`).
+2. Otherwise must play in `activeBoard` if that board is unfinished.
+3. If target board is won/drawn/full → free choice among unfinished boards.
+4. After placing in cell `c`, next `activeBoard = c` (or `null` if board `c` finished).
+5. Small board win → set `winners[b]`; meta 3-in-row → game win; no legal moves → draw.
 
 **AI contract**
 
@@ -128,6 +167,24 @@ If Cursor SDK fails → `pickHeuristicMove(game, legalMoves)` must return ∈ `l
 | A4 | Heuristic always returns member of legalMoves |
 | A5 | Chess heuristic prefers captures when present |
 
+### 3.8 Ultimate Tic-Tac-Toe (`uttt.test.ts` + `uttt-local.test.ts`)
+
+| ID | Case |
+|----|------|
+| U1 | Init: 9 empty boards, `activeBoard=null`, turn X, status playing |
+| U2 | First move anywhere legal; illegal out-of-range rejected |
+| U3 | Playing cell `c` sets next `activeBoard=c` |
+| U4 | Sent to finished board → free choice (`activeBoard=null`) |
+| U5 | Cannot place in occupied cell or finished small board |
+| U6 | Small-board three-in-row sets `winners[b]` |
+| U7 | Full small board with no winner → `winners[b]="draw"` |
+| U8 | Meta three-in-row → `X_win` / `O_win` |
+| U9 | No legal moves left → `draw` |
+| U10 | `getLegalMoves` ⊆ empty cells on allowed boards only |
+| U11 | Local AI easy/medium/hard always returns ∈ legal |
+| U12 | Hard AI takes immediate meta-winning move when available |
+| U13 | `applyMove` increments `moveCount` and flips turn |
+
 ### Self-verify gate
 
 ```bash
@@ -137,22 +194,23 @@ npm test -- src/lib/entertain
 
 ---
 
-## 4. UI fixes (driven by research)
+## 4. UI (Ultimate TTT)
 
-- **Xiangqi**: SVG board (9×10 intersections, river 楚河漢界, palace diagonals, star marks); pieces absolute on intersections.
-- **Go**: Explicit SVG grid lines + star points (already partially done; verify).
-- **Chess**: Keep Unicode on alternating squares (chess.js validated).
-- **AI**: Fix stream API + always send `legalMoves` + client-side random-legal fallback if HTTP fails.
+- Outer 3×3 of inner 3×3 grids; gap between boards.
+- **Active board** highlighted (teal ring / mist fill); inactive boards dimmed when constrained.
+- Won boards show large translucent X / O overlay; drawn boards show “=” or muted fill.
+- Last-move cell ring; mode + difficulty pills (same as Chess/Gomoku).
+- Human = X, AI = O in vs-AI mode.
 
 ---
 
 ## 5. Delivery checklist
 
-- [ ] Design doc (this file)
-- [ ] Engine unit tests green
-- [ ] AI parse/heuristic tests green
-- [ ] Xiangqi SVG grid shipped
-- [ ] Chess/Go/Xiangqi send `legalMoves`
-- [ ] `npm test` entertain suite pass
-- [ ] `npm run build` pass (smart-build)
-- [ ] PM2 restart + git push
+- [x] Design doc (this file, v0.4 UTTT section)
+- [x] Engine unit tests green (prior games)
+- [x] Ultimate TTT engine + AI + UI
+- [x] U1–U13 tests green
+- [x] Hub card + `GameId`
+- [x] `npm test` entertain suite pass (82)
+- [x] `npm run build` pass (smart-build)
+- [x] PM2 restart + git push

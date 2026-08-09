@@ -8,14 +8,32 @@
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
-> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.1 — puzzle games under Code Agent)
+> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.4 — Ultimate TTT + local AI board games)
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Entertainments v2 (dedicated page) + Build Optimization
+## 🔴 In Progress (2026-08-09) — Ultimate Tic-Tac-Toe (ENT3)
 
-**Entertainments v2** — Dedicated `/entertain` page with hub UI. Solo puzzles: Sudoku, Sokoban, Klotski. Board games with AI: Chess (chess.js + Cursor SDK), Xiangqi, Go 9x9. All board games have AI & PvP mode selector.  
-**Build Optimization** — Smart build script with memory cap (`--max-old-space-size=1024`), PM2 service lifecycle, multi-level fallback. Saves ~1.4 GB by stopping formospeech during build.
+**Goal** — Add Ultimate Tic-Tac-Toe to `/entertain` with Wikipedia-standard rules, local AI (easy/medium/hard), full unit tests, deploy.
+
+> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §1.1 / §2.1 / §3.8 / §4
+
+### Phase ENT3: Ultimate Tic-Tac-Toe
+
+- [x] **ENT3.1** — Open-source research + feasibility (Wikipedia, jacobcohn α-β, thehav0k, colinschepers MCTS)
+- [x] **ENT3.2** — Design doc + test plan U1–U13
+- [x] **ENT3.3** — `uttt.ts` engine (legal routing, small/meta win, draw)
+- [x] **ENT3.4** — `uttt-local.ts` AI (easy random / medium depth2 / hard depth3)
+- [x] **ENT3.5** — `uttt.test.ts` + `uttt-local.test.ts` green
+- [x] **ENT3.6** — `UtttGame.tsx` UI + hub / `GameId` registration
+- [x] **ENT3.7** — Build + PM2 restart + git push
+
+---
+
+## ✅ Done (2026-08-09) — Entertainments v2 (dedicated page) + Build Optimization
+
+**Entertainments v2** — Dedicated `/entertain` page with hub UI. Solo puzzles: Sudoku, Sokoban, Klotski. Board games with local AI: Chess, Xiangqi, Go, Gomoku + Arcade Blocks/Snake.  
+**Build Optimization** — Smart build script with memory cap, PM2 lifecycle.
 
 > **Entertainments design:** [subsystems/entertainments.md](subsystems/entertainments.md)
 > **Build optimization design:** [subsystems/build-optimization.md](subsystems/build-optimization.md)
@@ -25,14 +43,15 @@
 - [x] **ENT2.1** — Delete old sidebar EntertainmentsPanel + entertainments lib
 - [x] **ENT2.2** — Create `/entertain` page route + sidebar link
 - [x] **ENT2.3** — Hub page: card grid with Board Games & Logic Puzzles sections
-- [x] **ENT2.4** — Chess: chess.js engine + AI via Cursor SDK `/api/entertain-ai` + PvP mode
-- [x] **ENT2.5** — Xiangqi: full engine + AI + PvP mode
-- [x] **ENT2.6** — Go 9x9: full engine + AI + PvP mode
+- [x] **ENT2.4** — Chess: chess.js engine + local AI + PvP mode
+- [x] **ENT2.5** — Xiangqi: full engine + local AI + PvP mode
+- [x] **ENT2.6** — Go 9x9: full engine + local AI + PvP mode
 - [x] **ENT2.7** — Sudoku: generator + keyboard input + conflict detection
 - [x] **ENT2.8** — Sokoban: 10 levels + undo + d-pad + keyboard
 - [x] **ENT2.9** — Klotski: 3 layouts + drag/click movement + undo
 - [x] **ENT2.10** — Build optimization: smart-build.mjs + memory cap + PM2 lifecycle
-- [x] **ENT2.11** — Research → design (test plan) → 37 unit tests green; fix AI stream API + Xiangqi SVG grid + Go ko
+- [x] **ENT2.11** — Research → design (test plan) → unit tests; fix AI stream API + Xiangqi SVG + Go ko
+- [x] **ENT2.12** — Gomoku / Blocks / Snake + Xiangqi/Go local AI difficulty
 
 ### Phase BUILD: Build optimization
 
