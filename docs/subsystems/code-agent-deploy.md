@@ -75,6 +75,6 @@ Raise max edits per session **5 → 15** so research/design/implement prompts ca
 - [x] `deploy_live` in `console-harness.ts`
 - [x] SYS prompt update
 - [x] Edit limit 15
-- [ ] Tests CD1–CD4
-- [ ] Build + restart (so Code Agent itself picks up the new tool)
-- [ ] Git push
+- [x] Tests CD1–CD4
+- [x] Build + restart (so Code Agent itself picks up the new tool)
+- [x] Git push

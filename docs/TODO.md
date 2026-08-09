@@ -23,7 +23,7 @@
 - [x] **DEPLOY1.1** — Root-cause: PM2 production `.next` vs source-only edits
 - [x] **DEPLOY1.2** — Design doc + tests CD1–CD4
 - [x] **DEPLOY1.3** — `deploy_live` in console-harness + SYS prompt + max edits 15
-- [ ] **DEPLOY1.4** — Unit tests green + build + pm2 restart + git push
+- [x] **DEPLOY1.4** — Unit tests green + build + pm2 restart + git push
 
 ---
 
@@ -41,7 +41,7 @@
 - [x] **ENT5.4** — Chess: depths 1/2/3/4/4, expert+ quiescence, higher budgets
 - [x] **ENT5.5** — Go atari scoring; Gomoku/UTTT stronger ladders; default UI `hard`
 - [x] **ENT5.6** — Unit tests D1–D10 green
-- [ ] **ENT5.7** — Build + PM2 restart + git push
+- [x] **ENT5.7** — Build + PM2 restart + git push
 
 ### ✅ Done — ENT4 (5-level pills + PST)
 
