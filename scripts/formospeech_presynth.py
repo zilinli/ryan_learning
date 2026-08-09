@@ -35,18 +35,42 @@ def cache_key(text: str, voice: str) -> str:
     return hashlib.sha256(f"{text}\0{voice}".encode("utf-8")).hexdigest()
 
 
+_DIGIT_ZH = "零一二三四五六七八九"
+
+
 def normalize_hakka(raw: str) -> str:
+    """与 formospeech_server / hakka-tts-text.ts 对齐。"""
     from opencc import OpenCC
 
     t = (raw or "").strip()
+    if not t:
+        return t
+    t = re.sub(r"\$\$[\s\S]*?\$\$", " ", t)
+    t = re.sub(r"\$[^$]+\$", " ", t)
+    t = re.sub(r"[「」『』【】《》〈〉〔〕〖〗]", "", t)
+    t = re.sub(r"[“”‘’\"']", "", t)
+    t = t.replace("、", "，")
     t = (
-        t.replace("!", "！")
+        re.sub(r"[!！]+", "！", t)
         .replace("?", "？")
         .replace(",", "，")
         .replace(".", "。")
     )
+
+    def digits_to_zh(m: re.Match[str]) -> str:
+        return "".join(
+            _DIGIT_ZH[ord(ch) - ord("０")]
+            if "０" <= ch <= "９"
+            else _DIGIT_ZH[int(ch)]
+            for ch in m.group(0)
+            if ch.isdigit() or ("０" <= ch <= "９")
+        )
+
+    t = re.sub(r"[0-9０-９]+", digits_to_zh, t)
+    t = re.sub(r"[^\u4e00-\u9fffA-Za-z\s，。！？；：]", " ", t)
     t = OpenCC("s2t").convert(t)
     t = re.sub(r"我(?!們)", "涯", t)
+    t = re.sub(r"\s+", " ", t).strip()
     return t.strip()
 
 

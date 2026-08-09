@@ -52,23 +52,89 @@ def cache_key(text: str, voice: str) -> str:
     return hashlib.sha256(f"{text}\0{voice}".encode("utf-8")).hexdigest()
 
 
+_DIGIT_ZH = "零一二三四五六七八九"
+
+
 def normalize_hakka(raw: str) -> str:
+    """与 src/lib/hakka-tts-text.ts 对齐：去引号/公式/数字→汉字，避免 formog2p 422。"""
     from opencc import OpenCC
 
     t = (raw or "").strip()
     if not t:
         return t
+
+    t = re.sub(r"\$\$[\s\S]*?\$\$", " ", t)
+    t = re.sub(r"\$[^$]+\$", " ", t)
+    t = re.sub(r"\\\([\s\S]*?\\\)", " ", t)
+    t = re.sub(r"\\\[[\s\S]*?\\\]", " ", t)
+    t = re.sub(r"```[\s\S]*?```", " ", t)
+    t = re.sub(r"`([^`]+)`", r"\1", t)
+    t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
+    t = re.sub(r"\*([^*]+)\*", r"\1", t)
+
+    # 「」等是线上 422 主因
+    t = re.sub(r"[「」『』【】《》〈〉〔〕〖〗〘〙〚〛]", "", t)
+    t = re.sub(r"[“”‘’\"']", "", t)
+    t = t.replace("、", "，")
+    t = re.sub(r"[…‥]+", "。", t)
+    t = re.sub(r"[—–－〜～]+", "，", t)
+    t = re.sub(r"[·•∙・]", "", t)
+
     t = (
-        t.replace("!", "！")
+        re.sub(r"[!！]+", "！", t)
         .replace("?", "？")
         .replace(",", "，")
         .replace(".", "。")
         .replace(";", "；")
         .replace(":", "：")
     )
+    t = re.sub(r"[?？]+", "？", t)
+    t = re.sub(r"[,，]+", "，", t)
+    t = re.sub(r"[.。]+", "。", t)
+
+    def digits_to_zh(m: re.Match[str]) -> str:
+        out = []
+        for ch in m.group(0):
+            if "０" <= ch <= "９":
+                out.append(_DIGIT_ZH[ord(ch) - ord("０")])
+            elif ch.isdigit():
+                out.append(_DIGIT_ZH[int(ch)])
+        return "".join(out)
+
+    t = re.sub(r"[0-9０-９]+", digits_to_zh, t)
+    t = (
+        t.replace("×", "乘")
+        .replace("✕", "乘")
+        .replace("✖", "乘")
+        .replace("÷", "除")
+        .replace("＋", "加")
+        .replace("+", "加")
+        .replace("＝", "等于")
+        .replace("=", "等于")
+        .replace("%", "百分之")
+        .replace("％", "百分之")
+    )
+    # 去掉减号单独处理以免破坏「減」字语境：仅 ASCII/全角 hyphen
+    t = re.sub(r"[－\-]", "减", t)
+
+    t = re.sub(r"[^\u4e00-\u9fffA-Za-z\s，。！？；：]", " ", t)
     t = OpenCC("s2t").convert(t)
     t = re.sub(r"我(?!們)", "涯", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"^[，；：\s]+", "", t)
+    t = re.sub(r"[，；：\s]+$", "", t)
     return t.strip()
+
+
+def strip_unknowns(text: str, unknown: list[str]) -> str:
+    out = text
+    for u in unknown:
+        if u:
+            out = out.replace(u, "")
+    out = re.sub(r"\s+", " ", out).strip()
+    out = re.sub(r"^[，；：\s]+", "", out)
+    out = re.sub(r"[，；：\s]+$", "", out)
+    return out.strip()
 
 
 def parse_ipa(ipa: str, delete_chars=r"\+\-\|\_", as_space: str = "") -> list[str]:
@@ -147,11 +213,31 @@ def synthesize_mp3(text: str) -> bytes:
         return out_path.read_bytes()
 
     with _lock:
-        result = _g2p(norm, G2P_DIALECT, include_eng=True)
-        if getattr(result, "unknown_words", None):
-            raise ValueError(
-                "无法转成客语音素: " + ",".join(result.unknown_words)
+        speak = norm
+        result = None
+        for _attempt in range(4):
+            result = _g2p(speak, G2P_DIALECT, include_eng=True)
+            unknown = list(getattr(result, "unknown_words", None) or [])
+            if not unknown:
+                break
+            cleaned = strip_unknowns(speak, unknown)
+            print(
+                f"[formospeech] strip unknowns {unknown!r} -> {cleaned!r}",
+                flush=True,
             )
+            if not cleaned or cleaned == speak:
+                raise ValueError("无法转成客语音素: " + ",".join(unknown))
+            speak = cleaned
+        else:
+            unknown = list(getattr(result, "unknown_words", None) or [])
+            raise ValueError("无法转成客语音素: " + ",".join(unknown))
+
+        # cache under final speak text if we had to strip
+        if speak != norm:
+            out_path = CACHE_DIR / f"{cache_key(speak, VOICE)}.mp3"
+            if out_path.exists() and out_path.stat().st_size > 200:
+                return out_path.read_bytes()
+
         parsed = [p.replace(" ", "|") for p in result.pronunciations]
         parsed_ipa = parse_ipa(" ".join(parsed))
         dialect = "sixian" if DIALECT == "nansixian" else DIALECT
