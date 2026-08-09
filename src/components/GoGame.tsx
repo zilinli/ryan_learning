@@ -200,7 +200,7 @@ export function GoGame() {
                         background:
                           cell === "black"
                             ? "radial-gradient(circle at 35% 30%, #555, #111)"
-                            : "radial-gradient(circle at 35% 30%, #fff, #ccc)",
+                            : "radial-gradient(circle at 35% 30%, #fefefe, #ccc)",
                       }}
                     />
                   ) : isHovered && currentPlayerCanAct && state.status === "playing" ? (
@@ -210,7 +210,7 @@ export function GoGame() {
                         background:
                           state.turn === "black"
                             ? "radial-gradient(circle at 35% 30%, #555, #111)"
-                            : "radial-gradient(circle at 35% 30%, #fff, #ccc)",
+                            : "radial-gradient(circle at 35% 30%, #fefefe, #ccc)",
                       }}
                     />
                   ) : null}
