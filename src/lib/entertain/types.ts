@@ -2,11 +2,14 @@ export type GameId =
   | "chess"
   | "xiangqi"
   | "go"
+  | "gomoku"
+  | "blocks"
+  | "snake"
   | "sudoku"
   | "sokoban"
   | "klotski";
 
-export type GameCategory = "board" | "puzzle";
+export type GameCategory = "board" | "arcade" | "puzzle";
 
 export interface GameMeta {
   id: GameId;

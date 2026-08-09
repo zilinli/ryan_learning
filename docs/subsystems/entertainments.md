@@ -1,7 +1,7 @@
 # Entertainments · Engine Design & Test Plan
 
-> Version 0.2 · 2026-08-09  
-> Scope: `/entertain` page — Chess / Xiangqi / Go / Sudoku / Sokoban / Klotski + AI
+> Version 0.3 · 2026-08-09  
+> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Blocks / Snake / Sudoku / Sokoban / Klotski
 
 ---
 
@@ -9,13 +9,17 @@
 
 | Game | Reference | UI pattern | Test pattern |
 |------|-----------|------------|--------------|
-| Chess | [jhlywa/chess.js](https://github.com/jhlywa/chess.js) + Lichess Chessground | Logic ≠ UI; FEN + SAN; Vitest `__tests__/moves.test.ts` | `moves()`, `move()`, checkmate fixtures |
-| Xiangqi | [lengyanyu258/xiangqi.js](https://github.com/lengyanyu258/xiangqi.js) + [xiangqiground](https://github.com/west-shell/xiangqiground) | Pieces on **intersections**; SVG grid + river + palace X | Legal-move gen + check/checkmate |
-| Go | [SabakiHQ/go-board](https://github.com/SabakiHQ/go-board) | `analyzeMove` → suicide / ko / capturing | Capture count, ko, suicide reject |
-| Sudoku | sudokukit / Omarmahmoud711 solver | Pure-TS generator; unique-solution check | Count solutions ≤1 after dig |
-| Sokoban | ecyrbe/sokoban | Undo stack; level ASCII | Push / blocked / win |
-| Klotski | CoderLim/klotski-solver | Drag pieces; Cao Cao exit | Collision + win at exit |
-| AI | Cursor SDK (`run.stream()` + `onDelta`) | Legal-move list in prompt; local heuristic fallback | Parse move; fallback ∈ legal |
+| Chess | [jhlywa/chess.js](https://github.com/jhlywa/chess.js) + Lichess Chessground | Logic ≠ UI; FEN + SAN | `chess-local.ts` minimax + difficulty |
+| Xiangqi | [lengyanyu258/xiangqi.js](https://github.com/lengyanyu258/xiangqi.js) + xiangqiground | Pieces on **intersections**; SVG | `xiangqi-local.ts` material α-β, easy/med/hard |
+| Go | [SabakiHQ/go-board](https://github.com/SabakiHQ/go-board) | suicide / ko / capturing | `go-local.ts` liberty/capture heuristics |
+| Gomoku | ZoliQua/Gomoku-Game pattern AI | 15×15 freestyle | `gomoku-local.ts` open-four / block |
+| Blocks | oTetris / react-tetris-ts (Tetris™ name avoided) | grid + rAF/interval | lock / clear / rotate |
+| Snake | classic queue body | WASD / arrows | wall / grow / reverse reject |
+| Sudoku | sudokukit | Pure-TS generator | unique solution |
+| Sokoban | ecyrbe/sokoban | Undo stack | Push / win |
+| Klotski | CoderLim/klotski-solver | Cao Cao exit | Collision + win |
+
+**AI policy (v0.3):** Chess / Xiangqi / Go / Gomoku use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard`.
 
 ### Key bugs found in v1 (before this plan)
 

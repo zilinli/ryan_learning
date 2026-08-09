@@ -5,6 +5,9 @@ import type { GameId } from "@/lib/entertain/types";
 import { ChessGame } from "./ChessGame";
 import { XiangqiGame } from "./XiangqiGame";
 import { GoGame } from "./GoGame";
+import { GomokuGame } from "./GomokuGame";
+import { TetrisGame } from "./TetrisGame";
+import { SnakeGame } from "./SnakeGame";
 import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
@@ -18,104 +21,89 @@ interface GameInfo {
 }
 
 const GAMES: GameInfo[] = [
-  { id: "chess", title: "Chess", desc: "Classic international chess with AI opponent", icon: "♚", category: "Board Games" },
-  { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — traditional strategy with AI", icon: "帥", category: "Board Games" },
-  { id: "go", title: "Go", desc: "围棋 — territory game of profound depth", icon: "⚫", category: "Board Games" },
+  { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
+  { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
+  { id: "go", title: "Go", desc: "围棋 9×9 — local AI, 3 levels", icon: "⚫", category: "Board Games" },
+  { id: "gomoku", title: "Gomoku", desc: "五子棋 — pattern AI, 3 levels", icon: "❺", category: "Board Games" },
+  { id: "blocks", title: "Blocks", desc: "Falling blocks — clear lines", icon: "▦", category: "Arcade" },
+  { id: "snake", title: "Snake", desc: "Grow and avoid the walls", icon: "◎", category: "Arcade" },
   { id: "sudoku", title: "Sudoku", desc: "Classic number placement puzzle", icon: "9", category: "Logic Puzzles" },
-  { id: "sokoban", title: "Sokoban", desc: "Push boxes to targets — spatial reasoning", icon: "📦", category: "Logic Puzzles" },
-  { id: "klotski", title: "Klotski", desc: "华容道 — free Cao Cao from the fortress", icon: "曹", category: "Logic Puzzles" },
+  { id: "sokoban", title: "Sokoban", desc: "Push boxes to targets", icon: "📦", category: "Logic Puzzles" },
+  { id: "klotski", title: "Klotski", desc: "华容道 — free Cao Cao", icon: "曹", category: "Logic Puzzles" },
 ];
+
+const TITLES: Record<GameId, string> = {
+  chess: "Chess",
+  xiangqi: "Chinese Chess · 象棋",
+  go: "Go · 围棋",
+  gomoku: "Gomoku · 五子棋",
+  blocks: "Blocks",
+  snake: "Snake",
+  sudoku: "Sudoku",
+  sokoban: "Sokoban · 推箱子",
+  klotski: "Klotski · 华容道",
+};
 
 export function EntertainPage() {
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
-
   const handleBack = useCallback(() => setActiveGame(null), []);
 
-  if (activeGame === "chess") {
+  if (activeGame) {
     return (
       <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Chess" onBack={handleBack} />
-        <ChessGame />
+        <TopBar title={TITLES[activeGame]} onBack={handleBack} />
+        {activeGame === "chess" && <ChessGame />}
+        {activeGame === "xiangqi" && <XiangqiGame />}
+        {activeGame === "go" && <GoGame />}
+        {activeGame === "gomoku" && <GomokuGame />}
+        {activeGame === "blocks" && <TetrisGame />}
+        {activeGame === "snake" && <SnakeGame />}
+        {activeGame === "sudoku" && <SudokuGame />}
+        {activeGame === "sokoban" && <SokobanGame />}
+        {activeGame === "klotski" && <KlotskiGame />}
       </div>
     );
   }
 
-  if (activeGame === "xiangqi") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Chinese Chess · 象棋" onBack={handleBack} />
-        <XiangqiGame />
-      </div>
-    );
-  }
-
-  if (activeGame === "go") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Go · 围棋" onBack={handleBack} />
-        <GoGame />
-      </div>
-    );
-  }
-
-  if (activeGame === "sudoku") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Sudoku" onBack={handleBack} />
-        <SudokuGame />
-      </div>
-    );
-  }
-
-  if (activeGame === "sokoban") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Sokoban · 推箱子" onBack={handleBack} />
-        <SokobanGame />
-      </div>
-    );
-  }
-
-  if (activeGame === "klotski") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-        <TopBar title="Klotski · 华容道" onBack={handleBack} />
-        <KlotskiGame />
-      </div>
-    );
-  }
-
-  // Hub view
   const boardGames = GAMES.filter((g) => g.category === "Board Games");
+  const arcade = GAMES.filter((g) => g.category === "Arcade");
   const puzzles = GAMES.filter((g) => g.category === "Logic Puzzles");
 
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--surface-muted)]">
-      {/* Header */}
       <header className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-4 py-6">
         <h1 className="text-center text-2xl font-bold text-[var(--ink)]">
           Entertainments
         </h1>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
-          Puzzle games and board games for a quick mental break
+          Board games, arcade, and puzzles — local AI, no waiting
         </p>
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-8">
-          {/* Board Games */}
           <section>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
               Board Games
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {boardGames.map((game) => (
                 <GameCard key={game.id} game={game} onSelect={() => setActiveGame(game.id)} />
               ))}
             </div>
           </section>
 
-          {/* Logic Puzzles */}
+          <section>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+              Arcade
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {arcade.map((game) => (
+                <GameCard key={game.id} game={game} onSelect={() => setActiveGame(game.id)} />
+              ))}
+            </div>
+          </section>
+
           <section>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
               Logic Puzzles
