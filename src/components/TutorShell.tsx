@@ -91,13 +91,18 @@ import { inferSkillsFromText } from "@/lib/skill-catalog";
 import {
   buildPracticeKickoffMessage,
   clearPracticeOffer,
-  createPracticeOffer,
   deferPracticeOffer,
   dismissPracticeOfferForToday,
   loadPracticeOffer,
   savePracticeOffer,
   type PendingPracticeOffer,
 } from "@/lib/session-practice";
+import {
+  maybeCloseSession,
+  recoverMissedSessionCloses,
+  stampConversationInList,
+  VISIBILITY_CLOSE_DEBOUNCE_MS,
+} from "@/lib/session-close";
 import {
   buildOpenerKickoffMessage,
   buildSessionOpener,
@@ -685,6 +690,65 @@ export function TutorShell() {
     };
   }, [ready]);
 
+  // A2.h.3 — debounced close when tab/app goes hidden (≥30s)
+  useEffect(() => {
+    if (!ready) return;
+    let hideTimer: number | null = null;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        hideTimer = window.setTimeout(() => {
+          const s = storeRef.current;
+          if (!s || busyRef.current) return;
+          const leaving = getActiveConversation(s);
+          const mem = learningMemory || loadLearningMemory(accountIdRef.current);
+          const closed = maybeCloseSession(
+            leaving,
+            mem,
+            accountIdRef.current,
+          );
+          if (!closed.closed) return;
+          const conversations = stampConversationInList(
+            s.conversations,
+            leaving.sessionId,
+            closed.conversation,
+          );
+          const next = { ...s, conversations };
+          setStore(next);
+          saveConversations(next, accountIdRef.current);
+          if (closed.offer) setPracticeOffer(closed.offer);
+        }, VISIBILITY_CLOSE_DEBOUNCE_MS);
+      } else if (hideTimer != null) {
+        window.clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      if (hideTimer != null) window.clearTimeout(hideTimer);
+    };
+  }, [ready, learningMemory]);
+
+  // A2.h.4 — missed-close recovery once store is ready
+  useEffect(() => {
+    if (!ready || !store) return;
+    const mem = learningMemory || loadLearningMemory(accountId);
+    const { conversations, offer } = recoverMissedSessionCloses(
+      store.conversations,
+      mem,
+      accountId,
+    );
+    const changed = conversations.some(
+      (c, i) => c.practiceOfferEmittedAt !== store.conversations[i]?.practiceOfferEmittedAt,
+    );
+    if (!changed) return;
+    const next = { ...store, conversations };
+    setStore(next);
+    saveConversations(next, accountId);
+    if (offer && messages.length === 0) setPracticeOffer(offer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, accountId]);
+
   const active = useMemo(
     () => (store ? getActiveConversation(store) : null),
     [store],
@@ -795,12 +859,19 @@ export function TutorShell() {
       }
     }
 
-    // CA-2 — post-session practice offer when leaving a meaty chat
-    if (prevActive && prevActive.messages.length >= 4) {
-      const offer = createPracticeOffer(accountId, mem);
-      if (offer) {
-        savePracticeOffer(offer);
-        setPracticeOffer(offer);
+    // A2.h — shared session-close (practice offer, idempotent)
+    let conversations = store.conversations;
+    if (prevActive) {
+      const closed = maybeCloseSession(prevActive, mem, accountId);
+      if (closed.closed) {
+        conversations = stampConversationInList(
+          conversations,
+          prevActive.sessionId,
+          closed.conversation,
+        );
+      }
+      if (closed.offer) {
+        setPracticeOffer(closed.offer);
       }
     }
 
@@ -809,7 +880,7 @@ export function TutorShell() {
     resetNextRef.current = true;
     const now = Date.now();
     // Drop other empty chats so the list stays tidy
-    const kept = store.conversations.filter((c) => c.messages.length > 0);
+    const kept = conversations.filter((c) => c.messages.length > 0);
     setStore({
       version: 3,
       activeId: id,
@@ -836,7 +907,21 @@ export function TutorShell() {
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
     speakApiRef.current?.stop();
-    setStore({ ...store, activeId: id });
+    const mem = learningMemory || loadLearningMemory(accountId);
+    const leaving = getActiveConversation(store);
+    let conversations = store.conversations;
+    if (leaving && leaving.sessionId !== id) {
+      const closed = maybeCloseSession(leaving, mem, accountId);
+      if (closed.closed) {
+        conversations = stampConversationInList(
+          conversations,
+          leaving.sessionId,
+          closed.conversation,
+        );
+      }
+      if (closed.offer) setPracticeOffer(closed.offer);
+    }
+    setStore({ ...store, activeId: id, conversations });
     setUrlSession(id, accountId);
     setError("");
     resetNextRef.current = resetIdsRef.current.has(id);
@@ -1335,6 +1420,14 @@ export function TutorShell() {
           }}
           speakStatus={ttsSpeaking ? interruptHint(true) : undefined}
           onSpeakingChange={setTtsSpeaking}
+          recentSkillIds={
+            learningMemory
+              ? [...learningMemory.skills]
+                  .sort((a, b) => b.lastSeen - a.lastSeen)
+                  .slice(0, 6)
+                  .map((s) => s.id)
+              : []
+          }
           onPrepareSpeak={async () => {
             await speakApiRef.current?.prepare();
           }}

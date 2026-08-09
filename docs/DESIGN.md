@@ -68,7 +68,9 @@ flowchart TB
 | **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** | 📋 2026-08 product plan v2 (confirmed defaults) |
 | **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)** | 🎨 Competitive feature UI specs — wireframes, states, a11y, gap checklist |
 | **[subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)** | 📐 CA-P0 architecture — worksheet planner, practice loop, opener, barge-in |
+| **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** | ✅ CA-P0 acceptance — A1.h cut eval, A2.h session-end hooks, R3 smoke M1–M5 |
 | **[subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)** | 📐 CA-P1 architecture — scratch vision, misconceptions, multi-rep, dynamic board |
+| **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)** | 🎤 B3 voice confirm-intent — confusable glossary + two-tap chips (no ASR confidence) |
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** | Cross-device deletion sync (tombstones + PUT guard) + 4-theme system |
 | **[subsystems/dialect-support-teochew-hakka.md](subsystems/dialect-support-teochew-hakka.md)** | Teochew & Hakka dialect support (Plan A — LLM prompting + dictionary) |

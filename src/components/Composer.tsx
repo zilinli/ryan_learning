@@ -28,6 +28,8 @@ type Props = {
   /** UI-B2a — speaking status line above toolbar */
   speakStatus?: string;
   onSpeakingChange?: (speaking: boolean) => void;
+  /** B3 — skill context for voice confusable gating */
+  recentSkillIds?: string[];
   onSend: (payload: {
     text: string;
     attachments: ClientAttachment[];
@@ -44,6 +46,7 @@ export function Composer({
   onPrepareSpeak,
   speakStatus,
   onSpeakingChange,
+  recentSkillIds,
   onSend,
 }: Props) {
   const [text, setText] = useState("");
@@ -53,6 +56,12 @@ export function Composer({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [dialectPending, setDialectPending] = useState(false);
+  const [voiceConfirm, setVoiceConfirm] = useState<{
+    line: string;
+    options: string[];
+    onPick: (chosen: string) => void;
+    onDismiss: () => void;
+  } | null>(null);
   const dialectTokenRef = useRef(0);
   const fileId = useId();
   const attachmentsRef = useRef<ClientAttachment[]>([]);
@@ -201,6 +210,35 @@ export function Composer({
           </p>
         ) : null}
 
+        {voiceConfirm ? (
+          <div
+            className="mt-1.5 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/5 px-3 py-2 animate-fade-up"
+            role="group"
+            aria-label="Confirm what you meant"
+          >
+            <p className="text-xs text-[var(--ink)]">{voiceConfirm.line}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {voiceConfirm.options.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => voiceConfirm.onPick(opt)}
+                  className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+                >
+                  {opt}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => voiceConfirm.onDismiss()}
+                className="min-h-11 rounded-xl px-3 text-sm text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Keep as heard
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <input
             id={fileId}
@@ -262,6 +300,8 @@ export function Composer({
             }}
             onSpeakApi={onSpeakApi}
             onSpeakingChange={onSpeakingChange}
+            recentSkillIds={recentSkillIds}
+            onConfirmIntent={setVoiceConfirm}
             onTranscript={(t) => {
               const lang = getTutorVoice(voiceId).lang;
               if (lang === "teo" || lang === "hak") {

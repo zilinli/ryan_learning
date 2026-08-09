@@ -29,6 +29,13 @@ import {
   startWavRecorder,
 } from "@/lib/wav-recorder";
 import { interruptHint, planBargeIn } from "@/lib/speech-barge-in";
+import {
+  applyConfusableChoice,
+  confirmOptions,
+  confirmTimeoutMs,
+  detectConfusable,
+  type ConfusablePair,
+} from "@/lib/voice-confusables";
 
 export type SpeakStreamApi = {
   prepare: () => Promise<void>;
@@ -48,6 +55,17 @@ type Props = {
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
   /** UI-B2a — parent shows composer status line while TTS is active */
   onSpeakingChange?: (speaking: boolean) => void;
+  /** B3 — recent skill ids for confusable gating (voice path only) */
+  recentSkillIds?: string[];
+  /** B3 — surface confirm chips outside the toolbar row */
+  onConfirmIntent?: (
+    state: {
+      line: string;
+      options: string[];
+      onPick: (chosen: string) => void;
+      onDismiss: () => void;
+    } | null,
+  ) => void;
   /** Surface mic status/errors outside the toolbar flex row */
   onFeedback?: (feedback: {
     status: string;
@@ -68,9 +86,15 @@ export function VoiceControls({
   onTranscript,
   onSpeakApi,
   onSpeakingChange,
+  recentSkillIds = [],
+  onConfirmIntent,
 }: Props) {
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<{
+    transcript: string;
+    pair: ConfusablePair;
+  } | null>(null);
   const [supported, setSupported] = useState(true);
   const [hint, setHint] = useState("");
   const [httpsLink, setHttpsLink] = useState("");
@@ -269,6 +293,55 @@ export function VoiceControls({
     [stopSpeaking],
   );
 
+  const recentSkillsRef = useRef(recentSkillIds);
+  useEffect(() => {
+    recentSkillsRef.current = recentSkillIds;
+  }, [recentSkillIds]);
+
+  const confirmTimerRef = useRef<number | null>(null);
+  const clearConfirmTimer = useCallback(() => {
+    if (confirmTimerRef.current != null) {
+      window.clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+  }, []);
+
+  const resolveConfirm = useCallback(
+    (transcript: string, pair: ConfusablePair | null, chosen?: string) => {
+      clearConfirmTimer();
+      setConfirm(null);
+      onConfirmIntent?.(null);
+      const out =
+        pair && chosen
+          ? applyConfusableChoice(transcript, pair, chosen)
+          : transcript;
+      onTranscript(out);
+    },
+    [clearConfirmTimer, onTranscript, onConfirmIntent],
+  );
+
+  useEffect(() => {
+    if (!confirm) {
+      onConfirmIntent?.(null);
+      return;
+    }
+    const { transcript, pair } = confirm;
+    onConfirmIntent?.({
+      line: pair.confirmLine,
+      options: confirmOptions(pair),
+      onPick: (chosen) => resolveConfirm(transcript, pair, chosen),
+      onDismiss: () => resolveConfirm(transcript, null),
+    });
+  }, [confirm, onConfirmIntent, resolveConfirm]);
+
+  useEffect(
+    () => () => {
+      clearConfirmTimer();
+      onConfirmIntent?.(null);
+    },
+    [clearConfirmTimer, onConfirmIntent],
+  );
+
   const transcribeBlob = useCallback(
     async (blob: Blob) => {
       setBusy(true);
@@ -301,6 +374,17 @@ export function VoiceControls({
         const text = (data?.text || "").trim();
         if (!text) throw new Error("Didn't catch that — try again louder");
         setStatus("");
+        // B3 — voice-only confirm-intent (typed path never hits this)
+        const pair = detectConfusable(text, recentSkillsRef.current);
+        if (pair) {
+          setConfirm({ transcript: text, pair });
+          clearConfirmTimer();
+          confirmTimerRef.current = window.setTimeout(() => {
+            // VC5 — fail-open: send original transcript
+            resolveConfirm(text, null);
+          }, confirmTimeoutMs());
+          return;
+        }
         onTranscript(text);
       } catch (err) {
         const msg =
@@ -315,7 +399,7 @@ export function VoiceControls({
         setBusy(false);
       }
     },
-    [onTranscript],
+    [onTranscript, clearConfirmTimer, resolveConfirm],
   );
 
   const startListening = useCallback(async () => {

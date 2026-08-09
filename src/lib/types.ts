@@ -74,6 +74,8 @@ export interface ConversationRecord {
   updatedAt: number;
   /** CA-1 — multi-problem worksheet progress */
   worksheetPlan?: ConversationWorksheetPlan;
+  /** A2.h — set once a practice offer was generated for this conversation */
+  practiceOfferEmittedAt?: number;
 }
 
 export interface ConversationsStore {

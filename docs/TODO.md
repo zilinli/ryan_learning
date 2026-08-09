@@ -10,7 +10,8 @@
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
 > Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)  
-> Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** · **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)**
+> Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** · **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)**  
+> P0 hardening: **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** · B3: **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)**
 
 ---
 
@@ -19,7 +20,8 @@
 > **Plan (confirmed):** [subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)  
 > **Research:** [subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)  
 > **UI spec:** [subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md) (wireframes · states · gap checklist §12)  
-> **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md) · **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)  
+> **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md) · **P0 hardening:** [subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md) · **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md) · **B3:** [subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)  
+
 > **Filter:** Socratic · chat-first · physical-tutor · no child dashboard  
 > **Decisions:** D2 before weekly report; D1 PIN check mode in P2; C5/P3 idea-only; B3 after Phase G; no streaks/leaderboards; C6 folded into A2
 
@@ -46,10 +48,26 @@
 | **B1** | CA-3 opener | ✅ shipped | Homework intent always yields; ≤1/day |
 | **B2a** | CA-4 barge-in | ✅ shipped | Manual **M4**; resume-copy → B2b |
 
-- [ ] **CA-P0.R3** — Manual smoke M1–M4 on live (see Phase CA-P0 below)
-- [ ] **A1.h** — Worksheet cut-accuracy eval set + hardening if &lt;90%
-- [ ] **A2.h** — Session-end hook definition + ZPD drill quality checks
+- [ ] **CA-P0.R3** — Manual smoke M1–M5 on live phone (see [ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md) §3)
 - [x] **B1.h** — Yield-to-homework: any send / homework intent marks opener shown (`yieldOpenerForHomework`)
+
+#### A1.h — Worksheet cut-accuracy ([hardening §1](subsystems/ca-p0-acceptance-hardening.md))
+
+- [ ] **A1.h.1** — Expand to full 24 labeled real/redacted photos (scaffold + 4 fixture samples shipped)
+- [x] **A1.h.2** — `scripts/eval-worksheet-cut.mjs` harness (offline fixtures; `--live` stub)
+- [x] **A1.h.3** — Offline baseline scorecard written (`eval/worksheet-cut/results-*.json`)
+- [x] **A1.h.4** — Prompt tightened (count-first + single-item no-fire); re-run after full photo set
+- [ ] **A1.h.5** — Manual bleed review on live transcripts
+- [x] **A1.h.6** — Mid-exit regression: remount keeps `Question N of T`
+
+#### A2.h — Session-end hook ([hardening §2](subsystems/ca-p0-acceptance-hardening.md))
+
+- [x] **A2.h.1** — `maybeCloseSession()` + `practiceOfferEmittedAt` on `ConversationRecord`
+- [x] **A2.h.2** — Wire into `selectConversation`
+- [x] **A2.h.3** — `visibilitychange` debounced 30s close
+- [x] **A2.h.4** — Missed-close recovery on load (≥4 msgs, stale &gt;10m)
+- [ ] **A2.h.5 / A2.h.6** — Drill-quality eval (10 samples; spoiler = hard fail) — needs live agent
+- [x] **A2.h.7** — Unit tests SP8–SP10
 
 ### P1 — Teaching depth + v2 additions
 
@@ -60,7 +78,13 @@
 - [x] **C3 / CA-7** — Multi-representation cycle + memory (MR1–MR3)
 - [x] **C4 / CA-8** — diagramId/revision replace in thread (DB1–DB2); step-N CSS later
 - [x] **A3** — Cross-day gapHistory with 14d expiry → opener “last few days”
-- [ ] **B3** — Voice tolerance / confirm-intent (after Phase **G**, not inside G) — ELSA-style low-confidence confirm
+
+#### B3 — Voice tolerance ([ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md))
+
+- [x] **B3.0** — Spike: no ASR confidence field in current Bailian/iFlytek extractors → Option B
+- [x] **B3.1** — `voice-confusables.ts`: ~20 G4 pairs + `detectConfusable()`
+- [x] **B3.2** — Post-transcribe two-tap confirm chips in `VoiceControls` / Composer
+- [x] **B3.3** — Unit tests VC1–VC6
 
 ### P2 — Tools / parent (chat-first)
 

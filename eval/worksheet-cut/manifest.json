@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "description": "A1.h worksheet cut-accuracy eval set (scaffold). Add real redacted photos under samples/ and set file paths. Offline mode scores fixture fences; live mode POSTs images to /api/chat.",
+  "passBar": {
+    "totalCountMatchMin": 0.9,
+    "falseFireMax": 0
+  },
+  "samples": [
+    {
+      "id": "wp-syn-01",
+      "file": null,
+      "bucket": "computation",
+      "expected_total": 8,
+      "expected_labels": ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8"],
+      "planner_should_fire": true,
+      "fixture_fence": "~~~worksheet-plan\n{\"total\":8,\"current\":1,\"items\":[{\"id\":1,\"label\":\"Q1\",\"status\":\"active\"},{\"id\":2,\"label\":\"Q2\",\"status\":\"pending\"},{\"id\":3,\"label\":\"Q3\",\"status\":\"pending\"},{\"id\":4,\"label\":\"Q4\",\"status\":\"pending\"},{\"id\":5,\"label\":\"Q5\",\"status\":\"pending\"},{\"id\":6,\"label\":\"Q6\",\"status\":\"pending\"},{\"id\":7,\"label\":\"Q7\",\"status\":\"pending\"},{\"id\":8,\"label\":\"Q8\",\"status\":\"pending\"}]}\n~~~"
+    },
+    {
+      "id": "wp-syn-02",
+      "file": null,
+      "bucket": "word-problems",
+      "expected_total": 4,
+      "expected_labels": ["1", "2", "3", "4"],
+      "planner_should_fire": true,
+      "fixture_fence": "~~~worksheet-plan\n{\"total\":4,\"current\":1,\"items\":[{\"id\":1,\"label\":\"1\",\"status\":\"active\"},{\"id\":2,\"label\":\"2\",\"status\":\"pending\"},{\"id\":3,\"label\":\"3\",\"status\":\"pending\"},{\"id\":4,\"label\":\"4\",\"status\":\"pending\"}]}\n~~~"
+    },
+    {
+      "id": "wp-syn-neg-01",
+      "file": null,
+      "bucket": "single-item",
+      "expected_total": 1,
+      "expected_labels": ["Q1"],
+      "planner_should_fire": false,
+      "fixture_fence": "Just one question about fractions — no fence."
+    },
+    {
+      "id": "wp-syn-neg-02",
+      "file": null,
+      "bucket": "single-item",
+      "expected_total": 1,
+      "expected_labels": ["Q1"],
+      "planner_should_fire": false,
+      "fixture_fence": "Solve: 3/4 + 1/4 = ?"
+    }
+  ]
+}
