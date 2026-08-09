@@ -1,6 +1,6 @@
 # 📋 Downstream Development TODO
 
-> Version 0.9 · 2026-08-09  
+> Version 0.9.1 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 27 test files, 243 tests, service `active` at :3001  
 > New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
@@ -8,7 +8,128 @@
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
-> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)
+> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)  
+> Competitive analysis: **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** (2026-08 — P0–P2 feature backlog from peer products)
+
+---
+
+## 📊 Competitive Analysis Backlog (2026-08)
+
+> **Research:** [subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md) (incl. parent/student JTBD)  
+> **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)  
+> **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)  
+> **Filter:** chat-first · zero child dashboard · physical-tutor test · feasible on current stack  
+> Cross-links: **2.2** (CA-1), **2.4** (CA-5), **3.3** (CA-9), **4.1** (CA-4), **1.7** (CA-10), Phase **G** (CA-12)
+
+### Explicit non-goals (do not schedule)
+
+- Child course catalog / badge wall / multi-tab learning center  
+- Default instant-answer solver mode (conflicts with Socratic core)  
+- Full COPPA productization (unless public app-store goal appears)  
+- Heavy Manim / 3Blue1Brown live render on 4GB host  
+- PIN-less "核对模式"; if ever added later → **PIN-gated only**, separate approval
+
+---
+
+## 🔴 Phase CA-P0: Competitive P0 Implementation (2026-08-09)
+
+> **Design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)  
+> **Goal:** Ship CA-1…CA-4 with unit tests + manual smoke; keep child UI minimal.
+
+### CA-1 Worksheet planner (strengthens 2.2)
+
+- [x] **CA-1.1** — `src/lib/worksheet-planner.ts`: types, `parseWorksheetPlanFence`, `stripWorksheetPlanFence`, `formatProgressLabel`, `mergeWorksheetPlan`
+- [x] **CA-1.2** — Prompt contract in `prompts.ts` (homework ≥2 items → emit/update `~~~worksheet-plan`)
+- [x] **CA-1.3** — Optional `worksheetPlan` on `ConversationRecord`; TutorShell merge after assistant turn
+- [x] **CA-1.4** — Progress chip in chat empty/header area: `Question N of T`
+- [x] **CA-1.5** — Unit tests **WP1–WP8** (`worksheet-planner.test.ts`)
+
+| Case | Assert |
+|------|--------|
+| WP1 | Valid fence parses total/current/items |
+| WP2 | Invalid JSON / missing fields → null |
+| WP3 | Strip removes fence; surrounding prose kept |
+| WP4 | Multiple fences → last wins |
+| WP5 | `formatProgressLabel({current:2,total:8})` → `Question 2 of 8` |
+| WP6 | merge replaces same session plan |
+| WP7 | status normalization (unknown → pending) |
+| WP8 | empty items / total mismatch rejected or clamped |
+
+### CA-2 Post-session practice (3 drills)
+
+- [x] **CA-2.1** — `src/lib/session-practice.ts`: `pickPracticeTargets`, persist/clear/defer offer
+- [x] **CA-2.2** — `startNewSession` writes offer when prev msgs ≥ 4
+- [x] **CA-2.3** — ChatThread empty-state: Practice / Tomorrow / Dismiss
+- [x] **CA-2.4** — Unit tests **SP1–SP7**
+
+| Case | Assert |
+|------|--------|
+| SP1 | Weak skills → up to 3 targets |
+| SP2 | Empty memory → no offer |
+| SP3 | Persist + load round-trip |
+| SP4 | Clear removes storage |
+| SP5 | Tomorrow sets deferredUntil next local day |
+| SP6 | Deferred offer not shown before date |
+| SP7 | Kickoff message text includes skill labels + Socratic instruction |
+
+### CA-3 Session opener (ZPD / review)
+
+- [x] **CA-3.1** — `src/lib/session-opener.ts`: once/day gate, prefer `needsReviewSkills` then `zpdWarmUpSkills`
+- [x] **CA-3.2** — Wire `needsReviewSkills` into `learningMemoryPromptLines`
+- [x] **CA-3.3** — ChatThread chips: Try {label} / Snap homework
+- [x] **CA-3.4** — Unit tests **SO1–SO6**
+
+| Case | Assert |
+|------|--------|
+| SO1 | No skills → null |
+| SO2 | Review skill preferred over ZPD when both exist |
+| SO3 | Second call same day → null after markShown |
+| SO4 | New calendar day → offer again |
+| SO5 | Copy mentions homework alternative |
+| SO6 | Account namespace isolates gates |
+
+### CA-4 TTS barge-in (4.1a)
+
+- [x] **CA-4.1** — `speech-barge-in.ts` helpers + VoiceControls "Tap to interrupt" while speaking
+- [x] **CA-4.2** — Confirm mic path calls stop before record (regression guard)
+- [x] **CA-4.3** — Unit tests **BI1–BI4**; **4.1b** continuous voice stays deferred
+
+| Case | Assert |
+|------|--------|
+| BI1 | `shouldBargeIn(speaking=true)` → true |
+| BI2 | `interruptHint(speaking)` copy non-empty when busy |
+| BI3 | `planBargeIn()` order: stop then listen |
+| BI4 | Not speaking → no interrupt hint |
+
+### CA-P0 release gate
+
+- [x] **CA-P0.R1** — `npm test` green (new suites — WP/SP/SO/BI + prompts)
+- [ ] **CA-P0.R2** — `npm run build` / smart-build
+- [ ] **CA-P0.R3** — Manual smoke M1–M4 on live
+- [ ] **CA-P0.R4** — Commit + push `develop` + deploy
+
+| Manual | Steps |
+|--------|-------|
+| M1 | Photo multi-Q worksheet → progress chip appears after plan fence |
+| M2 | After ≥4-msg session, New chat → practice offer |
+| M3 | Empty chat shows opener once/day |
+| M4 | During TTS, tap mic → speech stops, listening starts |
+
+### P1 — Teaching depth (design done — implement later)
+
+> **Design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)
+
+- [ ] **CA-5** — Scratch-work vision (links **2.4**) — tests SD1–SD2 when scheduled
+- [ ] **CA-6** — Misconception tag library — tests MC1–MC3 when scheduled
+- [ ] **CA-7** — Multi-representation auto-switch — tests MR1–MR3 when scheduled
+- [ ] **CA-8** — Dynamic board / step animation — tests DB1–DB2 when scheduled
+
+### P2 — Tools & parent (chat-first preserved)
+
+- [ ] **CA-9** — Embedded Desmos / graphs (reframes **3.3**)
+- [ ] **CA-10** — Parent weekly digest behind PIN (narrows **1.7**)
+- [ ] **CA-11** — Entertainments → skill soft link
+- [ ] **CA-12** — Dialect speech quality — keep Phase **G** engineering P0
 
 ---
 
@@ -337,8 +458,8 @@
 ### Phase 2: Agent & Prompt (partial)
 - [x] **2.1** Subject-specific coaching templates (math/reading/science/writing)
 - [x] **2.3** Progressive disclosure (`~~~step` fences, click-to-reveal)
-- [ ] **2.2** Multi-turn task planning for worksheets
-- [ ] **2.4** Capture/replay student reasoning chains
+- [ ] **2.2** Multi-turn task planning for worksheets — see analysis **CA-1**
+- [ ] **2.4** Capture/replay student reasoning chains — see analysis **CA-5**
 
 ### Phase 6: Testing (partial)
 - [x] **6.1.6** Engagement tests — 13 tests (streak, badges, summary, serialization)
@@ -446,7 +567,7 @@
 |---|------|--------|-------------|
 | 3.1 | Interactive geometry: drag to measure angles/lengths on diagrams | 5d | `DiagramBlock.tsx`, SVG |
 | 3.2 | Animated step-by-step geometry constructions | 3d | `geometry-svg.ts` |
-| 3.3 | Desmos-like coordinate graphing for algebra | 5d | New component |
+| 3.3 | Desmos-like coordinate graphing for algebra | 5d | New component — see analysis **CA-9** |
 
 ---
 
@@ -454,7 +575,7 @@
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 4.1 | Voice-only mode — full STT→agent→TTS loop, no screen needed | 5d | `speech-player.ts`, `Composer.tsx` |
+| 4.1 | Voice-only mode — full STT→agent→TTS loop, no screen needed | 5d | `speech-player.ts`, `Composer.tsx` — split via analysis **CA-4** (4.1a barge-in → 4.1b continuous) |
 | 4.2 | Natural number pronunciation — `x²` → "x squared" (EN) / "x 平方" (ZH) | 1d | `tts-text.ts` |
 | 4.3 | Parent voice note recording — parent records message attached to chat | 3d | New component |
 
@@ -576,7 +697,7 @@
 
 | # | Task | Effort | Notes |
 |---|------|--------|-------|
-| 1.7 | Parent dashboard — skill radar chart, mastery timeline, heatmap | 5d | NOT visible to child |
+| 1.7 | Parent dashboard — skill radar chart, mastery timeline, heatmap | 5d | NOT visible to child; prefer narrow **CA-10** weekly digest first |
 | N1 | Export learning memory as printable PDF | 1d | For parent review |
 | N2 | Inline skill tag on each message (agent-only) | 0.5d | Which skill was practiced |
 | N3 | Tree-shake unused UI from production bundle | 0.5d | |
@@ -850,6 +971,7 @@ Account deletion with safeguards, per-account empty states, account limit enforc
 
 | Phase | Priority | Sub-tasks | Est. |
 |-------|----------|-----------|------|
+| **Competitive Analysis** CA-1–12 | 🟡 Analysis | 12 (+ non-goals) | design-first — see § Competitive Analysis Backlog |
 | **Phase 0** Full UI | 🔴 Critical | 13 (0.8–0.14) | **6d** |
 | **Phase 6** Testing gaps | 🔴 Critical | 5 (6.1.1–6.1.5) | **10d** |
 | **Phase 7** Code Agent Reliability | 🔴 Critical | 7 (7.1–7.7) | **10h** |

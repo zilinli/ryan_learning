@@ -28,6 +28,7 @@ import {
   filenameForAudioBlob,
   startWavRecorder,
 } from "@/lib/wav-recorder";
+import { interruptHint, planBargeIn } from "@/lib/speech-barge-in";
 
 export type SpeakStreamApi = {
   prepare: () => Promise<void>;
@@ -317,7 +318,9 @@ export function VoiceControls({
       setHint("Mic needs HTTPS");
       return;
     }
-    stopSpeaking();
+    // CA-4 / 4.1a — barge-in: stop TTS before recording (order from planBargeIn)
+    const barge = planBargeIn();
+    if (barge.stopSpeech) stopSpeaking();
     try {
       await getSharedSpeechEngine().unlock();
     } catch {
@@ -467,11 +470,19 @@ export function VoiceControls({
               ? "bg-[var(--teal)] text-white"
               : "bg-[var(--mist)] text-[var(--ink)] hover:bg-[var(--mist)] hover:text-[var(--ink)] sm:bg-transparent sm:text-[var(--ink-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
-        title={touchMode ? "Tap to talk \u00B7 tap again to send" : "Hold to talk"}
+        title={
+          speaking
+            ? interruptHint(true)
+            : touchMode
+              ? "Tap to talk \u00B7 tap again to send"
+              : "Hold to talk"
+        }
         aria-label={
-          touchMode
-            ? "Mic \u2014 tap to talk, tap again to send"
-            : "Mic \u2014 hold to talk"
+          speaking
+            ? "Mic — tap to interrupt speech and talk"
+            : touchMode
+              ? "Mic \u2014 tap to talk, tap again to send"
+              : "Mic \u2014 hold to talk"
         }
         aria-pressed={listening}
       >

@@ -1030,6 +1030,16 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
     );
   }
 
+  // CA-3 — SM-2 review-due skills (explicit for opener / continuity)
+  const reviewDue = needsReviewSkills(m, 2);
+  if (reviewDue.length) {
+    lines.push(
+      `Review due (SM-2 interval elapsed — good for a short warm-up): ${
+        reviewDue.map((s) => `${s.label} (P≈${s.mastery}%)`).join(", ")
+      }.`,
+    );
+  }
+
   // Session digests — episodic memory from past sessions
   if (m.sessionDigests.length) {
     const digestLines = m.sessionDigests

@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ChatAttachment, ChatMessage } from "@/lib/types";
+import type { ChatAttachment, ChatMessage, ConversationWorksheetPlan } from "@/lib/types";
 import { getPhotoFromVault } from "@/lib/photo-vault";
+import { formatProgressLabel, stripWorksheetPlanFence } from "@/lib/worksheet-planner";
+import type { PendingPracticeOffer } from "@/lib/session-practice";
+import type { SessionOpener } from "@/lib/session-opener";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
 
 type Props = {
   messages: ChatMessage[];
   streaming?: boolean;
+  worksheetPlan?: ConversationWorksheetPlan | null;
+  practiceOffer?: PendingPracticeOffer | null;
+  sessionOpener?: SessionOpener | null;
+  onPractice?: () => void;
+  onPracticeTomorrow?: () => void;
+  onPracticeDismiss?: () => void;
+  onOpenerTry?: () => void;
+  onOpenerDismiss?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -71,7 +82,18 @@ function triggerDownload(href: string, filename: string) {
   a.remove();
 }
 
-export function ChatThread({ messages, streaming }: Props) {
+export function ChatThread({
+  messages,
+  streaming,
+  worksheetPlan,
+  practiceOffer,
+  sessionOpener,
+  onPractice,
+  onPracticeTomorrow,
+  onPracticeDismiss,
+  onOpenerTry,
+  onOpenerDismiss,
+}: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
     alt: string;
@@ -198,20 +220,87 @@ export function ChatThread({ messages, streaming }: Props) {
             🎤 Voice question
           </span>
         </div>
+
+        {practiceOffer && practiceOffer.targets.length > 0 ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-4 py-3 text-left">
+            <p className="text-sm font-medium text-[var(--ink)]">
+              Practice 3 quick ones?
+            </p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              {practiceOffer.targets.map((t) => t.label).join(" · ")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onPractice}
+                className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
+              >
+                Let&apos;s practice
+              </button>
+              <button
+                type="button"
+                onClick={onPracticeTomorrow}
+                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={onPracticeDismiss}
+                className="min-h-11 rounded-xl px-3 text-sm text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : sessionOpener ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-4 py-3 text-left">
+            <p className="text-sm font-medium text-[var(--ink)]">{sessionOpener.line}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onOpenerTry}
+                className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
+              >
+                Try {sessionOpener.label}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenerDismiss}
+                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
+              >
+                Snap homework
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
 
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+      {worksheetPlan && worksheetPlan.total > 0 ? (
+        <div
+          className="sticky top-0 z-[5] -mx-1 mb-1 flex justify-center"
+          aria-live="polite"
+        >
+          <span className="rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--ink)] shadow-sm">
+            {formatProgressLabel(worksheetPlan)}
+          </span>
+        </div>
+      ) : null}
       {messages.map((m) => {
         const attachments = messageAttachments(m);
         const isUser = m.role === "user";
+        const displayContent = isUser
+          ? m.content
+          : stripWorksheetPlanFence(m.content);
         const wasSeen = seenIds.has(m.id);
         const animateIn =
           !wasSeen &&
-          m.content.length < 120 &&
-          !(m.role === "assistant" && m.content.length > 0 && streaming);
+          displayContent.length < 120 &&
+          !(m.role === "assistant" && displayContent.length > 0 && streaming);
         return (
           <article
             key={m.id}
@@ -348,9 +437,9 @@ export function ChatThread({ messages, streaming }: Props) {
                   })}
                 </div>
               ) : null}
-              {m.content ? (
+              {displayContent ? (
                 <MarkdownMessage
-                  content={m.content}
+                  content={displayContent}
                   variant={isUser ? "user" : "assistant"}
                 />
               ) : null}

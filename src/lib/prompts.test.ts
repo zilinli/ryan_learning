@@ -44,6 +44,7 @@ describe("buildTutorPrompt", () => {
       voiceId: "auto",
     });
     expect(withImage).toContain("Homework coach");
+    expect(withImage).toContain("worksheet-plan");
     expect(withImage).toContain("Photo 1…Photo 2");
     expect(withImage).toContain("Think-first coaching");
     expect(withImage).toContain("Hint ladder");

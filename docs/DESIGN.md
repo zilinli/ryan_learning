@@ -64,6 +64,9 @@ flowchart TB
 | **[subsystems/ui-composer.md](subsystems/ui-composer.md)** | Composer input chrome spec (merged into ui-architecture §4) |
 | **[subsystems/streaming-render-fix.md](subsystems/streaming-render-fix.md)** | ⚡ Streaming render stability — fix for screen flicker during model output |
 | **[subsystems/v2-enhancements.md](subsystems/v2-enhancements.md)** | 📊 V2 analysis report enhancements — Learning Dashboard, cross-discipline, BKT+confidence |
+| **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** | 📊 2026-08 competitive feature research + parent/student JTBD |
+| **[subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)** | 📐 CA-P0 architecture — worksheet planner, practice loop, opener, barge-in |
+| **[subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)** | 📐 CA-P1 architecture — scratch vision, misconceptions, multi-rep, dynamic board |
 | **[subsystems/storage-sync.md](subsystems/storage-sync.md)** | History, conversations, cross-device sync |
 | **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** | Cross-device deletion sync (tombstones + PUT guard) + 4-theme system |
 | **[subsystems/dialect-support-teochew-hakka.md](subsystems/dialect-support-teochew-hakka.md)** | Teochew & Hakka dialect support (Plan A — LLM prompting + dictionary) |

@@ -52,6 +52,19 @@ export interface TutorSessionState {
   updatedAt: number;
 }
 
+/** CA-1 worksheet progress (optional; ignored by older clients) */
+export interface ConversationWorksheetPlan {
+  total: number;
+  current: number;
+  items: Array<{
+    id: number;
+    label: string;
+    status: "pending" | "active" | "done" | "skipped";
+  }>;
+  source: "agent";
+  updatedAt: number;
+}
+
 /** One chat in the sidebar history list */
 export interface ConversationRecord {
   sessionId: string;
@@ -59,6 +72,8 @@ export interface ConversationRecord {
   messages: ChatMessage[];
   createdAt: number;
   updatedAt: number;
+  /** CA-1 — multi-problem worksheet progress */
+  worksheetPlan?: ConversationWorksheetPlan;
 }
 
 export interface ConversationsStore {

@@ -408,6 +408,17 @@ export function buildTutorPrompt(params: {
         "9) If they only say “I don’t know”, stay on L0–L1 — do not leap to the answer.",
         "10) After they choose an option, ask WHY before marking right/wrong (L1.5).",
         "11) On a wrong try: L2.5 second chance before stronger scaffold.",
+        "",
+        "[Worksheet planner — CA-1 multi-problem pages]",
+        "If the photo/PDF looks like a worksheet with TWO OR MORE numbered items (Q1/Q2, 1a/1b, ①②…):",
+        "1) Do NOT tutor the whole page at once — one item at a time.",
+        "2) Emit (and later update) a hidden fence the app parses (never explain the fence to the student):",
+        "~~~worksheet-plan",
+        '{"total":N,"current":1,"items":[{"id":1,"label":"Q1","status":"active"},{"id":2,"label":"Q2","status":"pending"}]}',
+        "~~~",
+        "3) status values: pending | active | done | skipped. Keep exactly one active.",
+        "4) After the student finishes or skips an item, bump current, update statuses, re-emit the fence.",
+        "5) When all done: one short celebration + weak-skill summary — still no mega answer dump.",
       ].join("\n")
     : [
         "",
