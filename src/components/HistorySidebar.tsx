@@ -15,7 +15,6 @@ type Props = {
   activeId: string;
   disabled?: boolean;
   onOpenCodeAgent?: () => void;
-  onOpenEntertainments?: () => void;
   engagementLabel?: string;
   learningMemory?: LearningMemory | null;
   onNew: () => void;
@@ -42,7 +41,6 @@ export function HistorySidebar({
   activeId,
   disabled,
   onOpenCodeAgent,
-  onOpenEntertainments,
   engagementLabel,
   learningMemory,
   onNew,
@@ -235,8 +233,7 @@ export function HistorySidebar({
             Code Agent
           </button>
         ) : null}
-        {onOpenEntertainments ? (
-          <a
+        <a
             href="/entertain"
             className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
           >
@@ -256,7 +253,6 @@ export function HistorySidebar({
             </svg>
             Entertainments
           </a>
-        ) : null}
         <a
           href={SPARK_GITHUB_URL}
           target="_blank"
