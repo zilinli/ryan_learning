@@ -35,12 +35,12 @@
 
 ### Phase ENT5: Challenge-level AI
 
-- [ ] **ENT5.1** — Research refresh (js-chess-engine levels, yingwang depth ladder, Stanford depth findings)
-- [ ] **ENT5.2** — Design doc v0.6 + D7–D10 + this TODO
-- [ ] **ENT5.3** — Xiangqi: depths 1/2/3/4/5, expert+ quiescence, mobility, higher budgets
-- [ ] **ENT5.4** — Chess: depths 1/2/3/4/4, expert+ quiescence, higher budgets
-- [ ] **ENT5.5** — Go atari scoring; Gomoku/UTTT stronger ladders; default UI `hard`
-- [ ] **ENT5.6** — Unit tests D1–D10 green
+- [x] **ENT5.1** — Research refresh (js-chess-engine levels, yingwang depth ladder, Stanford depth findings)
+- [x] **ENT5.2** — Design doc v0.6 + D7–D10 + this TODO
+- [x] **ENT5.3** — Xiangqi: depths 1/2/3/4/5, expert+ quiescence, higher budgets
+- [x] **ENT5.4** — Chess: depths 1/2/3/4/4, expert+ quiescence, higher budgets
+- [x] **ENT5.5** — Go atari scoring; Gomoku/UTTT stronger ladders; default UI `hard`
+- [x] **ENT5.6** — Unit tests D1–D10 green
 - [ ] **ENT5.7** — Build + PM2 restart + git push
 
 ### ✅ Done — ENT4 (5-level pills + PST)
