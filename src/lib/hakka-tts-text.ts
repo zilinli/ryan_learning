@@ -42,6 +42,12 @@ export function normalizeHakkaForTts(raw: string): string {
     .replace(/[;；]+/g, "；")
     .replace(/[:：]+/g, "：");
 
+  // 选择题标记 → 客语可念
+  t = t.replace(/\bA\s*[)）．.]/gi, "甲，");
+  t = t.replace(/\bB\s*[)）．.]/gi, "乙，");
+  t = t.replace(/\bC\s*[)）．.]/gi, "丙，");
+  t = t.replace(/\bD\s*[)）．.]/gi, "丁，");
+
   // 阿拉伯数字 → 汉字（逐位；G2P 不认 0-9）
   t = t.replace(/[0-9０-９]+/g, (m) =>
     [...m]

@@ -32,4 +32,12 @@ describe("normalizeHakkaForTts", () => {
   it("normalizes ascii punctuation", () => {
     expect(normalizeHakkaForTts("做得好!")).toBe("做得好！");
   });
+
+  it("speaks multiple-choice markers in Chinese", () => {
+    const out = normalizeHakkaForTts("A) 放低水桶 B) 先汲水 C) 趕狗仔走");
+    expect(out).toContain("甲");
+    expect(out).toContain("乙");
+    expect(out).toContain("丙");
+    expect(out).not.toMatch(/\bA\b/);
+  });
 });

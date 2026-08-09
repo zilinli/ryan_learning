@@ -15,6 +15,13 @@ export type SpeakHandlers = {
   shouldContinue?: () => boolean;
 };
 
+/** teo/hak 走重推理 sidecar，并发预取会把 4GB 机器拖死，听感像「读完一句卡死」。 */
+function isDialectHandlers(h: SpeakHandlers): boolean {
+  if (h.voiceId == null) return false;
+  const lang = getTutorVoice(h.voiceId).lang;
+  return lang === "teo" || lang === "hak";
+}
+
 /**
  * ~0.2s silent WAV (44100Hz mono). Longer than 1-sample clips so iOS
  * treats unlock() as a real media play inside the user gesture.
@@ -173,7 +180,12 @@ export class NeuralSpeechEngine {
     if (handlers) this.activeHandlers = handlers;
     if (!delta) return;
     this.streamBuf += delta;
-    const { ready, rest } = pullSpeakableFromBuffer(this.streamBuf);
+    const dialect = isDialectHandlers(this.activeHandlers);
+    const { ready, rest } = pullSpeakableFromBuffer(this.streamBuf, {
+      // 方言：多攒一点再送合成，减少「一句一请求」的长空隙
+      minChars: dialect ? 48 : 28,
+      maxWaitChars: dialect ? 220 : 160,
+    });
     this.streamBuf = rest;
     for (const chunk of ready) this.enqueueChunk(chunk);
   }
@@ -185,6 +197,11 @@ export class NeuralSpeechEngine {
     });
     this.streamBuf = rest;
     for (const chunk of ready) this.enqueueChunk(chunk);
+  }
+
+  /** True while audio is playing or chunks are waiting / synthesizing. */
+  isBusy() {
+    return this.pumping || this.queue.length > 0;
   }
 
   /**
@@ -204,11 +221,15 @@ export class NeuralSpeechEngine {
     const cleaned = text.trim();
     if (cleaned.length < 2) return;
     const last = this.queue[this.queue.length - 1];
-    // Glue short fragments into one synth request — cuts inter-clip silence
+    const dialect = isDialectHandlers(this.activeHandlers);
+    // 方言合成很慢：尽量拼成更长片段，少打几次 FormoSpeech / 百炼
+    const gluePrev = dialect ? 140 : 48;
+    const glueNext = dialect ? 100 : 28;
+    const glueMax = dialect ? 360 : 240;
     if (
       last &&
-      (last.length < 48 || cleaned.length < 28) &&
-      joinSpeechParts(last, cleaned).length <= 240
+      (last.length < gluePrev || cleaned.length < glueNext) &&
+      joinSpeechParts(last, cleaned).length <= glueMax
     ) {
       this.queue[this.queue.length - 1] = joinSpeechParts(last, cleaned);
     } else {
@@ -222,9 +243,10 @@ export class NeuralSpeechEngine {
     return `${this.resolveVoice(text, h)}\0${text}`;
   }
 
-  /** Kick off TTS for the next 1–3 queued phrases while audio is playing. */
-  private warmPrefetch(h: SpeakHandlers, ahead = 3) {
-    for (let i = 0; i < Math.min(ahead, this.queue.length); i += 1) {
+  /** Kick off TTS for upcoming phrases while audio plays. Dialect: only +1. */
+  private warmPrefetch(h: SpeakHandlers, ahead?: number) {
+    const n = ahead ?? (isDialectHandlers(h) ? 1 : 3);
+    for (let i = 0; i < Math.min(n, this.queue.length); i += 1) {
       const text = this.queue[i]!;
       const key = this.cacheKey(text, h);
       if (this.prefetch.has(key)) continue;
@@ -338,11 +360,15 @@ export class NeuralSpeechEngine {
         : undefined;
     const ttsLang = dialectLang === "teo" || dialectLang === "hak" ? dialectLang : undefined;
     const voice = this.resolveVoice(text, h);
+    const dialect = ttsLang === "teo" || ttsLang === "hak";
+    // FormoSpeech CPU 合成单句可达数十秒；给足时间但绝不无限挂起
+    const timeoutMs = dialect ? 90_000 : 45_000;
     const attempt = async (): Promise<ArrayBuffer> => {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, voice, lang: ttsLang }),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -357,7 +383,10 @@ export class NeuralSpeechEngine {
     try {
       return await attempt();
     } catch (err) {
-      // One client-side retry — covers brief STT/TTS service blips
+      // Dialect：失败不重试第二次长等待（否则像卡死）；非方言仍快速重试一次
+      if (dialect) {
+        throw err instanceof Error ? err : new Error("TTS failed");
+      }
       await new Promise((r) => setTimeout(r, 280));
       try {
         return await attempt();
@@ -401,6 +430,20 @@ export class NeuralSpeechEngine {
           this.warmPrefetch(h);
           await this.playMp3(ab, gen);
         } catch (err) {
+          const dialect = isDialectHandlers(h);
+          if (dialect) {
+            // 跳过坏句/超时句，继续后面故事，避免整段朗读卡死
+            const msg =
+              err instanceof Error ? err.message : "dialect TTS failed";
+            h.onStatus?.(
+              this.queue.length > 0
+                ? `跳过一句，继续… (${this.queue.length} left)`
+                : "跳过一句",
+            );
+            console.warn("[tts] dialect chunk skipped:", msg);
+            this.prefetch.clear();
+            continue;
+          }
           try {
             // Retry once
             await this.unlock();

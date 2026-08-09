@@ -92,6 +92,11 @@ def normalize_hakka(raw: str) -> str:
     t = re.sub(r"[,，]+", "，", t)
     t = re.sub(r"[.。]+", "。", t)
 
+    t = re.sub(r"\bA\s*[)）．.]", "甲，", t, flags=re.I)
+    t = re.sub(r"\bB\s*[)）．.]", "乙，", t, flags=re.I)
+    t = re.sub(r"\bC\s*[)）．.]", "丙，", t, flags=re.I)
+    t = re.sub(r"\bD\s*[)）．.]", "丁，", t, flags=re.I)
+
     def digits_to_zh(m: re.Match[str]) -> str:
         out = []
         for ch in m.group(0):

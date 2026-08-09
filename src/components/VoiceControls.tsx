@@ -226,8 +226,22 @@ export function VoiceControls({
       },
       finish: (fullText: string) => {
         if (!wantSpeakRef.current) return;
+        const token = speakTokenRef.current;
         getSharedSpeechEngine().finishReply(fullText, makeHandlers());
         setSpeaking(true);
+        // 流式朗读结束时 pump 异步；轮询到空闲再熄灭 Speaking，避免假卡死
+        const watch = window.setInterval(() => {
+          if (token !== speakTokenRef.current) {
+            window.clearInterval(watch);
+            return;
+          }
+          if (!getSharedSpeechEngine().isBusy()) {
+            window.clearInterval(watch);
+            setSpeaking(false);
+            setStatus("");
+          }
+        }, 200);
+        window.setTimeout(() => window.clearInterval(watch), 180_000);
       },
       stop: () => stopSpeaking(),
       unlocked: () => getSharedSpeechEngine().isUnlocked(),
