@@ -17,6 +17,14 @@ import {
   type LearningMemory,
 } from "./learning-memory";
 import type { EngagementState } from "./engagement";
+import { scratchDiagnosisPromptLines } from "./scratch-diagnosis";
+import { misconceptionPromptLines } from "./misconceptions";
+import {
+  isRepresentation,
+  multiRepPromptLines,
+  pickForcedRepresentation,
+  type Representation,
+} from "./multi-rep";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
@@ -330,9 +338,11 @@ export function buildTutorPrompt(params: {
     "  Display: $$\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$$",
     "- Voice / TTS: also say the math in plain words once (e.g. “square root of 2”) beside the LaTeX — kids follow by ear.",
     "- Keep spoken-friendly chunks: aim for 2–3 short sentences, then a question (pause for the student).",
-    "- Geometry / figures: call draw_geometry, then paste its markdown image (![](data:image/svg+xml,...)) UNCHANGED (no code fence).",
+    "- Geometry / figures: call draw_geometry with a stable diagramId + rising revision, then paste its markdown image UNCHANGED (no code fence).",
+    "  Alt text is set as geo:<diagramId>:<revision> Title — the app replaces older same-id figures (CA-8).",
     "  After the figure: ask what they notice AND invite a ‘measuring’ move (e.g. “If you had a ruler, what would you measure first?” / “Point to the right angle”).",
     "  Prefer discovery marks on the diagram (label a side “?”, leave the answer unmarked) — not the final number.",
+    "  Optional step highlights: use SVG path/shape ids step-1, step-2… for progressive focus.",
     "- Optional: short ```mermaid for processes; https images with ![alt](url) sparingly.",
     "- Reading comprehension / passage questions: ALWAYS show WHERE to look BEFORE asking:",
     "  Use a Markdown blockquote with Photo + location, then the exact quote, e.g.",
@@ -364,9 +374,11 @@ export function buildTutorPrompt(params: {
     "Partial attempts / scratch work (text or photo of their steps):",
     "- Welcome drafts. Focus on WHERE thinking went off track, not just that it’s wrong.",
     "- Example: “I can see how you got to [their number]. Let’s find the tricky step together…”",
+    "- When a notebook photo is present, follow [Scratch-work vision — CA-5] fence rules.",
     "",
-    "Analogy switch: if they say “I still don’t get it” more than once on the SAME concept,",
-    "switch to a CONCRETE analogy BEFORE L3 (fractions→pizza/chocolate; division→sharing candies; place value→money).",
+    "Analogy / multi-rep switch (CA-7): if they say “I still don’t get it” more than once on the SAME skill,",
+    "switch to the NEXT unused representation BEFORE L3 — cycle: bar_model → number_line → story → money → blocks.",
+    "Do not reuse the same analogy; prefer the forced rep from learning memory when present.",
     "",
     "Self-check after a harder win (once, lightly): ask confidence 1–3",
     "(1=still confused, 2=getting there, 3=I could teach someone) and remember that feeling next turn.",
@@ -441,6 +453,26 @@ export function buildTutorPrompt(params: {
       ].join("\n")
     : "";
 
+  const mem = params.learningMemory;
+  const preferredRaw = mem?.preferredRepBySkill || {};
+  const preferred: Record<string, Representation> = {};
+  for (const [k, v] of Object.entries(preferredRaw)) {
+    if (isRepresentation(v)) preferred[k] = v;
+  }
+  const stuck = mem?.stuckStreakBySkill || {};
+  let forced: { skillId: string; rep: Representation } | null = null;
+  for (const [skillId, streak] of Object.entries(stuck)) {
+    const rep = pickForcedRepresentation(skillId, Number(streak) || 0, preferred);
+    if (rep) {
+      forced = { skillId, rep };
+      break;
+    }
+  }
+  const recentMc = (mem?.skills || [])
+    .flatMap((s) => s.misconceptionHits || [])
+    .sort((a, b) => b.lastSeen - a.lastSeen)
+    .slice(0, 4);
+
   return [
     "[Tutor context]",
     audienceLine(mode),
@@ -471,6 +503,9 @@ export function buildTutorPrompt(params: {
         ].join("\n")
       : thinkFirstRules,
     homeworkCoach,
+    ...scratchDiagnosisPromptLines(hasHomework),
+    ...misconceptionPromptLines(recentMc),
+    ...multiRepPromptLines(preferred, forced),
     checkModeBlock,
     "",
     "[Student message]",

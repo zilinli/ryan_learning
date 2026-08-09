@@ -7,6 +7,7 @@ import {
   markOpenerShown,
   openerDateStorageKey,
   wasOpenerShownToday,
+  yieldOpenerForHomework,
 } from "./session-opener";
 
 function baseMem(overrides?: Partial<LearningMemory["skills"][0]>): LearningMemory {
@@ -76,6 +77,24 @@ describe("session-opener (CA-3)", () => {
     expect(next).not.toBeNull();
   });
 
+  it("SO5b: A3 recurring gap preferred with last-few-days copy", () => {
+    const day = new Date("2026-08-10T10:00:00");
+    const mem = {
+      ...baseMem(),
+      gapHistory: [
+        {
+          skillId: "fractions-concepts",
+          label: "Fraction concepts",
+          days: ["2026-08-08", "2026-08-09"],
+          expiresAt: day.getTime() + 86_400_000,
+        },
+      ],
+    };
+    const opener = buildSessionOpener(mem, "acct_a", day)!;
+    expect(opener.kind).toBe("recurring");
+    expect(opener.line).toMatch(/last few days/i);
+  });
+
   it("SO5: copy mentions homework alternative", () => {
     const opener = buildSessionOpener(baseMem(), "acct_a")!;
     expect(opener.line.toLowerCase()).toMatch(/homework/);
@@ -88,5 +107,15 @@ describe("session-opener (CA-3)", () => {
     expect(wasOpenerShownToday("acct_b", day)).toBe(false);
     expect(buildSessionOpener(baseMem(), "acct_b", day)).not.toBeNull();
     expect(localDateKey(day)).toBe("2026-08-09");
+  });
+
+  it("B1.h: homework intent yields opener for the day", () => {
+    const day = new Date("2026-08-09T10:00:00");
+    expect(yieldOpenerForHomework("acct_a", "here's my homework photo", day)).toBe(
+      true,
+    );
+    expect(wasOpenerShownToday("acct_a", day)).toBe(true);
+    expect(buildSessionOpener(baseMem(), "acct_a", day)).toBeNull();
+    expect(yieldOpenerForHomework("acct_b", "just chatting", day)).toBe(false);
   });
 });

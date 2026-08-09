@@ -49,17 +49,17 @@
 - [ ] **CA-P0.R3** — Manual smoke M1–M4 on live (see Phase CA-P0 below)
 - [ ] **A1.h** — Worksheet cut-accuracy eval set + hardening if &lt;90%
 - [ ] **A2.h** — Session-end hook definition + ZPD drill quality checks
-- [ ] **B1.h** — Yield-to-homework regression tests
+- [x] **B1.h** — Yield-to-homework: any send / homework intent marks opener shown (`yieldOpenerForHomework`)
 
 ### P1 — Teaching depth + v2 additions
 
 > Design: [ca-p1-system-design.md](subsystems/ca-p1-system-design.md)
 
-- [ ] **C1 / CA-5** — Scratch-work vision (links **2.4**) — SD1–SD2
-- [ ] **C2 / CA-6** — Misconception tag library — MC1–MC3
-- [ ] **C3 / CA-7** — Multi-representation auto-switch — MR1–MR3
-- [ ] **C4 / CA-8** — Dynamic board / step animation — DB1–DB2
-- [ ] **A3** — Cross-day knowledge-gap merge (decay/expiry required) → opener cites recurring weak skill
+- [x] **C1 / CA-5** — Scratch-work vision fence + prompt (SD1–SD2); links **2.4**
+- [x] **C2 / CA-6** — Misconception tag library (~25) + fence merge (MC1–MC3)
+- [x] **C3 / CA-7** — Multi-representation cycle + memory (MR1–MR3)
+- [x] **C4 / CA-8** — diagramId/revision replace in thread (DB1–DB2); step-N CSS later
+- [x] **A3** — Cross-day gapHistory with 14d expiry → opener “last few days”
 - [ ] **B3** — Voice tolerance / confirm-intent (after Phase **G**, not inside G) — ELSA-style low-confidence confirm
 
 ### P2 — Tools / parent (chat-first)
@@ -495,7 +495,7 @@
 ### Phase 2: Agent & Prompt (partial)
 - [x] **2.1** Subject-specific coaching templates (math/reading/science/writing)
 - [x] **2.3** Progressive disclosure (`~~~step` fences, click-to-reveal)
-- [x] **2.2** Multi-turn worksheet planning — shipped as **CA-1** (`worksheet-planner.ts` + progress chip); hardening **A1.h** / UI-A1a still open
+- [x] **2.2** Multi-turn worksheet planning — shipped as **CA-1** (`worksheet-planner.ts` + progress chip); **UI-A1a/b** shipped in UI-POLISH; hardening **A1.h** still open
 - [ ] **2.4** Capture/replay student reasoning chains — see analysis **CA-5** / **C1**
 
 ### Phase 6: Testing (partial)
@@ -547,7 +547,7 @@
 | ✅ 0.11a | Left/right bubbles | done | `ChatThread.tsx` |
 | ✅ 0.11b | Auto-scroll + "↓ New messages" | done | `ChatThread.tsx` |
 | ✅ 0.11c | Streaming / thinking pulse | done | `ChatThread.tsx` |
-| ✅ 0.11d | Empty state copy + Photo/Voice hints | done (hints non-tappable → **UI-E1**) | `ChatThread.tsx` |
+| ✅ 0.11d | Empty state + Snap homework CTA | done (**UI-E1** shipped) | `ChatThread.tsx` |
 
 ### ✅ 0.12 States & Feedback
 

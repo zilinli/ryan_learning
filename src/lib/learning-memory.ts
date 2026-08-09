@@ -40,6 +40,18 @@ import {
   SKILL_CATALOG,
   topicLabelForId,
 } from "./skill-catalog";
+import {
+  isRepresentation,
+  looksLikeStillStuck,
+  nextRepresentation,
+  type Representation,
+} from "./multi-rep";
+import { mergeMisconceptionHit, type MisconceptionHit } from "./misconceptions";
+import {
+  pruneGapHistory,
+  recordGapsFromMemory,
+  type GapDayEntry,
+} from "./knowledge-gaps";
 
 export type TopicMastery = {
   id: string;
@@ -68,6 +80,8 @@ export type SkillMastery = {
   sm2State: Sm2State;
   /** Elo-hybrid difficulty rating for this skill/topic */
   eloState: EloState;
+  /** CA-6 — recent misconception tag hits */
+  misconceptionHits?: Array<{ id: string; count: number; lastSeen: number }>;
 };
 
 /** Auto-advance suggestion when mastery exceeds current band ceiling. Parent opt-in; not auto-applied. */
@@ -86,6 +100,17 @@ export type LearningMemory = {
   sessionDigests: SessionDigest[];
   /** Auto-advance suggestion — set by autoAdvanceCheck, cleared when parent approves */
   advanceSuggestion?: AdvanceSuggestion | null;
+  /** CA-7 — last representation used per skillId */
+  preferredRepBySkill?: Record<string, string>;
+  /** CA-7 — consecutive "still stuck" count per skillId */
+  stuckStreakBySkill?: Record<string, number>;
+  /** A3 — cross-day weak-skill gap history (decayed) */
+  gapHistory?: Array<{
+    skillId: string;
+    label: string;
+    days: string[];
+    expiresAt: number;
+  }>;
   updatedAt: number;
 };
 
@@ -137,8 +162,50 @@ export function emptyLearningMemory(): LearningMemory {
     recentStruggles: [],
     recentWins: [],
     sessionDigests: [],
+    preferredRepBySkill: {},
+    stuckStreakBySkill: {},
+    gapHistory: [],
     updatedAt: 0,
   };
+}
+
+function normalizeRepMap(
+  raw: unknown,
+): Record<string, Representation> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, Representation> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (k && isRepresentation(v)) out[k.slice(0, 48)] = v;
+  }
+  return out;
+}
+
+function normalizeStuckMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Math.floor(Number(v) || 0);
+    if (k && n > 0) out[k.slice(0, 48)] = Math.min(n, 20);
+  }
+  return out;
+}
+
+function normalizeHits(
+  raw: unknown,
+): MisconceptionHit[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const out: MisconceptionHit[] = [];
+  for (const h of raw) {
+    if (!h || typeof h !== "object") continue;
+    const row = h as Record<string, unknown>;
+    if (typeof row.id !== "string") continue;
+    out.push({
+      id: String(row.id).slice(0, 48),
+      count: Math.max(1, Math.floor(Number(row.count) || 1)),
+      lastSeen: Number(row.lastSeen) || 0,
+    });
+  }
+  return out.length ? out.slice(0, 8) : undefined;
 }
 
 export function loadLearningMemory(accountId: string = RYAN_ACCOUNT): LearningMemory {
@@ -282,6 +349,9 @@ function normalizeSkill(raw: Partial<SkillMastery>): SkillMastery | null {
     lastSeen: Number(raw.lastSeen) || 0,
     sm2State: normalizeSm2((raw as Record<string, unknown>).sm2State),
     eloState: normalizeElo((raw as Record<string, unknown>).eloState),
+    misconceptionHits: normalizeHits(
+      (raw as Record<string, unknown>).misconceptionHits,
+    ),
   };
 }
 
@@ -393,6 +463,15 @@ export function normalizeMemory(
     recentStruggles: cleanNotes(raw.recentStruggles),
     recentWins: cleanNotes(raw.recentWins),
     sessionDigests: cleanDigests(raw.sessionDigests),
+    advanceSuggestion:
+      raw.advanceSuggestion && typeof raw.advanceSuggestion === "object"
+        ? (raw.advanceSuggestion as AdvanceSuggestion)
+        : raw.advanceSuggestion === null
+          ? null
+          : undefined,
+    preferredRepBySkill: normalizeRepMap(raw.preferredRepBySkill),
+    stuckStreakBySkill: normalizeStuckMap(raw.stuckStreakBySkill),
+    gapHistory: pruneGapHistory(raw.gapHistory as GapDayEntry[] | undefined),
     updatedAt: Number(raw.updatedAt) || 0,
   };
 }
@@ -563,6 +642,10 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
     : a.sm2State.prevReview >= (b.sm2State.prevReview || 0)
       ? a.sm2State
       : b.sm2State || { ...DEFAULT_SM2 };
+  let hits = a.misconceptionHits ? [...a.misconceptionHits] : [];
+  for (const h of b.misconceptionHits || []) {
+    hits = mergeMisconceptionHit(hits, h);
+  }
   return {
     id: a.id,
     label: newer.label,
@@ -576,6 +659,7 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
     lastSeen: Math.max(a.lastSeen, b.lastSeen),
     sm2State: mergedSm2,
     eloState: newer.eloState.n > 0 ? newer.eloState : (b.eloState.n > 0 ? b.eloState : a.eloState),
+    misconceptionHits: hits.length ? hits : undefined,
   };
 }
 
@@ -603,6 +687,19 @@ export function mergeLearningMemory(
     ),
   ].slice(0, MAX_DIGESTS);
 
+  const preferredRepBySkill = {
+    ...older.preferredRepBySkill,
+    ...newer.preferredRepBySkill,
+  };
+  const stuckStreakBySkill = {
+    ...older.stuckStreakBySkill,
+    ...newer.stuckStreakBySkill,
+  };
+  const gapHistory = pruneGapHistory([
+    ...(newer.gapHistory || []),
+    ...(older.gapHistory || []),
+  ]);
+
   const merged = normalizeMemory({
     skills,
     topics: topicsFromSkills(skills),
@@ -615,6 +712,10 @@ export function mergeLearningMemory(
       ...older.recentWins.filter((s) => !newer.recentWins.includes(s)),
     ].slice(0, MAX_NOTES),
     sessionDigests: mergedDigests,
+    preferredRepBySkill,
+    stuckStreakBySkill,
+    gapHistory,
+    advanceSuggestion: newer.advanceSuggestion ?? older.advanceSuggestion,
     updatedAt: Math.max(na.updatedAt || 0, nb.updatedAt || 0),
   });
   // Apply SM-2 decay after merge so stale remote skills don't look mastered
@@ -741,16 +842,90 @@ export function recordLearningTurnMemory(
     if (!recentWins.includes(note)) recentWins.unshift(note);
   }
 
-  const next = normalizeMemory({
+  // CA-7 — stuck streak + advance preferred representation
+  const primaryId = inferred[0]?.id;
+  const preferredRepBySkill = { ...(base.preferredRepBySkill || {}) };
+  const stuckStreakBySkill = { ...(base.stuckStreakBySkill || {}) };
+  if (primaryId && looksLikeStillStuck(params.userText)) {
+    const streak = (stuckStreakBySkill[primaryId] || 0) + 1;
+    stuckStreakBySkill[primaryId] = streak;
+    if (streak >= 2) {
+      const last = isRepresentation(preferredRepBySkill[primaryId])
+        ? preferredRepBySkill[primaryId]
+        : null;
+      preferredRepBySkill[primaryId] = nextRepresentation(
+        last,
+        last ? [last] : [],
+      );
+    }
+  } else if (primaryId && outcome === "correct") {
+    stuckStreakBySkill[primaryId] = 0;
+  }
+
+  // A3 — record weak skills into cross-day gap history
+  let next = normalizeMemory({
     skills: skills
       .sort((a, b) => b.lastSeen - a.lastSeen)
       .slice(0, MAX_SKILLS),
     recentStruggles: recentStruggles.slice(0, MAX_NOTES),
     recentWins: recentWins.slice(0, MAX_NOTES),
+    sessionDigests: base.sessionDigests,
+    preferredRepBySkill,
+    stuckStreakBySkill,
+    gapHistory: base.gapHistory,
+    advanceSuggestion: base.advanceSuggestion,
     updatedAt: now,
   });
+  next = {
+    ...next,
+    gapHistory: recordGapsFromMemory(next.gapHistory, next, new Date(now)),
+  };
   saveLearningMemory(next);
   return next;
+}
+
+/** CA-6 — apply a misconception fence hit onto a skill row (caller persists). */
+export function applyMisconceptionToMemory(
+  mem: LearningMemory,
+  skillId: string | undefined,
+  hit: MisconceptionHit | null,
+): LearningMemory {
+  if (!hit) return mem;
+  const base = normalizeMemory(mem);
+  const skills = base.skills.map((s) => ({
+    ...s,
+    misconceptionHits: s.misconceptionHits
+      ? s.misconceptionHits.map((h) => ({ ...h }))
+      : undefined,
+  }));
+  let target =
+    (skillId && skills.find((s) => s.id === skillId)) ||
+    [...skills].sort((a, b) => b.lastSeen - a.lastSeen)[0];
+  if (!target) {
+    target = {
+      id: skillId || "general-practice",
+      label: skillId || "general practice",
+      topicId: "general",
+      pKnown: 0.25,
+      mastery: 25,
+      attempts: 0,
+      correct: 0,
+      incorrect: 0,
+      lastSeen: hit.lastSeen,
+      sm2State: { ...DEFAULT_SM2 },
+      eloState: { ...DEFAULT_ELO },
+    };
+    skills.unshift(target);
+  }
+  target.misconceptionHits = mergeMisconceptionHit(
+    target.misconceptionHits,
+    hit,
+  );
+  return normalizeMemory({
+    ...base,
+    skills,
+    updatedAt: Math.max(base.updatedAt, hit.lastSeen),
+  });
 }
 
 // ── Analysis Queries ────────────────────────────────────────────────
@@ -1064,6 +1239,41 @@ export function learningMemoryPromptLines(mem?: LearningMemory | null): string[]
       `[Auto-advance] ${Math.round(m.advanceSuggestion.confidence * 100)}% confidence the student may be ready for ${m.advanceSuggestion.suggestedBand}-band material (${m.advanceSuggestion.skillsReady} skills above 85%). You may occasionally offer harder challenges or check with the student if they'd like more advanced work.`,
     );
   }
+
+  // CA-7 preferred representations
+  if (m.preferredRepBySkill && Object.keys(m.preferredRepBySkill).length) {
+    const bits = Object.entries(m.preferredRepBySkill)
+      .slice(0, 6)
+      .map(([id, rep]) => `${id}=${rep}`);
+    lines.push(`Preferred representation by skill (CA-7): ${bits.join("; ")}.`);
+  }
+
+  // CA-6 misconception hits (recent across skills)
+  const mcHits = m.skills
+    .flatMap((s) =>
+      (s.misconceptionHits || []).map((h) => ({ ...h, skillId: s.id })),
+    )
+    .sort((a, b) => b.lastSeen - a.lastSeen)
+    .slice(0, 4);
+  if (mcHits.length) {
+    lines.push(
+      `Tagged misconceptions (CA-6): ${mcHits
+        .map((h) => `${h.id} on ${h.skillId}×${h.count}`)
+        .join("; ")}.`,
+    );
+  }
+
+  // A3 recurring gaps
+  const recurring = (m.gapHistory || []).filter((g) => g.days.length >= 2);
+  if (recurring.length) {
+    lines.push(
+      `Recurring gaps across days (A3): ${recurring
+        .slice(0, 3)
+        .map((g) => `${g.label} (${g.days.length}d)`)
+        .join("; ")}. Prefer citing these in warm-ups.`,
+    );
+  }
+
   lines.push(
     "When asking a question: briefly tailor difficulty to the skill map (easier if weak; richer if strong).",
     "Continuity: on a fresh thread, ONE short offer to continue a weak or recent topic is OK.",
@@ -1114,11 +1324,15 @@ export function serializeLearningMemoryForChat(
       lastSeen: s.lastSeen,
       sm2State: s.sm2State,
       eloState: { rating: s.eloState.rating, n: s.eloState.n, lastUpdate: s.eloState.lastUpdate },
+      misconceptionHits: s.misconceptionHits?.slice(0, 4),
     })),
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),
     sessionDigests: m.sessionDigests.slice(0, MAX_DIGESTS),
     advanceSuggestion: m.advanceSuggestion ?? undefined,
+    preferredRepBySkill: m.preferredRepBySkill,
+    stuckStreakBySkill: m.stuckStreakBySkill,
+    gapHistory: (m.gapHistory || []).slice(0, 8),
     updatedAt: m.updatedAt,
   };
 }

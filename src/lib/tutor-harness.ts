@@ -577,13 +577,22 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
     },
     draw_geometry: {
       description:
-        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Prefer discovery marks (e.g. a side labeled \"?\") over revealing the final answer. After showing the figure, ask what they notice and invite a measuring/pointing move (ruler thought-experiment or \"where is the right angle?\"). Supports Singapore bar models for word problems: use bar shapes (horizontal/vertical) with labels for part-whole or comparison models.",
+        "Build a simple geometry teaching diagram. Returns a markdown image (![](data:image/svg+xml,...)). Paste that image markdown UNCHANGED into your reply so the student sees the figure (do not wrap it in a code fence). Prefer discovery marks (e.g. a side labeled \"?\") over revealing the final answer. After showing the figure, ask what they notice and invite a measuring/pointing move (ruler thought-experiment or \"where is the right angle?\"). Supports Singapore bar models for word problems: use bar shapes (horizontal/vertical) with labels for part-whole or comparison models. For step updates, reuse the same diagramId and bump revision so the app replaces the prior figure (CA-8).",
       inputSchema: {
         type: "object",
         properties: {
           title: { type: "string" },
           width: { type: "number" },
           height: { type: "number" },
+          diagramId: {
+            type: "string",
+            description:
+              "Stable id for this figure across steps (e.g. tri1). Reuse when updating.",
+          },
+          revision: {
+            type: "number",
+            description: "1-based revision; increase when replacing a prior figure.",
+          },
           shapes: {
             type: "array",
             description:
@@ -603,11 +612,16 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
               isError: true,
             };
           }
+          const diagramId = asString(args.diagramId) || undefined;
+          const revision = asNumber(args.revision, diagramId ? 1 : 0);
           const spec: GeometrySpec = {
             title: asString(args.title) || undefined,
             width: asNumber(args.width, 320),
             height: asNumber(args.height, 240),
             shapes,
+            ...(diagramId
+              ? { diagramId, revision: Math.max(1, revision || 1) }
+              : {}),
           };
           // Validate by building once
           buildGeometrySvg(spec);

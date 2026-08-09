@@ -1,7 +1,8 @@
 # CA-P1 System Design — Scratch · Misconceptions · Multi-rep · Dynamic board
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **designed / implementation deferred** · August 2026  
+> Status: **implemented on develop** · August 2026  
+
 > Depends on: [ca-p0-system-design.md](ca-p0-system-design.md)  
 > Research: [competitive-feature-analysis.md](competitive-feature-analysis.md)
 

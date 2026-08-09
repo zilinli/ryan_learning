@@ -83,6 +83,11 @@ import {
   mergeWorksheetPlan,
   parseWorksheetPlanFence,
 } from "@/lib/worksheet-planner";
+import { parseScratchDiagnosisFence } from "@/lib/scratch-diagnosis";
+import { parseMisconceptionFence } from "@/lib/misconceptions";
+import { collapseSameDiagramImages } from "@/lib/diagram-lifecycle";
+import { applyMisconceptionToMemory } from "@/lib/learning-memory";
+import { inferSkillsFromText } from "@/lib/skill-catalog";
 import {
   buildPracticeKickoffMessage,
   clearPracticeOffer,
@@ -888,6 +893,12 @@ export function TutorShell() {
     setError("");
     setAgentStatus("Thinking…");
 
+    // B1.h — any student turn (homework photo/text) yields the ZPD opener for the day
+    if (sessionOpener) {
+      markOpenerShown(accountId);
+      setSessionOpener(null);
+    }
+
     const needReset =
       resetNextRef.current || resetIdsRef.current.has(sessionId);
     const history = buildHistoryPreview(messages);
@@ -1022,11 +1033,21 @@ export function TutorShell() {
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
       setEngagement(recordLearningTurn(undefined, accountId));
-      const nextMem = recordLearningTurnMemory(mem, {
+      let nextMem = recordLearningTurnMemory(mem, {
         userText: payload.text,
         assistantText: full,
         chatTitle: active?.title || titleFromMessages(messages),
       });
+      // CA-6 — merge misconception fence into skill hits
+      const mcHit = parseMisconceptionFence(full);
+      if (mcHit) {
+        const skillGuess =
+          inferSkillsFromText([payload.text, full].join("\n"))[0]?.id;
+        nextMem = applyMisconceptionToMemory(nextMem, skillGuess, mcHit);
+        saveLearningMemory(nextMem, accountId);
+      }
+      // CA-5 — parse scratch diagnosis (drives prompt via next turns; strip in UI)
+      parseScratchDiagnosisFence(full);
       setLearningMemory(nextMem);
       syncProfileFromSkills(profile, nextMem);
       void pushLearningMemoryToServer(nextMem, accountId);
@@ -1036,7 +1057,11 @@ export function TutorShell() {
       }
       // Always pin the merged final text so a streamed diagram cannot vanish
       // after done/onReplace/storage races. CA-1: also merge worksheet plan.
+      // CA-8: collapse same-diagramId revisions inside the assistant message.
       const plan = parseWorksheetPlanFence(full);
+      const pinned = full.trim()
+        ? collapseSameDiagramImages(full)
+        : "";
       setStore((prev) => {
         if (!prev) return prev;
         const cur = getActiveConversation(prev);
@@ -1045,9 +1070,7 @@ export function TutorShell() {
           m.id === assistantId
             ? {
                 ...m,
-                content: full.trim()
-                  ? full
-                  : m.content || "(empty reply)",
+                content: pinned || m.content || "(empty reply)",
               }
             : m,
         );

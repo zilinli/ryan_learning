@@ -7,12 +7,13 @@ import {
   zpdWarmUpSkills,
   type LearningMemory,
 } from "./learning-memory";
+import { pickRecurringGapSkill } from "./knowledge-gaps";
 import { kvGet, kvSet } from "./browser-kv";
 
 export type SessionOpener = {
   skillId: string;
   label: string;
-  kind: "review" | "zpd";
+  kind: "review" | "zpd" | "recurring";
   line: string;
 };
 
@@ -49,16 +50,46 @@ export function buildSessionOpener(
   if (wasOpenerShownToday(accountId, now)) return null;
   if (!mem?.skills?.length) return null;
 
+  // A3 — prefer skills weak across ≥2 days (with decay/expiry in gapHistory)
+  const recurring = pickRecurringGapSkill(mem.gapHistory, mem);
   const review = needsReviewSkills(mem, 1)[0];
   const zpd = zpdWarmUpSkills(mem, 1)[0];
-  const skill = review ?? zpd;
+  const skill = recurring ?? review ?? zpd;
   if (!skill) return null;
 
-  const kind: SessionOpener["kind"] = review ? "review" : "zpd";
-  const line = `Today fits ${skill.label} — or snap homework first?`;
+  const kind: SessionOpener["kind"] = recurring
+    ? "recurring"
+    : review
+      ? "review"
+      : "zpd";
+  const line =
+    kind === "recurring"
+      ? `${skill.label} has been tricky the last few days — warm up, or snap homework first?`
+      : `Today fits ${skill.label} — or snap homework first?`;
   return { skillId: skill.id, label: skill.label, kind, line };
 }
 
 export function buildOpenerKickoffMessage(opener: SessionOpener): string {
   return `Let's warm up with ${opener.label}. One short question at a time — guide me, don't spoil.`;
+}
+
+/** B1.h — homework / photo intent should suppress opener interrupt. */
+export function looksLikeHomeworkIntent(text: string): boolean {
+  return /\b(homework|worksheet|assignment|snap|photo|camera|作业|功課|功课|習題|习题)\b/i.test(
+    text || "",
+  );
+}
+
+/**
+ * B1.h — if student states homework intent, treat opener as shown (yield).
+ * Returns null when yielded.
+ */
+export function yieldOpenerForHomework(
+  accountId: string,
+  userText: string,
+  now = new Date(),
+): boolean {
+  if (!looksLikeHomeworkIntent(userText)) return false;
+  markOpenerShown(accountId, now);
+  return true;
 }

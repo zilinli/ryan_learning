@@ -152,7 +152,7 @@ describe("buildTutorPrompt", () => {
     expect(p).toContain("Explain reasoning");
     expect(p).toContain("L2.5");
     expect(p).toMatch(/second chance/i);
-    expect(p).toMatch(/CONCRETE analogy|Analogy switch/i);
+    expect(p).toMatch(/multi-rep|Analogy|bar_model/i);
     expect(p).toMatch(/Self-check|confidence 1–3|Self-assessment/i);
     expect(p).toMatch(/Writing drafts/i);
     expect(p).toMatch(/measuring/i);

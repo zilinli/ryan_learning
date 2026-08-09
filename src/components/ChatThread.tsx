@@ -8,10 +8,19 @@ import {
   isWorksheetComplete,
   stripWorksheetPlanFence,
 } from "@/lib/worksheet-planner";
+import { stripScratchDiagnosisFence } from "@/lib/scratch-diagnosis";
+import { stripMisconceptionFence } from "@/lib/misconceptions";
+import { collapseDiagramsInMessages } from "@/lib/diagram-lifecycle";
 import type { PendingPracticeOffer } from "@/lib/session-practice";
 import type { SessionOpener } from "@/lib/session-opener";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
+
+function stripHiddenFences(content: string): string {
+  return stripMisconceptionFence(
+    stripScratchDiagnosisFence(stripWorksheetPlanFence(content)),
+  );
+}
 
 type Props = {
   messages: ChatMessage[];
@@ -300,6 +309,8 @@ export function ChatThread({
     worksheetPlan.total > 0 &&
     !(planComplete && hideCompletePlan);
 
+  const displayMessages = collapseDiagramsInMessages(messages);
+
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
       {showPlanChip && worksheetPlan ? (
@@ -351,12 +362,12 @@ export function ChatThread({
           </div>
         </div>
       ) : null}
-      {messages.map((m) => {
+      {displayMessages.map((m) => {
         const attachments = messageAttachments(m);
         const isUser = m.role === "user";
         const displayContent = isUser
           ? m.content
-          : stripWorksheetPlanFence(m.content);
+          : stripHiddenFences(m.content);
         const wasSeen = seenIds.has(m.id);
         const animateIn =
           !wasSeen &&

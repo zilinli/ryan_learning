@@ -385,6 +385,10 @@ export type GeometrySpec = {
   height?: number;
   title?: string;
   shapes: GeomShape[];
+  /** CA-8 — stable id so the client can replace prior revisions */
+  diagramId?: string;
+  /** CA-8 — monotonic revision (1, 2, 3…) */
+  revision?: number;
 };
 
 function esc(s: string): string {
@@ -589,7 +593,13 @@ export function buildGeometrySvg(spec: GeometrySpec): string {
 
 export function geometrySpecToMarkdown(spec: GeometrySpec): string {
   const svg = buildGeometrySvg(spec);
-  const img = svgToMarkdownImage(svg, spec.title || "geometry diagram");
+  let alt = spec.title || "geometry diagram";
+  if (spec.diagramId) {
+    const rev = Math.max(1, Math.floor(spec.revision || 1));
+    const id = String(spec.diagramId).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+    alt = `geo:${id || "fig"}:${rev}${spec.title ? ` ${spec.title}` : ""}`;
+  }
+  const img = svgToMarkdownImage(svg, alt);
   // Prefer markdown image (reliable). Keep a fenced fallback if encoding fails.
   return img ?? `\`\`\`svg\n${svg}\n\`\`\``;
 }
