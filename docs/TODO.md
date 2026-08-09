@@ -509,10 +509,10 @@
 
 ---
 
-## ✅ Phase 0: Full-Stack UI Implementation — mostly done (manual QA + competitive polish remain)
+## ✅ Phase 0: Full-Stack UI Implementation — mostly done (manual QA remain)
 
 > **Spec:** [subsystems/ui-architecture.md](subsystems/ui-architecture.md)  
-> **Code status (2026-08-09):** Composer/VoiceControls English chrome, sidebar slide, empty/error states, focus-visible, safe-area — present in code. Remaining UX polish tracked under **UI-POLISH** (competitive §12), not this phase.
+> **Code status (2026-08-09):** Composer/VoiceControls English chrome, sidebar slide, empty/error states, focus-visible, safe-area — present in code. Competitive §12 polish shipped under **UI-POLISH** (`a1e282d`).
 
 ### ✅ 0.8 Composer Layout Overhaul
 
