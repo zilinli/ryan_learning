@@ -42,8 +42,20 @@ function isRed(piece: XiangqiPiece): boolean {
   return "RNBAKCP".includes(piece);
 }
 
-function pieceColor(piece: XiangqiPiece): XiangqiColor {
+export function pieceColor(piece: XiangqiPiece): XiangqiColor {
   return isRed(piece) ? "red" : "black";
+}
+
+/** Apply a move on a board copy (no check validation — caller must use legal moves). */
+export function applyBoardMove(
+  board: XiangqiBoard,
+  from: XiangqiPosition,
+  to: XiangqiPosition,
+): XiangqiBoard {
+  const next = board.map((row) => [...row]) as XiangqiBoard;
+  next[to.row][to.col] = next[from.row][from.col];
+  next[from.row][from.col] = null;
+  return next;
 }
 
 export function initialBoard(): XiangqiBoard {

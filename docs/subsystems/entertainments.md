@@ -22,6 +22,8 @@
 1. **AI 500**: used `run.messages()` — not in Cursor SDK; correct API is `run.stream()` / `onDelta` (same as tutor chat).
 2. **Xiangqi grid missing**: CSS cell-grid, no SVG lines/river/palace; pieces not on intersections.
 3. **No engine unit tests** after rewrite → regressions uncaught.
+4. **Chess unusable (v2)**: `board[r]` used rank index from square label (`r=7` for a8) but `chess.js` `board()[0]` is rank 8 — pieces drawn on wrong ranks so clicks never matched the piece shown. Fixed via `squareFromVisual` / `pieceAtVisual`.
+5. **AI too slow**: Cursor SDK per-move. Industry practice (chess.js + local minimax / Web Worker) — Chess now uses **client-side local AI only** (`chess-local.ts`), typically &lt;50ms.
 
 ---
 
