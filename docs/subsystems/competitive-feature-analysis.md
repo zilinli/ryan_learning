@@ -1,8 +1,9 @@
 # Competitive Feature Analysis — 竞品功能调研 (2026-08)
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **research + P0 design landed** · August 2026  
-> Downstream tasks: [TODO.md § Competitive Analysis Backlog](../TODO.md) · [ca-p0-system-design.md](ca-p0-system-design.md) · [ca-p1-system-design.md](ca-p1-system-design.md)
+> Status: **v2 confirmed 2026-08-09** · P0 shipped on `develop`; P1–P3 backlog accepted  
+> Plan: [competitive-product-plan-v2.md](competitive-product-plan-v2.md)  
+> Downstream: [TODO.md § Competitive Analysis Backlog](../TODO.md) · [ca-p0-system-design.md](ca-p0-system-design.md) · [ca-p1-system-design.md](ca-p1-system-design.md)
 
 ---
 
@@ -27,7 +28,7 @@ Synthesized from Common Sense Media *Generation AI* (Mar 2026), Pew teens+AI (Fe
 | Need | Evidence | Spark response |
 |------|----------|----------------|
 | Help with homework **without cheating** | ~60% parents OK with schoolwork AI; majority reject emotional companion AI; fear of answer-copying | Keep Socratic anti-spoiler; never default to solver mode |
-| Visibility without nagging child | Parent dashboards on Synthesis/ShowYourWork; parents feel unprepared to guide AI (52%+) | **CA-10** PIN weekly digest — not a kid-facing radar |
+| Visibility without nagging child | Parent dashboards on Synthesis/ShowYourWork; parents feel unprepared to guide AI (52%+) | **D2** daily one-liner first; weekly report demoted to P3 |
 | Don't fall behind peers | WTP for AI homework tools rises with peer adoption | Fast worksheet path (**CA-1**) so homework nights feel covered |
 | Responsible use / bias awareness | Top literacy ask: spot misinformation + responsible school use | Curriculum-aligned prompts; BASIS/Singapore methods; no out-of-syllabus shortcuts |
 
@@ -78,10 +79,18 @@ Synthesized from Common Sense Media *Generation AI* (Mar 2026), Pew teens+AI (Fe
 | **ShowYourWork / CalcGPT** | Scratch-work vision + embedded Desmos | Scratch paper + graphs as a toolkit next to chat |
 | **Buddy.ai** | Voice-first, barge-in, kid ASR, COPPA | Voice-only must be real turn-taking, not TTS-then-record |
 | **Photomath / Gauth** | Worksheet OCR + step solutions (often answer-forward) | Steal multi-problem page flow; keep Socratic (no spoilers by default) |
+| **ALEKS** | Knowledge-space “learnable now” set | Internal ammo for B1; never expose map UI (**C5** P3 idea) |
+| **松鼠 AI / Squirrel AI** | Fine KC graph + teach-practice-feedback | KC methodology yes; child-facing graph **no** |
+| **IXL** | Practice-as-diagnosis (SmartScore) | Fold into **A2** as default BKT update (**C6**) |
+| **Duolingo Max** | Roleplay + Explain My Answer | Resume-after-interrupt copy for **B2b** |
+| **ELSA Speak** | Phoneme feedback + kid ASR forgiveness | **B3** after Phase G |
+| **国内 AI 老师「打断续讲」** | Interrupt mid-explain, resume at breakpoint | **B2b** state design reference |
 
 ---
 
-## 4. Recommended features (confirmed for analysis TODO)
+## 4. Recommended features (v2 confirmed)
+
+ID aliases: A1=CA-1, A2=CA-2(+C6), B1=CA-3, B2a=CA-4, C1–C4=CA-5…8.
 
 Filter: high learning value × feasible on current stack (Next.js tutor + Cursor agent + local/cloud STT/TTS + 4GB host) × chat-first UX.
 
@@ -103,87 +112,113 @@ Filter: high learning value × feasible on current stack (Next.js tutor + Cursor
 | **CA-7** | Multi-representation auto-switch | Synthesis blocks→number line→word problem | After repeated "还是不懂", force bar model / number line / story; remember what worked | **High** — analogy switch exists; need enum + memory field | Deepens existing analogy mechanism |
 | **CA-8** | Dynamic board / step animation | 豆包板书, Photomath Animated Steps | Geometry SVG updates labels with dialogue; optional step highlight | **Medium** — static SVG exists; timed sync is design work | Continues v2 §6.6 + Phase 3 geometry |
 
+### P1 additions (v2)
+
+| ID | Feature | Sources | What to build | Feasibility | Constraints |
+|----|---------|---------|---------------|-------------|-------------|
+| **A3** | Cross-day gap merge | 豆包错题本, Squirrel AI | Aggregate recurring weak skills across days → opener cites them | **Medium** | Requires A2; **must** decay/expire gaps |
+| **B3** | Voice tolerance / confirm-intent | ELSA, Buddy.ai | Low ASR confidence → “你是说除以还是除法？” | **Medium** | **After Phase G**, not inside G acceptance |
+
 ### P2 — Tools & parent (chat-first preserved)
 
 | ID | Feature | Sources | What to build | Feasibility | Brainstorm / constraints |
 |----|---------|---------|---------------|-------------|--------------------------|
-| **CA-9** | Embedded Desmos / graphs | CalcGPT, ScholarOS | In-chat algebra graph tool, not a new nav page | **Medium** — already Phase **3.3** | Reframe as session-embedded tool |
-| **CA-10** | Parent weekly digest (PIN) | Synthesis, ShowYourWork, StudySpaces | Narrow TODO **1.7**: weekly summary in PIN sidebar / PDF — **not** a child radar wall | **Medium** | Child UI unchanged |
-| **CA-11** | Entertainments → skill soft link | Synthesis game loop | Optional post-game "想练相关数学吗？" → skill | **Medium** | Easy to distract; keep opt-in and rare |
-| **CA-12** | Dialect speech quality | (Spark-unique vs Western tutors) | Keep Phase **G** as engineering P0; analysis only tracks priority | **In progress** | Moat, not a new product idea |
+| **CA-9** | Embedded Desmos / graphs | CalcGPT, ScholarOS | In-chat algebra graph tool, not a new nav page | **Medium** — Phase **3.3** | Session-embedded tool |
+| **D2** | Parent **daily one-liner** (PIN) | Synthesis / 豆包家长提醒 (narrowed) | Natural-language “today practiced X; stuck on Y” | **High** | Preferred over weekly charts |
+| **D1** | PIN **核对模式** | (Spark-specific) | Switch prompt to show full steps; exit → Socratic | **High** | Exit must force Socratic; no child-only path |
+| **CA-11** | Entertainments → skill soft link | Synthesis game loop | Rare opt-in post-game offer | **Medium** | Easy to distract |
+| **CA-12** | Dialect speech quality | Spark-unique | Keep Phase **G** engineering P0 | **In progress** | Moat |
+
+### P3 — Ideas only (do not over-schedule)
+
+| ID | Feature | Note |
+|----|---------|------|
+| **B2b** | Continuous voice + interrupt-resume | After B2a; use 豆包/Duolingo Max as copy refs |
+| **C5** | ALEKS-style next-learnable set | **Internal reasoning only** — never knowledge-map UI |
+| **Weekly report** | Former CA-10 | Only if D2 insufficient; demoted from P2 |
+
+**C6 (IXL practice-as-diagnosis):** not a separate backlog ID — default behavior of A2 / BKT updates.
 
 ---
 
 ## 5. Explicit non-goals (anti-patterns)
 
-Write these down so future suggestions get rejected quickly:
-
 | Anti-pattern | Why reject |
 |--------------|------------|
-| Child home with course catalog / badge wall / multi-tab learning center | Violates DESIGN three pillars |
-| Default "instant answer" solver mode | Conflicts with Socratic core |
-| Full COPPA productization | Home private deploy; only if public app store |
-| Heavy Manim / 3Blue1Brown live render on host | 4GB machine unsuitable; far future only |
-| **Answer-check mode without PIN** | If ever added: **PIN-gated only** ("核对模式" for parents). Not in active backlog unless separately approved |
+| Child course catalog / badge wall / multi-tab learning center | Violates DESIGN three pillars |
+| Default instant-answer solver | Conflicts with Socratic core |
+| Full COPPA productization | Home private deploy unless public app store |
+| Heavy Manim / 3Blue1Brown on host | 4GB unsuitable |
+| **Answer-check without PIN** | D1 is PIN-only |
+| **Exposed knowledge-map / skill-tree UI** | Internal graph OK; child/parent map = course platform |
+| **Leaderboards / learning streaks** | Anxiety / extrinsic grind; no parent-visible streak exception |
 
 ---
 
-## 6. Feasibility flow
+## 6. Feasibility flow (v2)
 
 ```mermaid
 flowchart LR
-  subgraph high [High_feasibility]
-    W[CA1_Worksheet]
-    P[CA2_PracticeGaps]
-    Z[CA3_ZPDOpener]
-    A[CA7_Multirep]
+  subgraph p0 [P0_shipped]
+    W[A1_Worksheet]
+    P[A2_Practice]
+    Z[B1_Opener]
+    B[B2a_BargeIn]
   end
-  subgraph mid [Medium]
-    B[CA4_BargeIn]
-    S[CA5_Scratch]
-    M[CA6_Misconceptions]
-    D[CA8_DynamicBoard]
+  subgraph p1 [P1]
+    S[C1_Scratch]
+    M[C2_Misconceptions]
+    A[C3_Multirep]
+    D[C4_Board]
+    A3[A3_CrossDay]
+    B3[B3_VoiceTol]
   end
-  subgraph later [Later]
-    G[CA9_Desmos]
-    R[CA10_ParentWeekly]
-    E[CA11_GamesToSkills]
+  subgraph p2 [P2]
+    G[Desmos]
+    D2[DailyDigest]
+    D1[PIN_Check]
+    E[GamesToSkills]
   end
-  high --> mid --> later
+  p0 --> p1 --> p2
 ```
 
 ---
 
-## 7. Mapping to existing TODO phases
+## 7. Mapping to TODO / design docs
 
-| Analysis ID | Existing hook | Suggested next design doc when implementing |
-|-------------|----------------|---------------------------------------------|
-| CA-1 | Phase 2 · **2.2** | `subsystems/worksheet-planner.md` |
-| CA-2 | BKT / engagement; new | `subsystems/session-practice-loop.md` |
-| CA-3 | `zpdWarmUpSkills`, SkillsPanel | Prompt + soft opener in `agent-prompt.md` |
-| CA-4 | Phase 4 · **4.1** | Extend `voice-tts-stt.md` |
-| CA-5 | Phase 2 · **2.4** | `subsystems/scratch-work-vision.md` |
-| CA-6 | `learning-memory` / prompts | `subsystems/misconception-tags.md` |
-| CA-7 | Analogy in `prompts.ts` | Patch `agent-prompt.md` |
-| CA-8 | Phase 3 + v2 §6.6 | Extend `geometry-diagrams.md` |
-| CA-9 | Phase 3 · **3.3** | Extend `geometry-diagrams.md` |
-| CA-10 | Nice-to-have **1.7** | Narrow parent digest spec |
-| CA-11 | `entertainments.md` | Optional section in entertainments |
-| CA-12 | Phase **G** dialect speech | Already: `dialect-speech-optimization-stt-tts.md` |
-
----
-
-## 8. Sources (sampled 2026-08)
-
-- Khanmigo / Khan Academy tutor positioning; post-Khanmigo market notes (teacher-facing wins, student chat still open)  
-- Synthesis Tutor (adaptive math, multi-rep, gamified short sessions)  
-- 豆包爱学 2.0 (讲知识、动态板书、可打断、错题本、作业批改)  
-- Socra Homework Tutoring (gaps + targeted practice)  
-- Zanaya / Carnegie MATHia (step diagnosis, JIT misconceptions, BKT at KC grain)  
-- ShowYourWork / CalcGPT (scratch + Desmos)  
-- Buddy.ai (voice-native kids, barge-in / COPPA lessons)  
-- Photomath / Gauth (worksheet OCR flow)
+| Analysis ID | Hook | Next design when implementing |
+|-------------|------|-------------------------------|
+| A1 / CA-1 | **2.2** + shipped planner | Harden cut accuracy; `worksheet-planner` already |
+| A2 / CA-2 (+C6) | session-practice shipped | End-hook + ZPD drill quality |
+| B1 / CA-3 | session-opener shipped | Yield-to-homework hardening |
+| B2a / CA-4 | speech-barge-in shipped | Manual M4; then B2b |
+| A3 | After A2 | `session-practice` cross-day merge |
+| B3 | After Phase G | Extend `voice-tts-stt.md` |
+| C1–C4 / CA-5…8 | [ca-p1-system-design.md](ca-p1-system-design.md) | Per-feature specs |
+| D2 | New | `parent-daily-digest.md` |
+| D1 | New | `check-mode-pin.md` — exit→Socratic acceptance |
+| CA-9 | **3.3** | Extend geometry / graphing |
+| CA-11 | entertainments | Soft link section |
+| CA-12 | Phase G | dialect-speech-optimization |
+| C5 / weekly | P3 ideas | Plan doc only |
 
 ---
 
-*Analysis only — no runtime code changes required by this document.*
+## 8. Success metrics (single-child home)
+
+- Socratic depth: child explain/ask turn share  
+- A2 gap-loop close rate (offer accepted + finished)  
+- B1 opener accept vs yield ratio  
+- D2 parent open/reply rate (not dashboard time)
+
+---
+
+## 9. Sources (sampled 2026-08)
+
+- Khanmigo, Synthesis, 豆包爱学, Socra, Zanaya/MATHia, ShowYourWork/CalcGPT, Buddy.ai, Photomath/Gauth  
+- ALEKS, 松鼠 AI, IXL, Duolingo Max, ELSA Speak, 国内 AI 老师打断续讲  
+- Common Sense / Pew / College Board parent–teen AI surveys (see §1b)
+
+---
+
+*Analysis only — no runtime code changes required by this document update.*

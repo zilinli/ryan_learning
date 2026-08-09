@@ -205,7 +205,7 @@ Empty `ChatThread`: if opener present, show chip row under welcome copy:
 
 ## 7. Cross-cutting: privacy & accounts
 
-All gates/offers use `accountId` namespaced keys (align with multi-tenant). No child dashboard. Parent weekly (CA-10) separate.
+All gates/offers use `accountId` namespaced keys (align with multi-tenant). No child dashboard. Parent touchpoint: prefer **D2** daily one-liner (weekly report demoted to P3).
 
 ---
 

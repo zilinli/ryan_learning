@@ -1,6 +1,6 @@
 # 📋 Downstream Development TODO
 
-> Version 0.9.1 · 2026-08-09  
+> Version 0.9.2 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 27 test files, 243 tests, service `active` at :3001  
 > New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
@@ -9,25 +9,69 @@
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
 > Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)  
-> Competitive analysis: **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** (2026-08 — P0–P2 feature backlog from peer products)
+> Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)**
 
 ---
 
-## 📊 Competitive Analysis Backlog (2026-08)
+## 📊 Competitive Analysis Backlog (2026-08) — v2 confirmed
 
-> **Research:** [subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md) (incl. parent/student JTBD)  
-> **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)  
-> **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)  
-> **Filter:** chat-first · zero child dashboard · physical-tutor test · feasible on current stack  
-> Cross-links: **2.2** (CA-1), **2.4** (CA-5), **3.3** (CA-9), **4.1** (CA-4), **1.7** (CA-10), Phase **G** (CA-12)
+> **Plan (confirmed):** [subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)  
+> **Research:** [subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)  
+> **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md) · **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)  
+> **Filter:** Socratic · chat-first · physical-tutor · no child dashboard  
+> **Decisions:** D2 before weekly report; D1 PIN check mode in P2; C5/P3 idea-only; B3 after Phase G; no streaks/leaderboards; C6 folded into A2
 
 ### Explicit non-goals (do not schedule)
 
 - Child course catalog / badge wall / multi-tab learning center  
-- Default instant-answer solver mode (conflicts with Socratic core)  
+- Default instant-answer solver (except PIN **D1**)  
 - Full COPPA productization (unless public app-store goal appears)  
 - Heavy Manim / 3Blue1Brown live render on 4GB host  
-- PIN-less "核对模式"; if ever added later → **PIN-gated only**, separate approval
+- **Exposed knowledge-map / skill-tree UI** (internal graph OK)  
+- **Leaderboards / learning streaks** (no parent-visible streak exception)
+
+### P0 — shipped on `develop` · acceptance / hardening remaining
+
+| ID | Alias | Status | Remaining acceptance |
+|----|-------|--------|----------------------|
+| **A1** | CA-1 worksheet | ✅ shipped | G4 cut ≥90% sampled; no cross-Q bleed; mid-exit keeps done |
+| **A2** | CA-2 (+ **C6** practice-as-diagnosis) | ✅ shipped | Refuse once = no nag; end-hook clarity; drills in ZPD |
+| **B1** | CA-3 opener | ✅ shipped | Homework intent always yields; ≤1/day |
+| **B2a** | CA-4 barge-in | ✅ shipped | Manual **M4**; resume-copy → B2b |
+
+- [ ] **CA-P0.R3** — Manual smoke M1–M4 on live (see Phase CA-P0 below)
+- [ ] **A1.h** — Worksheet cut-accuracy eval set + hardening if &lt;90%
+- [ ] **A2.h** — Session-end hook definition + ZPD drill quality checks
+- [ ] **B1.h** — Yield-to-homework regression tests
+
+### P1 — Teaching depth + v2 additions
+
+> Design: [ca-p1-system-design.md](subsystems/ca-p1-system-design.md)
+
+- [ ] **C1 / CA-5** — Scratch-work vision (links **2.4**) — SD1–SD2
+- [ ] **C2 / CA-6** — Misconception tag library — MC1–MC3
+- [ ] **C3 / CA-7** — Multi-representation auto-switch — MR1–MR3
+- [ ] **C4 / CA-8** — Dynamic board / step animation — DB1–DB2
+- [ ] **A3** — Cross-day knowledge-gap merge (decay/expiry required) → opener cites recurring weak skill
+- [ ] **B3** — Voice tolerance / confirm-intent (after Phase **G**, not inside G) — ELSA-style low-confidence confirm
+
+### P2 — Tools / parent (chat-first)
+
+- [ ] **D2** — Parent **daily one-liner** digest behind PIN (preferred parent touchpoint)
+- [ ] **D1** — PIN **核对模式** (full steps); acceptance: exit PIN → **force Socratic** (no child-only path)
+- [ ] **CA-9** — Embedded Desmos / graphs (reframes **3.3**)
+- [ ] **CA-11** — Entertainments → skill soft link (rare opt-in)
+- [ ] **CA-12** — Dialect speech — keep Phase **G** engineering P0
+
+### P3 — Long-horizon (ideas / do not over-schedule)
+
+- [ ] **B2b** — Continuous half-duplex voice + interrupt-resume (after B2a)
+- [ ] **C5** — ALEKS-style next-learnable set — **internal reasoning only**, never map UI
+- [ ] **Weekly report** — former CA-10 / **1.7**; only if D2 insufficient
+
+### Success metrics (home / single-child)
+
+- Socratic depth · A2 gap-loop close rate · B1 accept vs yield · D2 parent open/reply rate
 
 ---
 
@@ -115,21 +159,8 @@
 | M3 | Empty chat shows opener once/day |
 | M4 | During TTS, tap mic → speech stops, listening starts |
 
-### P1 — Teaching depth (design done — implement later)
-
-> **Design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)
-
-- [ ] **CA-5** — Scratch-work vision (links **2.4**) — tests SD1–SD2 when scheduled
-- [ ] **CA-6** — Misconception tag library — tests MC1–MC3 when scheduled
-- [ ] **CA-7** — Multi-representation auto-switch — tests MR1–MR3 when scheduled
-- [ ] **CA-8** — Dynamic board / step animation — tests DB1–DB2 when scheduled
-
-### P2 — Tools & parent (chat-first preserved)
-
-- [ ] **CA-9** — Embedded Desmos / graphs (reframes **3.3**)
-- [ ] **CA-10** — Parent weekly digest behind PIN (narrows **1.7**)
-- [ ] **CA-11** — Entertainments → skill soft link
-- [ ] **CA-12** — Dialect speech quality — keep Phase **G** engineering P0
+> **P1 / P2 / P3 backlog** moved to § Competitive Analysis Backlog v2 above (includes A3/B3/D1/D2).  
+> CA-10 weekly report demoted to **P3**; prefer **D2** daily one-liner.
 
 ---
 
@@ -697,7 +728,7 @@
 
 | # | Task | Effort | Notes |
 |---|------|--------|-------|
-| 1.7 | Parent dashboard — skill radar chart, mastery timeline, heatmap | 5d | NOT visible to child; prefer narrow **CA-10** weekly digest first |
+| 1.7 | Parent dashboard — skill radar chart, mastery timeline, heatmap | 5d | NOT visible to child; prefer **D2** daily one-liner; weekly → P3 |
 | N1 | Export learning memory as printable PDF | 1d | For parent review |
 | N2 | Inline skill tag on each message (agent-only) | 0.5d | Which skill was practiced |
 | N3 | Tree-shake unused UI from production bundle | 0.5d | |
