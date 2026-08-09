@@ -89,8 +89,21 @@ export async function POST(req: Request) {
         .map((t) => ({
           role: t.role as "user" | "assistant",
           content: t.content.slice(0, 500),
+          images: t.images,
         }))
     : undefined;
+
+  // Carry forward images from the last 2 user turns so the model can still read
+  // homework photos when the student sends text-only follow-ups (no camera re-snap).
+  const historyImages: Array<{ name: string; mimeType: string; data: string }> = [];
+  if (history) {
+    for (let i = history.length - 1; i >= 0 && historyImages.length < 9; i--) {
+      const h = history[i];
+      if (h.role === "user" && h.images?.length) {
+        historyImages.unshift(...h.images);
+      }
+    }
+  }
 
   const recentTitles = Array.isArray(body.recentTitles)
     ? body.recentTitles
@@ -129,9 +142,10 @@ export async function POST(req: Request) {
 
   const prompt = buildTutorPrompt({
     userText: message ?? "",
-    imageCount: imageAttachments.length,
+    imageCount: imageAttachments.length || historyImages.length,
     fileSummaries,
     history,
+    historyImageCount: historyImages.length,
     recentTitles,
     studentProfile: DEFAULT_STUDENT_PROFILE,
     learningMemory,
@@ -142,13 +156,21 @@ export async function POST(req: Request) {
   });
 
   const images: SDKImage[] | undefined =
-    imageAttachments.length > 0
-      ? imageAttachments.map((img) => ({
-          data: stripDataUrlPrefix(img.data || ""),
-          mimeType: img.mimeType.startsWith("image/")
-            ? img.mimeType
-            : "image/jpeg",
-        }))
+    imageAttachments.length > 0 || historyImages.length > 0
+      ? [
+          ...imageAttachments.map((img) => ({
+            data: stripDataUrlPrefix(img.data || ""),
+            mimeType: img.mimeType.startsWith("image/")
+              ? img.mimeType
+              : "image/jpeg",
+          })),
+          ...historyImages.map((img) => ({
+            data: img.data,
+            mimeType: img.mimeType.startsWith("image/")
+              ? img.mimeType
+              : "image/jpeg",
+          })),
+        ]
       : undefined;
 
   const encoder = new TextEncoder();

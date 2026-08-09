@@ -90,6 +90,23 @@ function buildHistoryPreview(messages: ChatMessage[]): HistoryTurn[] {
     .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content.replace(/\s+/g, " ").trim().slice(0, 500),
+      // Carry image data from the last 2 user turns that have photos so the model
+      // can still "see" homework when the student sends text-only follow-ups.
+      ...(m.role === "user" &&
+      m.attachments?.some((a) => a.kind === "image" && a.dataUrl)
+        ? {
+            images: m.attachments
+              .filter(
+                (a): a is typeof a & { dataUrl: string } =>
+                  a.kind === "image" && !!a.dataUrl,
+              )
+              .map((a) => ({
+                name: a.name,
+                mimeType: a.mimeType,
+                data: a.dataUrl.replace(/^data:image\/\w+;base64,/, ""),
+              })),
+          }
+        : undefined),
     }));
 }
 

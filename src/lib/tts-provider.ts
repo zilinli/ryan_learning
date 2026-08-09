@@ -11,7 +11,7 @@
 import { edgeVoiceForLang, type SpeechLang } from "./voices";
 
 /** FormoSpeech 四縣腔缓存 / sidecar 使用的 voice 标识（写入 tts-cache key）。v2=客语用字+分句停顿。 */
-export const FORMOSPEECH_HAK_VOICE = "formospeech-sixian-v2";
+export const FORMOSPEECH_HAK_VOICE = "formospeech-sixian-v3";
 
 export type TtsProvider =
   | { kind: "edge"; voice: string }

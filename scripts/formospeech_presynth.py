@@ -4,7 +4,7 @@
 
 - 简体→繁体（OpenCC）+ 我→涯
 - 未知字直接失败（不再丢字硬合成 → 怪声）
-- int16 wav + 128k mp3
+- int16 wav + VBR mp3 (quality 0)
 - 默认语者：江芮敏
 
 用法见脚本头 / docs/subsystems/formospeech-hakka-tts.md
@@ -23,13 +23,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SPACE = ROOT / "vendor" / "taiwanese-hakka-tts"
-VOICE = "formospeech-sixian-v2"
+VOICE = "formospeech-sixian-v3"
 MODEL_ID = "formospeech/yourtts-htia-240704"
 DIALECT = "sixian"
 G2P_DIALECT = "hak_sx"
 SPEAKER_NAME = os.environ.get("FORMOSPEECH_SPEAKER", "江芮敏")
-LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.12"))
-CACHE_SALT = "hakka-tts-v2"
+LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.05"))
+CACHE_SALT = "hakka-tts-v3"
 
 
 def cache_key(text: str, voice: str) -> str:
@@ -124,6 +124,8 @@ def load_synthesizer():
         use_cuda=torch.cuda.is_available(),
     )
     model.tts_model.length_scale = LENGTH_SCALE
+    model.tts_model.inference_noise_scale = float(os.environ.get("FORMOSPEECH_NOISE_SCALE", "0.55"))
+    model.tts_model.inference_noise_scale_dp = float(os.environ.get("FORMOSPEECH_NOISE_SCALE_DUR", "0.8"))
     return model, g2p, np
 
 
@@ -160,6 +162,8 @@ def main() -> None:
             parsed = [p.replace(" ", "|") for p in result.pronunciations]
             parsed_ipa = parse_ipa(" ".join(parsed))
             model.tts_model.length_scale = LENGTH_SCALE
+            model.tts_model.inference_noise_scale = float(os.environ.get("FORMOSPEECH_NOISE_SCALE", "0.55"))
+            model.tts_model.inference_noise_scale_dp = float(os.environ.get("FORMOSPEECH_NOISE_SCALE_DUR", "0.8"))
             wav = model.tts(
                 parsed_ipa,
                 speaker_name=SPEAKER_NAME,
@@ -183,8 +187,10 @@ def main() -> None:
                         "22050",
                         "-ac",
                         "1",
-                        "-b:a",
-                        "128k",
+                        "-codec:a",
+                        "libmp3lame",
+                        "-q:a",
+                        "0",
                         str(mp3_path),
                     ],
                     stdout=subprocess.DEVNULL,

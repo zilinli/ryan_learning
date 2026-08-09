@@ -9,8 +9,10 @@ GET  /health                     → {"ok":true,"model":"ready|loading"}
   FORMOSPEECH_SPEAKER   默认 江芮敏（女 / 苗栗）
   FORMOSPEECH_DIALECT   默认 sixian
   FORMOSPEECH_PORT      默认 9876
-  FORMOSPEECH_LENGTH_SCALE  语速，默认 1.12（略慢更清晰）
-  FORMOSPEECH_CLAUSE_SILENCE_MS  分句静音，默认 180
+  FORMOSPEECH_LENGTH_SCALE  语速，默认 1.05（自然语速）
+  FORMOSPEECH_NOISE_SCALE   解码噪声，默认 0.55（更干净）
+  FORMOSPEECH_NOISE_SCALE_DUR 时长预测噪声，默认 0.8（更稳定）
+  FORMOSPEECH_CLAUSE_SILENCE_MS  分句静音，默认 100
 """
 from __future__ import annotations
 
@@ -25,8 +27,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SPACE = ROOT / "vendor" / "taiwanese-hakka-tts"
 MODEL_ID = "formospeech/yourtts-htia-240704"
-VOICE = "formospeech-sixian-v2"
-CACHE_SALT = "hakka-tts-v2"
+VOICE = "formospeech-sixian-v3"
+CACHE_SALT = "hakka-tts-v3"
 
 SPEAKER = os.environ.get("FORMOSPEECH_SPEAKER", "江芮敏")
 DIALECT = os.environ.get("FORMOSPEECH_DIALECT", "sixian")
@@ -39,8 +41,10 @@ G2P_DIALECT = {
     "nansixian": "hak_nsx",
 }.get(DIALECT, "hak_sx")
 PORT = int(os.environ.get("FORMOSPEECH_PORT", "9876"))
-LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.12"))
-CLAUSE_SILENCE_MS = int(os.environ.get("FORMOSPEECH_CLAUSE_SILENCE_MS", "180"))
+LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.05"))
+NOISE_SCALE = float(os.environ.get("FORMOSPEECH_NOISE_SCALE", "0.55"))
+NOISE_SCALE_DUR = float(os.environ.get("FORMOSPEECH_NOISE_SCALE_DUR", "0.8"))
+CLAUSE_SILENCE_MS = int(os.environ.get("FORMOSPEECH_CLAUSE_SILENCE_MS", "100"))
 CACHE_DIR = Path(os.environ.get("SPARK_DATA_DIR", ROOT / "data")) / "tts-cache"
 
 _model = None
@@ -316,6 +320,34 @@ def parse_ipa(ipa: str, delete_chars=r"\+\-\|\_", as_space: str = "") -> list[st
     return text
 
 
+def apply_sixian_sandhi(tokens: list[str]) -> list[str]:
+    """六县腔连读变调（contextual tone sandhi for Sixian Hakka）。
+
+    规则：左向右扫描 IPA token 序列，找到声调数字 token 并对其后的声调应用规则：
+      - 24 → 11 / _ [55, 11, 5]   (阴平在去/平/入前变阳平)
+      - 31 → 33 / _ [55, 11, 5]   (阴去在去/平/入前变阳去)
+    55（去声）、2/5（入声）不变。
+    """
+    tone_indices = []  # (index_in_tokens, tone_value_as_int)
+    for i, tok in enumerate(tokens):
+        if tok in ("11", "24", "31", "33", "55", "2", "5", "43", "53", "54", "113", "21"):
+            tone_indices.append((i, int(tok)))
+    if len(tone_indices) < 2:
+        return tokens
+
+    # Work on a copy to avoid mutating the input
+    out = list(tokens)
+    for idx in range(len(tone_indices) - 1):
+        ci, cur_tone = tone_indices[idx]
+        ni, next_tone = tone_indices[idx + 1]
+        target_tones = {55, 11, 5}
+        if cur_tone == 24 and next_tone in target_tones:
+            out[ci] = "11"
+        elif cur_tone == 31 and next_tone in target_tones:
+            out[ci] = "33"
+    return out
+
+
 def clean_ipa_tokens(tokens: list[str]) -> list[str]:
     """只保留模型词表认识的标点（， 与空格）；丢掉 。！？ 避免无停顿连读。
 
@@ -450,11 +482,15 @@ def synth_clause_wav(clause: str):
     assert _model is not None and _np is not None
     speak, pronunciations = g2p_speak(clause)
     parsed = [p.replace(" ", "|") for p in pronunciations]
-    parsed_ipa = clean_ipa_tokens(parse_ipa(" ".join(parsed)))
+    raw_tokens = parse_ipa(" ".join(parsed))
+    sandhi_tokens = apply_sixian_sandhi(raw_tokens)
+    parsed_ipa = clean_ipa_tokens(sandhi_tokens)
     if not parsed_ipa:
         raise ValueError("empty ipa")
     dialect = "sixian" if DIALECT == "nansixian" else DIALECT
     _model.tts_model.length_scale = LENGTH_SCALE
+    _model.tts_model.inference_noise_scale = NOISE_SCALE
+    _model.tts_model.inference_noise_scale_dp = NOISE_SCALE_DUR
     wav = _model.tts(
         parsed_ipa,
         speaker_name=SPEAKER,
@@ -479,29 +515,41 @@ def synthesize_mp3(text: str) -> bytes:
         return out_path.read_bytes()
 
     with _lock:
-        clauses = split_clauses(norm)
-        print(
-            f"[formospeech] synth clauses={len(clauses)} text={norm[:80]!r}",
-            flush=True,
-        )
-        chunks = []
-        sr = _model.tts_model.config.audio.sample_rate
-        silence = _np.zeros(int(sr * CLAUSE_SILENCE_MS / 1000.0), dtype=_np.float32)
-        for i, clause in enumerate(clauses):
+        # Try full-text synthesis first (preserves model-internal prosody).
+        # Fallback to clause splitting only if text is long or full-text fails.
+        try_full = len(norm) <= 60
+        if try_full:
             try:
-                wav = synth_clause_wav(clause)
+                print(f"[formospeech] synth full text={norm[:80]!r}", flush=True)
+                wav = synth_clause_wav(norm)
             except Exception as e:
-                print(f"[formospeech] clause fail {clause!r}: {e}", flush=True)
-                # fallback: try whole remaining joined once
-                if not chunks and len(clauses) == 1:
-                    raise
-                continue
-            chunks.append(wav)
-            if i < len(clauses) - 1:
-                chunks.append(silence)
-        if not chunks:
-            raise ValueError("all clauses failed")
-        wav = _np.concatenate(chunks)
+                print(f"[formospeech] full-text failed: {e}", flush=True)
+                try_full = False
+
+        if not try_full:
+            clauses = split_clauses(norm)
+            print(
+                f"[formospeech] synth clauses={len(clauses)} text={norm[:80]!r}",
+                flush=True,
+            )
+            chunks = []
+            sr = _model.tts_model.config.audio.sample_rate
+            silence = _np.zeros(int(sr * CLAUSE_SILENCE_MS / 1000.0), dtype=_np.float32)
+            for i, clause in enumerate(clauses):
+                try:
+                    wav = synth_clause_wav(clause)
+                except Exception as e:
+                    print(f"[formospeech] clause fail {clause!r}: {e}", flush=True)
+                    if not chunks and len(clauses) == 1:
+                        raise
+                    continue
+                chunks.append(wav)
+                if i < len(clauses) - 1:
+                    chunks.append(silence)
+            if not chunks:
+                raise ValueError("all clauses failed")
+            wav = _np.concatenate(chunks)
+
         pcm = (wav * 32767.0).astype(_np.int16)
         sr = _model.tts_model.config.audio.sample_rate
 
@@ -524,8 +572,8 @@ def synthesize_mp3(text: str) -> bytes:
                 "1",
                 "-codec:a",
                 "libmp3lame",
-                "-b:a",
-                "128k",
+                "-q:a",
+                "0",
                 str(mp3_path),
             ],
             stdout=subprocess.DEVNULL,
@@ -553,6 +601,9 @@ def create_app():
                 "dialect": DIALECT,
                 "voice": VOICE,
                 "length_scale": LENGTH_SCALE,
+                "noise_scale": NOISE_SCALE,
+                "noise_scale_dur": NOISE_SCALE_DUR,
+                "clause_silence_ms": CLAUSE_SILENCE_MS,
             }
         )
 

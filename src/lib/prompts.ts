@@ -276,6 +276,7 @@ const OUTPUT_HYGIENE = [
 export function buildTutorPrompt(params: {
   userText: string;
   imageCount: number;
+  historyImageCount?: number;
   fileSummaries?: string[];
   history?: HistoryTurn[];
   /** Titles of other recent chats for cross-session continuity */
@@ -305,8 +306,11 @@ export function buildTutorPrompt(params: {
 
   const mediaLines: string[] = [];
   if (imageCount > 0) {
+    const fromHistory = params.historyImageCount && params.historyImageCount > 0
+      ? ` (${params.historyImageCount} from earlier, re-sent as context)`
+      : "";
     mediaLines.push(
-      `The student attached ${imageCount} photo(s)/image(s) (Photo 1…Photo ${imageCount}). Treat them as pages/parts of the same worksheet when they belong together.`,
+      `The student attached ${imageCount} photo(s)/image(s)${fromHistory} (Photo 1…Photo ${imageCount}). Treat them as pages/parts of the same worksheet when they belong together.`,
     );
   }
   if (fileSummaries.length > 0) {

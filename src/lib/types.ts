@@ -71,6 +71,8 @@ export interface ConversationsStore {
 export interface HistoryTurn {
   role: "user" | "assistant";
   content: string;
+  /** Base64 image data (no prefix) from this turn's attachments — re-sent on follow-up to prevent forgetting */
+  images?: Array<{ name: string; mimeType: string; data: string }>;
 }
 
 export interface ChatRequestBody {
