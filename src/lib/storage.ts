@@ -38,12 +38,35 @@ export function sessionIdFromUrl(): string | null {
   }
 }
 
-/** Update browser URL to reflect the active session (for sharing). */
-export function setUrlSession(sessionId: string): void {
+/** Read accountId from URL (?account=acct_ching) for cross-account deep-links. */
+export function accountIdFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const a = (params.get("account") || "").trim();
+    if (!a || a.length > 80) return null;
+    if (!/^acct_[A-Za-z0-9_-]+$/.test(a) && a !== "default") return null;
+    return a === "default" ? "acct_ryan" : a;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Update browser URL to reflect the active session (for sharing).
+ * Include accountId so links open the right student even if the browser
+ * was previously on a different account.
+ */
+export function setUrlSession(sessionId: string, accountId?: string): void {
   if (typeof window === "undefined" || !sessionId) return;
   try {
     const url = new URL(window.location.href);
     url.searchParams.set("session", sessionId);
+    if (accountId && accountId !== "default") {
+      url.searchParams.set("account", accountId);
+    } else if (accountId === "default") {
+      url.searchParams.set("account", "acct_ryan");
+    }
     window.history.replaceState(null, "", url.toString());
   } catch {
     // ignore

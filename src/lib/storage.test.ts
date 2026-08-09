@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountIdFromUrl,
   MAX_MESSAGES_PER_CHAT,
   newSessionId,
   sessionIdFromUrl,
@@ -214,5 +215,39 @@ describe("setUrlSession", () => {
     });
     setUrlSession("my-share-id");
     expect(replaced).toContain("session=my-share-id");
+  });
+
+  it("includes account for shareable cross-account links", () => {
+    let replaced = "";
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: { search: "", href: "http://localhost:3000" },
+        history: {
+          replaceState(_d: unknown, _t: string, u: string) {
+            replaced = u;
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    setUrlSession("my-share-id", "acct_ching");
+    expect(replaced).toContain("account=acct_ching");
+  });
+});
+
+describe("accountIdFromUrl", () => {
+  it("reads account param", () => {
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "?session=abc&account=acct_ching",
+          href: "http://localhost:3000/?session=abc&account=acct_ching",
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    expect(accountIdFromUrl()).toBe("acct_ching");
   });
 });

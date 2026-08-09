@@ -1,5 +1,6 @@
 import {
   deleteServerConversation,
+  findSessionOwner,
   getServerConversation,
   historyStats,
   listServerConversations,
@@ -18,10 +19,24 @@ function getAccountId(req: Request): string {
   return url.searchParams.get("accountId") || "default";
 }
 
-/** GET — all chats, optional ?q= keyword search, ?sessionId=, ?stats=1, ?accountId= */
+/** GET — all chats, optional ?q= keyword search, ?sessionId=, ?stats=1, ?accountId=, ?lookupSession= */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const accountId = getAccountId(req);
+
+  // Cross-account deep-link: which student owns this session?
+  const lookupSession = url.searchParams.get("lookupSession");
+  if (lookupSession) {
+    const hit = await findSessionOwner(lookupSession);
+    if (!hit) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    return Response.json({
+      accountId: hit.accountId,
+      conversation: hit.conversation,
+    });
+  }
+
   const sessionId = url.searchParams.get("sessionId");
   if (sessionId) {
     const one = await getServerConversation(sessionId, accountId);

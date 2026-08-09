@@ -15,6 +15,7 @@ type Props = {
   activeId: string;
   disabled?: boolean;
   onOpenCodeAgent?: () => void;
+  onOpenEntertainments?: () => void;
   engagementLabel?: string;
   learningMemory?: LearningMemory | null;
   onNew: () => void;
@@ -41,6 +42,7 @@ export function HistorySidebar({
   activeId,
   disabled,
   onOpenCodeAgent,
+  onOpenEntertainments,
   engagementLabel,
   learningMemory,
   onNew,
@@ -231,6 +233,33 @@ export function HistorySidebar({
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
             Code Agent
+          </button>
+        ) : null}
+        {onOpenEntertainments ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              onOpenEntertainments();
+              onClose();
+            }}
+            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            Entertainments
           </button>
         ) : null}
         <a

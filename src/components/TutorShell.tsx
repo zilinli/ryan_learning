@@ -5,6 +5,7 @@ import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { CodeAgentPanel } from "./CodeAgentPanel";
+import { EntertainmentsPanel } from "./entertainments/EntertainmentsPanel";
 import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
@@ -20,6 +21,7 @@ import {
   MAX_MESSAGES_PER_CHAT,
   newSessionId,
   saveConversations,
+  accountIdFromUrl,
   sessionIdFromUrl,
   setUrlSession,
   titleFromMessages,
@@ -275,6 +277,7 @@ export function TutorShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [agentPanelMinimized, setAgentPanelMinimized] = useState(false);
+  const [entertainmentsOpen, setEntertainmentsOpen] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
@@ -298,6 +301,8 @@ export function TutorShell() {
    *  tombstoned conversations from being re-uploaded on fresh page loads). */
   const hydrationDoneRef = useRef(false);
   const accountsRef = useRef<AccountRecord[]>([]);
+  /** When a deep-link pinned an account, don't let roster hydrate overwrite it. */
+  const deepLinkAccountRef = useRef<string | null>(null);
 
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
@@ -307,17 +312,38 @@ export function TutorShell() {
     // callbacks and is unaffected).
     const t = setTimeout(() => {
     try {
-      // 1. Resolve account synchronously — do NOT depend on stale setState closures
-      const accts = loadAccounts();
-      const active = getActiveAccount(accts);
-      const aid = active.id;
+      // 1. Resolve account synchronously — honor ?account= deep-link first
+      let accts = loadAccounts();
+      const urlAccount = accountIdFromUrl();
+      const urlSession = sessionIdFromUrl();
+      if (
+        urlAccount &&
+        accts.accounts.some((a) => a.id === urlAccount) &&
+        urlAccount !== accts.activeId
+      ) {
+        accts = switchAccount(urlAccount, accts);
+        deepLinkAccountRef.current = urlAccount;
+      }
+      let active = getActiveAccount(accts);
+      let aid = active.id;
+      accountIdRef.current = aid;
 
       // 2. Load all per-account client data synchronously
       const enabled = loadSpeakEnabled(aid);
       const vid = loadVoiceId(aid);
       const eng = loadEngagement(aid);
       const mem = loadLearningMemory(aid);
-      const conversations = loadConversations(aid);
+      let conversations = loadConversations(aid);
+
+      // Local deep-link: session already on this account
+      if (urlSession && urlSession.length > 4) {
+        const exists = conversations.conversations.some(
+          (c) => c.sessionId === urlSession,
+        );
+        if (exists && conversations.activeId !== urlSession) {
+          conversations = { ...conversations, activeId: urlSession };
+        }
+      }
 
       if (cancelled) return;
 
@@ -333,6 +359,9 @@ export function TutorShell() {
       setLearningMemory(mem);
       setStore(conversations);
       setReady(true);
+      if (urlSession && urlSession.length > 4) {
+        setUrlSession(urlSession, aid);
+      }
 
       // 4. Non-blocking background work
       void hydrateLearningMemoryFromServer(aid).then((m) => {
@@ -343,41 +372,123 @@ export function TutorShell() {
       void hydrateAccountsFromServer().then((hydrated) => {
         if (cancelled) return;
         setAccounts(hydrated.accounts);
+        // Never clobber a deep-link account with server "last active"
+        if (deepLinkAccountRef.current) return;
         const fresh = getActiveAccount(hydrated);
-        if (fresh.id !== accountId) {
+        if (fresh.id !== accountIdRef.current) {
           setAccountId(fresh.id);
           setAccountName(fresh.profile.name);
         }
       });
 
-      // URL session param — select a specific conversation on deep-link
-      const urlSession = sessionIdFromUrl();
-      if (urlSession && urlSession.length > 4) {
-        const exists = conversations.conversations.some((c) => c.sessionId === urlSession);
-        if (exists && conversations.activeId !== urlSession) {
-          setStore({ ...conversations, activeId: urlSession });
-        }
-      }
-
-      // Photo vault → server hydration chain (fire-and-forget, writes back via setStore)
+      // Photo vault → server hydration; also resolve cross-account deep-links
       void (async () => {
         try {
-          await ingestStorePhotos(conversations);
-          const merged = await hydrateFromServer(conversations, aid);
-          const restored = await restoreStorePhotosFromVault(merged);
+          let workingAid = aid;
+          let workingStore = conversations;
+
+          // Session in URL but not on current account → look up owner on server
+          const needLookup =
+            !!urlSession &&
+            urlSession.length > 4 &&
+            !workingStore.conversations.some((c) => c.sessionId === urlSession);
+
+          if (needLookup) {
+            try {
+              const res = await fetch(
+                `/api/history?lookupSession=${encodeURIComponent(urlSession)}`,
+              );
+              if (res.ok) {
+                const data = (await res.json()) as {
+                  accountId?: string;
+                  conversation?: ConversationRecord;
+                };
+                const ownerId = data.accountId;
+                if (ownerId && ownerId !== workingAid) {
+                  // Persist switch + reload that account's local store
+                  const switched = switchAccount(ownerId);
+                  deepLinkAccountRef.current = ownerId;
+                  workingAid = ownerId;
+                  accountIdRef.current = ownerId;
+                  const ownerAcct = getActiveAccount(switched);
+                  if (!cancelled) {
+                    setAccounts(switched.accounts);
+                    setAccountId(ownerId);
+                    setAccountName(ownerAcct.profile.name);
+                    setVoiceEnabled(loadSpeakEnabled(ownerId));
+                    voiceEnabledRef.current = loadSpeakEnabled(ownerId);
+                    const oVid = loadVoiceId(ownerId);
+                    setVoiceId(oVid);
+                    voiceIdRef.current = oVid;
+                    setEngagement(loadEngagement(ownerId));
+                    setLearningMemory(loadLearningMemory(ownerId));
+                    void hydrateLearningMemoryFromServer(ownerId).then((m) => {
+                      if (!cancelled && accountIdRef.current === ownerId) {
+                        setLearningMemory(m);
+                      }
+                    });
+                  }
+                  workingStore = loadConversations(ownerId);
+                }
+                // Seed conversation from lookup so UI has it before full hydrate
+                if (
+                  data.conversation?.sessionId === urlSession &&
+                  !workingStore.conversations.some(
+                    (c) => c.sessionId === urlSession,
+                  )
+                ) {
+                  workingStore = {
+                    ...workingStore,
+                    activeId: urlSession,
+                    conversations: [
+                      data.conversation,
+                      ...workingStore.conversations,
+                    ],
+                  };
+                } else if (urlSession) {
+                  workingStore = { ...workingStore, activeId: urlSession };
+                }
+                if (!cancelled) {
+                  setStore(workingStore);
+                  setUrlSession(urlSession, workingAid);
+                }
+              }
+            } catch {
+              // lookup failed — continue with current account hydrate
+            }
+          }
+
+          await ingestStorePhotos(workingStore);
+          const merged = await hydrateFromServer(workingStore, workingAid);
+          let withActive = merged;
+          if (
+            urlSession &&
+            urlSession.length > 4 &&
+            merged.conversations.some((c) => c.sessionId === urlSession) &&
+            merged.activeId !== urlSession
+          ) {
+            withActive = { ...merged, activeId: urlSession };
+          }
+          const restored = await restoreStorePhotosFromVault(withActive);
           const fetched = await fetchMissingPhotosFromServer(restored);
-          const { store: repaired } = await repairMissingMedia(fetched);
+          const { store: repaired } = await repairMissingMedia(
+            fetched,
+            workingAid,
+          );
           const final = repaired !== fetched ? repaired : fetched;
           await ingestStorePhotos(final);
           await pruneVaultToStore(final);
-          if (cancelled || accountIdRef.current !== aid) return;
+          if (cancelled || accountIdRef.current !== workingAid) return;
           setStore(final);
-          saveConversations(final, aid);
-          const withMedia = await pushStoreToServer(final, aid);
-          if (cancelled || accountIdRef.current !== aid) return;
+          saveConversations(final, workingAid);
+          if (urlSession && urlSession.length > 4) {
+            setUrlSession(urlSession, workingAid);
+          }
+          const withMedia = await pushStoreToServer(final, workingAid);
+          if (cancelled || accountIdRef.current !== workingAid) return;
           if (withMedia !== final) {
             setStore(withMedia);
-            saveConversations(withMedia, aid);
+            saveConversations(withMedia, workingAid);
           }
         } catch {
           // Background hydration failures are non-critical — the UI is already live
@@ -556,6 +667,9 @@ export function TutorShell() {
   }, [sidebarOpen]);
 
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
+  const handleOpenEntertainments = useCallback(() => {
+    setEntertainmentsOpen(true);
+  }, []);
 
   const handleSwitchAccount = (id: string) => {
     if (id === accountId || busy) return;
@@ -589,7 +703,7 @@ export function TutorShell() {
     setError("");
     speakApiRef.current?.stop();
     if (nextStore.conversations.length > 0) {
-      setUrlSession(nextStore.activeId);
+      setUrlSession(nextStore.activeId, id);
     }
     // Background: hydrate new account's conversations from server, restore
     // photos from vault, and fetch any still-missing photos from server media.
@@ -652,14 +766,14 @@ export function TutorShell() {
     });
     setError("");
     speakApiRef.current?.stop();
-    setUrlSession(id);
+    setUrlSession(id, accountId);
   };
 
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
     speakApiRef.current?.stop();
     setStore({ ...store, activeId: id });
-    setUrlSession(id);
+    setUrlSession(id, accountId);
     setError("");
     resetNextRef.current = resetIdsRef.current.has(id);
   };
@@ -696,6 +810,7 @@ export function TutorShell() {
     speakApiRef.current?.stop();
     const nextStore = { version: 3 as const, activeId, conversations };
     setStore(nextStore);
+    setUrlSession(activeId, accountId);
     setError("");
     // Drop server JSON + data/media, and local IndexedDB photos for this chat
     void deleteServerChat(id, accountId);
@@ -957,6 +1072,7 @@ export function TutorShell() {
         activeId={store.activeId}
         disabled={busy}
         onOpenCodeAgent={handleOpenCodeAgent}
+        onOpenEntertainments={handleOpenEntertainments}
         engagementLabel={
           engagement
             ? [
@@ -1077,6 +1193,12 @@ export function TutorShell() {
         open={agentPanelOpen && !agentPanelMinimized}
         onClose={() => { setAgentPanelOpen(false); setAgentPanelMinimized(false); }}
         onMinimize={() => setAgentPanelMinimized(true)}
+      />
+
+      <EntertainmentsPanel
+        open={entertainmentsOpen}
+        onClose={() => setEntertainmentsOpen(false)}
+        voiceId={voiceId}
       />
 
       {/* Floating bubble when minimized — click to restore */}

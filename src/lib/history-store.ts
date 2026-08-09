@@ -207,6 +207,58 @@ export async function getServerConversation(
   }
 }
 
+/** Client-facing account id for URLs / UI (default storage → acct_ryan). */
+export function toClientAccountId(serverOrClientId: string): string {
+  if (serverOrClientId === "default") return "acct_ryan";
+  return serverOrClientId;
+}
+
+/**
+ * Find which account owns a sessionId (for deep-links across accounts).
+ * Scans known account dirs under data/history + legacy data/conversations.
+ */
+export async function findSessionOwner(
+  sessionId: string,
+): Promise<{ accountId: string; conversation: ConversationRecord } | null> {
+  const id = safeId(sessionId);
+  if (!id) return null;
+
+  const candidates = new Set<string>(["acct_ryan", "default"]);
+  try {
+    const accountsPath = path.join(BASE_DIR, "accounts", "accounts.json");
+    const raw = await fs.readFile(accountsPath, "utf8");
+    const parsed = JSON.parse(raw) as { accounts?: Array<{ id?: string }> };
+    for (const a of parsed.accounts || []) {
+      if (a?.id) candidates.add(a.id);
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const names = await fs.readdir(HISTORY_DIR);
+    for (const name of names) {
+      if (name.startsWith("acct_")) candidates.add(name);
+    }
+  } catch {
+    // ignore
+  }
+
+  // Prefer non-legacy ids first, then ryan/default
+  const ordered = [...candidates].sort((a, b) => {
+    const rank = (x: string) =>
+      x === "acct_ryan" || x === "default" ? 1 : 0;
+    return rank(a) - rank(b);
+  });
+
+  for (const aid of ordered) {
+    const conv = await getServerConversation(id, aid);
+    if (conv) {
+      return { accountId: toClientAccountId(aid), conversation: conv };
+    }
+  }
+  return null;
+}
+
 /**
  * A deleted conversation must never be re-created: the server rejects any
  * upsert of a session that has a fresh tombstone. This is the authoritative

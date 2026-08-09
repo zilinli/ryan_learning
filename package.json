@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.26",
+    "chess.js": "^1.4.0",
     "katex": "^0.18.1",
     "mermaid": "^11.16.0",
     "next": "16.2.12",

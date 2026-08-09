@@ -1,13 +1,38 @@
 # 📋 Downstream Development TODO
 
-> Version 0.7 · 2026-08-08  
+> Version 0.8 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Baseline: 27 test files, 243 tests, service `active` at :3001  
 > New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
 > New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
-> Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)
+> Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
+> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.1 — puzzle games under Code Agent)
+
+---
+
+## 🔴 In Progress (2026-08-09) — Entertainments + Deep-link Account Fix
+
+**Entertainments** — Left nav under Code Agent: Sudoku / Sokoban / Klotski / Chess / Xiangqi / Go 9×9. Client-only. UI lang follows voice picker; default British English.  
+**Deep-link** — `?session=` must switch to owning account (e.g. Ching) when browser was on Ryan.
+
+> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md)
+
+### Phase ENT: Entertainments MVP
+
+- [x] **ENT.1** — Design doc + TODO breakdown
+- [x] **ENT.2** — `src/lib/entertainments` registry + i18n (en-GB default)
+- [x] **ENT.3** — Games: Sudoku, Sokoban, Klotski, Chess (`chess.js`), Xiangqi, Go 9×9
+- [x] **ENT.4** — `EntertainmentsPanel` + sidebar entry under Code Agent
+- [x] **ENT.5** — Unit tests for engines
+- [x] **ENT.6** — Build / deploy / push
+
+### Phase LINK: Cross-account session deep-link
+
+- [x] **LINK.1** — `accountIdFromUrl` + `setUrlSession(session, account)`
+- [x] **LINK.2** — `findSessionOwner` + `GET /api/history?lookupSession=`
+- [x] **LINK.3** — TutorShell init switches account then selects session
 
 ---
 
