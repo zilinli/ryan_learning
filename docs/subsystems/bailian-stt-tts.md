@@ -23,12 +23,9 @@ Fun-ASR 覆盖客家/闽南/粤等方言；短录音走 multimodal-generation + 
 |------|----------|
 | **teo** | 百炼复刻 → `longanmin_v3`（闽南）→ 503（禁粤语） |
 | **hak** | FormoSpeech（缓存 / sidecar）；有 `HAK_CLONE_VOICE_ID` 时复刻 |
-| **zh** | 百炼 `longanyang` → edge |
-| **yue** | 百炼 `longanyue_v3` → edge |
-| **en** | 百炼 `loongemily_v3` / `loongandy_v3` → edge |
-| **es / fr** | edge（暂无对应 CosyVoice） |
+| **zh / yue / en / es / fr** | **edge-tts**（与切百炼 STT 之前一致，不改） |
 
-`X-TTS-Engine`: `bailian` 路径为 `aliyun-*` / `formospeech*`；edge 为 `edge`。
+`X-TTS-Engine`: 方言为 `aliyun-*` / `formospeech*`；其余为 `edge`。
 
 ## 环境变量
 
@@ -44,8 +41,8 @@ FORMOSPEECH_TTS_URL=http://127.0.0.1:9876
 
 - `src/lib/bailian-asr.ts` — ASR 客户端
 - `src/app/api/transcribe/route.ts` — STT 路由
-- `src/lib/tts-provider.ts` — `bailianSystemVoiceForEdge` + 方言路由
-- `src/app/api/tts/route.ts` — 非方言百炼优先
+- `src/lib/tts-provider.ts` — 方言路由（teo 百炼 / hak FormoSpeech）
+- `src/app/api/tts/route.ts` — zh/yue/en 等仍走 edge
 
 ## 观测「不用讯飞」影响
 

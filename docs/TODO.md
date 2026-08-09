@@ -145,7 +145,7 @@
 
 > **Design:** [subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md) — 对 `dialect-stt-tts-gap-closure-plan.md`（更新版：讯飞方言 ASR + 阿里云声音复刻）的详细方案设计与可行性分析
 > **核心原则：** ① 云端依赖永不成为单点故障（失败/超时/无 Key 自动降级）② 磁盘缓存硬上限 + LRU ③ 方言转写结果必须用户可编辑确认后发送 ④ 本机零常驻算力新增。  
-> **2026-08-09 调整：** STT 主路径改百炼 Fun-ASR；讯飞默认关闭（`STT_BACKUP_IFYTEK`）；TTS 非客家话切百炼 CosyVoice；客家话朗读仍 FormoSpeech。见 `bailian-stt-tts.md`。
+> **2026-08-09 调整：** STT 主路径改百炼 Fun-ASR；讯飞默认关闭（`STT_BACKUP_IFYTEK`）；TTS：潮汕百炼 / 客家 FormoSpeech；**普通话·粤语·英语仍 edge-tts**。见 `bailian-stt-tts.md`。
 
 ### 15.1 — STT：百炼主路径 + 讯飞可选备份
 

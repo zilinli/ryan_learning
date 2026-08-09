@@ -63,31 +63,11 @@ describe("ttsProviderForLang", () => {
     });
   });
 
-  it("keeps other languages on edge when Bailian key missing", () => {
-    delete process.env.ALIYUN_DASHSCOPE_API_KEY;
+  it("keeps zh/yue/en/es/fr on edge (unchanged from pre-Bailian-TTS)", () => {
+    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     expect(ttsProviderForLang("en").kind).toBe("edge");
     expect(ttsProviderForLang("yue").kind).toBe("edge");
-    expect(ttsProviderForLang("fr").kind).toBe("edge");
     expect(ttsProviderForLang("zh").kind).toBe("edge");
-  });
-
-  it("routes zh/yue/en to Bailian CosyVoice system voices when key set", () => {
-    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
-    expect(ttsProviderForLang("zh")).toMatchObject({
-      kind: "aliyun-clone",
-      source: "system",
-      voiceId: "longanyang",
-    });
-    expect(ttsProviderForLang("yue")).toMatchObject({
-      kind: "aliyun-clone",
-      source: "system",
-      voiceId: "longanyue_v3",
-    });
-    expect(ttsProviderForLang("en")).toMatchObject({
-      kind: "aliyun-clone",
-      source: "system",
-    });
-    // Spanish/French stay on edge (no CosyVoice locale yet)
     expect(ttsProviderForLang("es").kind).toBe("edge");
     expect(ttsProviderForLang("fr").kind).toBe("edge");
   });
