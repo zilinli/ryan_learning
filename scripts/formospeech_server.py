@@ -9,12 +9,12 @@ GET  /health                     → {"ok":true,"model":"ready|loading"}
   FORMOSPEECH_SPEAKER   默认 江芮敏（女 / 苗栗）
   FORMOSPEECH_DIALECT   默认 sixian
   FORMOSPEECH_PORT      默认 9876
-  FORMOSPEECH_LENGTH_SCALE  语速，默认 1.05（略慢更清晰）
+  FORMOSPEECH_LENGTH_SCALE  语速，默认 1.12（略慢更清晰）
+  FORMOSPEECH_CLAUSE_SILENCE_MS  分句静音，默认 180
 """
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 import re
 import sys
@@ -25,7 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SPACE = ROOT / "vendor" / "taiwanese-hakka-tts"
 MODEL_ID = "formospeech/yourtts-htia-240704"
-VOICE = "formospeech-sixian"
+VOICE = "formospeech-sixian-v2"
+CACHE_SALT = "hakka-tts-v2"
 
 SPEAKER = os.environ.get("FORMOSPEECH_SPEAKER", "江芮敏")
 DIALECT = os.environ.get("FORMOSPEECH_DIALECT", "sixian")
@@ -38,7 +39,8 @@ G2P_DIALECT = {
     "nansixian": "hak_nsx",
 }.get(DIALECT, "hak_sx")
 PORT = int(os.environ.get("FORMOSPEECH_PORT", "9876"))
-LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.05"))
+LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.12"))
+CLAUSE_SILENCE_MS = int(os.environ.get("FORMOSPEECH_CLAUSE_SILENCE_MS", "180"))
 CACHE_DIR = Path(os.environ.get("SPARK_DATA_DIR", ROOT / "data")) / "tts-cache"
 
 _model = None
@@ -47,16 +49,177 @@ _np = None
 _lock = threading.Lock()
 _state = "cold"
 
+_DIGIT_ZH = "零一二三四五六七八九"
+
+# 与 src/lib/hakka-tts-text.ts 对齐（最长优先）
+_HAKKA_LEXICON = [
+    ("是不是", "係唔係"),
+    ("好不好", "好唔好"),
+    ("對不對", "著唔著"),
+    ("对不对", "著唔著"),
+    ("可不可以", "做得無"),
+    ("能不能", "做得唔做得"),
+    ("為什麼", "做麼个"),
+    ("为什么", "做麼个"),
+    ("怎麼樣", "仰般"),
+    ("怎么样", "仰般"),
+    ("怎麼辦", "仰般辦"),
+    ("怎么办", "仰般辦"),
+    ("怎麼", "仰般"),
+    ("怎么", "仰般"),
+    ("什麼", "麼个"),
+    ("什么", "麼个"),
+    ("哪裏", "哪位"),
+    ("哪里", "哪位"),
+    ("哪兒", "哪位"),
+    ("哪儿", "哪位"),
+    ("多少", "幾多"),
+    ("沒有", "冇"),
+    ("没有", "冇"),
+    ("不是", "毋係"),
+    ("不會", "毋會"),
+    ("不会", "毋會"),
+    ("不知道", "毋知"),
+    ("不知", "毋知"),
+    ("告訴", "講分"),
+    ("告诉", "講分"),
+    ("我們", "涯等"),
+    ("我们", "涯等"),
+    ("你們", "你等"),
+    ("你们", "你等"),
+    ("他們", "佢等"),
+    ("他们", "佢等"),
+    ("她們", "佢等"),
+    ("她们", "佢等"),
+    ("可以", "做得"),
+    ("一起", "共下"),
+    ("非常", "當"),
+    ("很好", "當好"),
+    ("現在", "這下"),
+    ("现在", "這下"),
+    ("今天", "今日"),
+    ("但是", "毋過"),
+    ("可是", "毋過"),
+    ("如果", "若係"),
+    ("或者", "定係"),
+    ("還是", "定係"),
+    ("还是", "定係"),
+    ("自己", "自家"),
+    ("別人", "別儕"),
+    ("别人", "別儕"),
+    ("誰", "麼儕"),
+    ("谁", "麼儕"),
+    ("一個", "一隻"),
+    ("一个", "一隻"),
+    ("這個", "這隻"),
+    ("这个", "這隻"),
+    ("那個", "該隻"),
+    ("那个", "該隻"),
+    ("一點", "一滴仔"),
+    ("一点", "一滴仔"),
+    ("一次", "一擺"),
+    ("看看", "看一下"),
+    ("試試", "試一下"),
+    ("试试", "試一下"),
+    ("想想", "想一下"),
+    ("走路", "行路"),
+    ("吃飯", "食飯"),
+    ("吃饭", "食飯"),
+    ("同你", "摎你"),
+    ("同佢", "摎佢"),
+    ("同他", "摎佢"),
+    ("同她", "摎佢"),
+    ("同涯", "摎涯"),
+    ("跟你", "摎你"),
+    ("跟佢", "摎佢"),
+    ("和他", "摎佢"),
+    ("和她", "摎佢"),
+    ("和你", "摎你"),
+    ("和涯", "摎涯"),
+    ("給你", "分你"),
+    ("给你", "分你"),
+    ("給涯", "分涯"),
+    ("给我", "分涯"),
+    ("沒", "冇"),
+    ("没", "冇"),
+    ("嗎", "無"),
+    ("吗", "無"),
+    ("他", "佢"),
+    ("她", "佢"),
+    ("它", "佢"),
+    ("吃", "食"),
+    ("說", "講"),
+    ("说", "講"),
+    ("傾", "講"),
+    ("倾", "講"),
+    ("給", "分"),
+    ("给", "分"),
+    ("和", "摎"),
+    ("跟", "摎"),
+    ("的", "个"),
+]
+
 
 def cache_key(text: str, voice: str) -> str:
-    return hashlib.sha256(f"{text}\0{voice}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{CACHE_SALT}\0{text}\0{voice}".encode("utf-8")).hexdigest()
 
 
-_DIGIT_ZH = "零一二三四五六七八九"
+def number_to_zh(n: int) -> str:
+    if n < 10:
+        return _DIGIT_ZH[n]
+    if n < 20:
+        return "十" if n == 10 else f"十{_DIGIT_ZH[n % 10]}"
+    if n < 100:
+        tens, ones = divmod(n, 10)
+        return f"{_DIGIT_ZH[tens]}十" + (_DIGIT_ZH[ones] if ones else "")
+    if n < 1000:
+        hundreds, rest = divmod(n, 100)
+        s = f"{_DIGIT_ZH[hundreds]}百"
+        if rest == 0:
+            return s
+        if rest < 10:
+            return f"{s}零{_DIGIT_ZH[rest]}"
+        return s + number_to_zh(rest)
+    if n < 10000:
+        thousands, rest = divmod(n, 1000)
+        s = f"{_DIGIT_ZH[thousands]}千"
+        if rest == 0:
+            return s
+        if rest < 100:
+            return f"{s}零{number_to_zh(rest)}"
+        return s + number_to_zh(rest)
+    return "".join(_DIGIT_ZH[int(ch)] for ch in str(n))
+
+
+def replace_numbers(text: str) -> str:
+    def dig(m: re.Match[str]) -> str:
+        raw = m.group(0)
+        ascii_s = "".join(
+            chr(ord(ch) - 0xFEE0) if "０" <= ch <= "９" else ch for ch in raw
+        )
+        if "." in ascii_s:
+            a, _, b = ascii_s.partition(".")
+            head = number_to_zh(int(a or "0"))
+            frac = "".join(_DIGIT_ZH[int(d)] for d in b if d.isdigit())
+            return f"{head}點{frac}" if frac else head
+        if len(ascii_s) > 6:
+            return "".join(_DIGIT_ZH[int(d)] for d in ascii_s if d.isdigit())
+        return number_to_zh(int(ascii_s))
+
+    return re.sub(r"[0-9０-９]+(?:\.[0-9０-９]+)?", dig, text)
+
+
+def apply_lexicon(text: str) -> str:
+    t = text
+    for frm, to in sorted(_HAKKA_LEXICON, key=lambda x: len(x[0]), reverse=True):
+        if frm and frm in t:
+            t = t.replace(frm, to)
+    t = t.replace("个確", "的確").replace("目个", "目的")
+    return t
 
 
 def normalize_hakka(raw: str) -> str:
-    """与 src/lib/hakka-tts-text.ts 对齐：去引号/公式/数字→汉字，避免 formog2p 422。"""
+    """与 src/lib/hakka-tts-text.ts 对齐。"""
     from opencc import OpenCC
 
     t = (raw or "").strip()
@@ -72,7 +235,6 @@ def normalize_hakka(raw: str) -> str:
     t = re.sub(r"\*\*([^*]+)\*\*", r"\1", t)
     t = re.sub(r"\*([^*]+)\*", r"\1", t)
 
-    # 「」等是线上 422 主因
     t = re.sub(r"[「」『』【】《》〈〉〔〕〖〗〘〙〚〛]", "", t)
     t = re.sub(r"[“”‘’\"']", "", t)
     t = t.replace("、", "，")
@@ -97,16 +259,7 @@ def normalize_hakka(raw: str) -> str:
     t = re.sub(r"\bC\s*[)）．.]", "丙，", t, flags=re.I)
     t = re.sub(r"\bD\s*[)）．.]", "丁，", t, flags=re.I)
 
-    def digits_to_zh(m: re.Match[str]) -> str:
-        out = []
-        for ch in m.group(0):
-            if "０" <= ch <= "９":
-                out.append(_DIGIT_ZH[ord(ch) - ord("０")])
-            elif ch.isdigit():
-                out.append(_DIGIT_ZH[int(ch)])
-        return "".join(out)
-
-    t = re.sub(r"[0-9０-９]+", digits_to_zh, t)
+    t = replace_numbers(t)
     t = (
         t.replace("×", "乘")
         .replace("✕", "乘")
@@ -119,15 +272,19 @@ def normalize_hakka(raw: str) -> str:
         .replace("%", "百分之")
         .replace("％", "百分之")
     )
-    # 去掉减号单独处理以免破坏「減」字语境：仅 ASCII/全角 hyphen
     t = re.sub(r"[－\-]", "减", t)
 
     t = re.sub(r"[^\u4e00-\u9fffA-Za-z\s，。！？；：]", " ", t)
-    t = OpenCC("s2t").convert(t)
+    t = OpenCC("s2tw").convert(t)
+    t = apply_lexicon(t)
     t = re.sub(r"我(?!們)", "涯", t)
     t = re.sub(r"\s+", " ", t).strip()
-    t = re.sub(r"^[，；：\s]+", "", t)
-    t = re.sub(r"[，；：\s]+$", "", t)
+    # 模型词表仅含「，」——句读收成逗号以保留停顿
+    t = re.sub(r"[。！？；：]+", "，", t)
+    t = re.sub(r"，{2,}", "，", t)
+    t = re.sub(r"\s*，\s*", "，", t)
+    t = re.sub(r"^[，\s]+", "", t)
+    t = re.sub(r"[，\s]+$", "", t)
     return t.strip()
 
 
@@ -137,8 +294,9 @@ def strip_unknowns(text: str, unknown: list[str]) -> str:
         if u:
             out = out.replace(u, "")
     out = re.sub(r"\s+", " ", out).strip()
-    out = re.sub(r"^[，；：\s]+", "", out)
-    out = re.sub(r"[，；：\s]+$", "", out)
+    out = re.sub(r"，{2,}", "，", out)
+    out = re.sub(r"^[，\s]+", "", out)
+    out = re.sub(r"[，\s]+$", "", out)
     return out.strip()
 
 
@@ -156,6 +314,62 @@ def parse_ipa(ipa: str, delete_chars=r"\+\-\|\_", as_space: str = "") -> list[st
             word = word.replace("，", " ， ")
             text.extend(word)
     return text
+
+
+def clean_ipa_tokens(tokens: list[str]) -> list[str]:
+    """只保留模型词表认识的标点（， 与空格）；丢掉 。！？ 避免无停顿连读。
+
+    注意：formog2p/parse_ipa 会把声调数字整段保留（如 '55'/'11'），
+    它们是词表里的多字符 token，不能对整段做 ord()。
+    """
+    out: list[str] = []
+    for tok in tokens:
+        if not tok:
+            continue
+        if tok in ("。", "！", "？", "；", "："):
+            tok = "，"
+        # Drop leftover Han characters; keep IPA letters, tones, punct, space
+        if len(tok) == 1 and "\u4e00" <= tok <= "\u9fff":
+            continue
+        out.append(tok)
+    # collapse runs of spaces / commas
+    cleaned: list[str] = []
+    prev = ""
+    for tok in out:
+        if tok == " " and prev == " ":
+            continue
+        if tok == "，" and prev == "，":
+            continue
+        cleaned.append(tok)
+        prev = tok
+    while cleaned and cleaned[0] in ("，", " "):
+        cleaned.pop(0)
+    while cleaned and cleaned[-1] in ("，", " "):
+        cleaned.pop()
+    return cleaned
+
+
+def split_clauses(text: str, max_chars: int = 28) -> list[str]:
+    """按逗号分句；短句合并到 max_chars，保证多数辅导句有呼吸停顿。"""
+    parts = [p.strip() for p in text.split("，") if p.strip()]
+    if not parts:
+        return [text] if text else []
+    # Prefer one clause per comma-separated unit when units are short;
+    # only glue when a fragment is tiny (<8) to avoid choppy 1–2 char bursts.
+    clauses: list[str] = []
+    buf = ""
+    for p in parts:
+        if not buf:
+            buf = p
+            continue
+        if len(buf) < 8 and len(buf) + 1 + len(p) <= max_chars:
+            buf = f"{buf}，{p}"
+        else:
+            clauses.append(buf)
+            buf = p
+    if buf:
+        clauses.append(buf)
+    return clauses
 
 
 def ensure_model():
@@ -201,7 +415,55 @@ def ensure_model():
         _g2p = g2p
         _np = np
         _state = "ready"
-        print(f"[formospeech] model ready speaker={SPEAKER} dialect={DIALECT}", flush=True)
+        print(
+            f"[formospeech] model ready speaker={SPEAKER} dialect={DIALECT} "
+            f"length_scale={LENGTH_SCALE}",
+            flush=True,
+        )
+
+
+def g2p_speak(text: str):
+    """Return (speak_text, pronunciations list) after stripping unknowns."""
+    assert _g2p is not None
+    speak = text
+    result = None
+    for _attempt in range(4):
+        result = _g2p(speak, G2P_DIALECT, include_eng=True)
+        unknown = list(getattr(result, "unknown_words", None) or [])
+        if not unknown:
+            break
+        cleaned = strip_unknowns(speak, unknown)
+        print(
+            f"[formospeech] strip unknowns {unknown!r} -> {cleaned!r}",
+            flush=True,
+        )
+        if not cleaned or cleaned == speak:
+            raise ValueError("无法转成客语音素: " + ",".join(unknown))
+        speak = cleaned
+    else:
+        unknown = list(getattr(result, "unknown_words", None) or [])
+        raise ValueError("无法转成客语音素: " + ",".join(unknown))
+    return speak, result.pronunciations
+
+
+def synth_clause_wav(clause: str):
+    assert _model is not None and _np is not None
+    speak, pronunciations = g2p_speak(clause)
+    parsed = [p.replace(" ", "|") for p in pronunciations]
+    parsed_ipa = clean_ipa_tokens(parse_ipa(" ".join(parsed)))
+    if not parsed_ipa:
+        raise ValueError("empty ipa")
+    dialect = "sixian" if DIALECT == "nansixian" else DIALECT
+    _model.tts_model.length_scale = LENGTH_SCALE
+    wav = _model.tts(
+        parsed_ipa,
+        speaker_name=SPEAKER,
+        language_name=dialect,
+        split_sentences=False,
+    )
+    wav = _np.asarray(wav, dtype=_np.float32)
+    wav = _np.clip(wav, -1.0, 1.0)
+    return wav
 
 
 def synthesize_mp3(text: str) -> bytes:
@@ -211,51 +473,35 @@ def synthesize_mp3(text: str) -> bytes:
     if not norm:
         raise ValueError("empty text")
 
-    # disk cache under normalized key
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     out_path = CACHE_DIR / f"{cache_key(norm, VOICE)}.mp3"
     if out_path.exists() and out_path.stat().st_size > 200:
         return out_path.read_bytes()
 
     with _lock:
-        speak = norm
-        result = None
-        for _attempt in range(4):
-            result = _g2p(speak, G2P_DIALECT, include_eng=True)
-            unknown = list(getattr(result, "unknown_words", None) or [])
-            if not unknown:
-                break
-            cleaned = strip_unknowns(speak, unknown)
-            print(
-                f"[formospeech] strip unknowns {unknown!r} -> {cleaned!r}",
-                flush=True,
-            )
-            if not cleaned or cleaned == speak:
-                raise ValueError("无法转成客语音素: " + ",".join(unknown))
-            speak = cleaned
-        else:
-            unknown = list(getattr(result, "unknown_words", None) or [])
-            raise ValueError("无法转成客语音素: " + ",".join(unknown))
-
-        # cache under final speak text if we had to strip
-        if speak != norm:
-            out_path = CACHE_DIR / f"{cache_key(speak, VOICE)}.mp3"
-            if out_path.exists() and out_path.stat().st_size > 200:
-                return out_path.read_bytes()
-
-        parsed = [p.replace(" ", "|") for p in result.pronunciations]
-        parsed_ipa = parse_ipa(" ".join(parsed))
-        dialect = "sixian" if DIALECT == "nansixian" else DIALECT
-        _model.tts_model.length_scale = LENGTH_SCALE
-        wav = _model.tts(
-            parsed_ipa,
-            speaker_name=SPEAKER,
-            language_name=dialect,
-            split_sentences=False,
+        clauses = split_clauses(norm)
+        print(
+            f"[formospeech] synth clauses={len(clauses)} text={norm[:80]!r}",
+            flush=True,
         )
-        wav = _np.asarray(wav, dtype=_np.float32)
-        # clip + int16 for clean encode
-        wav = _np.clip(wav, -1.0, 1.0)
+        chunks = []
+        sr = _model.tts_model.config.audio.sample_rate
+        silence = _np.zeros(int(sr * CLAUSE_SILENCE_MS / 1000.0), dtype=_np.float32)
+        for i, clause in enumerate(clauses):
+            try:
+                wav = synth_clause_wav(clause)
+            except Exception as e:
+                print(f"[formospeech] clause fail {clause!r}: {e}", flush=True)
+                # fallback: try whole remaining joined once
+                if not chunks and len(clauses) == 1:
+                    raise
+                continue
+            chunks.append(wav)
+            if i < len(clauses) - 1:
+                chunks.append(silence)
+        if not chunks:
+            raise ValueError("all clauses failed")
+        wav = _np.concatenate(chunks)
         pcm = (wav * 32767.0).astype(_np.int16)
         sr = _model.tts_model.config.audio.sample_rate
 
@@ -299,7 +545,16 @@ def create_app():
 
     @app.get("/health")
     def health():
-        return jsonify({"ok": True, "model": _state, "speaker": SPEAKER, "dialect": DIALECT})
+        return jsonify(
+            {
+                "ok": True,
+                "model": _state,
+                "speaker": SPEAKER,
+                "dialect": DIALECT,
+                "voice": VOICE,
+                "length_scale": LENGTH_SCALE,
+            }
+        )
 
     @app.post("/tts")
     def tts():
@@ -317,7 +572,6 @@ def create_app():
 
 
 def main():
-    # Warm model in background so first request is faster
     def warm():
         try:
             ensure_model()

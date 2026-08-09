@@ -12,7 +12,7 @@
 | 本机常驻实时推理 | ⚠️ 模型约 970MB；4GB 机建议 PM2 常驻 `formospeech-tts`，并预留 swap |
 | 离线预合成 → TTS 缓存 | ✅ **高频句主路径**：命中即毫秒返回 |
 | Sidecar | ✅ 默认 `FORMOSPEECH_TTS_URL=http://127.0.0.1:9876`（`scripts/formospeech_server.py`） |
-| 文本规范化 | ✅ 简体→繁体（OpenCC）+ `我→涯`；未知字拒绝合成（避免丢字怪声） |
+| 文本规范化 | ✅ 简体→繁体（OpenCC）+ 常用普通话→客语书面（`normalizeHakkaForTts` v2）+ 句读收成「，」停顿；未知字剥离重试 |
 | 粤语 edge 顶替 | ❌ **禁止**：潮汕话/客家话路径不再使用 `zh-HK-*` |
 
 ## 路由（`ttsProviderForLang` / `/api/tts`）
@@ -25,15 +25,15 @@ teo:
 
 hak:
   家人 HAK_CLONE_VOICE_ID → 百炼复刻
-  否则 → FormoSpeech（voice=`formospeech-sixian`）
-        ① normalizeHakkaForTts（简→繁 + 我→涯）
+  否则 → FormoSpeech（voice=`formospeech-sixian-v2`）
+        ① normalizeHakkaForTts v2（简→繁 + 客语用字 + 数字口语 + 句读→逗号）
         ② 磁盘缓存命中 → X-TTS-Engine: formospeech-cache
-        ③ FORMOSPEECH_TTS_URL sidecar（默认 127.0.0.1:9876）
+        ③ FORMOSPEECH_TTS_URL sidecar：分句合成 + 句间静音（默认 180ms）
   失败 → 503（不回退粤语）
 ```
 
-缓存 key：`sha256(normalizedText + "\0" + voice).mp3`，voice 固定 `formospeech-sixian`。  
-默认语者：`江芮敏`（女 / 苗栗四縣）；码率 128k mp3。
+缓存 key：`sha256("hakka-tts-v2" + text + voice).mp3`（Node 侧仍用 `sha256(text+"\0"+voice)`，靠 voice=`…-v2` 失效旧缓存）。  
+默认语者：`江芮敏`（女 / 苗栗四縣）；`length_scale` 默认 1.12；码率 128k mp3。
 
 ## Sidecar（PM2）
 

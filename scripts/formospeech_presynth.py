@@ -23,16 +23,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SPACE = ROOT / "vendor" / "taiwanese-hakka-tts"
-VOICE = "formospeech-sixian"
+VOICE = "formospeech-sixian-v2"
 MODEL_ID = "formospeech/yourtts-htia-240704"
 DIALECT = "sixian"
 G2P_DIALECT = "hak_sx"
 SPEAKER_NAME = os.environ.get("FORMOSPEECH_SPEAKER", "江芮敏")
-LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.05"))
+LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.12"))
+CACHE_SALT = "hakka-tts-v2"
 
 
 def cache_key(text: str, voice: str) -> str:
-    return hashlib.sha256(f"{text}\0{voice}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{CACHE_SALT}\0{text}\0{voice}".encode("utf-8")).hexdigest()
 
 
 _DIGIT_ZH = "零一二三四五六七八九"
