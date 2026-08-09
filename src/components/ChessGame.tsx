@@ -1,38 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chess, type Square } from "chess.js";
 import {
+  assertBoardMapping,
   chooseChessAiMove,
   isLightSquare,
   legalTargets,
   pieceAtVisual,
   squareFromVisual,
+  statusText,
   tryPlayerMove,
   type AiDifficulty,
 } from "@/lib/entertain/chess-local";
 
-type PieceChar =
-  | "♔"
-  | "♕"
-  | "♖"
-  | "♗"
-  | "♘"
-  | "♙"
-  | "♚"
-  | "♛"
-  | "♜"
-  | "♝"
-  | "♞"
-  | "♟";
+type GameMode = "ai" | "pvp";
 
-const PIECE_MAP: Record<string, PieceChar> = {
-  K: "♔",
-  Q: "♕",
-  R: "♖",
-  B: "♗",
-  N: "♘",
-  P: "♙",
+/** Same glyph set for both sides; color via CSS (Unicode “white” glyphs often render identical). */
+const GLYPH: Record<string, string> = {
   k: "♚",
   q: "♛",
   r: "♜",
@@ -41,59 +26,44 @@ const PIECE_MAP: Record<string, PieceChar> = {
   p: "♟",
 };
 
-type GameMode = "ai" | "pvp";
-
 export function ChessGame() {
   const [fen, setFen] = useState(() => new Chess().fen());
   const [selected, setSelected] = useState<Square | null>(null);
   const [targets, setTargets] = useState<Square[]>([]);
-  const [thinking, setThinking] = useState(false);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(
+    null,
+  );
   const [history, setHistory] = useState<string[]>([]);
   const [mode, setMode] = useState<GameMode>("ai");
   const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
-  const [status, setStatus] = useState("White to move — you are White");
-  const game = new Chess(fen);
+  const [aiBusy, setAiBusy] = useState(false);
 
-  const refreshStatus = useCallback((f: string, m: GameMode) => {
-    const g = new Chess(f);
-    if (g.isCheckmate()) {
-      setStatus(
-        `Checkmate — ${g.turn() === "w" ? "Black" : "White"} wins!`,
-      );
-    } else if (g.isStalemate()) {
-      setStatus("Stalemate — Draw");
-    } else if (g.isDraw()) {
-      setStatus("Draw");
-    } else if (g.isCheck()) {
-      setStatus(`${g.turn() === "w" ? "White" : "Black"} in check`);
-    } else if (m === "ai") {
-      setStatus(
-        g.turn() === "w"
-          ? "Your turn (White)"
-          : "AI thinking…",
-      );
-    } else {
-      setStatus(`${g.turn() === "w" ? "White" : "Black"} to move`);
-    }
-  }, []);
+  const game = useMemo(() => new Chess(fen), [fen]);
+  const turn = game.turn();
+  const over = game.isGameOver();
+  const humanCanMove = !over && !aiBusy && (mode === "pvp" || turn === "w");
 
-  const resetGame = useCallback(() => {
+  const status = statusText(fen, mode);
+
+  // Dev-time invariant: mapping must stay consistent
+  if (process.env.NODE_ENV !== "production" && !assertBoardMapping(game)) {
+    console.error("[Chess] board mapping mismatch");
+  }
+
+  const startFresh = useCallback((m: GameMode) => {
     const g = new Chess();
     setFen(g.fen());
     setSelected(null);
     setTargets([]);
+    setLastMove(null);
     setHistory([]);
-    setThinking(false);
-    refreshStatus(g.fen(), mode);
-  }, [mode, refreshStatus]);
+    setAiBusy(false);
+    setMode(m);
+  }, []);
 
-  const handleSquareClick = useCallback(
+  const onSquareClick = useCallback(
     (square: Square) => {
-      if (thinking) return;
-      const g = new Chess(fen);
-      if (g.isGameOver()) return;
-      // In AI mode human is always white
-      if (mode === "ai" && g.turn() !== "w") return;
+      if (!humanCanMove) return;
 
       if (selected) {
         if (targets.includes(square)) {
@@ -101,15 +71,14 @@ export function ChessGame() {
           if (result) {
             setFen(result.fen);
             setHistory((h) => [...h, result.san]);
+            setLastMove({ from: result.from, to: result.to });
             setSelected(null);
             setTargets([]);
-            refreshStatus(result.fen, mode);
           }
           return;
         }
-        // Reselect own piece
-        const piece = g.get(square);
-        if (piece && piece.color === g.turn()) {
+        const piece = game.get(square);
+        if (piece && piece.color === turn) {
           setSelected(square);
           setTargets(legalTargets(fen, square));
         } else {
@@ -119,67 +88,62 @@ export function ChessGame() {
         return;
       }
 
-      const piece = g.get(square);
-      if (piece && piece.color === g.turn()) {
+      const piece = game.get(square);
+      if (piece && piece.color === turn) {
         setSelected(square);
         setTargets(legalTargets(fen, square));
       }
     },
-    [fen, selected, targets, thinking, mode, refreshStatus],
+    [humanCanMove, selected, targets, fen, game, turn],
   );
 
-  // Local AI — no network. Runs after white moves.
+  // Local AI — never leave aiBusy stuck
   useEffect(() => {
-    if (mode !== "ai") return;
-    const g = new Chess(fen);
-    if (g.isGameOver() || g.turn() !== "b") return;
+    if (mode !== "ai" || over || turn !== "b") {
+      setAiBusy(false);
+      return;
+    }
 
-    let cancelled = false;
-    setThinking(true);
+    let alive = true;
+    setAiBusy(true);
 
-    // Yield to paint status, then compute locally (typically <50ms)
-    const t = window.setTimeout(() => {
-      if (cancelled) return;
+    const id = window.setTimeout(() => {
+      if (!alive) return;
       try {
         const san = chooseChessAiMove(fen, difficulty);
-        if (cancelled || !san) return;
+        if (!alive || !san) return;
         const next = new Chess(fen);
         const mv = next.move(san);
-        if (mv && !cancelled) {
-          setFen(next.fen());
-          setHistory((h) => [...h, mv.san]);
-          refreshStatus(next.fen(), mode);
-        }
+        if (!mv || !alive) return;
+        setFen(next.fen());
+        setHistory((h) => [...h, mv.san]);
+        setLastMove({ from: mv.from, to: mv.to });
+        setSelected(null);
+        setTargets([]);
+      } catch (err) {
+        console.error("[Chess AI]", err);
       } finally {
-        if (!cancelled) setThinking(false);
+        if (alive) setAiBusy(false);
       }
-    }, 20);
+    }, 40);
 
     return () => {
-      cancelled = true;
-      clearTimeout(t);
+      alive = false;
+      clearTimeout(id);
+      // Ensure UI unlocks if effect is cancelled mid-flight
+      setAiBusy(false);
     };
-  }, [fen, mode, difficulty, refreshStatus]);
+  }, [fen, mode, difficulty, turn, over]);
 
   return (
     <div className="flex flex-1 flex-col items-center px-3 py-4">
-      {/* Mode */}
       <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
         <span className="text-xs text-[var(--ink-muted)]">Mode:</span>
         {(["ai", "pvp"] as GameMode[]).map((m) => (
           <button
             key={m}
             type="button"
-            onClick={() => {
-              setMode(m);
-              const g = new Chess();
-              setFen(g.fen());
-              setSelected(null);
-              setTargets([]);
-              setHistory([]);
-              setThinking(false);
-              refreshStatus(g.fen(), m);
-            }}
+            onClick={() => startFresh(m)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               mode === m
                 ? "bg-[var(--teal)] text-white"
@@ -191,7 +155,7 @@ export function ChessGame() {
         ))}
         {mode === "ai" && (
           <>
-            <span className="ml-2 text-xs text-[var(--ink-muted)]">Level:</span>
+            <span className="ml-1 text-xs text-[var(--ink-muted)]">Level:</span>
             {(["easy", "medium", "hard"] as AiDifficulty[]).map((d) => (
               <button
                 key={d}
@@ -210,82 +174,120 @@ export function ChessGame() {
         )}
       </div>
 
-      <div className="mb-3 flex items-center gap-3 rounded-xl bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]">
+      <div className="mb-3 flex min-h-10 items-center gap-2 rounded-xl bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]">
         <span>{status}</span>
-        {thinking && (
+        {aiBusy && (
           <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--teal)]" />
         )}
       </div>
 
-      {/* Board: white at bottom, a1 dark bottom-left */}
-      <div className="mb-4 rounded-xl border-4 border-[#6b4c2a] bg-[#6b4c2a] p-1 shadow-lg">
-        <div
-          className="grid aspect-square grid-cols-8 overflow-hidden rounded-sm"
-          style={{ width: "min(85vw, 480px)" }}
-          role="grid"
-          aria-label="Chess board"
-        >
-          {Array.from({ length: 8 }, (_, row) =>
-            Array.from({ length: 8 }, (_, col) => {
-              const square = squareFromVisual(row, col);
-              const piece = pieceAtVisual(game, row, col);
-              const light = isLightSquare(row, col);
-              const isSelected = selected === square;
-              const isTarget = targets.includes(square);
-              const inCheck =
-                !!piece &&
-                piece.type === "k" &&
-                game.isCheck() &&
-                piece.color === game.turn();
+      {/* Board + file labels */}
+      <div className="mb-4 flex flex-col items-center">
+        <div className="flex">
+          {/* rank labels */}
+          <div
+            className="mr-1 flex flex-col justify-around py-1 text-[10px] text-[var(--ink-muted)]"
+            style={{ height: "min(85vw, 480px)" }}
+            aria-hidden
+          >
+            {[8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+              <span key={n} className="flex flex-1 items-center">
+                {n}
+              </span>
+            ))}
+          </div>
 
-              return (
-                <button
-                  key={square}
-                  type="button"
-                  role="gridcell"
-                  aria-label={
-                    piece
-                      ? `${piece.color === "w" ? "White" : "Black"} ${piece.type} on ${square}`
-                      : square
-                  }
-                  onClick={() => handleSquareClick(square)}
-                  disabled={thinking}
-                  className={`relative flex aspect-square items-center justify-center text-[clamp(1.4rem,5vw,2.8rem)] select-none
-                    ${light ? "bg-[#eed7b0]" : "bg-[#b58863]"}
-                    ${isSelected ? "ring-2 ring-inset ring-[var(--teal)]" : ""}
-                    ${inCheck ? "bg-[#e85d5d]/85" : ""}
-                    ${thinking ? "cursor-wait" : "hover:brightness-95"}
-                  `}
-                >
-                  {isTarget && !piece && (
-                    <span className="absolute h-3 w-3 rounded-full bg-[var(--teal)]/45" />
-                  )}
-                  {isTarget && piece && (
-                    <span className="absolute inset-0.5 rounded-sm ring-2 ring-[var(--teal)]/70" />
-                  )}
-                  {piece
-                    ? PIECE_MAP[
-                        piece.color === "w"
-                          ? piece.type.toUpperCase()
-                          : piece.type
-                      ]
-                    : null}
-                </button>
-              );
-            }),
-          )}
+          <div className="rounded-xl border-4 border-[#5c4030] bg-[#5c4030] p-1 shadow-lg">
+            <div
+              className="grid grid-cols-8 overflow-hidden rounded-sm"
+              style={{ width: "min(85vw, 480px)", aspectRatio: "1" }}
+              role="grid"
+              aria-label="Chess board, white at bottom"
+            >
+              {Array.from({ length: 8 }, (_, row) =>
+                Array.from({ length: 8 }, (_, col) => {
+                  const square = squareFromVisual(row, col);
+                  const piece = pieceAtVisual(game, row, col);
+                  const light = isLightSquare(row, col);
+                  const isSelected = selected === square;
+                  const isTarget = targets.includes(square);
+                  const isLast =
+                    lastMove?.from === square || lastMove?.to === square;
+                  const inCheck =
+                    !!piece &&
+                    piece.type === "k" &&
+                    game.isCheck() &&
+                    piece.color === turn;
+
+                  return (
+                    <button
+                      key={square}
+                      type="button"
+                      role="gridcell"
+                      aria-label={
+                        piece
+                          ? `${piece.color === "w" ? "White" : "Black"} ${piece.type} ${square}`
+                          : square
+                      }
+                      onClick={() => onSquareClick(square)}
+                      className={`relative flex items-center justify-center select-none
+                        ${light ? "bg-[#f0d9b5]" : "bg-[#b58863]"}
+                        ${isLast ? "brightness-110 ring-1 ring-inset ring-amber-400/80" : ""}
+                        ${isSelected ? "ring-2 ring-inset ring-[var(--teal)]" : ""}
+                        ${inCheck ? "!bg-[#e07070]" : ""}
+                        ${humanCanMove ? "cursor-pointer hover:brightness-95" : "cursor-default"}
+                      `}
+                    >
+                      {isTarget && !piece && (
+                        <span className="pointer-events-none absolute h-[28%] w-[28%] rounded-full bg-[var(--teal)]/50" />
+                      )}
+                      {isTarget && piece && (
+                        <span className="pointer-events-none absolute inset-[6%] rounded-sm ring-[3px] ring-[var(--teal)]/70" />
+                      )}
+                      {piece ? (
+                        <span
+                          className="pointer-events-none leading-none"
+                          style={{
+                            fontSize: "clamp(1.5rem, 6vw, 2.75rem)",
+                            color: piece.color === "w" ? "#f8f4ec" : "#111",
+                            textShadow:
+                              piece.color === "w"
+                                ? "0 0 1px #222, 0 1px 2px rgba(0,0,0,.45), 1px 0 0 #333, -1px 0 0 #333, 0 1px 0 #333, 0 -1px 0 #333"
+                                : "0 1px 1px rgba(255,255,255,.15)",
+                          }}
+                        >
+                          {GLYPH[piece.type]}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                }),
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* file labels */}
+        <div
+          className="mt-1 flex justify-around pl-4 text-[10px] text-[var(--ink-muted)]"
+          style={{ width: "min(85vw, 480px)" }}
+          aria-hidden
+        >
+          {["a", "b", "c", "d", "e", "f", "g", "h"].map((f) => (
+            <span key={f} className="flex-1 text-center">
+              {f}
+            </span>
+          ))}
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={resetGame}
-          className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
-        >
-          New Game
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => startFresh(mode)}
+        className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
+      >
+        New Game
+      </button>
 
       {history.length > 0 && (
         <div className="mt-4 w-full max-w-md rounded-xl bg-[var(--surface)] p-3 shadow-sm ring-1 ring-[var(--line)]">
@@ -295,7 +297,7 @@ export function ChessGame() {
           <div className="max-h-32 overflow-auto text-xs text-[var(--ink)]">
             {history.map((m, i) => (
               <span key={`${i}-${m}`} className="mr-2">
-                {i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ` : ""}
+                {i % 2 === 0 ? `${i / 2 + 1}. ` : ""}
                 {m}{" "}
               </span>
             ))}

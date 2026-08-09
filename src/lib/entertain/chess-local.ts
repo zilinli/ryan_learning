@@ -1,26 +1,42 @@
 /**
- * Pure helpers for Chess UI / local AI — unit-tested, no React.
- * Board orientation: white at bottom (a1 dark, bottom-left).
+ * Pure Chess helpers — board mapping + local AI. No React.
+ * Orientation: white at bottom; a1 is dark (bottom-left).
  */
 
 import { Chess, type Square, type Move } from "chess.js";
 
 export type AiDifficulty = "easy" | "medium" | "hard";
 
-/** Visual row 0 = top of board = rank 8. */
+const FILES = "abcdefgh";
+
+/** Visual row 0 = top = rank 8; col 0 = file a. */
 export function squareFromVisual(row: number, col: number): Square {
-  const files = "abcdefgh";
-  return `${files[col]}${8 - row}` as Square;
+  return `${FILES[col]}${8 - row}` as Square;
 }
 
-/** chess.js board()[0] is rank 8 — same as visual row 0. */
+/** chess.js board()[0] === rank 8 === visual row 0. */
 export function pieceAtVisual(game: Chess, row: number, col: number) {
-  return game.board()[row][col];
+  return game.board()[row]?.[col] ?? null;
 }
 
-/** a1 is dark → visual (row=7,col=0) is dark. */
+/** a1 (row=7,col=0) is dark. */
 export function isLightSquare(row: number, col: number): boolean {
   return (row + col) % 2 === 0;
+}
+
+/** Sanity: piece shown at visual cell must equal game.get(square). */
+export function assertBoardMapping(game: Chess): boolean {
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const sq = squareFromVisual(row, col);
+      const fromBoard = pieceAtVisual(game, row, col);
+      const fromGet = game.get(sq);
+      const a = fromBoard ? `${fromBoard.color}${fromBoard.type}` : "";
+      const b = fromGet ? `${fromGet.color}${fromGet.type}` : "";
+      if (a !== b) return false;
+    }
+  }
+  return true;
 }
 
 const PIECE_VALUE: Record<string, number> = {
@@ -33,7 +49,6 @@ const PIECE_VALUE: Record<string, number> = {
 };
 
 function evaluate(game: Chess): number {
-  // Positive = good for white
   let score = 0;
   const board = game.board();
   for (let r = 0; r < 8; r++) {
@@ -42,18 +57,9 @@ function evaluate(game: Chess): number {
       if (!p) continue;
       const v = PIECE_VALUE[p.type] ?? 0;
       score += p.color === "w" ? v : -v;
-      // Tiny center bonus for knights/pawns
-      if (p.type === "p" || p.type === "n") {
-        const center = 3.5;
-        const dist = Math.abs(r - center) + Math.abs(c - center);
-        const bonus = (4 - dist) * 2;
-        score += p.color === "w" ? bonus : -bonus;
-      }
     }
   }
-  if (game.isCheck()) {
-    score += game.turn() === "w" ? -40 : 40;
-  }
+  if (game.isCheck()) score += game.turn() === "w" ? -50 : 50;
   return score;
 }
 
@@ -65,16 +71,13 @@ function minimax(
   maximizing: boolean,
 ): number {
   if (depth === 0 || game.isGameOver()) {
-    if (game.isCheckmate()) {
-      return game.turn() === "w" ? -100000 : 100000;
-    }
+    if (game.isCheckmate()) return game.turn() === "w" ? -100000 : 100000;
     if (game.isDraw()) return 0;
     return evaluate(game);
   }
 
   const moves = game.moves({ verbose: true }) as Move[];
-  // Move ordering: captures first
-  moves.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
+  moves.sort((a, b) => Number(!!b.captured) - Number(!!a.captured));
 
   if (maximizing) {
     let best = -Infinity;
@@ -95,17 +98,12 @@ function minimax(
     const val = minimax(game, depth - 1, alpha, beta, true);
     game.undo();
     best = Math.min(best, val);
-    alpha; // keep
     beta = Math.min(beta, val);
     if (beta <= alpha) break;
   }
   return best;
 }
 
-/**
- * Pick a local AI move in SAN. Fast: depth 1–2. No network.
- * Side to move is whoever `game.turn()` says.
- */
 export function chooseChessAiMove(
   fen: string,
   difficulty: AiDifficulty = "medium",
@@ -115,22 +113,19 @@ export function chooseChessAiMove(
   if (moves.length === 0) return "";
 
   if (difficulty === "easy") {
-    // Prefer non-blunders lightly: random among all
-    const pick = moves[Math.floor(Math.random() * moves.length)];
-    return pick.san;
+    return moves[Math.floor(Math.random() * moves.length)].san;
   }
 
   const depth = difficulty === "hard" ? 2 : 1;
   const maximizing = game.turn() === "w";
-
   let bestSan = moves[0].san;
   let bestScore = maximizing ? -Infinity : Infinity;
 
-  // Shuffle for variety among equal scores
-  const shuffled = [...moves].sort(() => Math.random() - 0.5);
-  shuffled.sort((a, b) => (b.captured ? 1 : 0) - (a.captured ? 1 : 0));
+  const ordered = [...moves].sort(
+    (a, b) => Number(!!b.captured) - Number(!!a.captured),
+  );
 
-  for (const m of shuffled) {
+  for (const m of ordered) {
     game.move(m);
     const score = minimax(game, depth - 1, -Infinity, Infinity, !maximizing);
     game.undo();
@@ -139,22 +134,25 @@ export function chooseChessAiMove(
       bestSan = m.san;
     }
   }
-
   return bestSan;
 }
 
-/** Apply a human click-to-move. Returns new FEN + SAN or null if illegal. */
 export function tryPlayerMove(
   fen: string,
   from: Square,
   to: Square,
-): { fen: string; san: string } | null {
+): { fen: string; san: string; from: Square; to: Square } | null {
   const game = new Chess(fen);
   try {
-    const promotion = to[1] === "8" || to[1] === "1" ? "q" : undefined;
-    const result = game.move({ from, to, promotion });
+    const needsPromo =
+      game.get(from)?.type === "p" && (to[1] === "8" || to[1] === "1");
+    const result = game.move({
+      from,
+      to,
+      promotion: needsPromo ? "q" : undefined,
+    });
     if (!result) return null;
-    return { fen: game.fen(), san: result.san };
+    return { fen: game.fen(), san: result.san, from: result.from, to: result.to };
   } catch {
     return null;
   }
@@ -162,5 +160,23 @@ export function tryPlayerMove(
 
 export function legalTargets(fen: string, from: Square): Square[] {
   const game = new Chess(fen);
+  const piece = game.get(from);
+  if (!piece || piece.color !== game.turn()) return [];
   return game.moves({ square: from, verbose: true }).map((m) => m.to as Square);
+}
+
+export function statusText(fen: string, mode: "ai" | "pvp"): string {
+  const g = new Chess(fen);
+  if (g.isCheckmate()) {
+    return `Checkmate — ${g.turn() === "w" ? "Black" : "White"} wins!`;
+  }
+  if (g.isStalemate()) return "Stalemate — Draw";
+  if (g.isDraw()) return "Draw";
+  if (g.isCheck()) {
+    return `${g.turn() === "w" ? "White" : "Black"} in check`;
+  }
+  if (mode === "ai") {
+    return g.turn() === "w" ? "Your turn (White)" : "AI moving…";
+  }
+  return `${g.turn() === "w" ? "White" : "Black"} to move`;
 }
