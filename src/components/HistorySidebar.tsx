@@ -236,14 +236,9 @@ export function HistorySidebar({
           </button>
         ) : null}
         {onOpenEntertainments ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              onOpenEntertainments();
-              onClose();
-            }}
-            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+          <a
+            href="/entertain"
+            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
           >
             <svg
               width="12"
@@ -260,7 +255,7 @@ export function HistorySidebar({
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             Entertainments
-          </button>
+          </a>
         ) : null}
         <a
           href={SPARK_GITHUB_URL}

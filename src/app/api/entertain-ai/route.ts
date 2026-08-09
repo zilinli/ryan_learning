@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getGameAiMove } from "@/lib/entertain/game-ai";
+import type { AiMoveRequest, AiMoveResponse } from "@/lib/entertain/types";
+
+export const runtime = "nodejs";
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as AiMoveRequest;
+
+    if (!body.game || !["chess", "xiangqi", "go"].includes(body.game)) {
+      return NextResponse.json(
+        { error: "Invalid game type" },
+        { status: 400 },
+      );
+    }
+
+    const { move, explanation } = await getGameAiMove({
+      game: body.game,
+      boardDescription: body.boardState,
+      playerColor: body.playerColor,
+      moveHistory: body.moveHistory,
+      signal: request.signal,
+    });
+
+    const response: AiMoveResponse = { move, explanation };
+    return NextResponse.json(response);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "AI move failed";
+    console.error("[Entertain AI]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

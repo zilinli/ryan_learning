@@ -12,27 +12,33 @@
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Entertainments + Deep-link Account Fix
+## 🔴 In Progress (2026-08-09) — Entertainments v2 (dedicated page) + Build Optimization
 
-**Entertainments** — Left nav under Code Agent: Sudoku / Sokoban / Klotski / Chess / Xiangqi / Go 9×9. Client-only. UI lang follows voice picker; default British English.  
-**Deep-link** — `?session=` must switch to owning account (e.g. Ching) when browser was on Ryan.
+**Entertainments v2** — Dedicated `/entertain` page with hub UI. Solo puzzles: Sudoku, Sokoban, Klotski. Board games with AI: Chess (chess.js + Cursor SDK), Xiangqi, Go 9x9. All board games have AI & PvP mode selector.  
+**Build Optimization** — Smart build script with memory cap (`--max-old-space-size=1024`), PM2 service lifecycle, multi-level fallback. Saves ~1.4 GB by stopping formospeech during build.
 
-> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md)
+> **Entertainments design:** [subsystems/entertainments.md](subsystems/entertainments.md)
+> **Build optimization design:** [subsystems/build-optimization.md](subsystems/build-optimization.md)
 
-### Phase ENT: Entertainments MVP
+### Phase ENT2: Entertainments v2 (dedicated page)
 
-- [x] **ENT.1** — Design doc + TODO breakdown
-- [x] **ENT.2** — `src/lib/entertainments` registry + i18n (en-GB default)
-- [x] **ENT.3** — Games: Sudoku, Sokoban, Klotski, Chess (`chess.js`), Xiangqi, Go 9×9
-- [x] **ENT.4** — `EntertainmentsPanel` + sidebar entry under Code Agent
-- [x] **ENT.5** — Unit tests for engines
-- [x] **ENT.6** — Build / deploy / push
+- [x] **ENT2.1** — Delete old sidebar EntertainmentsPanel + entertainments lib
+- [x] **ENT2.2** — Create `/entertain` page route + sidebar link
+- [x] **ENT2.3** — Hub page: card grid with Board Games & Logic Puzzles sections
+- [x] **ENT2.4** — Chess: chess.js engine + AI via Cursor SDK `/api/entertain-ai` + PvP mode
+- [x] **ENT2.5** — Xiangqi: full engine + AI + PvP mode
+- [x] **ENT2.6** — Go 9x9: full engine + AI + PvP mode
+- [x] **ENT2.7** — Sudoku: generator + keyboard input + conflict detection
+- [x] **ENT2.8** — Sokoban: 10 levels + undo + d-pad + keyboard
+- [x] **ENT2.9** — Klotski: 3 layouts + drag/click movement + undo
+- [x] **ENT2.10** — Build optimization: smart-build.mjs + memory cap + PM2 lifecycle
 
-### Phase LINK: Cross-account session deep-link
+### Phase BUILD: Build optimization
 
-- [x] **LINK.1** — `accountIdFromUrl` + `setUrlSession(session, account)`
-- [x] **LINK.2** — `findSessionOwner` + `GET /api/history?lookupSession=`
-- [x] **LINK.3** — TutorShell init switches account then selects session
+- [x] **BUILD.1** — Design doc: [subsystems/build-optimization.md](subsystems/build-optimization.md)
+- [x] **BUILD.2** — `scripts/smart-build.mjs`: pre-clean, memory check, heap cap, fallback
+- [x] **BUILD.3** — `next.config.ts`: `outputFileTracingExcludes` for dev deps
+- [x] **BUILD.4** — PM2 service lifecycle: stop formospeech before build, restart after
 
 ---
 

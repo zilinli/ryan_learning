@@ -5,7 +5,6 @@ import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { CodeAgentPanel } from "./CodeAgentPanel";
-import { EntertainmentsPanel } from "./entertainments/EntertainmentsPanel";
 import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
@@ -277,7 +276,6 @@ export function TutorShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [agentPanelMinimized, setAgentPanelMinimized] = useState(false);
-  const [entertainmentsOpen, setEntertainmentsOpen] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
   const [learningMemory, setLearningMemory] = useState<LearningMemory | null>(
     null,
@@ -667,9 +665,6 @@ export function TutorShell() {
   }, [sidebarOpen]);
 
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
-  const handleOpenEntertainments = useCallback(() => {
-    setEntertainmentsOpen(true);
-  }, []);
 
   const handleSwitchAccount = (id: string) => {
     if (id === accountId || busy) return;
@@ -1072,7 +1067,6 @@ export function TutorShell() {
         activeId={store.activeId}
         disabled={busy}
         onOpenCodeAgent={handleOpenCodeAgent}
-        onOpenEntertainments={handleOpenEntertainments}
         engagementLabel={
           engagement
             ? [
@@ -1193,12 +1187,6 @@ export function TutorShell() {
         open={agentPanelOpen && !agentPanelMinimized}
         onClose={() => { setAgentPanelOpen(false); setAgentPanelMinimized(false); }}
         onMinimize={() => setAgentPanelMinimized(true)}
-      />
-
-      <EntertainmentsPanel
-        open={entertainmentsOpen}
-        onClose={() => setEntertainmentsOpen(false)}
-        voiceId={voiceId}
       />
 
       {/* Floating bubble when minimized — click to restore */}
