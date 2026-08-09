@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 """
-离线预合成 FormoSpeech 客家话（yourtts-htia-240704）到 Spark TTS 缓存。
+离线预合成 FormoSpeech 客家话到 Spark TTS 缓存（高质量路径）。
 
-建议在停 Spark 或另机运行（模型 ~970MB，4GB 机器与生产并存易 OOM）。
+- 简体→繁体（OpenCC）+ 我→涯
+- 未知字直接失败（不再丢字硬合成 → 怪声）
+- int16 wav + 128k mp3
+- 默认语者：江芮敏
 
-用法（需 Python ≥3.10，推荐 uv）：
-  cd /root/codes/ryan_learning
-  git clone --depth 1 https://huggingface.co/spaces/united-link/taiwanese-hakka-tts vendor/taiwanese-hakka-tts
-  uv python install 3.11
-  uv venv .venv-formospeech --python 3.11
-  . .venv-formospeech/bin/activate
-  uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-  uv pip install TTS==0.22.0 omegaconf formog2p scipy numpy huggingface_hub
-  python scripts/formospeech_presynth.py --phrases scripts/formospeech_phrases_hak.json
-
-缓存 key 与 Node `ttsCacheKey(text, "formospeech-sixian")` 一致。
+用法见脚本头 / docs/subsystems/formospeech-hakka-tts.md
 """
 from __future__ import annotations
 
@@ -23,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -33,11 +27,27 @@ VOICE = "formospeech-sixian"
 MODEL_ID = "formospeech/yourtts-htia-240704"
 DIALECT = "sixian"
 G2P_DIALECT = "hak_sx"
-SPEAKER_NAME = "XF"
+SPEAKER_NAME = os.environ.get("FORMOSPEECH_SPEAKER", "江芮敏")
+LENGTH_SCALE = float(os.environ.get("FORMOSPEECH_LENGTH_SCALE", "1.05"))
 
 
 def cache_key(text: str, voice: str) -> str:
     return hashlib.sha256(f"{text}\0{voice}".encode("utf-8")).hexdigest()
+
+
+def normalize_hakka(raw: str) -> str:
+    from opencc import OpenCC
+
+    t = (raw or "").strip()
+    t = (
+        t.replace("!", "！")
+        .replace("?", "？")
+        .replace(",", "，")
+        .replace(".", "。")
+    )
+    t = OpenCC("s2t").convert(t)
+    t = re.sub(r"我(?!們)", "涯", t)
+    return t.strip()
 
 
 def parse_ipa(ipa: str, delete_chars=r"\+\-\|\_", as_space: str = "") -> list[str]:
@@ -58,10 +68,7 @@ def parse_ipa(ipa: str, delete_chars=r"\+\-\|\_", as_space: str = "") -> list[st
 
 def load_synthesizer():
     if not SPACE.is_dir():
-        raise SystemExit(
-            f"缺少 Space 代码：{SPACE}\n"
-            "请先：git clone https://huggingface.co/spaces/united-link/taiwanese-hakka-tts vendor/taiwanese-hakka-tts"
-        )
+        raise SystemExit(f"缺少 Space：{SPACE}")
     sys.path.insert(0, str(SPACE))
     os.chdir(SPACE)
 
@@ -70,112 +77,102 @@ def load_synthesizer():
     import TTS
     from formog2p.hakka import g2p
     from huggingface_hub import snapshot_download
-    from TTS.utils.synthesizer import Synthesizer
     from replace.tts import ChangedVitsConfig
+    from TTS.utils.synthesizer import Synthesizer
 
     TTS.tts.configs.vits_config.VitsConfig = ChangedVitsConfig
-
     model_dir = snapshot_download(MODEL_ID)
-    config_file_path = os.path.join(model_dir, "config.json")
-    model_ckpt_path = os.path.join(model_dir, "model.pth")
-    speaker_file_path = os.path.join(model_dir, "speakers.pth")
-    language_file_path = os.path.join(model_dir, "language_ids.json")
-    speaker_embedding_file_path = os.path.join(model_dir, "speaker_embs.pth")
-
-    with open(config_file_path, "r", encoding="utf-8") as f:
+    with open(os.path.join(model_dir, "config.json"), "r", encoding="utf-8") as f:
         content = f.read()
-    content = content.replace("speakers.pth", speaker_file_path)
-    content = content.replace("language_ids.json", language_file_path)
-    content = content.replace("speaker_embs.pth", speaker_embedding_file_path)
-
+    content = content.replace("speakers.pth", os.path.join(model_dir, "speakers.pth"))
+    content = content.replace(
+        "language_ids.json", os.path.join(model_dir, "language_ids.json")
+    )
+    content = content.replace(
+        "speaker_embs.pth", os.path.join(model_dir, "speaker_embs.pth")
+    )
     tmp_cfg = Path(tempfile.gettempdir()) / "formospeech_temp_config.json"
     tmp_cfg.write_text(content, encoding="utf-8")
-
     model = Synthesizer(
-        tts_checkpoint=model_ckpt_path,
+        tts_checkpoint=os.path.join(model_dir, "model.pth"),
         tts_config_path=str(tmp_cfg),
         use_cuda=torch.cuda.is_available(),
     )
+    model.tts_model.length_scale = LENGTH_SCALE
     return model, g2p, np
-
-
-def wav_to_mp3(wav_path: Path, mp3_path: Path) -> None:
-    import subprocess
-
-    subprocess.check_call(
-        [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(wav_path),
-            "-codec:a",
-            "libmp3lame",
-            "-qscale:a",
-            "4",
-            str(mp3_path),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--phrases", type=Path, required=True)
     ap.add_argument("--out-data-dir", type=Path, default=ROOT / "data")
-    ap.add_argument("--skip-existing", action="store_true", default=True)
+    ap.add_argument("--force", action="store_true", help="overwrite existing cache")
     args = ap.parse_args()
 
     phrases = json.loads(args.phrases.read_text(encoding="utf-8"))
-    if not isinstance(phrases, list) or not phrases:
-        raise SystemExit("phrases json must be a non-empty string array")
-
-    cache_dir = args.out_data_dir / "tts-cache"
+    # Absolute path: load_synthesizer() chdirs into vendor/taiwanese-hakka-tts.
+    cache_dir = (args.out_data_dir / "tts-cache").resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Loading FormoSpeech model (may take a while / ~1GB download)...", flush=True)
+    print("Loading FormoSpeech...", flush=True)
     model, g2p, np = load_synthesizer()
     from scipy.io.wavfile import write as write_wav
 
-    ok = 0
-    skip = 0
-    fail = 0
-    for text in phrases:
-        text = str(text).strip()
+    ok = skip = fail = 0
+    for raw in phrases:
+        text = normalize_hakka(str(raw))
         if not text:
             continue
         out = cache_dir / f"{cache_key(text, VOICE)}.mp3"
-        if args.skip_existing and out.exists() and out.stat().st_size > 100:
+        if not args.force and out.exists() and out.stat().st_size > 200:
             print(f"SKIP {text!r}")
             skip += 1
             continue
         try:
             result = g2p(text, G2P_DIALECT, include_eng=True)
-            if getattr(result, "unknown_words", None):
-                print(f"WARN unknown words for {text!r}: {result.unknown_words}")
+            if result.unknown_words:
+                raise ValueError(f"unknown words: {result.unknown_words}")
             parsed = [p.replace(" ", "|") for p in result.pronunciations]
             parsed_ipa = parse_ipa(" ".join(parsed))
+            model.tts_model.length_scale = LENGTH_SCALE
             wav = model.tts(
                 parsed_ipa,
                 speaker_name=SPEAKER_NAME,
                 language_name=DIALECT,
                 split_sentences=False,
             )
-            wav = np.asarray(wav, dtype=np.float32)
+            wav = np.clip(np.asarray(wav, dtype=np.float32), -1.0, 1.0)
+            pcm = (wav * 32767.0).astype(np.int16)
             sr = model.tts_model.config.audio.sample_rate
             with tempfile.TemporaryDirectory() as td:
                 wav_path = Path(td) / "a.wav"
                 mp3_path = Path(td) / "a.mp3"
-                write_wav(str(wav_path), sr, wav)
-                wav_to_mp3(wav_path, mp3_path)
+                write_wav(str(wav_path), sr, pcm)
+                subprocess.check_call(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        str(wav_path),
+                        "-ar",
+                        "22050",
+                        "-ac",
+                        "1",
+                        "-b:a",
+                        "128k",
+                        str(mp3_path),
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
                 out.write_bytes(mp3_path.read_bytes())
-            print(f"OK   {text!r} -> {out.name} ({out.stat().st_size} bytes)")
+            print(f"OK   {text!r} -> {out.stat().st_size}B")
             ok += 1
         except Exception as e:
             print(f"FAIL {text!r}: {e}")
             fail += 1
 
-    print(f"Done ok={ok} skip={skip} fail={fail} voice={VOICE} dir={cache_dir}")
+    print(f"Done ok={ok} skip={skip} fail={fail} speaker={SPEAKER_NAME}")
     if fail and not ok:
         sys.exit(1)
 

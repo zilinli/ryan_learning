@@ -8,6 +8,7 @@ import {
   getCachedTts,
   setCachedTts,
 } from "@/lib/tts-cache";
+import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,12 +104,14 @@ async function synthesizeDialect(
   }
 
   if (provider.kind === "formospeech") {
-    const cached = await getCachedTts(text, provider.voice);
+    // 简体→客语繁体后再查缓存 / 合成，避免未知字被丢掉造成怪声
+    const hakText = normalizeHakkaForTts(text);
+    const cached = await getCachedTts(hakText, provider.voice);
     if (cached) {
       return { audio: cached, engine: "formospeech-cache" };
     }
-    const audio = await callFormospeechTts(text, provider.voice);
-    void setCachedTts(text, provider.voice, audio);
+    const audio = await callFormospeechTts(hakText, provider.voice);
+    void setCachedTts(hakText, provider.voice, audio);
     console.info(
       `[tts] formospeech ok for hak voice=${provider.voice} bytes=${audio.byteLength}`,
     );
@@ -152,7 +155,7 @@ export async function POST(req: Request) {
             error: msg,
             hint:
               dialectLang === "hak"
-                ? "客家话请先离线预合成（scripts/formospeech_presynth.py）或配置 FORMOSPEECH_TTS_URL / HAK_CLONE_VOICE_ID；不使用粤语顶替。"
+                ? "客家话请确认 formospeech-tts 服务在跑（pm2），或预合成高频句；不使用粤语顶替。"
                 : "潮汕话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
           },
           { status: 503 },

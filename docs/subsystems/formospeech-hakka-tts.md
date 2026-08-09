@@ -9,9 +9,10 @@
 | 项 | 结论 |
 |----|------|
 | 发音质量 | ✅ 客语语料微调 + `formog2p.hakka` 音素前端，优于大厂硬读汉字 |
-| 本机常驻实时推理 | ❌ 模型约 970MB，4GB KVM 上与 Spark 并存易 OOM |
-| 离线预合成 → TTS 缓存 | ✅ **推荐主路径**：批量合成高频句，日常只读磁盘缓存 |
-| 可选 sidecar | ✅ `FORMOSPEECH_TTS_URL` 指向临时推理服务时，未命中缓存可实时合成 |
+| 本机常驻实时推理 | ⚠️ 模型约 970MB；4GB 机建议 PM2 常驻 `formospeech-tts`，并预留 swap |
+| 离线预合成 → TTS 缓存 | ✅ **高频句主路径**：命中即毫秒返回 |
+| Sidecar | ✅ 默认 `FORMOSPEECH_TTS_URL=http://127.0.0.1:9876`（`scripts/formospeech_server.py`） |
+| 文本规范化 | ✅ 简体→繁体（OpenCC）+ `我→涯`；未知字拒绝合成（避免丢字怪声） |
 | 粤语 edge 顶替 | ❌ **禁止**：潮汕话/客家话路径不再使用 `zh-HK-*` |
 
 ## 路由（`ttsProviderForLang` / `/api/tts`）
@@ -25,25 +26,35 @@ teo:
 hak:
   家人 HAK_CLONE_VOICE_ID → 百炼复刻
   否则 → FormoSpeech（voice=`formospeech-sixian`）
-        ① 磁盘缓存命中
-        ② FORMOSPEECH_TTS_URL sidecar
+        ① normalizeHakkaForTts（简→繁 + 我→涯）
+        ② 磁盘缓存命中 → X-TTS-Engine: formospeech-cache
+        ③ FORMOSPEECH_TTS_URL sidecar（默认 127.0.0.1:9876）
   失败 → 503（不回退粤语）
 ```
 
-缓存 key 与现网一致：`sha256(text + "\0" + voice).mp3`，voice 固定 `formospeech-sixian`。
+缓存 key：`sha256(normalizedText + "\0" + voice).mp3`，voice 固定 `formospeech-sixian`。  
+默认语者：`江芮敏`（女 / 苗栗四縣）；码率 128k mp3。
+
+## Sidecar（PM2）
+
+```bash
+# 依赖：.venv-formospeech（Python 3.11 + formog2p + CPU torch）
+pm2 start scripts/formospeech_server.py --name formospeech-tts \
+  --interpreter /root/codes/ryan_learning/.venv-formospeech/bin/python
+# .env.local
+FORMOSPEECH_TTS_URL=http://127.0.0.1:9876
+```
 
 ## 离线预合成
 
 ```bash
-# 建议：停 Spark 或另机执行，避免与生产抢内存
-python3 scripts/formospeech_presynth.py \
+# 建议：停 Spark 后执行，避免与生产抢内存；--force 覆盖旧（低质量）缓存
+.venv-formospeech/bin/python scripts/formospeech_presynth.py \
   --phrases scripts/formospeech_phrases_hak.json \
-  --out-data-dir data
+  --out-data-dir data --force
 ```
 
-依赖：`vendor/taiwanese-hakka-tts`（HF Space）+ Python 3.11 venv（`formog2p` 要求 ≥3.10；见 `scripts/formospeech_presynth.py` 头注释）。
-
-本机实测（2026-08-09，停 Spark 后离线跑）：15 条高频句全部合成成功，CPU RTF ≈0.2；产物写入 `data/tts-cache/`（gitignored）。日常 `/api/tts` `lang=hak` 命中缓存时 `X-TTS-Engine: formospeech-cache`。
+依赖：`vendor/taiwanese-hakka-tts`（HF Space）+ Python 3.11 venv（`formog2p` 要求 ≥3.10）。
 
 ## 腔调说明
 

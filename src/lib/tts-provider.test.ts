@@ -83,8 +83,12 @@ describe("aliyunCloneVoiceIdForLang", () => {
 });
 
 describe("callFormospeechTts", () => {
-  it("throws when sidecar URL missing", async () => {
-    delete process.env.FORMOSPEECH_TTS_URL;
+  it("surfaces connection errors as DialectTtsUnavailableError", async () => {
+    process.env.FORMOSPEECH_TTS_URL = "http://127.0.0.1:9";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+    );
     await expect(callFormospeechTts("你好")).rejects.toThrow(
       DialectTtsUnavailableError,
     );

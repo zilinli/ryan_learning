@@ -6,7 +6,8 @@
  *   hak: 家人复刻 → FormoSpeech（预合成缓存 / 可选 sidecar）→ 失败抛错
  *
  * FormoSpeech：formospeech/yourtts-htia-240704（客语微调 YourTTS，CC BY-NC）。
- * 本机不常驻推理；默认只读磁盘缓存，见 docs/subsystems/formospeech-hakka-tts.md。
+ * 磁盘缓存优先；未命中则调 FORMOSPEECH_TTS_URL（默认 127.0.0.1:9876）。
+ * 见 docs/subsystems/formospeech-hakka-tts.md。
  *
  * 非方言语言 → edge-tts 音色映射（粤语 yue 仍可用 zh-HK）。
  */
@@ -103,19 +104,25 @@ export async function callFormospeechTts(
   opts: { timeoutMs?: number; baseUrl?: string } = {},
 ): Promise<Buffer> {
   const baseUrl =
-    opts.baseUrl?.trim() || process.env.FORMOSPEECH_TTS_URL?.trim();
-  if (!baseUrl) {
+    opts.baseUrl?.trim() ||
+    process.env.FORMOSPEECH_TTS_URL?.trim() ||
+    "http://127.0.0.1:9876";
+  // Cold start can exceed 60s on CPU while the ~1GB model loads.
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  let res: Response;
+  try {
+    res = await fetch(baseUrl.replace(/\/$/, "") + "/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     throw new DialectTtsUnavailableError(
-      "客家话 FormoSpeech 未命中预合成缓存，且未配置 FORMOSPEECH_TTS_URL",
+      `客家话 FormoSpeech 服务不可用（${baseUrl}）：${msg}。请确认 formospeech-tts 已启动。`,
     );
   }
-  const timeoutMs = opts.timeoutMs ?? 60_000;
-  const res = await fetch(baseUrl.replace(/\/$/, "") + "/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
   if (!res.ok) {
     const errBody = (await res.text().catch(() => "")).slice(0, 300);
     throw new Error(`formospeech TTS failed (HTTP ${res.status}): ${errBody}`);
