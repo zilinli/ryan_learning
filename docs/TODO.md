@@ -1,7 +1,8 @@
 # 📋 Downstream Development TODO
 
-> Version 0.9.2 · 2026-08-09  
+> Version 0.9.3 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
+> Status reconciled against codebase on **2026-08-09** (docs-only; no feature work).  
 > Baseline: 27 test files, 243 tests, service `active` at :3001  
 > New deletion + theme spec: **[subsystems/deletion-sync-and-themes.md](subsystems/deletion-sync-and-themes.md)** (v0.1 — cross-device deletion sync + 4-theme system)
 > New adaptive spec: **[subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)** (v0.2 — BASIS K-12 + research-backed)  
@@ -9,7 +10,7 @@
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
 > Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)  
-> Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)**
+> Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** · **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)**
 
 ---
 
@@ -17,9 +18,15 @@
 
 > **Plan (confirmed):** [subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)  
 > **Research:** [subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)  
+> **UI spec:** [subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md) (wireframes · states · gap checklist §12)  
 > **P0 design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md) · **P1 design:** [subsystems/ca-p1-system-design.md](subsystems/ca-p1-system-design.md)  
 > **Filter:** Socratic · chat-first · physical-tutor · no child dashboard  
 > **Decisions:** D2 before weekly report; D1 PIN check mode in P2; C5/P3 idea-only; B3 after Phase G; no streaks/leaderboards; C6 folded into A2
+
+### UI spec status
+
+- [x] **UI-SPEC** — [competitive-ui-design.md](subsystems/competitive-ui-design.md) written (2026-08-09)
+- [x] **UI-POLISH** — Gap checklist §12 shipped (UI-E1, UI-A1a/b, UI-A2a, UI-B1a, UI-B2a, UI-D2, UI-D1); UI-P1 deferred with P1 features
 
 ### Explicit non-goals (do not schedule)
 
@@ -57,11 +64,11 @@
 
 ### P2 — Tools / parent (chat-first)
 
-- [ ] **D2** — Parent **daily one-liner** digest behind PIN (preferred parent touchpoint)
-- [ ] **D1** — PIN **核对模式** (full steps); acceptance: exit PIN → **force Socratic** (no child-only path)
+- [x] **D2** — Parent **daily one-liner** digest behind PIN (SkillsPanel Parent section)
+- [x] **D1** — PIN **核对模式** (banner + `checkMode` prompt); Exit / PIN Done → force Socratic
 - [ ] **CA-9** — Embedded Desmos / graphs (reframes **3.3**)
 - [ ] **CA-11** — Entertainments → skill soft link (rare opt-in)
-- [ ] **CA-12** — Dialect speech — keep Phase **G** engineering P0
+- [ ] **CA-12** — Dialect speech quality — Phase **G** Tier-1 + FormoSpeech/cloud shipped; remaining = G.3/G.4 optional + **15.2.6** clone ID
 
 ### P3 — Long-horizon (ideas / do not over-schedule)
 
@@ -75,7 +82,7 @@
 
 ---
 
-## 🔴 Phase CA-P0: Competitive P0 Implementation (2026-08-09)
+## ✅ Phase CA-P0: Competitive P0 Implementation — shipped; acceptance remaining (2026-08-09)
 
 > **Design:** [subsystems/ca-p0-system-design.md](subsystems/ca-p0-system-design.md)  
 > **Goal:** Ship CA-1…CA-4 with unit tests + manual smoke; keep child UI minimal.
@@ -164,7 +171,7 @@
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Code Agent Live Deploy Fix (DEPLOY1)
+## ✅ Done (2026-08-09) — Code Agent Live Deploy Fix (DEPLOY1)
 
 **Goal** — Code Agent edits never refreshed the live site (`npm start` serves stale `.next`). Add `deploy_live` tool + SYS prompt + raise edit budget.
 
@@ -179,7 +186,7 @@
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Board AI Challenge Pass (ENT5)
+## ✅ Done (2026-08-09) — Board AI Challenge Pass (ENT5)
 
 **Goal** — Board games still too easy: raise expert/master depths (Xiangqi 4/5, Chess 4), quiescence on expert+, stronger Go/Gomoku/UTTT, default UI=`hard`; tests D1–D10; deploy.
 
@@ -252,7 +259,7 @@
 
 ---
 
-## 🔴 In Progress (2026-08-07) — Cross-Device Deletion Sync + Multi-Theme
+## ✅ Done (2026-08-07…08) — Cross-Device Deletion Sync + Multi-Theme + Dialect Plan A
 
 **Deletion sync bug** — PC1 delete does not propagate to PC2 (reincarnation bug). Root cause confirmed: server `PUT` had no deletion-log guard, so a stale device re-uploaded the deleted chat before hydration completed.
 **Themes** — Upgrade from dark/light toggle to 4-theme system (light / dark / light-blue / light-green).
@@ -333,56 +340,55 @@
 
 > **Design:** [subsystems/dialect-speech-optimization-stt-tts.md](subsystems/dialect-speech-optimization-stt-tts.md) — comprehensive research into 2024-2026 open-source dialect speech models, three-tier optimization strategy (immediate → model-backed → cloud-GPU).
 
-**Current state:** STT uses `auto` mode (Whisper maps dialect audio → garbled zh tokens, ~60-70% WER). TTS uses Cantonese voice fallback — native speakers find it jarring. Design research found viable CPU-suitable models for both directions.
+**Current state (2026-08-09):** Tier-1 local biasing + FormoSpeech Hakka + cloud Fun-ASR/Bailian paths are live (G.1/G.2/G.5.1–2 + Phase 15). Remaining: optional local Teochew TTS hybrid (G.3), optional Whisper-LoRA offline STT (G.4), GPT-SoVITS (G.5.3), and family Teochew clone ID (**15.2.6**).
 
-#### G.1 — Tier 1 Immediate (no new models, 2-4h)
+#### G.1 — Tier 1 Immediate (no new models) ✅
 
-- [ ] **G.1.1** — `stt_server.py`: add `teo`/`hak` as STT languages with dialect-specific `initial_prompt` (Whisper decoder biasing toward dialect function words 个唔勿食涯冇麼个但係)
-- [ ] **G.1.2** — `tts-text.ts` (new): `normalizeForTTS(text, lang)` — dialect→Cantonese character substitutions (汝→你, 涯→我, 勿→唔好 etc.) for better Cantonese TTS output
-- [ ] **G.1.3** — `stt-lang.ts` + `voices.ts`: wire teo/hak STT mappings; update voice picker labels
-- [ ] **G.1.4** — Unit tests for normalizer + STT routing
+- [x] **G.1.1** — `stt_server.py`: `teo`/`hak` STT langs + dialect-specific `initial_prompt`
+- [x] **G.1.2** — `tts-text.ts`: `normalizeForTTS(text, lang)` dialect→Cantonese char substitutions
+- [x] **G.1.3** — `stt-lang.ts` + `voices.ts`: teo/hak STT mappings wired (`sttLangFromVoice`)
+- [x] **G.1.4** — Unit tests: `tts-text.test.ts` (normalizeForTTS) + `stt-lang.test.ts`
 
-#### G.2 — Tier 2 Hakka TTS (VoxHakka, CPU-suitable, 3-5d)
+#### G.2 — Tier 2 Hakka TTS ✅ (shipped as FormoSpeech sidecar — see Phase **15.2.7**)
 
-- [ ] **G.2.1** — Accept HF gated access for `formospeech/yourtts-htia-240704` (CC-BY-4.0)
-- [ ] **G.2.2** — Install `formog2p.hakka.g2p` frontend + load YourTTS model
-- [ ] **G.2.3** — Create `scripts/hakka_tts.py` inference module (text→G2P→phonemes→audio)
-- [ ] **G.2.4** — Wire into `stt_server.py` (new `/tts/hakka` or extend `/tts` with voice="voxhakka")
-- [ ] **G.2.5** — Frontend: route hakka voice → voxhakka TTS endpoint
-- [ ] **G.2.6** — Memory profiling: verify VoxHakka + existing services fit in 4GB
-- [ ] **G.2.7** — Integration tests + manual smoke test (hear native Hakka speech)
+> Original VoxHakka plan superseded by `scripts/formospeech_server.py` (`formospeech/yourtts-htia-240704`) + `FORMOSPEECH_TTS_URL` + frontend `/api/tts?lang=hak`.
 
-#### G.3 — Tier 2 Teochew TTS (Hybrid FastSpeech2-Canton + Teochew Vocoder, 5-7d)
+- [x] **G.2.*** — FormoSpeech YourTTS Hakka path live (not the original `hakka_tts.py` / stt_server wiring; functionally equivalent)
+
+#### G.3 — Tier 2 Teochew TTS (local hybrid) — still open
+
+> Cloud path already covers Teochew TTS via Phase **15** (Bailian clone / `longanmin_v3`). Local FastSpeech2 hybrid remains optional if cloud quality insufficient.
 
 - [ ] **G.3.1** — Install PaddleSpeech + `fastspeech2_canton` preset + `pyPengIm` G2P
-- [ ] **G.3.2** — Build inference pipeline: pyPengIm (text→Peng'im) → FastSpeech2 (mel) → HiFi-GAN/BigVGAN teochew (wav)
-- [ ] **G.3.3** — Subjective MOS evaluation: hybrid vs raw Cantonese TTS
-- [ ] **G.3.4** — Wire into `stt_server.py` if quality acceptable
+- [ ] **G.3.2** — Build inference pipeline: pyPengIm → FastSpeech2 → HiFi-GAN/BigVGAN teochew
+- [ ] **G.3.3** — Subjective MOS evaluation: hybrid vs Bailian / edge
+- [ ] **G.3.4** — Wire into local TTS path if quality acceptable
 
-#### G.4 — Tier 2 STT (Whisper-Tiny + LoRA ONNX INT8, CPU-suitable, 1-2wk)
+#### G.4 — Tier 2 STT (Whisper-Tiny + LoRA ONNX) — still open / optional
+
+> Cloud path already covers dialect STT via Phase **15** (百炼 Fun-ASR primary). Local LoRA remains optional for offline / cost control.
 
 - [ ] **G.4.1** — Train Teochew LoRA adapter on `teochew_wild` (GPU Colab, ~4-6h)
 - [ ] **G.4.2** — Train Hakka LoRA adapter on Hakka radio data (GPU Colab, ~4-6h)
 - [ ] **G.4.3** — Merge + export ONNX INT8 (~110 MB per model)
 - [ ] **G.4.4** — Integrate with `stt_server.py` (ONNX runtime path for teo/hak)
-- [ ] **G.4.5** — Benchmark CER + RTF + RAM; A/B vs current auto mode
+- [ ] **G.4.5** — Benchmark CER + RTF + RAM; A/B vs Fun-ASR / Whisper auto
 
-#### G.5 — Tier 3 Cloud-GPU (Future, 2-4wk)
+#### G.5 — Tier 3 Cloud-GPU — partially shipped via Phase 15
 
-- [ ] **G.5.1** — Evaluate Fun-ASR-Nano-2512 API for unified dialect STT (supports Min + Hakka natively)
-- [ ] **G.5.2** — Evaluate CosyVoice 3 for Teochew TTS (supports Minnan dialect, zero-shot clone)
-- [ ] **G.5.3** — GPT-SoVITS fine-tune on teochew_wild for native Teochew TTS
+- [x] **G.5.1** — Fun-ASR (百炼) dialect STT primary path — see **15.1**
+- [x] **G.5.2** — Bailian / CosyVoice-family Teochew TTS (+ clone IDs) — see **15.2** (family clone ID still pending **15.2.6**)
+- [ ] **G.5.3** — GPT-SoVITS fine-tune on teochew_wild for native Teochew TTS (optional / future)
 
 **Key research findings (see design doc for full details):**
-- VoxHakka (YourTTS) is **CPU-suitable** and CC-BY-4.0 — the best Hakka TTS option
-- Whisper-tiny+LoRA INT8 is only ~110 MB RAM — fits on 4GB server, CER ~15-20% for dialects
-- Teochew has public vocoders (BigVGAN OVRL 3.10 ≈ ground truth) but no acoustic model checkpoint
-- Fun-ASR-Nano-2512 (Alibaba, 800M) supports Min+Hakka natively but needs GPU
-- No commercial API supports Teochew/Hakka at consumer pricing
+- VoxHakka / FormoSpeech YourTTS is **CPU-suitable** and CC-BY-4.0 — shipped for Hakka
+- Whisper-tiny+LoRA INT8 is only ~110 MB RAM — optional offline path; cloud Fun-ASR is current primary
+- Teochew has public vocoders but no acoustic model checkpoint — cloud Bailian covers TTS for now
+- Fun-ASR path is live; no need to block on GPU-local Fun-ASR-Nano
 
 ---
 
-## 🔴 Phase 15: 方言 STT/TTS 云端 API 弥合（2026-08-08）
+## 🟡 Phase 15: 方言 STT/TTS 云端 API 弥合 — nearly done（2026-08-08）
 
 > **Design:** [subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md) — 对 `dialect-stt-tts-gap-closure-plan.md`（更新版：讯飞方言 ASR + 阿里云声音复刻）的详细方案设计与可行性分析
 > **核心原则：** ① 云端依赖永不成为单点故障（失败/超时/无 Key 自动降级）② 磁盘缓存硬上限 + LRU ③ 方言转写结果必须用户可编辑确认后发送 ④ 本机零常驻算力新增。  
@@ -489,106 +495,103 @@
 ### Phase 2: Agent & Prompt (partial)
 - [x] **2.1** Subject-specific coaching templates (math/reading/science/writing)
 - [x] **2.3** Progressive disclosure (`~~~step` fences, click-to-reveal)
-- [ ] **2.2** Multi-turn task planning for worksheets — see analysis **CA-1**
-- [ ] **2.4** Capture/replay student reasoning chains — see analysis **CA-5**
+- [x] **2.2** Multi-turn worksheet planning — shipped as **CA-1** (`worksheet-planner.ts` + progress chip); hardening **A1.h** / UI-A1a still open
+- [ ] **2.4** Capture/replay student reasoning chains — see analysis **CA-5** / **C1**
 
 ### Phase 6: Testing (partial)
 - [x] **6.1.6** Engagement tests — 13 tests (streak, badges, summary, serialization)
 - [x] **6.2.1–6.2.6** SM-2, ZPD, confidence, Elo, multi-lingual tests
 
 ### Quick Wins
-- [x] Dark mode toggle (`DarkToggle` in TutorShell header)
+- [x] Theme system (4-theme `ThemePicker`; supersedes old `DarkToggle`)
 - [x] Keyboard: Shift+Enter = newline, Enter = send
 - [x] `test:ci` + `coverage` scripts in `package.json`
 
 ---
 
-## 🔴 Phase 0: Full-Stack UI Implementation (6d)
+## ✅ Phase 0: Full-Stack UI Implementation — mostly done (manual QA + competitive polish remain)
 
 > **Spec:** [subsystems/ui-architecture.md](subsystems/ui-architecture.md)  
-> **Current state:** `VoiceControls` nested `flex-col`; Chinese camera labels; toolbar wraps on phone; no sidebar animation; no empty/loading/error states; no focus-visible rings.
+> **Code status (2026-08-09):** Composer/VoiceControls English chrome, sidebar slide, empty/error states, focus-visible, safe-area — present in code. Remaining UX polish tracked under **UI-POLISH** (competitive §12), not this phase.
 
-### 🔴 0.8 Composer Layout Overhaul (2d)
+### ✅ 0.8 Composer Layout Overhaul
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.8a | Flatten `VoiceControls` to inline fragment | done | `VoiceControls.tsx` |
+| ✅ 0.8b | Responsive toolbar labels | done | `Composer.tsx` |
+| ✅ 0.8c | Phone layout + safe-area bottom padding | done | `Composer.tsx`, `globals.css` |
+| ✅ 0.8d | Tablet: `Snap homework`, hold-to-talk | done | `Composer.tsx`, `VoiceControls.tsx` |
+| ✅ 0.8e | Desktop: full labels + inline voice | done | `Composer.tsx`, `VoiceControls.tsx` |
+
+### ✅ 0.9 English Chrome
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.9a–d | English labels / aria / Speak on·off / Snap homework / Hold to talk | done | `voices.ts`, `Composer.tsx`, `VoiceControls.tsx` |
+
+### ✅ 0.10 Shell & Sidebar Polish
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.10a | Sidebar slide animation | done | `HistorySidebar.tsx` |
+| ✅ 0.10b | Empty state + delete confirmation | done | `HistorySidebar.tsx` |
+| ✅ 0.10c | Hamburger ↔ X; brand header | done | `TutorShell.tsx` |
+| ✅ 0.10d | Header minHeight 48 | done | `TutorShell.tsx` |
+| ✅ 0.10e | Chat-first SkillsPanel strip | done | `HistorySidebar.tsx`, `SkillsPanel.tsx` |
+
+### ✅ 0.11 Chat UX
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.11a | Left/right bubbles | done | `ChatThread.tsx` |
+| ✅ 0.11b | Auto-scroll + "↓ New messages" | done | `ChatThread.tsx` |
+| ✅ 0.11c | Streaming / thinking pulse | done | `ChatThread.tsx` |
+| ✅ 0.11d | Empty state copy + Photo/Voice hints | done (hints non-tappable → **UI-E1**) | `ChatThread.tsx` |
+
+### ✅ 0.12 States & Feedback
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.12a | Coral error banner | done | `TutorShell.tsx` |
+| ✅ 0.12b | Speak on/off + speaking states | done (speaking ring polish → **UI-B2a**) | `VoiceControls.tsx` |
+
+### ✅ 0.13 Accessibility
+
+| # | Task | Status | Files |
+|---|------|--------|-------|
+| ✅ 0.13a | `focus-visible:ring-2` on interactive controls | done | components |
+| ✅ 0.13b | Esc closes sidebar | done | `TutorShell.tsx` |
+
+### 🟡 0.14 Device QA (manual — verify)
 
 | # | Task | Effort | Files |
 |---|------|--------|-------|
-| 0.8a | Flatten `VoiceControls` to inline fragment — remove `flex-col` wrapper | 0.5d | `VoiceControls.tsx` |
-| 0.8b | Responsive toolbar labels per ui-architecture §4.2 | 0.5d | `Composer.tsx` |
-| 0.8c | Phone layout: `Photo` label, voice popover (sheet), 44×44px targets, safe-area bottom padding | 0.5d | `Composer.tsx`, `VoiceControls.tsx`, `globals.css` |
-| 0.8d | Tablet layout: `Snap homework`, hold-to-talk fine-pointer, compact voice select | 0.25d | `Composer.tsx`, `VoiceControls.tsx` |
-| 0.8e | Desktop layout: full labels, inline voice `<select>`, hover states | 0.25d | `Composer.tsx`, `VoiceControls.tsx` |
-
-### 🔴 0.9 English Chrome (1d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.9a | English voice labels in `TUTOR_VOICES` | 0.25d | `voices.ts` |
-| 0.9b | English action labels: `Photo` / `Snap homework`, `Hold to talk` / `Mic`, `Speak on` / `Speak off`, `Send` / `Thinking…` | 0.25d | `Composer.tsx`, `VoiceControls.tsx` |
-| 0.9c | Voice picker: English only per ui-architecture §4.2/§6 table | 0.25d | `VoiceControls.tsx` |
-| 0.9d | `aria-label` and `title` attributes in English on all icons | 0.25d | `Composer.tsx`, `VoiceControls.tsx`, `TutorShell.tsx` |
-
-### 🔴 0.10 Shell & Sidebar Polish (1d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.10a | Sidebar: `translateX` slide animation (250ms ease-out) | 0.25d | `HistorySidebar.tsx` |
-| 0.10b | Sidebar: empty state ("No conversations yet"), delete confirmation | 0.25d | `HistorySidebar.tsx` |
-| 0.10c | Header: hamburger ↔ X icon toggle; brand "✨ Spark" | 0.25d | `TutorShell.tsx` |
-| 0.10d | Header: 48px fixed height on all devices | 0.25d | `TutorShell.tsx` |
-| 0.10e | **Chat-first sidebar:** move SkillsPanel below chat list; collapsible strip (default closed, max 40% when open) | 0.5d | `HistorySidebar.tsx`, `SkillsPanel.tsx`, [ui-architecture §5.4–5.5](subsystems/ui-architecture.md) |
-
-> **0.10e status (2026-08-04):** Implemented — SkillsPanel is a collapsed strip under the chat list; expand on tap.
-
-### 🔴 0.11 Chat UX (1d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.11a | Chat bubbles: distinct left/right styling (agent = mist bg left, student = teal bg right) | 0.25d | `ChatThread.tsx`, `MarkdownMessage.tsx` |
-| 0.11b | Auto-scroll to bottom + "↓ New messages" badge when scrolled up | 0.25d | `ChatThread.tsx` |
-| 0.11c | Loading skeleton while agent is thinking (pulsing gray bubble) | 0.25d | `ChatThread.tsx`, `TutorShell.tsx` |
-| 0.11d | Empty state: large centered "Ask anything about your homework…" with camera + mic hints | 0.25d | `ChatThread.tsx` |
-
-### 🟡 0.12 States & Feedback (0.5d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.12a | Error banner: network/agent/TTS errors with coral accent | 0.25d | `TutorShell.tsx` |
-| 0.12b | Voice states: speak icon pulses when TTS queued, solid when speaking, coral when error | 0.25d | `VoiceControls.tsx` |
-
-### 🟡 0.13 Accessibility (0.5d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.13a | Focus-visible rings on all interactive elements (`focus-visible:ring-2 ring-[--teal]`) | 0.25d | All `.tsx` |
-| 0.13b | Keyboard nav: Tab order (header → main → composer), Esc closes sidebar | 0.25d | `TutorShell.tsx`, `HistorySidebar.tsx` |
-
-### 🟡 0.14 Device QA (0.5d)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 0.14a | Phone QA: iPhone 14 (390×844) + Huawei (360×780) — toolbar 1 row, no Chinese, Send visible, keyboard-open safe-area | 0.25d | Manual |
-| 0.14b | Tablet + Desktop QA: iPad (768/1024) + PC (1280) — `Snap homework` label, no stacked controls, full labels + inline voice, Enter sends | 0.25d | Manual |
+| [ ] 0.14a | Phone QA: iPhone 14 + Huawei — toolbar 1 row, Send visible, keyboard safe-area | 0.25d | Manual |
+| [ ] 0.14b | Tablet + Desktop QA: iPad + PC — Snap homework, Enter sends | 0.25d | Manual |
 
 ---
 
-## 🔴 Phase 6: Testing Gaps (10d)
+## 🔴 Phase 6: Testing Gaps (still open)
+
+> Note: reliability suite (`cursor-agent-reliability`, atomic writes, SSE) and some UI tests (`ThemePicker`, `ImageLightbox`, camera) already exist — gaps below are the remaining core holes.
 
 | # | Task | Effort | Risk |
 |---|------|--------|------|
-| 6.1.1 | `cursor-agent.ts` unit tests — mock Cursor SDK, retry, cancellation | 2d | Core AI layer untested |
+| 6.1.1 | `cursor-agent.ts` unit tests beyond reliability helpers — mock Cursor SDK stream end-to-end | 2d | Core AI layer partially covered |
 | 6.1.2 | `speech-player.ts` unit tests — mock Web Audio API, queue, abort, autoplay | 2d | TTS bugs break voice |
-| 6.1.3 | `history-sync.ts` unit tests — sync conflicts, merge, corrupted data | 1d | Data loss risk |
+| 6.1.3 | `history-sync.ts` deeper conflict/corrupt cases (basic tests exist) | 1d | Data loss risk |
 | 6.1.4 | `chat/route.ts` unit tests — mock Agent, prompt assembly, error codes | 2d | Main endpoint untested |
-| 6.1.5 | React component tests — `@testing-library/react`: TutorShell, Composer, MarkdownMessage, 375px layout | 3d | Zero UI coverage |
+| 6.1.5 | React component tests — TutorShell, Composer, MarkdownMessage, 375px layout | 3d | Partial UI coverage only |
 
 ---
 
-## 🟡 Phase 2: Agent & Prompt (6d)
+## 🟡 Phase 2: Agent & Prompt (remaining)
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 2.2 | Multi-turn task planning — agent plans Q1→Q2→Q3 for worksheet photos | 3d | Agent |
-| 2.4 | Capture/replay student reasoning — store L1.5 "why" answers as examples | 3d | `learning-memory.ts` |
+| ✅ 2.2 | Multi-turn worksheet planning — **done via CA-1** | — | — |
+| 2.4 | Capture/replay student reasoning — store L1.5 "why" answers as examples | 3d | `learning-memory.ts` / **CA-5** |
 
 ---
 
@@ -602,12 +605,13 @@
 
 ---
 
-## 🟡 Phase 4: Voice & Multi-Modal (9d)
+## 🟡 Phase 4: Voice & Multi-Modal (remaining)
 
 | # | Task | Effort | Dependencies |
 |---|------|--------|-------------|
-| 4.1 | Voice-only mode — full STT→agent→TTS loop, no screen needed | 5d | `speech-player.ts`, `Composer.tsx` — split via analysis **CA-4** (4.1a barge-in → 4.1b continuous) |
-| 4.2 | Natural number pronunciation — `x²` → "x squared" (EN) / "x 平方" (ZH) | 1d | `tts-text.ts` |
+| ✅ 4.1a | TTS barge-in — **done via CA-4** (`speech-barge-in.ts`) | — | — |
+| 4.1b | Continuous half-duplex voice + interrupt-resume (= backlog **B2b**) | 4d | `speech-player.ts`, `Composer.tsx` |
+| ✅ 4.2 | Natural number / LaTeX pronunciation — `latexToSpeech` in `tts-text.ts` | — | — |
 | 4.3 | Parent voice note recording — parent records message attached to chat | 3d | New component |
 
 ---
@@ -637,90 +641,82 @@
 
 ---
 
-## 🔴 Phase 7: Code Agent Reliability (10h)
+## ✅ Phase 7: Code Agent Reliability — done
 
 > **Design:** [code-agent-reliability-design.md](code-agent-reliability-design.md)  
-> **Spec:** [subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)  
-> **Current state:** Service crashes due to: port conflicts, SDK unhandledRejection, stale agent sessions, file write races, SSE silent drops.
+> **Spec:** [subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 7.1 | **Port pre-flight check in `start.sh`** — kill existing on 3000/3001/8765 before launch | 0.5h | `start.sh` |
-| 7.2 | **Pin `@cursor/sdk` ≥ 1.0.19** + add `process.on('unhandledRejection')` safety net | 1h | `package.json`, `cursor-agent.ts` |
-| 7.3 | **Stale session detection + retry** — on bare `run.wait()` status:error, clear → resume fresh once | 2h | `cursor-agent.ts` |
-| 7.4 | **Agent retry wrapper** — `executeWithRetry()` with exponential backoff (1s→2s→4s) + jitter for `CursorAgentError(isRetryable)` | 2h | new `src/lib/agent-retry.ts`, `cursor-agent.ts` |
-| 7.5 | **Agent run log (JSONL)** — record agentId, runId, status, durationMs per call | 1h | new `src/lib/run-log.ts` |
-| 7.6 | **Atomic file writes** — `lockedWriteJson()` with tmp+rename for `history-store.ts` and `learning-memory-store.ts` | 2h | new `src/lib/file-lock.ts`, `history-store.ts`, `learning-memory-store.ts` |
-| 7.7 | **SSE heartbeat + event IDs** — 15s heartbeat during streaming + `id:` field for reconnect recovery | 1.5h | `chat/route.ts`, `agent-chat/.../chat/route.ts` |
+| ✅ 7.1 | Port pre-flight in `start.sh` (3000/3001/8765) | done | `start.sh` |
+| ✅ 7.2 | `@cursor/sdk` ^1.0.26 pinned | done | `package.json` |
+| ✅ 7.3–7.4 | Stale session + `executeWithRetry` | done | `agent-retry.ts`, `cursor-agent.ts` |
+| ✅ 7.5 | Agent run log JSONL | done | `run-log.ts` |
+| ✅ 7.6 | `lockedWriteJson` atomic writes | done | `file-lock.ts`, `history-store.ts` |
+| ✅ 7.7 | SSE heartbeat + `id:` fields | done | `chat/route.ts` |
 
 ---
 
-## 🔴 Phase 8: Code Agent Mini Window UI (10h)
+## ✅ Phase 8: Code Agent Mini Window UI — done
 
-> **Design:** [subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)  
-> **Current state:** "Code Agent" button opens iframe to port 3001 → blank when service down; cannot close; no vibe coding. Real `MiniConsoleShell` component is orphaned (never wired).
+> **Design:** [subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 8.1 | **Wire `MiniConsoleShell` → replace `AgentConsolePanel`** — rename to `CodeAgentPanel`, import in `TutorShell.tsx`, remove iframe approach | 2h | `MiniConsoleShell.tsx` → `CodeAgentPanel.tsx`, `TutorShell.tsx` |
-| 8.2 | **Fix slide animation** — change `animate-slide-in-left` → `animate-slide-in-right` for right-side panels; add keyframe to `globals.css` | 0.5h | `CodeAgentPanel.tsx`, `globals.css` |
-| 8.3 | **Close button always visible** — X button rendered in header unconditionally; body scroll lock when panel open; mobile backdrop tap + swipe-down close | 1.5h | `CodeAgentPanel.tsx` |
-| 8.4 | **Empty state with guided hints** — show example prompts: "Make text bigger", "Add dark mode color", "Fix photo on mobile" | 1h | `CodeAgentPanel.tsx`, `MiniConsoleThread.tsx` |
-| 8.5 | **Loading skeleton + tool status** — pulsing dots while agent initializes; badges for "Reading…", "Editing…", "Testing…" | 1.5h | `CodeAgentPanel.tsx`, `MiniConsoleThread.tsx` |
-| 8.6 | **Error states** — friendly messages for: service down (retry), agent timeout, network error, no API key | 1h | `CodeAgentPanel.tsx` |
-| 8.7 | **Thread improvements** — increase message truncation 300→500 chars; show 5 messages not 3; auto-scroll to bottom | 1h | `MiniConsoleThread.tsx` |
-| 8.8 | **Session resume** — load previous messages from server session store on open; "New session" button | 1h | `CodeAgentPanel.tsx`, `console-session-store.ts` |
-| 8.9 | **ACC "Open in tab" as fallback** — if port 3001 is reachable, show secondary link; otherwise hide | 0.5h | `CodeAgentPanel.tsx` |
+| ✅ 8.1 | `CodeAgentPanel` wired in `TutorShell` (no iframe) | done | `CodeAgentPanel.tsx` |
+| ✅ 8.2 | `animate-slide-in-right` for right panel | done | `CodeAgentPanel.tsx` |
+| ✅ 8.3 | Close / backdrop / swipe-down | done | `CodeAgentPanel.tsx` |
+| ✅ 8.4 | Guided hint examples (`HINT_EXAMPLES`) | done | `CodeAgentPanel.tsx` |
+| ✅ 8.5 | Tool status / streaming status line | done | `CodeAgentThread.tsx` |
+| ✅ 8.6 | Friendly error states + reconnect | done | `CodeAgentPanel.tsx` |
+| ✅ 8.7 | Thread truncation ≥500 chars | done | `MiniConsoleThread.tsx` / `CodeAgentThread.tsx` |
+| ✅ 8.8 | Session load + "+ New" | done | `CodeAgentPanel.tsx` |
+| ✅ 8.9 | ACC link when :3001 reachable | done | `CodeAgentPanel.tsx` |
 
 ---
 
-## 🔴 Phase 9: STT Service Reliability (4h)
+## ✅ Phase 9: STT Service Reliability — done
 
-> **Design:** [subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)  
-> **Current state:** STT server crashes in loop (EADDRINUSE 6x consecutive); no process supervision; task queue depth warnings.
+> **Design:** [subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 9.1 | **systemd unit for STT server** — `Restart=on-failure`, `RestartSec=5`, `MemoryMax=2G`, `StartLimitBurst=6` | 1h | `/etc/systemd/system/spark-stt.service` |
-| 9.2 | **Pre-flight port check + SIGTERM handler in Python** — kill existing on 8765; graceful shutdown on SIGTERM/SIGINT | 1h | `scripts/stt_server.py`, `start.sh` |
-| 9.3 | **Sequential model loading with error isolation** — load Whisper first, then SenseVoice; continue if one fails | 0.5h | `scripts/stt_server.py` |
-| 9.4 | **Enhanced /health endpoint** — add memory RSS, queue depth, model status per engine | 0.5h | `scripts/stt_server.py` |
-| 9.5 | **STT health check script** — `health-stt.sh` for monitoring + startup dependency | 0.5h | new `scripts/health-stt.sh`, `start.sh` |
-| 9.6 | **Whisper CPU perf tuning** — `beam_size=1` (single beam ~40% faster on CPU) | 0.5h | `scripts/stt_server.py` |
+| ✅ 9.1 | `spark-stt.service` systemd unit | done | `/etc/systemd/system/spark-stt.service` |
+| ✅ 9.2 | Port preflight + SIGTERM handler | done | `stt_server.py`, `start.sh` |
+| ✅ 9.3 | Model load isolation | done | `stt_server.py` |
+| ✅ 9.4 | Enhanced `/health` | done | `stt_server.py` |
+| ✅ 9.5 | `health-stt.sh` | done | `scripts/health-stt.sh` |
+| ✅ 9.6 | `beam_size=1` default CPU tuning | done | `stt_server.py` |
 
 ---
 
-## 🔴 Phase 10: Reliability Tests (14h)
+## 🟡 Phase 10: Reliability Tests — unit done; integration/E2E/CI remain
 
-> **Design:** [code-agent-test-design.md](code-agent-test-design.md)  
-> **Current state:** 0% test coverage on agent reliability paths, file concurrency, SSE encoding.
+> **Design:** [code-agent-test-design.md](code-agent-test-design.md)
 
-### 10.1 Unit Tests (6h)
+### ✅ 10.1 Unit Tests
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 10.1a | Agent session recovery tests — stale detection, retry count, backoff timing, TTL eviction | 2h | new `src/lib/__tests__/cursor-agent-reliability.test.ts` |
-| 10.1b | Atomic file write tests — concurrency safety, crash recovery, tmp cleanup | 1.5h | new `src/lib/__tests__/history-store-atomic.test.ts` |
-| 10.1c | Agent run log tests — append, getLast, replay, error rate calculation | 1h | new `src/lib/__tests__/run-log.test.ts` |
-| 10.1d | SSE encode tests — event+data format, id field, heartbeat, special chars | 1h | new `src/lib/__tests__/sse-encode.test.ts` |
-| 10.1e | File lock tests — serialized writes, different-file concurrency | 0.5h | `src/lib/__tests__/history-store-atomic.test.ts` |
+| ✅ 10.1a | Agent session recovery / retry tests | done | `cursor-agent-reliability.test.ts` |
+| ✅ 10.1b–e | Atomic write + file lock + run-log + SSE encode tests | done | `__tests__/history-store-atomic.test.ts`, `run-log.test.ts`, `sse-encode.test.ts` |
 
-### 10.2 Integration Tests (5h)
+### 🟡 10.2 Integration Tests (partial)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 10.2a | Agent session recovery integration — stale session retry, rate limit backoff | 1.5h | new `scripts/verify-agent-recovery.mjs` |
-| 10.2b | SSE reliability integration — heartbeat timing, reconnect with Last-Event-ID, proxy headers | 1h | new `scripts/verify-sse-reliability.mjs` |
-| 10.2c | File locking integration — concurrent history writes, concurrent learning memory, corrupt JSON skip | 1h | new `scripts/verify-file-locking.mjs` |
-| 10.2d | STT reliability integration — health check, restart recovery, concurrent transcription | 1.5h | new `scripts/verify-stt-reliability.mjs` |
+| [ ] 10.2a | Agent session recovery integration | missing | `scripts/verify-agent-recovery.mjs` |
+| ✅ 10.2b | SSE reliability integration | done | `scripts/verify-sse-reliability.mjs` |
+| ✅ 10.2c | File locking integration | done | `scripts/verify-file-locking.mjs` |
+| [ ] 10.2d | STT reliability integration (dedicated) | missing (`verify-stt.mjs` exists — verify if covers) | `scripts/verify-stt-reliability.mjs` |
 
-### 10.3 E2E + Chaos Tests (3h)
+### 🔴 10.3 E2E + Chaos Tests
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 10.3a | Code agent mini window E2E — open, send prompt, verify SSE reply, check diff display, close window | 1.5h | new `scripts/verify-code-agent-e2e.mjs` |
-| 10.3b | Graceful degradation E2E — stop STT, verify text chat still works; stop ACC, verify mini window error | 1h | new `scripts/verify-e2e-reliability.mjs` |
-| 10.3c | Setup CI pipeline (GitHub Actions) — unit on push/PR, integration on self-hosted | 0.5h | `.github/workflows/reliability.yml` |
+| [ ] 10.3a | Code agent mini window E2E | missing | `scripts/verify-code-agent-e2e.mjs` |
+| [ ] 10.3b | Graceful degradation E2E | missing | `scripts/verify-e2e-reliability.mjs` |
+| [ ] 10.3c | GitHub Actions CI | missing (no `.github/workflows`) | `.github/workflows/reliability.yml` |
 
 ---
 
@@ -738,7 +734,7 @@
 
 ---
 
-## 🔴 Phase 11: Code Agent v3 — Multi-Modal, Auto-Git, Service Resilience (22h)
+## ✅ Phase 11: Code Agent v3 — Multi-Modal, Auto-Git, Service Resilience — done
 
 > **Design:** [code-agent-v3-enhancements.md](code-agent-v3-enhancements.md)  
 > **Priorities:** 11A (upload ⊹ voice) · 11C (auto-git) · 11D (service restart)  
@@ -790,249 +786,113 @@
 
 ---
 
-## 🔴 Phase 12: Grade-Agnostic Adaptive Tutoring (29h)
+## 🟡 Phase 12: Grade-Agnostic Adaptive Tutoring — mostly done; safeguards + WL catalog remain
 
 > **Design:** [subsystems/grade-agnostic-adaptive.md](subsystems/grade-agnostic-adaptive.md)  
-> **Goal:** Make Spark work for any student G1–G12. G4 is the baseline; system adapts up/down based on BKT mastery. No hardcoded Ryan/BASIS/G4 assumptions in core logic.  
-> **Non-negotiable:** Zero regression for Ryan's current experience — every phase has a dedicated regression gate.
+> **Code status (2026-08-09):** `gradeBand`, `languageForBand`, expanded `skill-catalog`, `autoAdvanceCheck`, `curriculumPromptLines`, `prerequisiteChain` are in tree. Remaining: `policy.ts` / `validateTutorResponse` / `lastModifiedSkill`, and world-language skill sub-catalog.
 
-### 12A: Profile Abstraction (Phase A — 6h)
+### ✅ 12A–12E — shipped
 
-Make grade functional. Keep existing skill catalog; Ryan's profile becomes a saved account, not the system default.
+| # | Area | Status |
+|---|------|--------|
+| ✅ 12A.* | Profile abstraction (`gradeBand`, `RYAN_PROFILE`, `curriculum`, `bktDefaultsForBand`, `curriculumPromptLines`) | done |
+| ✅ 12B.* | Age-adaptive `LanguagePreset` / `languageForBand` / band coaching | done |
+| ✅ 12C.* | Multi-band skill catalog + `activeSkillsForProfile` + tests | done |
+| ✅ 12D.* | `autoAdvanceCheck` + `advanceSuggestion` + tests | done |
+| ✅ 12E.* | AccountHome grade selector; dynamic account name (no hard-coded Hi Ryan in shell) | done |
 
-| # | Task | Effort | Files |
+### 🟡 12F: BASIS Curriculum Alignment — mostly done
+
+| # | Task | Status | Notes |
 |---|------|--------|-------|
-| 🔴 12A.1 | Add `gradeBand` to `StudentProfile` type: derive `"early"|"elementary"|"middle"|"high"` from numeric grade | 0.5h | `src/lib/student-profile.ts` |
-| 🔴 12A.2 | Extract `RYAN_PROFILE` as a named export (preserve all G4/BASIS data); `DEFAULT_STUDENT_PROFILE` becomes grade-agnostic (`name: ""`, `grade: 4`, `school: ""`) | 1h | `src/lib/student-profile.ts` |
-| 🔴 12A.3 | `createAccount()` accepts optional `Partial<StudentProfile>` — new accounts get bare defaults, not Ryan's data | 0.5h | `src/lib/student-profile.ts` |
-| 🔴 12A.4 | `ensureRyan()` → `ensureDefaultAccount()` — backward-compatible: still creates Ryan profile if it's the only account | 0.5h | `src/lib/student-profile.ts` |
-| 🔴 12A.5 | Add `curriculum` field to `StudentProfile` (`null` = auto-detect from grade); remove hardcoded `BASIS_G4_CURRICULUM` from prompt injection | 1h | `src/lib/student-profile.ts`, `src/lib/prompts.ts` |
-| 🔴 12A.6 | `curriculumPromptLines(profile)` — generates grade-band-appropriate curriculum hints (e.g., G3-5 fractions denominator constraints, G6-8 rational numbers, G9-12 rational functions) | 1h | `src/lib/prompts.ts` |
-| 🔴 12A.7 | BKT parameter selection by grade band: `bktDefaultsForBand(band)`. Per-band defaults per design doc table (early: pInit=0.30, elementary=0.25 baseline, middle=0.20, high=0.15) | 0.5h | `src/lib/bkt.ts` |
-| 🔴 12A.8 | Regression test: run full prompt+profile test suite with `RYAN_PROFILE`, verify output identical to pre-change | 1h | `src/lib/student-profile.test.ts`, `src/lib/prompts.test.ts` |
+| ✅ 12F.1 | `curriculumPromptLines()` textbook refs | done | lives in `student-profile.ts` (no separate `curriculum.ts`) |
+| ✅ 12F.2 | Parallel science skills in catalog | done | separate skill IDs / pKnown per science skill |
+| ✅ 12F.3 | Capstone advisor prompt for G12 | done | `curriculumPromptLines` emits research-advisor role |
+| [ ] 12F.4 | World-language `LanguageSkillDefinition` sub-catalog | open | no `language: zh\|es\|fr\|la` skill type yet |
+| ✅ 12F.5 | Ryan regression path present | verify | `prompts.test.ts` / profile tests exist — spot-check if exact BASIS_G4 match still asserted |
 
-### 12B: Age-Adaptive Prompt Language (Phase B — 5h)
+### 🟡 12G: Research-Aligned Safeguards — partial
 
-Coach differently for a 6-year-old vs. a 16-year-old. Same hint ladder, different vocabulary.
-
-| # | Task | Effort | Files |
+| # | Task | Status | Notes |
 |---|------|--------|-------|
-| 🟡 12B.1 | Define `LanguagePreset` type: `{ confirm, encourage, stuck, error, thinkAloud }` strings per band | 0.5h | `src/lib/prompts.ts` |
-| 🟡 12B.2 | Implement `languageForBand(band: GradeBand): LanguagePreset` — 4 presets per design doc table | 0.5h | `src/lib/prompts.ts` |
-| 🟡 12B.3 | Inject `LanguagePreset` into `buildTutorPrompt()` via `studentProfilePromptLines()` — replace hardcoded `"(G4–G5 accessible)"` and `"BASIS-critical"` with band-adaptive versions | 1h | `src/lib/prompts.ts` |
-| 🟡 12B.4 | `subjectCoachingLines()` band-aware: fractions in G4 are "food/pizza metaphors", G8 is "rational expressions", G11 is "limits & asymptotes" | 1h | `src/lib/prompts.ts` |
-| 🟡 12B.5 | Remove all hardcoded `"Ryan"` from prompt templates; use `profile.name` dynamic substitution | 0.5h | `src/lib/prompts.ts`, `src/lib/learning-memory.ts`, `src/lib/tutor-harness.ts` |
-| 🟡 12B.6 | Regression test: prompt output comparison with `RYAN_PROFILE` — confirm coaching style unchanged | 0.5h | `src/lib/prompts.test.ts` |
-
-### 12C: Skill Catalog Expansion (Phase C — 9h)
-
-Expand from 14 G4 skills to multi-band catalog aligned to BASIS K-12 course map (design doc §3.2 + §4.2).
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟡 12C.1 | Extend `SkillDefinition` type with `minGrade`, `coreGrade`, `maxGrade`, `band`, `prerequisites`, `subject` fields | 0.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.2 | Expand elementary-band skills: add 6 G3 skills + align existing 14 G4-5 skills to BASIS G5 course map (Accelerated Math → Envision G6, English 5, General Science → experiments). Keep Ryan's current 14 skills with same IDs — additive only. | 2h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.3 | Add middle-band skills (~24) aligned to BASIS G6-8 three-science-concurrent model: **Math** (Prealgebra → Algebra I+Geometry → Algebra II+Geometry), **Science** (Bio 6/7/8 — cells/genetics/evolution, Chem 6/7/8 — atoms/reactions/stoichiometry, Physics 6/7/8 — motion/forces/energy), **Humanities** (English 6/7/8 lit analysis + World History I/II + US History), **Language** (Latin 6 + Chinese/French/Spanish 7). BKT must handle parallel science tracks — skills are concurrent within year, not sequential across sciences. | 2.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.4 | Add high-band skills (~28) aligned to BASIS Honors/AP/Capstone model: **Math** (Precalc → AP Calc AB → AP Calc BC → Capstone Math), **Science** (Honors Bio/Chem/Phys → AP Bio/Chem/Phys/EnvSci → Capstone Science), **Humanities** (AP English Lang/Lit, AP World/US History, AP Micro+Macro), **Language** (AP Chinese/Spanish/French/Latin). Include `capstone` sub-mode: for G12 skills, agent acts as research advisor (methodology coaching) not drill tutor. | 2.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.5 | `activeSkillsForProfile(profile)` — filter skill catalog by `minGrade ≤ profile.grade ≤ maxGrade`; for `coreGrade` near student grade, boost ZPD warm-up priority | 0.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12C.6 | Wire `activeSkillsForProfile` into BKT initialization + ZPD warm-up selection + skill prompts | 0.5h | `src/lib/learning-memory.ts`, `src/lib/prompts.ts` |
-| 🟡 12C.7 | Regression test: `activeSkillsForProfile(RYAN_PROFILE)` returns exactly the current 14 G4 skills | 0.5h | `src/lib/skill-catalog.test.ts` 🆕 |
-
-### 12D: Auto-Advance Mechanism (Phase D — 3h)
-
-When mastery exceeds band ceiling, suggest upgrading to next grade band. Parent opt-in.
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟢 12D.1 | `autoAdvanceCheck(memory, profile)` — if all active-band skills have pKnown > 0.85, return `AdvanceSuggestion { suggestedBand, confidence, skillsReady }` | 1h | `src/lib/learning-memory.ts` |
-| 🟢 12D.2 | Add `advanceSuggestion` field to `LearningMemory` type for persistence across sessions | 0.5h | `src/lib/learning-memory.ts` |
-| 🟢 12D.3 | Prompt integration: when advance suggestion exists, include gentle note in system prompt ("You may be ready for more challenging material in some areas") | 0.5h | `src/lib/prompts.ts`, `src/lib/learning-memory.ts` |
-| 🟢 12D.4 | Unit tests: (a) 100% mastery → advance suggestion, (b) mixed mastery → null, (c) already at "high" band → null | 0.5h | `src/lib/__tests__/auto-advance.test.ts` 🆕 |
-| 🟢 12D.5 | Regression: Ryan's current BKT state should NOT trigger advance (existing data within G4 range) | 0.5h | `src/lib/__tests__/auto-advance.test.ts` |
-
-### 12E: Multi-Account Grace (Phase E — 2h)
-
-New students get grade-appropriate defaults, not Ryan's copy.
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟢 12E.1 | `AccountHome.tsx` — add grade selector (1–12 number input or dropdown) when creating a new account | 1h | `src/components/AccountHome.tsx` |
-| 🟢 12E.2 | Remove `"Hi Ryan!"` and hardcoded `"Ryan"` labels from `ConsoleThread.tsx` — use active account profile name | 0.5h | `src/components/ConsoleThread.tsx`, `src/components/TutorShell.tsx` |
-| 🟢 12E.3 | Test: create G8 account → verify skill pool = middle band, language style ≠ elementary | 0.5h | `src/lib/student-profile.test.ts` |
-
-### 12F: BASIS Curriculum Alignment (Phase F — 3h)
-
-Align prompt injection, textbook references, and course-aware scaffolding to BASIS K-12 specifics (design doc §3.2).
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟡 12F.1 | `curriculumPromptLines()` — for BASIS profiles, inject grade-band-specific textbook refs: G5 → Envision Mathematics G6 (Savvas, ISBN 978-1-4188-4908-5), Algebra I → Envision A|G|A (ISBN 978-1-4188-5436-2), Algebra II → Envision A|G|A (ISBN 978-1-4188-5452-2), AP Calc → Larson/Stewart. Khan Academy as supplemental resource link. | 0.5h | `src/lib/prompts.ts`, `src/lib/curriculum.ts` 🆕 |
-| 🟡 12F.2 | Parallel-science BKT wiring — when student is in middle/high band with 3 concurrent sciences, BKT tracks Bio, Chem, Phys independently (separate `pKnown` per science) but shares `activeSkillsForProfile` pool. | 1h | `src/lib/bkt.ts`, `src/lib/skill-catalog.ts`, `src/lib/learning-memory.ts` |
-| 🟡 12F.3 | Capstone detection — if `gradeBand === "high" && grade === 12`, `curriculumPromptLines()` emits "Capstone advisor" role (research methodology, not drill). Suppress hint-ladder L0-L1; use Socratic L2-L3 only. | 0.5h | `src/lib/prompts.ts` |
-| 🟡 12F.4 | World language skill sub-catalog — `LanguageSkillDefinition` extends `SkillDefinition` with `language: "zh"|"es"|"fr"|"la"`, proficiency tiers (beginner→intermediate→AP). Active only when student profile has a world language and grade ≥ 7 (BASIS world language start). | 0.5h | `src/lib/skill-catalog.ts` |
-| 🟡 12F.5 | Regression test: with `RYAN_PROFILE`, `curriculumPromptLines()` output matches current `BASIS_G4_CURRICULUM` injection exactly. | 0.5h | `src/lib/prompts.test.ts` |
-
-### 12G: Research-Aligned Safeguards (Phase G — 2h)
-
-Implement the 5 design principles from academic research (design doc §13) as code-level safety rails.
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟡 12G.1 | **Separate policy from generation** — extract `gradePolicyForBand(band)` returning explicit rules (allowable scaffolding, forbidden shortcuts, minimum-effort gate) as typed constraints. Passed to `buildTutorPrompt()` as §boundary. | 0.5h | `src/lib/prompts.ts`, `src/lib/policy.ts` 🆕 |
-| 🟡 12G.2 | **Centralized learner model write gate** — refactor `mergeLearningMemory()` to be the single write path. All BKT skill state changes flow through `mergeLearningMemory` → `lockedWriteJson`. Add `lastModifiedSkill` audit field. No other function may directly mutate `LearningMemory`. | 0.5h | `src/lib/learning-memory.ts` |
-| 🟡 12G.3 | **Explicit pedagogical constraints** — `validateTutorResponse(response, profile)` checker: response must not solve the problem directly (hint ladder policy), must stay within band vocabulary, must reference correct subject. Called before SSE emits text. Non-blocking warning on violation — logs, does not censor (guard rail, not wall). | 0.5h | `src/lib/tutor-harness.ts`, `src/lib/policy.ts` |
-| 🟡 12G.4 | **Structured curriculum DAG guard** — `prerequisiteChain(skill, depth)` — given a skill, returns its prereq chain up to `depth` levels. Used by ZPD warm-up to never suggest a skill whose prereq `pKnown < 0.60`. (GraphMASAL-aligned.) | 0.25h | `src/lib/skill-catalog.ts` |
-| 🟡 12G.5 | Unit test: `prerequisiteChain("algebra_1", 3)` → array of prereq skill IDs ending with `fraction_fluency`. Verify chain length and ordering. | 0.25h | `src/lib/skill-catalog.test.ts` |
+| [ ] 12G.1 | `gradePolicyForBand` / `policy.ts` | open | file missing |
+| [ ] 12G.2 | `lastModifiedSkill` audit on merge write gate | open | `mergeLearningMemory` exists; audit field not found |
+| [ ] 12G.3 | `validateTutorResponse` non-blocking checker | open | not found |
+| ✅ 12G.4 | `prerequisiteChain` DAG helper | done | `skill-catalog.ts` |
+| ✅ 12G.5 | `prerequisiteChain` unit tests | done | `skill-catalog.test.ts` |
 
 ---
 
-## 🔴 Phase 13: Multi-Tenant Account Isolation (18h)
+## ✅ Phase 13: Multi-Tenant Account Isolation — mostly done
 
-Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** v0.1
+Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** v0.1  
+**Code status (2026-08-09):** `tenant-storage`, namespaced loaders, account-scoped APIs, `AccountSwitcher`/`AccountAvatar`, `verify-multi-tenant.mjs` present. Flat-key leak fix also under Legacy Pending.
 
-True per-account data partitioning. Today only profile metadata (name, grade) is per-account; learning memory, chat history, engagement, and voice preferences are shared globally. After Phase 13, switching accounts completely swaps the student's experience.
+### ✅ 13A–13D, 13F — shipped
 
-**Default = Ryan remains unchanged.** Non-Ryan accounts start fresh with grade-appropriate defaults.
+| # | Area | Status |
+|---|------|--------|
+| ✅ 13A.* | `TenantStorage` / `nsKey` + per-account memory/sessions/engagement/voices | done |
+| ✅ 13B.* | Flat → namespaced fallback + migration sentinel (`isAccountMigrated` / `markMigrated`) | done |
+| ✅ 13C.* | `/api/learning` + `/api/history` `accountId` scoping + sync hooks | done |
+| ✅ 13D.* | `AccountSwitcher` + `AccountAvatar` + AccountHome school/subjects + TutorShell switch | done |
+| ✅ 13F.* | `tenant-storage.test.ts` + `scripts/verify-multi-tenant.mjs` | done |
 
-### 13A: Storage Abstraction Layer (Phase A — 4h)
+### 🟡 13E: Privacy & Polish — partial
 
-Create `TenantStorage` wrapper. Convert all data modules to per-account signatures. Zero behavioral change — data still lives at flat keys under the hood.
-
-| # | Task | Effort | Files |
+| # | Task | Status | Notes |
 |---|------|--------|-------|
-| 🔴 13A.1 | Create `src/lib/tenant-storage.ts` — `nsKey(accountId, module)`, `TenantStorage` class with `get/set/remove/clear(accountId)`, shared key bypass list | 1h | `src/lib/tenant-storage.ts` 🆕 |
-| 🔴 13A.2 | Update `learning-memory.ts` — `loadLearningMemory(accountId?)`, `saveLearningMemory(accountId?, mem)`. Default param `= RYAN_ACCOUNT_ID` for backward compat. All imports updated. | 1h | `src/lib/learning-memory.ts`, all callers |
-| 🔴 13A.3 | Update `storage.ts` — `loadConversations(accountId?)`, `saveConversations(accountId?, store)`. LocalStorage key → `nsKey(accountId, "sessions")`. | 1h | `src/lib/storage.ts`, all callers |
-| 🔴 13A.4 | Update `engagement.ts` — `loadEngagement(accountId?)`, `saveEngagement(accountId?, state)`. Key → `nsKey(accountId, "engagement")`. | 0.5h | `src/lib/engagement.ts`, all callers |
-| 🔴 13A.5 | Update `voices.ts` — TTS voice preference per account. | 0.5h | `src/lib/voices.ts` |
-| 🔴 13A.6 | Regression test: all 37 test files pass. Ryan's data still loads (default accountId param = RYAN_ACCOUNT_ID). | included | All test files |
-
-### 13B: Flat → Namespaced Migration (Phase B — 3h)
-
-One-time migration that moves existing global data into per-account namespaced keys. Flat keys preserved as safety net (never deleted).
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🔴 13B.1 | `migrateAccountData(accountId)` — read flat keys → write `nsKey(accountId, module)` → set `spark.migration.completed` flag under account scope | 1h | `src/lib/tenant-storage.ts` |
-| 🔴 13B.2 | `loadLearningMemory(accountId)` — check namespaced key first; if missing, fall back to flat key + auto-migrate | 0.5h | `src/lib/learning-memory.ts` |
-| 🔴 13B.3 | Same fallback + auto-migrate pattern for sessions, engagement, voice | 0.5h | `src/lib/storage.ts`, `engagement.ts`, `voices.ts` |
-| 🔴 13B.4 | Migration unit test: create flat key → load with accountId → namespaced key exists → flat key still intact (not deleted) | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` 🆕 |
-| 🔴 13B.5 | Round-trip test: write namespaced → reload → read back → data matches | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` |
-
-### 13C: Server-Side Multi-Tenant API (Phase C — 3h)
-
-API routes scope data by `accountId`. Backward compatible: requests without `accountId` default to `"default"` (preserves existing server data).
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🔴 13C.1 | `/api/learning` — accept `?accountId=` query param on GET; `{ accountId, memory }` body on PUT. File paths: `data/learning/{accountId}.json`. Default: `"default"` maps to existing `data/learning/latest.json`. | 1h | `src/app/api/learning/route.ts` |
-| 🔴 13C.2 | `/api/history` — accept `?accountId=` query param on GET/PUT/DELETE. File paths: `data/history/{accountId}/sessions.json`. Default: `"default"` maps to existing `data/history/sessions.json`. | 1h | `src/app/api/history/route.ts` |
-| 🔴 13C.3 | Server sync hooks — `hydrateLearningMemoryFromServer(accountId)`, `pushStoreToServer(accountId, store)` | 0.5h | `src/lib/learning-memory.ts`, `src/lib/history-sync.ts` |
-| 🔴 13C.4 | Backward compat test: GET `/api/learning` (no accountId) → returns existing Ryan data from `latest.json` | 0.5h | Manual verification or `scripts/verify-multi-tenant.mjs` |
-
-### 13D: Account Switcher UI (Phase D — 4h)
-
-Header dropdown for switching accounts + enhanced account creation form.
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🔴 13D.1 | `AccountSwitcher.tsx` — header dropdown showing current account avatar + name. Tap to open popover with all accounts. Switch triggers full data reload for target accountId. | 1.5h | `src/components/AccountSwitcher.tsx` 🆕, `TutorShell.tsx` |
-| 🔴 13D.2 | Enhance `AccountHome.tsx` — add school text field and subject checkboxes (Math, Science, Reading, Writing, General) to account creation form. Grade selector already exists. | 1h | `src/components/AccountHome.tsx` |
-| 🔴 13D.3 | `AccountAvatar.tsx` — colored circle with initial letter (e.g., "R" in teal, "E" in coral, etc.). Use account ID hash to pick color deterministically. | 0.5h | `src/components/AccountAvatar.tsx` 🆕 |
-| 🔴 13D.4 | Wire account switch in `TutorShell.tsx` — on switch: (1) save current account state via all data hooks, (2) set `activeId` in AccountsStore, (3) reload all data hooks for new accountId, (4) reset chat thread to empty session. Show toast: "Switched to {name} (G{grade})". | 1h | `src/components/TutorShell.tsx` |
-
-### 13E: Privacy & Polish (Phase E — 2h)
-
-Account deletion with safeguards, per-account empty states, account limit enforcement.
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🔴 13E.1 | Account deletion — two-step confirmation: (1) "Delete {name}'s account?" (2) "All chat history, learning progress, and photos will be permanently removed." → PIN gate → clear all namespaced keys for that accountId + remove from accounts list. Ryan account cannot be deleted (only reset to profile defaults). | 1h | `src/components/AccountHome.tsx`, `src/components/PinGate.tsx` |
-| 🟡 13E.2 | Per-account empty state messaging — grade-band-appropriate first-launch text (design doc §5.4). `ChatThread.tsx` reads active account gradeBand and shows matching welcome message. | 0.5h | `src/components/ChatThread.tsx`, `src/components/TutorShell.tsx` |
-| 🟡 13E.3 | Account limit enforcement — max 6 accounts. Show friendly message: "You have 6 accounts — that's the limit for this device. Remove one to add another." | 0.5h | `src/components/AccountHome.tsx` |
-
-### 13F: End-to-End Validation (Phase F — 2h)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🔴 13F.1 | E2E test script: (a) create G8 account "Emma" → (b) send a message → (c) verify Emma's chat appears in her namespaced keys → (d) verify Ryan's namespaced keys are unchanged → (e) switch to Ryan → (f) verify Ryan's chat is still his own | 1h | `scripts/verify-multi-tenant.mjs` 🆕 |
-| 🔴 13F.2 | Unit test: `TenantStorage` isolation — write key for acct_X → write same key for acct_Y → read back acct_X → data unchanged. Shared keys writable without prefix. | 0.5h | `src/lib/__tests__/tenant-storage.test.ts` |
-| 🔴 13F.3 | Full regression: Ryan's experience unchanged — all 437 tests pass, chat loads normally, learning memory intact, engagement state preserved | 0.5h | Run `npm test` |
+| ✅ 13E.1a | Two-step delete + Ryan undeletable + clear namespaced keys | done | `AccountHome.tsx` |
+| [ ] 13E.1b | PIN gate before delete forever | open | two-step confirm only; no `PinGate` on delete path |
+| [ ] 13E.2 | Grade-band-specific empty welcome copy | open | `ChatThread` empty state is generic |
+| ✅ 13E.3 | Max 6 accounts enforcement | done | `MAX_ACCOUNTS = 6` |
 
 ---
 
-## 🔴 Phase 14: Image Lightbox — Top Layer + Zoom (6h)
+## ✅ Phase 14: Image Lightbox — Top Layer + Zoom — done (manual/pinch remain)
 
-> **Design:** [subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)  
-> **Bug:** Opening a large homework photo in chat is occluded by the left History sidebar (stacking-context trap: lightbox `z-[80]` lives under main column `z-10`, while desktop sidebar is `z-20`).  
-> **Goal:** Portal lightbox to `document.body` at `z-[200]`; add zoom in / zoom out (buttons + keyboard); pan when zoomed; tests required.
+> **Design:** [subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)
 
-### 14A: Stacking Fix + Zoom UI (4h)
+### ✅ 14A + 14B — shipped
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 🔴 14A.1 | Extract pure zoom helpers: `ZOOM_MIN/MAX/STEP`, `clampZoom`, `zoomIn`, `zoomOut`, `formatZoomPercent` | 0.5h | `src/lib/lightbox-zoom.ts` 🆕 |
-| 🔴 14A.2 | Portal `ImageLightbox` via `createPortal(..., document.body)`; mount-safe for SSR; set overlay to `z-[200]` with overlay-ladder comment | 1h | `src/components/ImageLightbox.tsx` |
-| 🔴 14A.3 | Toolbar: Zoom out (−), Zoom in (+), percent label, Close; 44px touch targets; English `aria-label`s | 1h | `src/components/ImageLightbox.tsx` |
-| 🔴 14A.4 | Apply CSS `transform: scale(zoom)`; pan (`offset`) when `zoom > 1`; backdrop-tap closes only if pointer movement &lt; ~5px | 1h | `src/components/ImageLightbox.tsx` |
-| 🔴 14A.5 | Keyboard: `+`/`=` zoom in, `-` zoom out, `0` reset fit, `Esc` close (keep existing Esc) | 0.5h | `src/components/ImageLightbox.tsx` |
+| ✅ 14A.1–14A.5 | Portal `z-[200]`, zoom helpers, toolbar, pan, keyboard | done | `lightbox-zoom.ts`, `ImageLightbox.tsx` |
+| ✅ 14B.1–14B.2 | Unit + component tests | done | `lightbox-zoom.test.ts`, `ImageLightbox.test.tsx` |
 
-### 14B: Tests (1.5h)
+### 🟡 14C: Manual QA + Polish
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| 🔴 14B.1 | Unit tests for zoom helpers — clamp, step, percent formatting, min/max edges | 0.5h | `src/lib/lightbox-zoom.test.ts` 🆕 |
-| 🔴 14B.2 | Component tests (`@testing-library/react`): portal attaches under `document.body`; overlay has top-layer z-index class; Zoom in/out update percent; Esc/Close call `onClose`; backdrop click at zoom 1 closes | 1h | `src/components/ImageLightbox.test.tsx` 🆕 |
-
-### 14C: Manual QA + Polish (0.5h)
-
-| # | Task | Effort | Files |
-|---|------|--------|-------|
-| 🟡 14C.1 | Manual QA: desktop sidebar open + large schedule photo (no occlusion); phone 390×844 toolbar usable; Code Agent open still covered by lightbox | 0.25h | Manual |
-| 🟢 14C.2 | Optional: pinch-to-zoom on touch (nice-to-have; buttons ship in 14A) | 0.25h+ | `ImageLightbox.tsx` |
-
-**Acceptance (gate before merge):**
-1. Desktop sidebar does not cover any part of the opened photo.
-2. Zoom in / out buttons work; percent label updates; Esc closes.
-3. `npm test` green including new `lightbox-zoom` + `ImageLightbox` tests.
+| [ ] 14C.1 | Manual QA on desktop sidebar + phone (verify) | open / manual | Manual |
+| [ ] 14C.2 | Optional pinch-to-zoom | open (nice-to-have) | `ImageLightbox.tsx` |
 
 ---
 
-## 📊 Summary
+## 📊 Summary (reconciled 2026-08-09)
 
-| Phase | Priority | Sub-tasks | Est. |
-|-------|----------|-----------|------|
-| **Competitive Analysis** CA-1–12 | 🟡 Analysis | 12 (+ non-goals) | design-first — see § Competitive Analysis Backlog |
-| **Phase 0** Full UI | 🔴 Critical | 13 (0.8–0.14) | **6d** |
-| **Phase 6** Testing gaps | 🔴 Critical | 5 (6.1.1–6.1.5) | **10d** |
-| **Phase 7** Code Agent Reliability | 🔴 Critical | 7 (7.1–7.7) | **10h** |
-| **Phase 8** Mini Window UI | 🔴 Critical | 9 (8.1–8.9) | **10h** |
-| **Phase 9** STT Reliability | 🔴 Critical | 6 (9.1–9.6) | **4h** |
-| **Phase 10** Reliability Tests | 🔴 Critical | 11 (10.1–10.3) | **14h** |
-| **Phase 11** Code Agent v3 | 🔴 Critical | 24 (11A.1–11D.7) | **22h** |
-| **Phase 12** Grade-Agnostic | 🔴 Critical | 36 (12A.1–12G.5) | **29h** |
-| **Phase 13** Multi-Tenant | 🔴 Critical | 21 (13A.1–13F.3) | **18h** |
-| **Phase 14** Image Lightbox + Zoom | 🔴 Critical | 8 (14A.1–14C.2) | **6h** |
-| **Phase 2** Agent | 🟡 Important | 2 (2.2, 2.4) | **6d** |
-| **Phase 3** Geometry | 🟡 Important | 3 | **13d** |
-| **Phase 4** Voice | 🟡 Important | 3 | **9d** |
-| **Phase 5** Platform | 🟢 Nice | 4 | **9d** |
-| **Phase 6** Test add-ons | 🟢 Nice | 3 (6.2.5, 6.2.7, 6.3–6.4) | **7.5d** |
-| **Nice-to-Have** | 🟢 Nice | 10 | **11d** |
+| Phase | Status | What's left |
+|-------|--------|-------------|
+| **Competitive CA-P0** (CA-1–4) | ✅ shipped | Manual M1–M4; hardening A1.h / A2.h / B1.h |
+| **UI-SPEC / UI-POLISH** | ✅ shipped | UI-P1 (diagramId / B3 chips) deferred with P1 |
+| **DEPLOY1 / ENT3–5** | ✅ done | — |
+| **Deletion sync + themes + F dialect** | ✅ done | — |
+| **Phase G dialect speech** | 🟡 partial | G.3 local Teochew TTS; G.4 LoRA STT (optional); G.5.3 GPT-SoVITS; **15.2.6** clone ID |
+| **Phase 15 cloud dialect** | 🟡 nearly done | **15.2.6** family Teochew clone; 15.5 backlog |
+| **Phase 0 UI** | ✅ code done | Manual 0.14 QA; competitive polish separate |
+| **Phase 6 testing gaps** | 🔴 open | cursor-agent / speech-player / chat route / TutorShell RTL |
+| **Phase 7–9, 11** | ✅ done | — |
+| **Phase 10** | 🟡 partial | 10.2a/d integration scripts; 10.3 E2E + CI |
+| **Phase 12** | 🟡 mostly done | 12F.4 WL catalog; 12G.1–3 policy / validate |
+| **Phase 13** | ✅ mostly done | 13E.1b PIN-on-delete; 13E.2 gradeBand empty copy |
+| **Phase 14** | ✅ done | 14C.1 manual verify; 14C.2 pinch optional |
+| **Phase 2** | 🟡 | **2.4** / CA-5 only (2.2 done via CA-1) |
+| **Phase 3** Geometry | 🔴 open | 3.1–3.3 / CA-9 |
+| **Phase 4** Voice | 🟡 | 4.1b continuous; 4.3 parent voice note (4.1a/4.2 done) |
+| **Phase 5 / Nice-to-Have** | 🟢 open | PWA, Docker, telemetry, etc. |
 
-**Total new critical work (Phases 7–14):** ~96 hours (~12 days)
-
-**Updated critical path:** Phase 7 → Phase 8 → Phase 9 → Phase 10 → Phase 11 → Phase 12 → Phase 13 → **Phase 14 (Lightbox stacking + zoom, 6h)** → Phase 0 UI → Phase 6 tests
-
-**Next immediate steps (Phase 14 — UX bug, can run ahead of Phase 13 if prioritized):**
-1. **14A.1** — Create `lightbox-zoom.ts` helpers (0.5h)
-2. **14A.2** — Portal + `z-[200]` stacking fix (1h) — fixes sidebar occlusion
-3. **14A.3–14A.5** — Zoom toolbar, pan, keyboard (2.5h)
-4. **14B.1–14B.2** — Unit + component tests (1.5h) — merge gate
-5. **14C.1** — Manual QA on desktop sidebar + phone
-
-**Next immediate steps (Phase 13 — if continuing multi-tenant):**
-1. **Phase 13A.1** — Create `TenantStorage` wrapper with `nsKey()` pattern (1h, foundation for all isolation)
-2. **Phase 13A.2** — Update `learning-memory.ts` to accept `accountId` param (1h, per-account BKT)
-3. **Phase 13A.3** — Update `storage.ts` to accept `accountId` param (1h, per-account chat history)
-4. **Phase 13A.6** — Full regression: all 437 tests pass with new signatures (gate)
+**Recommended next focus:**
+1. **CA-P0.R3** — human smoke M1–M4 on live (worksheet chip, practice, opener, barge-in)
+2. **P1 competitive** — C1/CA-5 (scratch-work / **2.4**), C2–C4 teaching depth
+3. **Phase G / 15 remaining** — Teochew family clone ID (**15.2.6**); optional G.3/G.4 only if cloud quality insufficient
+4. **Phase 10.3 / Phase 6** — CI + coverage gaps when hardening

@@ -6,11 +6,14 @@ import {
   clearPracticeOffer,
   createPracticeOffer,
   deferPracticeOffer,
+  dismissPracticeOfferForToday,
   loadPracticeOffer,
   pickPracticeTargets,
+  practiceDismissStorageKey,
   practiceOfferStorageKey,
   savePracticeOffer,
 } from "./session-practice";
+import { kvRemove } from "./browser-kv";
 
 function memWithSkills(): LearningMemory {
   const now = Date.now();
@@ -64,6 +67,8 @@ function memWithSkills(): LearningMemory {
 afterEach(() => {
   clearPracticeOffer("acct_a");
   clearPracticeOffer("acct_b");
+  kvRemove(practiceDismissStorageKey("acct_a"));
+  kvRemove(practiceDismissStorageKey("acct_b"));
   kvClearMemory();
 });
 
@@ -120,5 +125,19 @@ describe("session-practice (CA-2)", () => {
     expect(msg).toContain("Fractions");
     expect(msg).toContain("Place value");
     expect(msg.toLowerCase()).toMatch(/socratic|no spoilers/);
+  });
+
+  it("SP8: dismiss suppresses same calendar day (UI-A2a)", () => {
+    const offer = createPracticeOffer("acct_a", memWithSkills())!;
+    savePracticeOffer(offer);
+    const day = new Date("2026-08-09T12:00:00");
+    dismissPracticeOfferForToday("acct_a", day);
+    expect(loadPracticeOffer("acct_a", day)).toBeNull();
+    // Recreate offer same day — still suppressed
+    savePracticeOffer(createPracticeOffer("acct_a", memWithSkills())!);
+    expect(loadPracticeOffer("acct_a", day)).toBeNull();
+    expect(
+      loadPracticeOffer("acct_a", new Date("2026-08-10T09:00:00")),
+    ).not.toBeNull();
   });
 });

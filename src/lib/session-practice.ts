@@ -25,9 +25,14 @@ export type PendingPracticeOffer = {
 };
 
 const KEY_PREFIX = "spark.practiceOffer.";
+const DISMISS_PREFIX = "spark.practiceDismiss.";
 
 export function practiceOfferStorageKey(accountId: string): string {
   return `${KEY_PREFIX}${accountId || "default"}`;
+}
+
+export function practiceDismissStorageKey(accountId: string): string {
+  return `${DISMISS_PREFIX}${accountId || "default"}`;
 }
 
 function localDateKey(d = new Date()): string {
@@ -84,12 +89,14 @@ export function loadPracticeOffer(
   accountId: string,
   now = new Date(),
 ): PendingPracticeOffer | null {
+  const today = localDateKey(now);
+  if (kvGet(practiceDismissStorageKey(accountId)) === today) return null;
   const raw = kvGet(practiceOfferStorageKey(accountId));
   if (!raw) return null;
   try {
     const o = JSON.parse(raw) as PendingPracticeOffer;
     if (!o?.targets?.length) return null;
-    if (o.deferredUntil && o.deferredUntil > localDateKey(now)) return null;
+    if (o.deferredUntil && o.deferredUntil > today) return null;
     return { ...o, accountId: o.accountId || accountId };
   } catch {
     return null;
@@ -112,4 +119,15 @@ export function deferPracticeOffer(
   from = new Date(),
 ): PendingPracticeOffer {
   return { ...offer, deferredUntil: tomorrowKey(from) };
+}
+
+/**
+ * UI-A2a — Dismiss for today: clear offer + mark calendar day suppressed.
+ */
+export function dismissPracticeOfferForToday(
+  accountId: string,
+  from = new Date(),
+): void {
+  clearPracticeOffer(accountId);
+  kvSet(practiceDismissStorageKey(accountId), localDateKey(from));
 }

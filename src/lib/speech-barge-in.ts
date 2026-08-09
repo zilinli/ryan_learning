@@ -13,7 +13,7 @@ export function shouldBargeIn(speaking: boolean): boolean {
 }
 
 export function interruptHint(speaking: boolean): string {
-  return speaking ? "Tap to interrupt" : "";
+  return speaking ? "Speaking — tap mic to interrupt" : "";
 }
 
 /** Canonical order for voice barge-in. */

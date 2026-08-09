@@ -153,6 +153,7 @@ export async function POST(req: Request) {
     voiceId: typeof body.voiceId === "string" ? body.voiceId : undefined,
     replyLanguage:
       typeof body.replyLanguage === "string" ? body.replyLanguage : undefined,
+    checkMode: body.checkMode === true,
   });
 
   const images: SDKImage[] | undefined =

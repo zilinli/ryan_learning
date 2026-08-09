@@ -46,6 +46,8 @@ type Props = {
   onVoiceIdChange?: (id: TutorVoiceId) => void;
   onTranscript: (text: string) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
+  /** UI-B2a — parent shows composer status line while TTS is active */
+  onSpeakingChange?: (speaking: boolean) => void;
   /** Surface mic status/errors outside the toolbar flex row */
   onFeedback?: (feedback: {
     status: string;
@@ -65,6 +67,7 @@ export function VoiceControls({
   onVoiceIdChange,
   onTranscript,
   onSpeakApi,
+  onSpeakingChange,
 }: Props) {
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -113,6 +116,10 @@ export function VoiceControls({
     wantSpeakRef.current = voiceEnabled;
     saveSpeakEnabled(voiceEnabled);
   }, [voiceEnabled]);
+
+  useEffect(() => {
+    onSpeakingChange?.(speaking);
+  }, [speaking, onSpeakingChange]);
 
   useEffect(() => {
     // Capability + coarse-pointer detection is corrected post-hydration.
@@ -468,7 +475,9 @@ export function VoiceControls({
             ? "bg-[var(--coral)] text-white"
             : busy
               ? "bg-[var(--teal)] text-white"
-              : "bg-[var(--mist)] text-[var(--ink)] hover:bg-[var(--mist)] hover:text-[var(--ink)] sm:bg-transparent sm:text-[var(--ink-muted)]"
+              : speaking
+                ? "bg-[var(--teal)]/15 text-[var(--teal)] ring-2 ring-[var(--teal)]/50 animate-pulse"
+                : "bg-[var(--mist)] text-[var(--ink)] hover:bg-[var(--mist)] hover:text-[var(--ink)] sm:bg-transparent sm:text-[var(--ink-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
         title={
           speaking
@@ -495,12 +504,18 @@ export function VoiceControls({
         {/* Mobile: status under icon inside fixed box (no layout shift). Desktop: side label. */}
         <span
           className={
-            listening || busy
+            listening || busy || speaking
               ? "text-[10px] leading-none sm:text-sm sm:leading-normal"
               : "hidden sm:inline"
           }
         >
-          {busy ? "..." : listening ? "Done" : "Hold to talk"}
+          {busy
+            ? "..."
+            : listening
+              ? "Done"
+              : speaking
+                ? "Interrupt"
+                : "Hold to talk"}
         </span>
       </button>
 

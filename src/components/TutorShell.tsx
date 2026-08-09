@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
-import { Composer } from "./Composer";
+import { Composer, type ComposerApi } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
 import { CodeAgentPanel } from "./CodeAgentPanel";
 import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
+import { interruptHint } from "@/lib/speech-barge-in";
 import {
   loadSpeakEnabled,
   loadVoiceId,
@@ -87,6 +88,7 @@ import {
   clearPracticeOffer,
   createPracticeOffer,
   deferPracticeOffer,
+  dismissPracticeOfferForToday,
   loadPracticeOffer,
   savePracticeOffer,
   type PendingPracticeOffer,
@@ -306,11 +308,15 @@ export function TutorShell() {
   const [accountName, setAccountName] = useState("");
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
+  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const [checkMode, setCheckMode] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */
   const resetIdsRef = useRef<Set<string>>(new Set());
   const speakApiRef = useRef<SpeakStreamApi | null>(null);
+  const composerApiRef = useRef<ComposerApi | null>(null);
+  const checkModeRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
   const voiceEnabledRef = useRef(true);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
@@ -324,6 +330,10 @@ export function TutorShell() {
   const accountsRef = useRef<AccountRecord[]>([]);
   /** When a deep-link pinned an account, don't let roster hydrate overwrite it. */
   const deepLinkAccountRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    checkModeRef.current = checkMode;
+  }, [checkMode]);
 
   // --- Single init effect: resolve account first, then load conversations ---
   useEffect(() => {
@@ -953,6 +963,7 @@ export function TutorShell() {
             payload.text,
             profile.preferredChinese,
           ),
+          checkMode: checkModeRef.current === true,
           attachments: payload.attachments.map((a) => ({
             name: a.name,
             mimeType: a.mimeType,
@@ -1142,12 +1153,28 @@ export function TutorShell() {
             : undefined
         }
         learningMemory={learningMemory}
+        checkMode={checkMode}
+        onCheckModeChange={setCheckMode}
         onNew={startNewSession}
         onSelect={selectConversation}
         onDelete={deleteConversation}
       />
 
       <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--bg0)]">
+        {checkMode ? (
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--coral)]/30 bg-[var(--coral)]/10 px-3 py-2 sm:px-4">
+            <p className="text-sm font-medium text-[var(--coral)]">
+              Check mode — answers shown
+            </p>
+            <button
+              type="button"
+              onClick={() => setCheckMode(false)}
+              className="min-h-11 shrink-0 rounded-lg border border-[var(--coral)]/40 px-3 text-sm font-medium text-[var(--coral)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            >
+              Exit
+            </button>
+          </div>
+        ) : null}
         <header className="safe-top flex w-full shrink-0 items-center gap-2 px-3 py-2 sm:px-4" style={{ minHeight: 48 }}>
           <button
             type="button"
@@ -1231,7 +1258,7 @@ export function TutorShell() {
               setPracticeOffer(null);
             }}
             onPracticeDismiss={() => {
-              clearPracticeOffer(accountId);
+              dismissPracticeOfferForToday(accountId);
               setPracticeOffer(null);
             }}
             onOpenerTry={() => {
@@ -1241,9 +1268,12 @@ export function TutorShell() {
               setSessionOpener(null);
               void handleSend({ text, attachments: [] });
             }}
-            onOpenerDismiss={() => {
-              markOpenerShown(accountId);
-              setSessionOpener(null);
+            onSnapHomework={() => {
+              if (sessionOpener) {
+                markOpenerShown(accountId);
+                setSessionOpener(null);
+              }
+              composerApiRef.current?.openCamera();
             }}
           />
         </main>
@@ -1277,6 +1307,11 @@ export function TutorShell() {
           onVoiceEnabledChange={setVoiceEnabled}
           onVoiceIdChange={setVoiceId}
           onSpeakApi={setSpeakApi}
+          onComposerApi={(api) => {
+            composerApiRef.current = api;
+          }}
+          speakStatus={ttsSpeaking ? interruptHint(true) : undefined}
+          onSpeakingChange={setTtsSpeaking}
           onPrepareSpeak={async () => {
             await speakApiRef.current?.prepare();
           }}

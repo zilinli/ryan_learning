@@ -17,6 +17,8 @@ type Props = {
   onOpenCodeAgent?: () => void;
   engagementLabel?: string;
   learningMemory?: LearningMemory | null;
+  checkMode?: boolean;
+  onCheckModeChange?: (on: boolean) => void;
   onNew: () => void;
   onSelect: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
@@ -43,6 +45,8 @@ export function HistorySidebar({
   onOpenCodeAgent,
   engagementLabel,
   learningMemory,
+  checkMode,
+  onCheckModeChange,
   onNew,
   onSelect,
   onDelete,
@@ -198,7 +202,11 @@ export function HistorySidebar({
         ) : null}
       </div>
 
-      <SkillsPanel memory={learningMemory ?? null} />
+      <SkillsPanel
+        memory={learningMemory ?? null}
+        checkMode={checkMode}
+        onCheckModeChange={onCheckModeChange}
+      />
 
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
         <a

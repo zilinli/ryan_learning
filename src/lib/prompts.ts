@@ -289,6 +289,8 @@ export function buildTutorPrompt(params: {
   /** Voice picker id or reply lang mode */
   replyLanguage?: ReplyLangMode | string;
   voiceId?: string;
+  /** D1 — parent check mode: show full steps / answers */
+  checkMode?: boolean;
 }): string {
   const { userText, imageCount, fileSummaries = [], history } = params;
   const hasHomework = imageCount > 0 || fileSummaries.length > 0;
@@ -430,6 +432,15 @@ export function buildTutorPrompt(params: {
 
   const lang = languageForBand(profile.gradeBand);
 
+  const checkModeBlock = params.checkMode
+    ? [
+        "",
+        "[Parent check mode — D1 ACTIVE]",
+        "A parent unlocked check mode. You MAY show full worked solutions, filled blanks, and final answers.",
+        "Still be clear and educational (label steps). When check mode ends, Socratic rules return automatically.",
+      ].join("\n")
+    : "";
+
   return [
     "[Tutor context]",
     audienceLine(mode),
@@ -452,8 +463,15 @@ export function buildTutorPrompt(params: {
     ...formatRules,
     RECALL_VS_CONCEPT,
     OUTPUT_HYGIENE,
-    thinkFirstRules,
+    params.checkMode
+      ? [
+          "",
+          "[Think-first coaching — SUSPENDED while check mode is on]",
+          "Parent check mode overrides anti-spoiler and the hint ladder for this turn.",
+        ].join("\n")
+      : thinkFirstRules,
     homeworkCoach,
+    checkModeBlock,
     "",
     "[Student message]",
     userText.trim() || defaultStudentLine(mode, hasHomework),

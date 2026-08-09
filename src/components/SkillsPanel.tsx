@@ -8,13 +8,16 @@ import {
   skillWeaknesses,
   zpdWarmUpSkills,
 } from "@/lib/learning-memory";
-import { hasParentPin } from "./PinGate";
+import { buildParentDailyDigest } from "@/lib/parent-digest";
+import { hasParentPin, PinGate } from "./PinGate";
 import type { SkillMastery } from "@/lib/learning-memory";
 
 const STORAGE_KEY = "spark.skillsPanelOpen";
 
 type Props = {
   memory: LearningMemory | null;
+  checkMode?: boolean;
+  onCheckModeChange?: (on: boolean) => void;
 };
 
 function daysAgo(ts: number): string {
@@ -42,8 +45,15 @@ function SkillRow({ skill, color }: { skill: SkillMastery; color: string }) {
   );
 }
 
-export function SkillsPanel({ memory }: Props) {
+export function SkillsPanel({
+  memory,
+  checkMode = false,
+  onCheckModeChange,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const [parentUnlocked, setParentUnlocked] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     // Load persisted open state post-hydration; deferred so no setState runs
@@ -75,7 +85,8 @@ export function SkillsPanel({ memory }: Props) {
     () => (mem?.skills.length ? zpdWarmUpSkills(mem, 1)[0] ?? null : null),
     [mem],
   );
-  const pinSet = useMemo(() => hasParentPin(), []);
+  const pinSet = useMemo(() => hasParentPin(), [showPin, parentUnlocked]);
+  const digest = useMemo(() => buildParentDailyDigest(mem), [mem]);
 
   if (!mem?.skills.length) return null;
 
@@ -89,6 +100,12 @@ export function SkillsPanel({ memory }: Props) {
       }
       return next;
     });
+  };
+
+  const lockParent = () => {
+    setParentUnlocked(false);
+    setShowPin(false);
+    onCheckModeChange?.(false);
   };
 
   const zpdHint = zpdSingle?.label
@@ -193,21 +210,74 @@ export function SkillsPanel({ memory }: Props) {
           ) : null}
 
           <div className="mt-2 border-t border-[var(--line)]/60 pt-1.5">
-            <p className="text-[10px] text-[var(--ink-muted)]">
-              {pinSet ? (
-                <span>Parent PIN active</span>
-              ) : (
-                <span>
-                  Parent PIN not set
-                  <span className="text-[var(--teal)]">
-                    {" "}
-                    — open Code Agent to configure
-                  </span>
-                </span>
-              )}
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+              Parent
             </p>
+            {!pinSet ? (
+              <p className="mt-1 text-[10px] text-[var(--ink-muted)]">
+                Set parent PIN
+                <span className="text-[var(--teal)]">
+                  {" "}
+                  — open Code Agent to configure
+                </span>
+              </p>
+            ) : !parentUnlocked ? (
+              <button
+                type="button"
+                onClick={() => setShowPin(true)}
+                className="mt-1 min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+              >
+                Unlock parent view
+              </button>
+            ) : (
+              <div className="mt-1.5 space-y-2">
+                <p className="text-[12px] leading-snug text-[var(--ink)]">
+                  {digest}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(digest).then(() => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 1500);
+                      });
+                    }}
+                    className="min-h-11 rounded-lg border border-[var(--line)] px-3 text-[12px] text-[var(--ink)]"
+                  >
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={lockParent}
+                    className="min-h-11 rounded-lg px-3 text-[12px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+                  >
+                    Done
+                  </button>
+                </div>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
+                  <input
+                    type="checkbox"
+                    checked={checkMode}
+                    onChange={(e) => onCheckModeChange?.(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--teal)]"
+                  />
+                  Check answers (parent)
+                </label>
+              </div>
+            )}
           </div>
         </div>
+      ) : null}
+
+      {showPin ? (
+        <PinGate
+          onUnlock={() => {
+            setParentUnlocked(true);
+            setShowPin(false);
+          }}
+          onCancel={() => setShowPin(false)}
+        />
       ) : null}
     </div>
   );

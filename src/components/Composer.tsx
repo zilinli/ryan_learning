@@ -12,14 +12,22 @@ import { CameraCapture } from "./CameraCapture";
 import { getTutorVoice, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 
+export type ComposerApi = {
+  openCamera: () => void;
+};
+
 type Props = {
   disabled?: boolean;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onVoiceIdChange?: (id: TutorVoiceId) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
+  onComposerApi?: (api: ComposerApi | null) => void;
   /** Unlock audio inside the Send tap (required on iPhone/iPad) */
   onPrepareSpeak?: () => Promise<void>;
+  /** UI-B2a — speaking status line above toolbar */
+  speakStatus?: string;
+  onSpeakingChange?: (speaking: boolean) => void;
   onSend: (payload: {
     text: string;
     attachments: ClientAttachment[];
@@ -32,7 +40,10 @@ export function Composer({
   onVoiceEnabledChange,
   onVoiceIdChange,
   onSpeakApi,
+  onComposerApi,
   onPrepareSpeak,
+  speakStatus,
+  onSpeakingChange,
   onSend,
 }: Props) {
   const [text, setText] = useState("");
@@ -50,6 +61,16 @@ export function Composer({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => {
+    onComposerApi?.({
+      openCamera: () => {
+        setError("");
+        setCameraOpen(true);
+      },
+    });
+    return () => onComposerApi?.(null);
+  }, [onComposerApi]);
 
   const addFiles = useCallback(async (fileList: FileList | File[] | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -171,6 +192,15 @@ export function Composer({
           className="w-full min-h-[2.75rem] resize-none bg-transparent px-1 py-1 text-lg leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50 sm:text-base"
         />
 
+        {speakStatus ? (
+          <p
+            className="mt-1 text-xs font-medium text-[var(--teal)]"
+            aria-live="polite"
+          >
+            {speakStatus}
+          </p>
+        ) : null}
+
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <input
             id={fileId}
@@ -231,6 +261,7 @@ export function Composer({
               onVoiceIdChange?.(id);
             }}
             onSpeakApi={onSpeakApi}
+            onSpeakingChange={onSpeakingChange}
             onTranscript={(t) => {
               const lang = getTutorVoice(voiceId).lang;
               if (lang === "teo" || lang === "hak") {

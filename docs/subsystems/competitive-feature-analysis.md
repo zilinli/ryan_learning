@@ -3,6 +3,7 @@
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
 > Status: **v2 confirmed 2026-08-09** · P0 shipped on `develop`; P1–P3 backlog accepted  
 > Plan: [competitive-product-plan-v2.md](competitive-product-plan-v2.md)  
+> UI: [competitive-ui-design.md](competitive-ui-design.md)  
 > Downstream: [TODO.md § Competitive Analysis Backlog](../TODO.md) · [ca-p0-system-design.md](ca-p0-system-design.md) · [ca-p1-system-design.md](ca-p1-system-design.md)
 
 ---

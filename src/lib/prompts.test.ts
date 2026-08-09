@@ -173,4 +173,24 @@ describe("buildTutorPrompt", () => {
       buildTutorPrompt({ userText: "a", imageCount: 1, voiceId: "jorge" }),
     ).toContain("Mira aquí");
   });
+
+  it("D1 checkMode suspends Socratic anti-spoiler ladder", () => {
+    const off = buildTutorPrompt({
+      userText: "show the answer",
+      imageCount: 1,
+      voiceId: "ava",
+    });
+    expect(off).toContain("Hint ladder");
+    expect(off).not.toContain("Parent check mode — D1 ACTIVE");
+
+    const on = buildTutorPrompt({
+      userText: "show the answer",
+      imageCount: 1,
+      voiceId: "ava",
+      checkMode: true,
+    });
+    expect(on).toContain("Parent check mode — D1 ACTIVE");
+    expect(on).toContain("SUSPENDED while check mode is on");
+    expect(on).not.toContain("Hint ladder");
+  });
 });

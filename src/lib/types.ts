@@ -147,6 +147,8 @@ export interface ChatRequestBody {
     mimeType: string;
   };
   reset?: boolean;
+  /** D1 — parent PIN check mode: full worked steps (exit forces Socratic) */
+  checkMode?: boolean;
 }
 
 export interface DiffBlock { filepath: string; hunks: string; added: number; removed: number; }

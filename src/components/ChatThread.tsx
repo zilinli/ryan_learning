@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatAttachment, ChatMessage, ConversationWorksheetPlan } from "@/lib/types";
 import { getPhotoFromVault } from "@/lib/photo-vault";
-import { formatProgressLabel, stripWorksheetPlanFence } from "@/lib/worksheet-planner";
+import {
+  formatProgressLabelOrDone,
+  isWorksheetComplete,
+  stripWorksheetPlanFence,
+} from "@/lib/worksheet-planner";
 import type { PendingPracticeOffer } from "@/lib/session-practice";
 import type { SessionOpener } from "@/lib/session-opener";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -19,7 +23,8 @@ type Props = {
   onPracticeTomorrow?: () => void;
   onPracticeDismiss?: () => void;
   onOpenerTry?: () => void;
-  onOpenerDismiss?: () => void;
+  /** Snap homework — dismiss opener + open camera */
+  onSnapHomework?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -92,7 +97,7 @@ export function ChatThread({
   onPracticeTomorrow,
   onPracticeDismiss,
   onOpenerTry,
-  onOpenerDismiss,
+  onSnapHomework,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -102,9 +107,22 @@ export function ChatThread({
   const [vaultChecked, setVaultChecked] = useState<Record<string, true>>({});
   const [loadFailed, setLoadFailed] = useState<Record<string, true>>({});
   const [userScrolled, setUserScrolled] = useState(false);
+  const [planExpanded, setPlanExpanded] = useState(false);
+  const [hideCompletePlan, setHideCompletePlan] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+
+  const planComplete = isWorksheetComplete(worksheetPlan);
+  useEffect(() => {
+    if (!planComplete) {
+      setHideCompletePlan(false);
+      return;
+    }
+    setPlanExpanded(false);
+    const t = window.setTimeout(() => setHideCompletePlan(true), 3000);
+    return () => window.clearTimeout(t);
+  }, [planComplete, worksheetPlan?.updatedAt]);
 
   // Mark all current messages as seen so only genuinely new messages animate
   // in. Deferred to the next macrotask: React schedules the re-render after
@@ -212,14 +230,13 @@ export function ChatThread({
           Snap a photo, type a question, or use the mic. I&apos;ll guide you step by
           step — no spoilers.
         </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-[11px] text-[var(--ink-muted)]">
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2.5 py-1">
-            📷 Photo
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2.5 py-1">
-            🎤 Voice question
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={onSnapHomework}
+          className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--action-bg)] px-4 text-sm font-medium text-[var(--action-ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+        >
+          Snap homework
+        </button>
 
         {practiceOffer && practiceOffer.targets.length > 0 ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-4 py-3 text-left">
@@ -266,7 +283,7 @@ export function ChatThread({
               </button>
               <button
                 type="button"
-                onClick={onOpenerDismiss}
+                onClick={onSnapHomework}
                 className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
               >
                 Snap homework
@@ -278,16 +295,60 @@ export function ChatThread({
     );
   }
 
+  const showPlanChip =
+    !!worksheetPlan &&
+    worksheetPlan.total > 0 &&
+    !(planComplete && hideCompletePlan);
+
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
-      {worksheetPlan && worksheetPlan.total > 0 ? (
+      {showPlanChip && worksheetPlan ? (
         <div
           className="sticky top-0 z-[5] -mx-1 mb-1 flex justify-center"
           aria-live="polite"
         >
-          <span className="rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--ink)] shadow-sm">
-            {formatProgressLabel(worksheetPlan)}
-          </span>
+          <div className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] shadow-sm">
+            <button
+              type="button"
+              onClick={() => {
+                if (!planComplete) setPlanExpanded((v) => !v);
+              }}
+              aria-expanded={planExpanded}
+              disabled={planComplete}
+              className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs font-medium text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:cursor-default"
+            >
+              <span>{formatProgressLabelOrDone(worksheetPlan)}</span>
+              {!planComplete ? (
+                <span className="text-[10px] text-[var(--ink-muted)]" aria-hidden>
+                  {planExpanded ? "▴" : "▾"}
+                </span>
+              ) : null}
+            </button>
+            {planExpanded && !planComplete ? (
+              <ul className="max-h-[40vh] space-y-1 overflow-y-auto border-t border-[var(--line)]/60 px-3 py-2 text-xs text-[var(--ink)]">
+                {worksheetPlan.items.map((item) => (
+                  <li key={item.id} className="flex items-center gap-2">
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        item.status === "done"
+                          ? "bg-[var(--teal)]"
+                          : item.status === "active"
+                            ? "bg-[var(--coral)]"
+                            : item.status === "skipped"
+                              ? "bg-[var(--ink-muted)]"
+                              : "bg-[var(--line)]"
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{item.label}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-[var(--ink-muted)]">
+                      {item.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {messages.map((m) => {

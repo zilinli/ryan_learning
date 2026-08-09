@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   formatProgressLabel,
+  formatProgressLabelOrDone,
+  isWorksheetComplete,
   mergeWorksheetPlan,
   parseWorksheetPlanFence,
   planFromJson,
@@ -102,5 +104,22 @@ describe("worksheet-planner (CA-1)", () => {
     })!;
     expect(plan.total).toBeGreaterThanOrEqual(1);
     expect(plan.current).toBeLessThanOrEqual(plan.total);
+  });
+
+  it("WP9: isWorksheetComplete when all items done/skipped", () => {
+    const done = planFromJson(
+      {
+        total: 2,
+        current: 2,
+        items: [
+          { id: 1, label: "Q1", status: "done" },
+          { id: 2, label: "Q2", status: "skipped" },
+        ],
+      },
+      1,
+    )!;
+    expect(isWorksheetComplete(done)).toBe(true);
+    expect(formatProgressLabelOrDone(done)).toBe("All done · 2 questions");
+    expect(isWorksheetComplete(planFromJson(sample, 1))).toBe(false);
   });
 });

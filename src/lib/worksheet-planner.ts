@@ -74,12 +74,15 @@ export function planFromJson(
   const resolvedTotal = Math.max(total, items.length);
   let current = clampInt(Number(o.current ?? 1), 1, resolvedTotal);
 
-  // Ensure one active item matches current when possible
+  // Ensure one active item matches current when possible (skip if worksheet finished)
   const hasActive = items.some((i) => i.status === "active");
-  if (!hasActive) {
+  const allTerminal = items.every(
+    (i) => i.status === "done" || i.status === "skipped",
+  );
+  if (!hasActive && !allTerminal) {
     const hit = items.find((i) => i.id === current);
     if (hit) hit.status = "active";
-  } else {
+  } else if (hasActive) {
     const active = items.find((i) => i.status === "active");
     if (active) current = active.id;
   }
@@ -138,4 +141,21 @@ export function mergeWorksheetPlan(
   if (!prev) return next;
   // Newer agent emission always wins
   return next.updatedAt >= prev.updatedAt ? next : prev;
+}
+
+/** True when every listed item is done/skipped, or current past total. */
+export function isWorksheetComplete(plan: WorksheetPlan | null | undefined): boolean {
+  if (!plan?.items?.length) return false;
+  const allTerminal = plan.items.every(
+    (i) => i.status === "done" || i.status === "skipped",
+  );
+  if (allTerminal) return true;
+  return plan.current > plan.total;
+}
+
+export function formatProgressLabelOrDone(plan: WorksheetPlan): string {
+  if (isWorksheetComplete(plan)) {
+    return `All done · ${plan.total} questions`;
+  }
+  return formatProgressLabel(plan);
 }
