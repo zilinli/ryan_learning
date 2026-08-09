@@ -37,6 +37,35 @@ export function ChessGame() {
     }
   }, []);
 
+  const applyAiSan = useCallback(
+    (san: string, fromFen: string) => {
+      const newGame = new Chess(fromFen);
+      try {
+        const result = newGame.move(san);
+        if (result) {
+          setGame(newGame);
+          setMoveHistory((h) => [...h, san]);
+          updateStatus(newGame);
+          return true;
+        }
+      } catch {
+        // fall through
+      }
+      // Fallback random legal
+      const moves = newGame.moves();
+      if (moves.length > 0) {
+        const pick = moves[Math.floor(Math.random() * moves.length)];
+        newGame.move(pick);
+        setGame(newGame);
+        setMoveHistory((h) => [...h, pick]);
+        updateStatus(newGame);
+        return true;
+      }
+      return false;
+    },
+    [updateStatus],
+  );
+
   const handleCellClick = useCallback(
     (square: Square) => {
       if (thinking || game.isGameOver()) return;
@@ -49,11 +78,11 @@ export function ChessGame() {
           try {
             const promotion = square[1] === "8" || square[1] === "1" ? "q" : undefined;
             const newGame = new Chess(game.fen());
-            newGame.move({ from: selected, to: square, promotion });
+            const result = newGame.move({ from: selected, to: square, promotion });
             setGame(newGame);
             setSelected(null);
             setLegalMoves([]);
-            setMoveHistory((h) => [...h, `${selected}${square}`]);
+            setMoveHistory((h) => [...h, result.san]);
             updateStatus(newGame);
           } catch {
             setSelected(null);
@@ -63,8 +92,7 @@ export function ChessGame() {
           const piece = game.get(square);
           if (piece && piece.color === game.turn()) {
             setSelected(square);
-            const moves = game.moves({ square, verbose: true });
-            setLegalMoves(moves.map((m) => m.to));
+            setLegalMoves(game.moves({ square, verbose: true }).map((m) => m.to));
           } else {
             setSelected(null);
             setLegalMoves([]);
@@ -74,65 +102,53 @@ export function ChessGame() {
         const piece = game.get(square);
         if (piece && piece.color === game.turn()) {
           setSelected(square);
-          const moves = game.moves({ square, verbose: true });
-          setLegalMoves(moves.map((m) => m.to));
+          setLegalMoves(game.moves({ square, verbose: true }).map((m) => m.to));
         }
       }
     },
     [game, selected, thinking, mode, updateStatus],
   );
 
-  // AI move (only in ai mode)
   useEffect(() => {
     if (thinking || game.isGameOver() || mode !== "ai" || game.turn() === "w") return;
 
     const makeAiMove = async () => {
       setThinking(true);
       setError(null);
+      const fen = game.fen();
+      const legal = game.moves();
       try {
         const res = await fetch("/api/entertain-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             game: "chess",
-            boardState: game.fen(),
+            boardState: fen,
             moveHistory: game.history().join(" "),
             playerColor: "black",
+            legalMoves: legal,
           }),
         });
 
-        if (!res.ok) throw new Error(`AI error: ${res.status}`);
-        const data = await res.json();
-        const aiMove = data.move?.trim();
-
-        if (aiMove) {
-          const newGame = new Chess(game.fen());
-          try {
-            const result = newGame.move(aiMove);
-            if (result) {
-              setGame(newGame);
-              setMoveHistory((h) => [...h, aiMove]);
-              updateStatus(newGame);
-            }
-          } catch {
-            const moves = newGame.moves();
-            if (moves.length > 0) {
-              newGame.move(moves[Math.floor(Math.random() * moves.length)]);
-              setGame(newGame);
-              updateStatus(newGame);
-            }
-          }
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `AI error: ${res.status}`);
         }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "AI unavailable");
+        const data = await res.json();
+        applyAiSan(data.move?.trim() || "", fen);
+        setError(null);
+      } catch {
+        // Always fall back locally so the game stays playable
+        applyAiSan("", fen);
+        setError(null);
       } finally {
         setThinking(false);
       }
     };
 
-    const timer = setTimeout(makeAiMove, 300);
+    const timer = setTimeout(makeAiMove, 400);
     return () => clearTimeout(timer);
-  }, [game, thinking, mode, updateStatus]);
+  }, [game, thinking, mode, applyAiSan]);
 
   const resetGame = useCallback(() => {
     const newGame = new Chess();
@@ -150,7 +166,6 @@ export function ChessGame() {
 
   return (
     <div className="flex flex-1 flex-col items-center px-3 py-4">
-      {/* Mode selector */}
       <div className="mb-3 flex items-center gap-2">
         <span className="text-xs text-[var(--ink-muted)]">Mode:</span>
         {(["ai", "pvp"] as GameMode[]).map((m) => (
@@ -159,9 +174,7 @@ export function ChessGame() {
             type="button"
             onClick={() => { setMode(m); resetGame(); }}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-              mode === m
-                ? "bg-[var(--teal)] text-white"
-                : "border border-[var(--line)] text-[var(--ink-muted)] hover:bg-[var(--mist)]"
+              mode === m ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] text-[var(--ink-muted)] hover:bg-[var(--mist)]"
             }`}
           >
             {m === "ai" ? "vs AI" : "2 Players"}
@@ -169,7 +182,6 @@ export function ChessGame() {
         ))}
       </div>
 
-      {/* Status */}
       <div className="mb-3 flex items-center gap-3 rounded-xl bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]">
         <span>{status}</span>
         {thinking && (
@@ -181,11 +193,8 @@ export function ChessGame() {
         {error && <span className="text-xs text-[var(--coral)]">{error}</span>}
       </div>
 
-      {/* Board */}
       <div className="mb-4 rounded-xl border-4 border-[#6b4c2a] bg-[#6b4c2a] p-1 shadow-lg">
-        <div className="grid aspect-square grid-cols-8 overflow-hidden rounded-sm"
-          style={{ width: "min(85vw, 480px)" }}
-        >
+        <div className="grid aspect-square grid-cols-8 overflow-hidden rounded-sm" style={{ width: "min(85vw, 480px)" }}>
           {Array.from({ length: 8 }, (_, row) =>
             Array.from({ length: 8 }, (_, col) => {
               const r = 7 - row;
@@ -218,15 +227,13 @@ export function ChessGame() {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={resetGame}
-          className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
-        >
-          New Game
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={resetGame}
+        className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)]"
+      >
+        New Game
+      </button>
 
       {moveHistory.length > 0 && (
         <div className="mt-4 w-full max-w-md rounded-xl bg-[var(--surface)] p-3 shadow-sm ring-1 ring-[var(--line)]">

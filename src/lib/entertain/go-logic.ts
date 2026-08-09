@@ -110,6 +110,20 @@ function removeGroup(board: GoBoard, group: Set<string>): number {
   return group.size;
 }
 
+/** Enumerate legal placements as "r,c" (excludes pass). */
+export function getLegalGoMoves(state: GoState): string[] {
+  if (state.status !== "playing") return [];
+  const out: string[] = [];
+  for (let r = 0; r < state.size; r++) {
+    for (let c = 0; c < state.size; c++) {
+      if (state.board[r][c] !== null) continue;
+      const trial = placeStone(state, { row: r, col: c });
+      if (trial !== state) out.push(`${r},${c}`);
+    }
+  }
+  return out;
+}
+
 export function placeStone(state: GoState, pos: GoPosition): GoState {
   if (state.status !== "playing") return state;
   const { row, col } = pos;
@@ -143,10 +157,14 @@ export function placeStone(state: GoState, pos: GoPosition): GoState {
     return state; // illegal: suicide
   }
 
-  // Ko check: if single stone was captured and move would recreate previous position
-  if (captured === 1 && state.lastCaptured &&
-    state.lastCaptured.row === row && state.lastCaptured.col === col) {
-    return state; // ko
+  // Simple ko (Sabaki): after capturing exactly one stone, store the emptied
+  // point; opponent may not play there on the next move.
+  if (
+    state.lastCaptured &&
+    state.lastCaptured.row === row &&
+    state.lastCaptured.col === col
+  ) {
+    return state;
   }
 
   const capturedBlack = state.capturedBlack + (state.turn === "white" ? captured : 0);
@@ -161,7 +179,7 @@ export function placeStone(state: GoState, pos: GoPosition): GoState {
     passes: 0,
     capturedBlack,
     capturedWhite,
-    lastCaptured: captured === 1 ? { row, col } : null,
+    lastCaptured: captured === 1 ? lastCapturedPos : null,
   };
 }
 

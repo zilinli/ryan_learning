@@ -6,13 +6,12 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as AiMoveRequest;
+    const body = (await request.json()) as AiMoveRequest & {
+      legalMoves?: string[];
+    };
 
     if (!body.game || !["chess", "xiangqi", "go"].includes(body.game)) {
-      return NextResponse.json(
-        { error: "Invalid game type" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid game type" }, { status: 400 });
     }
 
     const { move, explanation } = await getGameAiMove({
@@ -20,8 +19,13 @@ export async function POST(request: NextRequest) {
       boardDescription: body.boardState,
       playerColor: body.playerColor,
       moveHistory: body.moveHistory,
+      legalMoves: body.legalMoves,
       signal: request.signal,
     });
+
+    if (!move) {
+      return NextResponse.json({ error: "AI returned empty move" }, { status: 502 });
+    }
 
     const response: AiMoveResponse = { move, explanation };
     return NextResponse.json(response);

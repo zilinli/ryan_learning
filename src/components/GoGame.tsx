@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  getLegalGoMoves,
   initGo,
   passTurn,
   placeStone,
@@ -48,34 +49,54 @@ export function GoGame() {
     const makeAiMove = async () => {
       setThinking(true);
       setError(null);
+      const legal = getLegalGoMoves(state);
+      const applyMove = (moveStr: string) => {
+        if (!moveStr || moveStr.toLowerCase() === "pass") {
+          setState((prev) => passTurn(prev));
+          return;
+        }
+        const parts = moveStr.split(",").map(Number);
+        if (parts.length === 2) {
+          setState((prev) => placeStone(prev, { row: parts[0], col: parts[1] }));
+        } else {
+          setState((prev) => passTurn(prev));
+        }
+      };
       try {
         const boardDesc = state.board
-          .map((row) => row.map((cell) => (cell === "black" ? "B" : cell === "white" ? "W" : "·")).join(" "))
+          .map((row) =>
+            row.map((cell) => (cell === "black" ? "B" : cell === "white" ? "W" : "·")).join(" "),
+          )
           .join("\n");
         const history = state.moveHistory.map((m) => `${m.row},${m.col}`).join("; ");
 
         const res = await fetch("/api/entertain-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ game: "go", boardState: boardDesc, moveHistory: history, playerColor: "white" }),
+          body: JSON.stringify({
+            game: "go",
+            boardState: boardDesc,
+            moveHistory: history,
+            playerColor: "white",
+            legalMoves: legal,
+          }),
         });
 
-        if (!res.ok) throw new Error(`AI error: ${res.status}`);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `AI error: ${res.status}`);
+        }
         const data = await res.json();
-        const moveStr = data.move?.trim();
-
-        if (moveStr && moveStr.toLowerCase() !== "pass") {
-          const parts = moveStr.split(",").map(Number);
-          if (parts.length === 2) {
-            setState((prev) => placeStone(prev, { row: parts[0], col: parts[1] }));
-          } else {
-            setState((prev) => passTurn(prev));
-          }
+        applyMove(data.move?.trim() || "");
+        setError(null);
+      } catch {
+        // Client fallback: random legal or pass
+        if (legal.length > 0) {
+          applyMove(legal[Math.floor(Math.random() * legal.length)]);
+          setError(null);
         } else {
           setState((prev) => passTurn(prev));
         }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "AI unavailable");
       } finally {
         setThinking(false);
       }

@@ -37,6 +37,8 @@ export interface AiMoveRequest {
   boardState: string;
   moveHistory: string;
   playerColor: string;
+  /** Optional list of legal moves for validation + local fallback */
+  legalMoves?: string[];
 }
 
 export interface AiMoveResponse {

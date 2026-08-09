@@ -287,6 +287,21 @@ export function getLegalMoves(board: XiangqiBoard, pos: XiangqiPosition): Xiangq
   );
 }
 
+/** All legal moves for a color as "r,c-r,c" strings (for AI). */
+export function getAllLegalMoveStrings(board: XiangqiBoard, color: XiangqiColor): string[] {
+  const out: string[] = [];
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (!piece || pieceColor(piece) !== color) continue;
+      for (const to of getLegalMoves(board, { row: r, col: c })) {
+        out.push(`${r},${c}-${to.row},${to.col}`);
+      }
+    }
+  }
+  return out;
+}
+
 export function makeMove(state: XiangqiState, to: XiangqiPosition): XiangqiState {
   if (!state.selectedCell) return state;
   const from = state.selectedCell;

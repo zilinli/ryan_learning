@@ -32,6 +32,7 @@
 - [x] **ENT2.8** — Sokoban: 10 levels + undo + d-pad + keyboard
 - [x] **ENT2.9** — Klotski: 3 layouts + drag/click movement + undo
 - [x] **ENT2.10** — Build optimization: smart-build.mjs + memory cap + PM2 lifecycle
+- [x] **ENT2.11** — Research → design (test plan) → 37 unit tests green; fix AI stream API + Xiangqi SVG grid + Go ko
 
 ### Phase BUILD: Build optimization
 
