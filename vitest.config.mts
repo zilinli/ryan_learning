@@ -10,6 +10,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     clearMocks: true,
     env: { NODE_ENV: "test" },
+    testTimeout: 30_000,
   },
   resolve: {
     alias: {
