@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyMove, getLegalMoves, initUttt, type UtttState } from "./uttt";
-import { chooseUtttAiMove, evaluate } from "./uttt-local";
+import { chooseUtttAiMove, evaluate, searchDepth } from "./uttt-local";
 
 describe("Ultimate TTT local AI", () => {
   it("U11: all difficulty levels return legal moves", () => {
@@ -41,5 +41,13 @@ describe("Ultimate TTT local AI", () => {
       winners: ["X", null, null, null, null, null, null, null, null],
     };
     expect(evaluate(better, "X")).toBeGreaterThan(evaluate(empty, "X"));
+  });
+
+  it("D10: UTTT searchDepth ladder strictly increases", () => {
+    expect(searchDepth("easy")).toBeLessThan(searchDepth("medium"));
+    expect(searchDepth("medium")).toBeLessThan(searchDepth("hard"));
+    expect(searchDepth("hard")).toBeLessThan(searchDepth("expert"));
+    expect(searchDepth("expert")).toBeLessThan(searchDepth("master"));
+    expect(searchDepth("master")).toBeGreaterThanOrEqual(6);
   });
 });

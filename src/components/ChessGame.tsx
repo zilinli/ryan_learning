@@ -36,7 +36,7 @@ export function ChessGame() {
   );
   const [history, setHistory] = useState<string[]>([]);
   const [mode, setMode] = useState<GameMode>("ai");
-  const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
+  const [difficulty, setDifficulty] = useState<AiDifficulty>("hard");
   const [aiBusy, setAiBusy] = useState(false);
 
   const game = useMemo(() => new Chess(fen), [fen]);

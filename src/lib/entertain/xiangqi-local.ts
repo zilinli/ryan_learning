@@ -28,7 +28,7 @@ export const AI_DIFFICULTIES: AiDifficulty[] = [
   "master",
 ];
 
-/** Search depth by level (yingwang-inspired, capped for browser UX). */
+/** Search depth by level (yingwang / js-chess-engine ladder, v0.6). */
 export function searchDepth(difficulty: AiDifficulty): number {
   switch (difficulty) {
     case "easy":
@@ -38,14 +38,14 @@ export function searchDepth(difficulty: AiDifficulty): number {
     case "hard":
       return 3;
     case "expert":
-      return 3;
+      return 4;
     case "master":
-      return 3;
+      return 5;
   }
 }
 
 export function usesQuiescence(difficulty: AiDifficulty): boolean {
-  return difficulty === "master";
+  return difficulty === "expert" || difficulty === "master";
 }
 
 /** Soft time budget (ms) for iterative deepening. */
@@ -54,13 +54,13 @@ export function timeBudgetMs(difficulty: AiDifficulty): number {
     case "easy":
       return 0;
     case "medium":
-      return 100;
+      return 120;
     case "hard":
-      return 200;
+      return 280;
     case "expert":
-      return 300;
+      return 500;
     case "master":
-      return 400;
+      return 700;
   }
 }
 

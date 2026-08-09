@@ -21,11 +21,30 @@ describe("Go local AI", () => {
     }
   });
 
-  it("prefers captures when obvious", () => {
-    // Minimal capture setup is engine-dependent; assert non-empty legal pick
+  it("D8: expert/master legal; prefer capturing a single liberty stone", () => {
+    // Black stone at (0,1) with liberties (0,0)/(0,2)/(1,1). Fill two; AI should take last.
     let state = initGo(9);
-    state = placeStone(state, { row: 0, col: 0 });
-    const ai = chooseGoAiMove(state, "hard");
-    expect(ai).toMatch(/^\d+,\d+$/);
+    state = {
+      ...state,
+      board: state.board.map((row, r) =>
+        row.map((_, c) => {
+          if (r === 0 && c === 1) return "black";
+          if (r === 0 && c === 0) return "white";
+          if (r === 0 && c === 2) return "white";
+          return null;
+        }),
+      ),
+      turn: "white",
+      moveHistory: [
+        { row: 0, col: 1 },
+        { row: 0, col: 0 },
+        { row: 0, col: 2 },
+      ],
+    };
+    for (const d of ["expert", "master"] as const) {
+      const ai = chooseGoAiMove(state, d);
+      expect(getLegalGoMoves(state)).toContain(ai);
+      expect(ai).toBe("1,1");
+    }
   });
 });

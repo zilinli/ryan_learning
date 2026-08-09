@@ -8,26 +8,45 @@
 > New multi-tenant spec: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolation.md)** (v0.1 — account data isolation design)  
 > New lightbox spec: **[subsystems/image-lightbox-zoom.md](subsystems/image-lightbox-zoom.md)** (v0.1 — portal stacking + zoom)  
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
-> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.5 — 5-level AI difficulty + PST Xiangqi)
+> Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)
 
 ---
 
-## 🔴 In Progress (2026-08-09) — Board AI Difficulty Upgrade (ENT4)
+## 🔴 In Progress (2026-08-09) — Code Agent Live Deploy Fix (DEPLOY1)
 
-**Goal** — Xiangqi (and Chess) AI too weak at `hard` (depth 2). Industry research → 5 levels + PST eval + deeper α-β; tests D1–D6; deploy.
+**Goal** — Code Agent edits never refreshed the live site (`npm start` serves stale `.next`). Add `deploy_live` tool + SYS prompt + raise edit budget.
 
-> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §1.2 / §3.9
+> **Design:** [subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)
 
-### Phase ENT4: Stronger / finer AI difficulty
+### Phase DEPLOY1
 
-- [x] **ENT4.1** — Open-source research (yingwang depths, Pikafish deferred, PST + quiescence)
-- [x] **ENT4.2** — Design doc v0.5 + test plan D1–D6 + this TODO
-- [x] **ENT4.3** — `xiangqi-local.ts`: PST eval, depths 2/3/4, expert/master, quiescence on master
-- [x] **ENT4.4** — `chess-local.ts`: bump depths + 5 levels aligned with design table
-- [x] **ENT4.5** — UI pills on Xiangqi/Chess: easy→master
-- [x] **ENT4.6** — Unit tests D1–D6 green
-- [ ] **ENT4.7** — Build + PM2 restart + git push
-- [x] **ENT4.8** — Go / Gomoku / UTTT: 5-level AI + UI pills (heuristic depth ladder)
+- [x] **DEPLOY1.1** — Root-cause: PM2 production `.next` vs source-only edits
+- [x] **DEPLOY1.2** — Design doc + tests CD1–CD4
+- [x] **DEPLOY1.3** — `deploy_live` in console-harness + SYS prompt + max edits 15
+- [ ] **DEPLOY1.4** — Unit tests green + build + pm2 restart + git push
+
+---
+
+## 🔴 In Progress (2026-08-09) — Board AI Challenge Pass (ENT5)
+
+**Goal** — Board games still too easy: raise expert/master depths (Xiangqi 4/5, Chess 4), quiescence on expert+, stronger Go/Gomoku/UTTT, default UI=`hard`; tests D1–D10; deploy.
+
+> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §1.2 / §3.9 (v0.6)
+
+### Phase ENT5: Challenge-level AI
+
+- [ ] **ENT5.1** — Research refresh (js-chess-engine levels, yingwang depth ladder, Stanford depth findings)
+- [ ] **ENT5.2** — Design doc v0.6 + D7–D10 + this TODO
+- [ ] **ENT5.3** — Xiangqi: depths 1/2/3/4/5, expert+ quiescence, mobility, higher budgets
+- [ ] **ENT5.4** — Chess: depths 1/2/3/4/4, expert+ quiescence, higher budgets
+- [ ] **ENT5.5** — Go atari scoring; Gomoku/UTTT stronger ladders; default UI `hard`
+- [ ] **ENT5.6** — Unit tests D1–D10 green
+- [ ] **ENT5.7** — Build + PM2 restart + git push
+
+### ✅ Done — ENT4 (5-level pills + PST)
+
+- [x] **ENT4.1–4.6, 4.8** — 5 levels + PST + UI pills (superseded by ENT5 depths)
+- [x] **ENT4.7** — Prior deploy of 5-level UI (`32652bf`)
 
 ---
 

@@ -126,7 +126,7 @@ export function XiangqiGame() {
   const [legalMoves, setLegalMoves] = useState<Set<string>>(new Set());
   const [aiBusy, setAiBusy] = useState(false);
   const [mode, setMode] = useState<GameMode>("ai");
-  const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
+  const [difficulty, setDifficulty] = useState<AiDifficulty>("hard");
 
   useEffect(() => {
     if (state.selectedCell) {

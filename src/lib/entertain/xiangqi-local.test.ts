@@ -63,18 +63,32 @@ describe("Xiangqi local AI — difficulty upgrade D1–D6", () => {
     expect(getAllLegalMoveStrings(state.board, state.turn)).toContain(ai);
   });
 
-  it("D5: searchDepth monotonicity easy < medium < hard ≤ expert ≤ master", () => {
+  it("D5: searchDepth monotonicity easy < medium < hard < expert ≤ master", () => {
     expect(searchDepth("easy")).toBeLessThan(searchDepth("medium"));
     expect(searchDepth("medium")).toBeLessThan(searchDepth("hard"));
-    expect(searchDepth("hard")).toBeLessThanOrEqual(searchDepth("expert"));
+    expect(searchDepth("hard")).toBeLessThan(searchDepth("expert"));
     expect(searchDepth("expert")).toBeLessThanOrEqual(searchDepth("master"));
   });
 
-  it("D6: only master uses quiescence", () => {
+  it("D6: expert and master use quiescence", () => {
     expect(usesQuiescence("master")).toBe(true);
+    expect(usesQuiescence("expert")).toBe(true);
     expect(usesQuiescence("hard")).toBe(false);
-    expect(usesQuiescence("expert")).toBe(false);
   });
+
+  it("D7: Xiangqi master depth >= 5", () => {
+    expect(searchDepth("master")).toBeGreaterThanOrEqual(5);
+    expect(searchDepth("expert")).toBeGreaterThanOrEqual(4);
+  });
+
+  it("D9: hard move under 800ms from opening reply", () => {
+    let state = initXiangqi();
+    state = applyXiangqiMove(state, "6,0-5,0");
+    const t0 = Date.now();
+    const ai = chooseXiangqiAiMove(state, "hard");
+    expect(Date.now() - t0).toBeLessThan(800);
+    expect(getAllLegalMoveStrings(state.board, state.turn)).toContain(ai);
+  }, 15000);
 
   it("applyXiangqiMove switches turn", () => {
     const state = initXiangqi();

@@ -94,17 +94,22 @@ describe("Chess local AI — difficulty upgrade D1–D6", () => {
     expect(() => new Chess(g.fen()).move(san)).not.toThrow();
   });
 
-  it("D5: searchDepth monotonicity easy < medium ≤ hard < expert ≤ master", () => {
+  it("D5: searchDepth monotonicity easy < medium < hard < expert ≤ master", () => {
     expect(searchDepth("easy")).toBeLessThan(searchDepth("medium"));
-    expect(searchDepth("medium")).toBeLessThanOrEqual(searchDepth("hard"));
+    expect(searchDepth("medium")).toBeLessThan(searchDepth("hard"));
     expect(searchDepth("hard")).toBeLessThan(searchDepth("expert"));
     expect(searchDepth("expert")).toBeLessThanOrEqual(searchDepth("master"));
   });
 
-  it("D6: only master uses quiescence", () => {
+  it("D6: expert and master use quiescence", () => {
     expect(usesQuiescence("master")).toBe(true);
+    expect(usesQuiescence("expert")).toBe(true);
     expect(usesQuiescence("hard")).toBe(false);
-    expect(usesQuiescence("expert")).toBe(false);
+  });
+
+  it("D7: Chess expert depth >= 4", () => {
+    expect(searchDepth("expert")).toBeGreaterThanOrEqual(4);
+    expect(searchDepth("hard")).toBeGreaterThanOrEqual(3);
   });
 
   it("play 8 plies white first-legal + black AI without throw", () => {

@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { SDKCustomToolContext } from "@cursor/sdk";
-import { createConsoleHarnessTools, resetFileChangeCount, getFileChangeCount } from "./console-harness";
+import {
+  createConsoleHarnessTools,
+  resetFileChangeCount,
+  getFileChangeCount,
+  resetConsoleHarnessToolsCache,
+  MAX_EDITS_PER_SESSION,
+} from "./console-harness";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 const ROOT = process.cwd();
@@ -8,11 +14,61 @@ const TMP = path.join(ROOT, "_test_tmp");
 const bakRoot = path.join(ROOT, ".console-backups");
 const ctx: SDKCustomToolContext = {};
 function asString(v: unknown): string { return typeof v === "string" ? v : ""; }
-beforeEach(async () => { await fs.mkdir(TMP, { recursive: true }); await fs.mkdir(path.join(TMP, "sub"), { recursive: true }); resetFileChangeCount(); });
+beforeEach(async () => {
+  await fs.mkdir(TMP, { recursive: true });
+  await fs.mkdir(path.join(TMP, "sub"), { recursive: true });
+  resetFileChangeCount();
+});
 afterEach(async () => { try { await fs.rm(TMP, { recursive: true, force: true }); } catch {} try { await fs.rm(bakRoot, { recursive: true, force: true }); } catch {} });
 describe("createConsoleHarnessTools", () => {
   const tools = createConsoleHarnessTools();
   it("returns the same tools instance", () => { expect(createConsoleHarnessTools()).toBe(tools); });
+  it("CD1: exposes deploy_live", () => {
+    expect(tools.deploy_live).toBeDefined();
+    expect(tools.deploy_live!.description.toLowerCase()).toMatch(/build|pm2|\.next/);
+  });
+  it("CD2: deploy_live dry-run", async () => {
+    const prev = process.env.CONSOLE_DEPLOY_DRY_RUN;
+    process.env.CONSOLE_DEPLOY_DRY_RUN = "1";
+    try {
+      resetConsoleHarnessToolsCache();
+      const t = createConsoleHarnessTools();
+      const r = JSON.parse(asString(await t.deploy_live!.execute({}, ctx)));
+      expect(r.ok).toBe(true);
+      expect(r.dryRun).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.CONSOLE_DEPLOY_DRY_RUN;
+      else process.env.CONSOLE_DEPLOY_DRY_RUN = prev;
+      resetConsoleHarnessToolsCache();
+    }
+  });
+  it("CD3: console chat SYS mentions deploy_live and .next", async () => {
+    const src = await fs.readFile(
+      path.join(ROOT, "src/app/api/console/chat/route.ts"),
+      "utf-8",
+    );
+    expect(src).toContain("deploy_live");
+    expect(src).toMatch(/\.next/);
+    expect(src).toContain("Max 15 edits");
+  });
+  it("CD4: allows MAX_EDITS_PER_SESSION edits then throws", async () => {
+    expect(MAX_EDITS_PER_SESSION).toBe(15);
+    for (let i = 0; i < MAX_EDITS_PER_SESSION; i++) {
+      const name = `e${i}.ts`;
+      await fs.writeFile(path.join(TMP, name), "v0");
+      await tools.edit_file!.execute(
+        { filepath: `_test_tmp/${name}`, old_string: "v0", new_string: "v1" },
+        ctx,
+      );
+    }
+    await fs.writeFile(path.join(TMP, "overflow.ts"), "v0");
+    await expect(
+      tools.edit_file!.execute(
+        { filepath: "_test_tmp/overflow.ts", old_string: "v0", new_string: "v1" },
+        ctx,
+      ),
+    ).rejects.toThrow(/Max 15/);
+  });
   describe("list_files", () => {
     it("lists directory contents", async () => {
       await fs.writeFile(path.join(TMP, "a.ts"), "a"); await fs.writeFile(path.join(TMP, "b.ts"), "b"); await fs.writeFile(path.join(TMP, ".hidden"), "h");

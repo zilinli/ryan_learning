@@ -71,7 +71,8 @@ flowchart TB
 | **[subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md)** | Dialect cloud STT/TTS + correction UX（历史设计；STT 主路径已迁百炼） |
 | **[subsystems/dialect-cloud-tts-poc.md](subsystems/dialect-cloud-tts-poc.md)** | POC verification notes & homepage acceptance checklist |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
-| **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles incl. Ultimate Tic-Tac-Toe (v0.4) |
+| **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
+| **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy gap — deploy_live rebuilds .next + pm2 |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |
 | **[subsystems/agent-console-panel.md](subsystems/agent-console-panel.md)** | 🖥 Agent Chat Console (port 3001) embedded into Spark sidebar |
 | **[subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)** | 🪟 Code Agent mini window UX: vibe coding, diff/apply, close behavior |

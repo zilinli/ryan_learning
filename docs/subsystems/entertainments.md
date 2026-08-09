@@ -20,33 +20,36 @@
 | Sokoban | ecyrbe/sokoban | Undo stack | Push / win |
 | Klotski | CoderLim/klotski-solver | Cao Cao exit | Collision + win |
 
-**AI policy (v0.5):** Chess / Xiangqi / Go / Gomoku / Ultimate TTT use **client-side local AI only** (no Cursor SDK per move). Difficulty: `easy` | `medium` | `hard` | `expert` | `master`.
+**AI policy (v0.6):** Chess / Xiangqi / Go / Gomoku / Ultimate TTT use **client-side local AI only**. Difficulty: `easy` | `medium` | `hard` | `expert` | `master`. **Default UI level = `hard`.**
 
-### 1.2 Difficulty upgrade research (2026-08-09)
+### 1.2 Difficulty upgrade research (2026-08-09 → v0.6 challenge pass)
 
-**Problem:** v0.4 Xiangqi/Chess `hard` was only α-β depth **2** with material-only eval — too weak for challenge play.
+**Problem:** v0.5 still felt too easy — `hard`/`expert`/`master` shared depth **3** on Xiangqi (and Chess hard stayed at 2), so higher pills did not increase challenge.
 
 | Source | Finding |
 |--------|---------|
-| [yingwang/chinese_chess](https://github.com/yingwang/chinese_chess) (browser) | 5 levels by **search depth**: Beginner 2 · Intermediate 3 · Advanced 4 · Professional 5 · Master 7 (+ optional ONNX). Techniques: α-β, iterative deepening, TT, killer/history, quiescence, opening book. |
-| [yingwang/chinese_chess_mobile](https://github.com/yingwang/chinese_chess_mobile) | Pikafish NNUE; depths 3–20 (~1600–3000 Elo). Too heavy for our 4GB host / no WASM in this pass. |
-| [Pikafish](https://github.com/official-pikafish/Pikafish) | Stockfish-fork NNUE; Skill Level / UCI_LimitStrength. Deferred (binary + GPL + deploy complexity). |
-| [ryoi/xiangqi](https://github.com/ryoi/xiangqi) | Skill 1–6 + adaptive; α-β + TT + killer/history. |
-| Tencent Cloud Xiangqi AI tutorials | **PST** + MVV-LVA ordering + quiescence ≈ one strength tier without deeper ply. |
+| [yingwang/chinese_chess](https://github.com/yingwang/chinese_chess) (browser) | 5 levels by **search depth**: Beginner 2 · Intermediate 3 · Advanced 4 · Professional 5 · Master 7. α-β, iterative deepening, TT, killer/history, quiescence. |
+| [yingwang/chinese_chess_mobile](https://github.com/yingwang/chinese_chess_mobile) | Pikafish NNUE depths 3–20. Deferred (WASM/binary + RAM). |
+| [js-chess-engine](https://www.npmjs.com/package/js-chess-engine) | Levels 1–5 map to base depth + adaptive + **quiescence**; Expert ≈ 4 ply + q-search. |
+| [lhttjdr/xiangqi](https://github.com/lhttjdr/xiangqi) | PVS / NegaScout / ID / history — confirms depth + ordering >> material-only. |
+| Stanford CS221 Xiangqi poster | Depth-1 minimax fails forks/mate-in-2; move ordering unlocks depth 2+. |
+| Tencent Cloud Xiangqi tutorials | **PST** + MVV-LVA + quiescence ≈ +1 strength tier without extra ply. |
 
-**Decision for Spark (fit 4GB / <400ms UX, pure TS):**
+**Decision for Spark v0.6 (pure TS, ID timebox, no Pikafish):**
 
 | Level | Xiangqi depth | Chess depth | Eval / extras |
 |-------|---------------|-------------|---------------|
-| `easy` | 1-ply pick from top-half scored | random legal | Weak noise |
+| `easy` | 1 (top-half scored) | random legal | Weak / noisy |
 | `medium` | 2 | 2 | Material + PST |
-| `hard` | 3 | 2 + ID timebox | + capture-first ordering |
-| `expert` | 3 + ID | 3 + ID | + stronger check bias (Chess) |
-| `master` | 3 + quiescence (legal captures) | 3 + quiescence | Resolve hanging captures at leaf |
+| `hard` | 3 + ID | 3 + ID | Capture-first; default UI |
+| `expert` | **4** + ID + quiescence | **4** + ID + quiescence | Mobility (XQ); check bias (Chess) |
+| `master` | **5** + ID + quiescence | **4** + ID + deeper q + budget | Strongest local; ~≤700ms soft budget |
 
-Go/Gomoku/UTTT also use 5 pills: deeper reply look / defend weight / α-β depth (UTTT master depth 5). Iterative deepening + soft time budgets keep Chess/Xiangqi under ~400ms.
+Go: atari/liberty threat scoring + deeper reply sample on expert/master.  
+Gomoku: higher defend weight + wider candidate radius + stronger reply lookahead.  
+UTTT: α-β depths 2/3/4/5/6 with ID timebox on expert+.
 
-**Risks:** Depth 4+ without TT can stutter on mobile → α-β + MVV ordering + ID timebox; tests assert hard+ take hanging major pieces.
+**Risks:** Depth 5 Xiangqi without TT can stutter → iterative deepening + soft budgets; tests D4/D9 bound medium/hard latency; D7/D8 assert depth ladder + expert quiescence.
 
 ### 1.1 Ultimate Tic-Tac-Toe — feasibility (2026-08-09)
 
@@ -211,7 +214,7 @@ If Cursor SDK fails → `pickHeuristicMove(game, legalMoves)` must return ∈ `l
 | U12 | Hard AI takes immediate meta-winning move when available |
 | U13 | `applyMove` increments `moveCount` and flips turn |
 
-### 3.9 Difficulty upgrade (`xiangqi-local.test.ts` / `chess-local.test.ts`)
+### 3.9 Difficulty upgrade (`xiangqi-local.test.ts` / `chess-local.test.ts` + siblings)
 
 | ID | Case |
 |----|------|
@@ -219,8 +222,12 @@ If Cursor SDK fails → `pickHeuristicMove(game, legalMoves)` must return ∈ `l
 | D2 | Xiangqi hard/expert/master captures hanging rook when available |
 | D3 | Chess hard+ captures hanging queen when available |
 | D4 | Xiangqi medium move under 400ms from early midgame |
-| D5 | Depth monotonicity: `searchDepth(easy) < … < searchDepth(master)` helper |
-| D6 | Master uses quiescence flag (`usesQuiescence("master") === true`) |
+| D5 | Depth monotonicity: `searchDepth(easy) < medium < hard < expert ≤ master` |
+| D6 | `usesQuiescence(expert\|master) === true`; hard false |
+| D7 | Xiangqi `searchDepth(master) >= 5` and Chess `searchDepth(expert) >= 4` |
+| D8 | Go expert/master return legal; capture when hanging stone available |
+| D9 | Xiangqi hard move under 800ms from opening reply |
+| D10 | UTTT `searchDepth` ladder easy…master strictly increasing |
 
 ### Self-verify gate
 

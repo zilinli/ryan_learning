@@ -22,7 +22,7 @@ export function GoGame() {
   const [aiBusy, setAiBusy] = useState(false);
   const [hoverCell, setHoverCell] = useState<GoPosition | null>(null);
   const [mode, setMode] = useState<GameMode>("ai");
-  const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
+  const [difficulty, setDifficulty] = useState<AiDifficulty>("hard");
 
   const handleCellClick = useCallback(
     (row: number, col: number) => {

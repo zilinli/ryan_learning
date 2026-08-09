@@ -17,7 +17,7 @@ type GameMode = "ai" | "pvp";
 export function GomokuGame() {
   const [state, setState] = useState<GomokuState>(() => initGomoku(15));
   const [mode, setMode] = useState<GameMode>("ai");
-  const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
+  const [difficulty, setDifficulty] = useState<AiDifficulty>("hard");
   const [aiBusy, setAiBusy] = useState(false);
 
   const reset = useCallback(() => {

@@ -19,9 +19,10 @@ function key() {
 }
 
 const SYS = `You are Spark Builder. Project: Next.js 16 + React 19 + TypeScript.
-Tools: read_file, search_code, edit_file, run_tests, git_diff, apply_changes, revert_changes, list_files.
-Safety rules: Never edit .git/, node_modules/, .env*, data/. Never delete files. Run tests after each edit. Max 5 edits per session.
-Workflow: search_code -> read_file -> edit_file -> run_tests -> git_diff -> ask user approval -> apply_changes.`;
+Tools: read_file, search_code, edit_file, run_tests, git_diff, apply_changes, deploy_live, revert_changes, list_files.
+Safety rules: Never edit .git/, node_modules/, .env*, data/. Never delete files. Run tests after edits. Max 15 edits per session.
+CRITICAL — live deploy: PM2 spark-tutor serves production .next via \`npm start\`. Editing source alone does NOT update the public site. After any src/ / public/ / next.config change that users should see, you MUST call deploy_live (build + pm2 restart + health check) and report its JSON result. apply_changes only git-commits; it does not rebuild.
+Workflow: search_code -> read_file -> edit_file -> run_tests -> deploy_live -> git_diff -> ask user approval -> apply_changes (optional commit).`;
 
 export async function POST(req: Request) {
   let body: ConsoleChatRequestBody;

@@ -26,15 +26,15 @@ export const AI_DIFFICULTIES: AiDifficulty[] = [
 export function searchDepth(difficulty: AiDifficulty): number {
   switch (difficulty) {
     case "easy":
-      return 1;
-    case "medium":
       return 2;
-    case "hard":
+    case "medium":
       return 3;
-    case "expert":
+    case "hard":
       return 4;
-    case "master":
+    case "expert":
       return 5;
+    case "master":
+      return 6;
   }
 }
 

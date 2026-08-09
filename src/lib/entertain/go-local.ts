@@ -47,6 +47,37 @@ function replyPenalty(difficulty: AiDifficulty): number {
   }
 }
 
+const NEI: [number, number][] = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+];
+
+/** Count liberties of the group containing (r,c). */
+function groupLibs(board: GoState["board"], r: number, c: number): number {
+  const color = board[r][c];
+  if (!color) return 0;
+  const size = board.length;
+  const seen = new Set<string>();
+  const libs = new Set<string>();
+  const stack: [number, number][] = [[r, c]];
+  while (stack.length) {
+    const [cr, cc] = stack.pop()!;
+    const key = `${cr},${cc}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (const [dr, dc] of NEI) {
+      const nr = cr + dr;
+      const nc = cc + dc;
+      if (nr < 0 || nc < 0 || nr >= size || nc >= size) continue;
+      if (board[nr][nc] === null) libs.add(`${nr},${nc}`);
+      else if (board[nr][nc] === color) stack.push([nr, nc]);
+    }
+  }
+  return libs.size;
+}
+
 function scoreMove(state: GoState, move: string): number {
   if (move === "pass") return -100;
   const [r, c] = move.split(",").map(Number);
@@ -62,15 +93,12 @@ function scoreMove(state: GoState, move: string): number {
   // Center preference on 9×9
   const center = (state.size - 1) / 2;
   const dist = Math.abs(r - center) + Math.abs(c - center);
-  let score = captured * 100 + (10 - dist) * 3;
+  let score = captured * 120 + (10 - dist) * 3;
 
   // Prefer moves near existing stones (influence)
   let near = 0;
   for (const [dr, dc] of [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
+    ...NEI,
     [-1, -1],
     [-1, 1],
     [1, -1],
@@ -82,7 +110,22 @@ function scoreMove(state: GoState, move: string): number {
     if (state.board[nr][nc] !== null) near++;
   }
   score += near * 5;
-  score += Math.random() * 2; // tiny jitter
+
+  // Atari: put opponent groups to 1 liberty / save own groups
+  const opp = state.turn === "black" ? "white" : "black";
+  for (const [dr, dc] of NEI) {
+    const nr = r + dr;
+    const nc = c + dc;
+    if (nr < 0 || nc < 0 || nr >= state.size || nc >= state.size) continue;
+    if (next.board[nr][nc] === opp && groupLibs(next.board, nr, nc) === 1) {
+      score += 85;
+    }
+    if (state.board[nr][nc] === state.turn && groupLibs(state.board, nr, nc) === 1) {
+      score += 70; // save own atari by playing here (pre-move adjacency)
+    }
+  }
+
+  score += Math.random() * 1.5;
   return score;
 }
 

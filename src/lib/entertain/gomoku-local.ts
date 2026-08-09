@@ -24,13 +24,13 @@ export const AI_DIFFICULTIES: AiDifficulty[] = [
 function defendWeight(difficulty: AiDifficulty): number {
   switch (difficulty) {
     case "medium":
-      return 0.9;
-    case "hard":
       return 0.95;
-    case "expert":
+    case "hard":
       return 1.05;
+    case "expert":
+      return 1.2;
     case "master":
-      return 1.15;
+      return 1.35;
     default:
       return 0.9;
   }
@@ -38,15 +38,21 @@ function defendWeight(difficulty: AiDifficulty): number {
 
 function replyLookahead(difficulty: AiDifficulty): { count: number; weight: number } {
   switch (difficulty) {
+    case "medium":
+      return { count: 12, weight: 0.35 };
     case "hard":
-      return { count: 20, weight: 0.5 };
+      return { count: 24, weight: 0.55 };
     case "expert":
-      return { count: 28, weight: 0.65 };
+      return { count: 36, weight: 0.75 };
     case "master":
-      return { count: 36, weight: 0.8 };
+      return { count: 48, weight: 0.9 };
     default:
       return { count: 0, weight: 0 };
   }
+}
+
+function candidateRadius(difficulty: AiDifficulty): number {
+  return difficulty === "master" || difficulty === "expert" ? 3 : 2;
 }
 
 function countOpen(
@@ -114,19 +120,20 @@ function scorePoint(
 }
 
 /** Candidates near existing stones (speed). */
-function candidateMoves(state: GomokuState): string[] {
+function candidateMoves(state: GomokuState, difficulty: AiDifficulty = "medium"): string[] {
   const { board, size } = state;
   const hasAny = state.moveCount > 0;
   if (!hasAny) {
     const m = Math.floor(size / 2);
     return [`${m},${m}`];
   }
+  const rad = candidateRadius(difficulty);
   const set = new Set<string>();
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
       if (board[r][c] === null) continue;
-      for (let dr = -2; dr <= 2; dr++) {
-        for (let dc = -2; dc <= 2; dc++) {
+      for (let dr = -rad; dr <= rad; dr++) {
+        for (let dc = -rad; dc <= rad; dc++) {
           const nr = r + dr;
           const nc = c + dc;
           if (nr < 0 || nc < 0 || nr >= size || nc >= size) continue;
@@ -146,14 +153,14 @@ export function chooseGomokuAiMove(
   if (legal.length === 0) return "";
 
   if (difficulty === "easy") {
-    const pool = candidateMoves(state);
+    const pool = candidateMoves(state, difficulty);
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
   const me = state.turn;
   const opp: Stone = me === "black" ? "white" : "black";
   const board = state.board.map((r) => [...r]);
-  const cands = candidateMoves(state);
+  const cands = candidateMoves(state, difficulty);
   const dWeight = defendWeight(difficulty);
   const look = replyLookahead(difficulty);
 
