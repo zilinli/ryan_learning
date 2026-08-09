@@ -104,9 +104,9 @@
 ### CA-P0 release gate
 
 - [x] **CA-P0.R1** — `npm test` green (new suites — WP/SP/SO/BI + prompts)
-- [ ] **CA-P0.R2** — `npm run build` / smart-build
-- [ ] **CA-P0.R3** — Manual smoke M1–M4 on live
-- [ ] **CA-P0.R4** — Commit + push `develop` + deploy
+- [x] **CA-P0.R2** — `npm run build` / smart-build (2026-08-09)
+- [ ] **CA-P0.R3** — Manual smoke M1–M4 on live (HTTP 200 after deploy; full M1–M4 pending human)
+- [x] **CA-P0.R4** — Commit + push `develop` (`175564d`) + pm2 restart spark-tutor
 
 | Manual | Steps |
 |--------|-------|
