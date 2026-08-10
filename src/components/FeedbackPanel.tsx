@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const FAQ_ITEMS = [
   {
@@ -9,15 +9,15 @@ const FAQ_ITEMS = [
   },
   {
     q: "How does voice input work?",
-    a: 'Tap and hold the microphone button to record. Release to send. On desktop, click the mic to start, click again to stop. Your speech is transcribed using cloud AI (Alibaba DashScope / iFlytek) with a local fallback.',
+    a: "Tap and hold the microphone button to record. Release to send. On desktop, click the mic to start, click again to stop. Your speech is transcribed using cloud AI (Alibaba DashScope / iFlytek) with a local fallback.",
   },
   {
     q: "Can I change the voice?",
-    a: "Yes — open the sidebar and tap the voice selector (e.g. \"Auto (粤语优先)\"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman/Yasmin (Malay), Shanghainese, Hokkien, or Hakka.",
+    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman/Yasmin (Malay), Shanghainese, Hokkien, or Hakka.',
   },
   {
     q: "How do I submit homework photos?",
-    a: 'Tap the camera icon 📷 to take a photo, or the paperclip icon to upload from your gallery. The AI will read the homework and coach you step by step.',
+    a: "Tap the camera icon to take a photo, or the paperclip icon to upload from your gallery. The AI will read the homework and coach you step by step.",
   },
   {
     q: "Is my data private?",
@@ -31,6 +31,57 @@ const FAQ_ITEMS = [
 
 type FeedbackCategory = "bug" | "feature" | "question" | "docs";
 
+const CATEGORIES: {
+  id: FeedbackCategory;
+  label: string;
+  hint: string;
+  icon: ReactNode;
+}[] = [
+  {
+    id: "bug",
+    label: "Bug",
+    hint: "Something broken",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <circle cx="8" cy="8" r="5.25" />
+        <path d="M8 5.5v3.2M8 10.6h.01" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "feature",
+    label: "Feature",
+    hint: "New idea",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path d="M8 2.5v11M2.5 8h11" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "question",
+    label: "Question",
+    hint: "Need help",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <circle cx="8" cy="8" r="5.25" />
+        <path d="M6.4 6.2a1.7 1.7 0 0 1 3.2.9c0 1.1-1.6 1.5-1.6 2.5M8 11.4h.01" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "docs",
+    label: "Docs",
+    hint: "Clarify text",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <path d="M4.5 2.75h5.2L11.5 4.6v8.65H4.5V2.75Z" strokeLinejoin="round" />
+        <path d="M9.5 2.75V4.6h1.95M6 7.25h4M6 9.5h4M6 11.75h2.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+];
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -38,9 +89,8 @@ type Props = {
 
 export function FeedbackPanel({ open, onClose }: Props) {
   const [tab, setTab] = useState<"faq" | "suggest">("faq");
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
-  // Suggest form
   const [category, setCategory] = useState<FeedbackCategory>("feature");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -60,7 +110,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
     setDescription("");
     setCategory("feature");
     setTab("faq");
-    setExpandedFaq(null);
+    setExpandedFaq(0);
   }, [open]);
 
   useEffect(() => {
@@ -74,7 +124,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open && tab === "suggest") {
-      setTimeout(() => titleRef.current?.focus(), 100);
+      setTimeout(() => titleRef.current?.focus(), 120);
     }
   }, [open, tab]);
 
@@ -94,14 +144,22 @@ export function FeedbackPanel({ open, onClose }: Props) {
       if (res.ok) {
         setResult({
           ok: true,
-          message: "Thank you for your feedback!",
+          message: "Thanks — your feedback is on GitHub.",
           issueUrl: data.issueUrl,
         });
+        setTitle("");
+        setDescription("");
       } else {
-        setResult({ ok: false, message: data.error || "Something went wrong. Please try again." });
+        setResult({
+          ok: false,
+          message: data.error || "Something went wrong. Please try again.",
+        });
       }
     } catch {
-      setResult({ ok: false, message: "Network error. Please check your connection and try again." });
+      setResult({
+        ok: false,
+        message: "Network error. Please check your connection and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -111,115 +169,210 @@ export function FeedbackPanel({ open, onClose }: Props) {
 
   const panel = (
     <div
-      className="flex h-full flex-col bg-[var(--bg0)]"
+      className="flex h-full flex-col bg-[var(--surface)]"
       role="dialog"
-      aria-label="FAQ and Feedback"
+      aria-modal="true"
+      aria-label="Help and feedback"
     >
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-[var(--line)]/60 px-4 py-3">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">💡 FAQ / Feedback</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
-          aria-label="Close"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex shrink-0 border-b border-[var(--line)]/40">
-        {(["faq", "suggest"] as const).map((t) => (
+      <div className="relative shrink-0 overflow-hidden border-b border-[var(--line)]/50 px-5 pb-4 pt-5">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.55]"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--teal) 18%, transparent), transparent 55%), radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--coral) 12%, transparent), transparent 50%)",
+          }}
+          aria-hidden
+        />
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--teal)]/12 text-[var(--teal)] ring-1 ring-[var(--teal)]/20">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                <circle cx="8" cy="8" r="5.5" />
+                <path d="M6.2 6.3a1.9 1.9 0 0 1 3.6 1c0 1.2-1.8 1.6-1.8 2.7M8 11.6h.01" strokeLinecap="round" />
+              </svg>
+            </div>
+            <h2 className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">
+              Help & feedback
+            </h2>
+            <p className="mt-0.5 text-[12px] leading-snug text-[var(--ink-muted)]">
+              Quick answers, or tell us what to improve.
+            </p>
+          </div>
           <button
-            key={t}
             type="button"
-            onClick={() => { setTab(t); setResult(null); }}
-            className={`flex-1 px-4 py-2 text-xs font-semibold transition ${
-              tab === t
-                ? "border-b-2 border-[var(--teal)] text-[var(--teal)]"
-                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-            }`}
+            onClick={onClose}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+            aria-label="Close"
           >
-            {t === "faq" ? "📖 FAQ" : "💬 Suggest"}
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
           </button>
-        ))}
+        </div>
+
+        {/* Segmented control */}
+        <div
+          className="relative mt-4 grid grid-cols-2 gap-1 rounded-xl bg-[var(--surface-muted)] p-1 ring-1 ring-[var(--line)]/60"
+          role="tablist"
+        >
+          {([
+            { id: "faq" as const, label: "FAQ" },
+            { id: "suggest" as const, label: "Suggest" },
+          ]).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => {
+                setTab(t.id);
+                setResult(null);
+              }}
+              className={`rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+                tab === t.id
+                  ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]/70"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Body */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {tab === "faq" ? (
-          <div className="divide-y divide-[var(--line)]/30">
-            {FAQ_ITEMS.map((item, idx) => (
-              <div key={idx}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedFaq(expandedFaq === idx ? null : idx)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-[var(--surface-muted)]"
+          <div className="space-y-2 p-4">
+            {FAQ_ITEMS.map((item, idx) => {
+              const openItem = expandedFaq === idx;
+              return (
+                <div
+                  key={idx}
+                  className={`overflow-hidden rounded-xl border transition ${
+                    openItem
+                      ? "border-[var(--teal)]/25 bg-[color-mix(in_srgb,var(--teal)_6%,var(--surface))]"
+                      : "border-[var(--line)]/55 bg-[var(--surface)] hover:border-[var(--line)]"
+                  }`}
                 >
-                  <span className="pr-2 text-xs font-medium text-[var(--ink)]">{item.q}</span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`shrink-0 text-[var(--ink-muted)] transition-transform ${
-                      expandedFaq === idx ? "rotate-180" : ""
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFaq(openItem ? null : idx)}
+                    className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
+                    aria-expanded={openItem}
+                  >
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold ${
+                        openItem
+                          ? "bg-[var(--teal)] text-white"
+                          : "bg-[var(--surface-muted)] text-[var(--ink-muted)]"
+                      }`}
+                    >
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-[var(--ink)]">
+                      {item.q}
+                    </span>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className={`shrink-0 text-[var(--ink-muted)] transition-transform duration-200 ${
+                        openItem ? "rotate-180" : ""
+                      }`}
+                      aria-hidden
+                    >
+                      <path d="M4 6l4 4 4-4" />
+                    </svg>
+                  </button>
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                      openItem ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                     }`}
                   >
-                    <path d="M4 6l4 4 4-4" />
-                  </svg>
-                </button>
-                {expandedFaq === idx ? (
-                  <div className="px-4 pb-3">
-                    <p className="text-xs leading-relaxed text-[var(--ink-muted)]">{item.a}</p>
+                    <div className="overflow-hidden">
+                      <p className="border-t border-[var(--line)]/40 px-3.5 pb-3.5 pt-2.5 text-[12.5px] leading-relaxed text-[var(--ink-muted)]">
+                        {item.a}
+                      </p>
+                    </div>
                   </div>
-                ) : null}
-              </div>
-            ))}
+                </div>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => setTab("suggest")}
+              className="mt-2 flex w-full items-center justify-between rounded-xl border border-dashed border-[var(--line)] bg-[var(--surface-muted)]/60 px-3.5 py-3 text-left transition hover:border-[var(--teal)]/40 hover:bg-[var(--teal)]/5"
+            >
+              <span>
+                <span className="block text-[13px] font-medium text-[var(--ink)]">
+                  Still stuck?
+                </span>
+                <span className="mt-0.5 block text-[11px] text-[var(--ink-muted)]">
+                  Send a suggestion — we review every issue.
+                </span>
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--teal)]">Suggest →</span>
+            </button>
           </div>
         ) : (
           <form
-            className="flex flex-col gap-4 p-4"
+            className="flex flex-col gap-5 p-5"
             onSubmit={(e) => {
               e.preventDefault();
-              handleSubmit();
+              void handleSubmit();
             }}
           >
-            {/* Category */}
             <div>
-              <label className="mb-1 block text-[11px] font-semibold text-[var(--ink-muted)]">Category</label>
-              <div className="flex flex-wrap gap-1.5">
-                {([
-                  ["bug", "🐛 Bug"],
-                  ["feature", "✨ Feature"],
-                  ["question", "❓ Question"],
-                  ["docs", "📖 Docs"],
-                ] as [FeedbackCategory, string][]).map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setCategory(val)}
-                    className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
-                      category === val
-                        ? "border-[var(--teal)] bg-[var(--teal)]/10 text-[var(--teal)]"
-                        : "border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--ink-muted)] hover:text-[var(--ink)]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-muted)]">
+                Category
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORIES.map((c) => {
+                  const active = category === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCategory(c.id)}
+                      className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
+                        active
+                          ? "border-[var(--teal)]/45 bg-[color-mix(in_srgb,var(--teal)_8%,var(--surface))] shadow-sm"
+                          : "border-[var(--line)]/60 bg-[var(--surface)] hover:border-[var(--line)] hover:bg-[var(--surface-muted)]"
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                          active
+                            ? "bg-[var(--teal)] text-white"
+                            : "bg-[var(--surface-muted)] text-[var(--ink-muted)]"
+                        }`}
+                      >
+                        {c.icon}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[12.5px] font-semibold text-[var(--ink)]">
+                          {c.label}
+                        </span>
+                        <span className="block text-[10.5px] text-[var(--ink-muted)]">{c.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Title */}
             <div>
-              <label htmlFor="fb-title" className="mb-1 block text-[11px] font-semibold text-[var(--ink-muted)]">
-                Title <span className="text-[var(--coral)]">*</span>
+              <label
+                htmlFor="fb-title"
+                className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              >
+                Title <span className="normal-case tracking-normal text-[var(--coral)]">*</span>
               </label>
               <input
                 ref={titleRef}
@@ -227,67 +380,85 @@ export function FeedbackPanel({ open, onClose }: Props) {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Brief summary of your idea…"
+                placeholder="Short summary of your idea or issue"
                 maxLength={200}
-                className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--ink)] placeholder:text-[var(--ink-muted)]/60 focus:border-[var(--teal)] focus:outline-none focus:ring-1 focus:ring-[var(--teal)]"
+                className="w-full rounded-xl border border-[var(--line)]/70 bg-[var(--bg0)]/35 px-3.5 py-2.5 text-[13px] text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-muted)]/55 focus:border-[var(--teal)]/55 focus:bg-[var(--surface)] focus:ring-2 focus:ring-[var(--teal)]/20"
               />
             </div>
 
-            {/* Description */}
             <div>
-              <label htmlFor="fb-desc" className="mb-1 block text-[11px] font-semibold text-[var(--ink-muted)]">
-                Description <span className="text-[var(--coral)]">*</span>
+              <label
+                htmlFor="fb-desc"
+                className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-muted)]"
+              >
+                Details <span className="normal-case tracking-normal text-[var(--coral)]">*</span>
               </label>
               <textarea
                 id="fb-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your suggestion or issue in detail. The more context, the better!"
-                rows={5}
+                placeholder="What happened, what you expected, and any steps to reproduce…"
+                rows={6}
                 maxLength={2000}
-                className="w-full resize-none rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs leading-relaxed text-[var(--ink)] placeholder:text-[var(--ink-muted)]/60 focus:border-[var(--teal)] focus:outline-none focus:ring-1 focus:ring-[var(--teal)]"
+                className="w-full resize-none rounded-xl border border-[var(--line)]/70 bg-[var(--bg0)]/35 px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-muted)]/55 focus:border-[var(--teal)]/55 focus:bg-[var(--surface)] focus:ring-2 focus:ring-[var(--teal)]/20"
               />
-              <p className="mt-1 text-right text-[10px] text-[var(--ink-muted)]/60">
-                {description.length}/2000
-              </p>
+              <div className="mt-1.5 flex items-center justify-between text-[10.5px] text-[var(--ink-muted)]/70">
+                <span>Creates a public GitHub issue</span>
+                <span>{description.length}/2000</span>
+              </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={submitting || !title.trim() || !description.trim()}
-              className="flex min-h-[42px] w-full items-center justify-center gap-2 rounded-full bg-[var(--teal)] px-4 text-xs font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+              className="group relative flex min-h-[44px] w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--teal)] px-4 text-[13px] font-semibold text-white shadow-[0_8px_20px_-10px_color-mix(in_srgb,var(--teal)_70%,transparent)] transition hover:brightness-[1.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {submitting ? (
                 <>
-                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="30 8" />
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28 10" />
                   </svg>
                   Submitting…
                 </>
               ) : (
-                "Submit to GitHub"
+                <>
+                  Submit feedback
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="transition-transform group-hover:translate-x-0.5"
+                    aria-hidden
+                  >
+                    <path d="M3.5 8h9M8.5 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
               )}
             </button>
 
-            {/* Result */}
             {result ? (
               <div
-                className={`rounded-lg border px-3 py-2.5 text-xs ${
+                className={`rounded-xl border px-3.5 py-3 text-[12.5px] leading-relaxed ${
                   result.ok
-                    ? "border-[var(--teal)]/30 bg-[var(--teal)]/10 text-[var(--teal)]"
-                    : "border-[var(--coral)]/30 bg-[var(--coral)]/5 text-[var(--coral)]"
+                    ? "border-[var(--teal)]/30 bg-[color-mix(in_srgb,var(--teal)_10%,var(--surface))] text-[var(--ink)]"
+                    : "border-[var(--coral)]/30 bg-[color-mix(in_srgb,var(--coral)_8%,var(--surface))] text-[var(--coral)]"
                 }`}
               >
-                <p>{result.message}</p>
+                <p className="font-medium">{result.message}</p>
                 {result.issueUrl ? (
                   <a
                     href={result.issueUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2"
+                    className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--teal)] underline-offset-2 hover:underline"
                   >
-                    View issue →
+                    Open issue
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                      <path d="M6 3.5h6.5V10M12.5 3.5 3.5 12.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </a>
                 ) : null}
               </div>
@@ -295,42 +466,32 @@ export function FeedbackPanel({ open, onClose }: Props) {
           </form>
         )}
       </div>
-
-      {/* Footer */}
-      <div className="shrink-0 border-t border-[var(--line)]/60 px-4 py-2">
-        <p className="text-center text-[10px] text-[var(--ink-muted)]/60">
-          Submissions create public GitHub issues.
-        </p>
-      </div>
     </div>
   );
 
   return (
     <>
-      {/* Backdrop */}
       <button
         type="button"
-        className="fixed inset-0 z-50 hidden bg-[rgba(10,28,34,0.35)] lg:block"
+        className="fixed inset-0 z-50 hidden bg-[rgba(12,18,22,0.42)] backdrop-blur-[2px] lg:block"
         onClick={onClose}
         aria-hidden
       />
 
-      {/* Desktop: slide-in from right */}
-      <div className="fixed right-0 top-0 z-50 hidden h-dvh w-[min(400px,90vw)] border-l border-[var(--line)] bg-[var(--bg0)] shadow-2xl animate-slide-in-right lg:flex">
+      <div className="fixed right-0 top-0 z-50 hidden h-dvh w-[min(420px,92vw)] border-l border-[var(--line)]/70 bg-[var(--surface)] shadow-[-18px_0_50px_-28px_rgba(0,0,0,0.35)] animate-slide-in-right lg:flex">
         {panel}
       </div>
 
-      {/* Mobile: bottom sheet */}
       <div className="fixed inset-0 z-50 lg:hidden">
         <button
           type="button"
-          className="absolute inset-0 bg-[rgba(10,28,34,0.45)]"
+          className="absolute inset-0 bg-[rgba(12,18,22,0.48)] backdrop-blur-[2px]"
           onClick={onClose}
           aria-hidden
         />
-        <div className="absolute inset-x-0 bottom-0 flex max-h-[75vh] flex-col rounded-t-2xl bg-[var(--bg0)] shadow-2xl animate-slide-up">
-          <div className="flex justify-center py-2">
-            <div className="h-1 w-10 rounded-full bg-[var(--line)]" />
+        <div className="absolute inset-x-0 bottom-0 flex max-h-[82vh] flex-col overflow-hidden rounded-t-[22px] bg-[var(--surface)] shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.4)] animate-slide-up">
+          <div className="flex justify-center pb-1 pt-2.5">
+            <div className="h-1 w-9 rounded-full bg-[var(--line)]" />
           </div>
           <div className="min-h-0 flex-1 overflow-hidden">{panel}</div>
         </div>

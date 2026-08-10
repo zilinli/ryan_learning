@@ -1,14 +1,14 @@
 # FAQ / Feedback Panel + GitHub Issue Sync
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)
-> Status: **implementing** · 2026-08-10
+> Status: **shipped** · 2026-08-10
 > Downstream: [TODO.md](../TODO.md)
 
 ---
 
 ## 1. Goal
 
-Add a "💡 FAQ / Feedback" button next to the "Open source on GitHub" link in the sidebar footer. Opens a drawer/modal where users can:
+Add a **Help & feedback** control beside GitHub in the sidebar footer. Opens a drawer/modal where users can:
 
 1. **Browse FAQ** — common questions about the tutor
 2. **Suggest improvement** — submit feature requests / bug reports
@@ -21,21 +21,23 @@ On submit: creates a GitHub issue in `zilinli/ryan_learning` via REST API, then 
 
 ### 2.1 Location
 
-Sidebar footer, to the right of the GitHub link:
+Sidebar footer, two equal quiet action chips under Dictionary / Code Agent / Entertainments:
 
 ```
-[Dictionary]  [Code Agent]  [Entertainments]
-    Open source on GitHub  ·  💡 FAQ / Feedback
+[ GitHub ]   [ Help & feedback ]
 ```
+
+No emoji in labels. Icons are stroke SVGs.
 
 ### 2.2 Panel (modal / slide-over)
 
-Opens from right on desktop, bottom sheet on mobile. Two tabs:
+Opens from right on desktop (soft backdrop blur + shadow), bottom sheet on mobile.
+Visual language: Linear / Notion help-center — surface panel, soft gradient header wash, segmented control (not underline tabs), numbered FAQ cards, 2×2 category tiles with SVG icons (no emoji pills).
 
 | Tab | Content |
 |-----|---------|
-| **FAQ** (default) | Pre-defined collapsible questions: "What languages does Spark support?", "How does voice input work?", "Can I change the voice?", "How do I submit homework photos?", "Is my data private?", "How do I switch accounts?" |
-| **💬 Suggest** | Form: category dropdown (Bug / Feature / Question / Docs), title (required), description (required). Submit button. |
+| **FAQ** (default) | Numbered expandable cards; first item open by default; CTA at bottom → Suggest |
+| **Suggest** | Category tiles (Bug / Feature / Question / Docs), title, details, primary submit |
 
 ### 2.3 States
 

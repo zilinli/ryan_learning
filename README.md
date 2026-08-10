@@ -30,7 +30,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
 - **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md) and [Shanghainese](docs/subsystems/shanghainese-support.md).
-- **💡 FAQ / Feedback** — sidebar panel: browse FAQ or submit feature requests / bug reports directly to GitHub Issues. Each submission gets an automatic feasibility analysis (effort, risk, roadmap fit) appended to `docs/TODO.md`. See [design doc](docs/subsystems/faq-feedback-panel.md).
+- **Help & feedback** — sidebar panel (Linear/Notion-style): browse FAQ or submit feature requests / bug reports to GitHub Issues. Each submission gets an automatic feasibility analysis (effort, risk, roadmap fit) appended to `docs/TODO.md`. See [design doc](docs/subsystems/faq-feedback-panel.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching
