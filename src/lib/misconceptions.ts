@@ -250,9 +250,11 @@ export function misconceptionPromptLines(
   }
   const bits = hits.slice(0, 4).map((h) => {
     const tag = getMisconception(h.id);
-    return tag
-      ? `${tag.label} (×${h.count}) — ${tag.promptHint}`
-      : h.id;
+    if (!tag) return h.id;
+    if (h.count <= 0 && h.lastSeen === 0) {
+      return `${tag.label} (watch) — ${tag.promptHint}`;
+    }
+    return `${tag.label} (×${h.count}) — ${tag.promptHint}`;
   });
   return [
     "",

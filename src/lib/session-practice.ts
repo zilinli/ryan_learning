@@ -60,21 +60,30 @@ function dedupeSkills(skills: SkillMastery[], limit: number): PracticeTarget[] {
   return out;
 }
 
-/** Prefer weaknesses, then review-due, then ZPD warm-ups. */
+/** Prefer weaknesses near ZPD (~0.4–0.7), then review-due, then classic ZPD warm-ups. */
 export function pickPracticeTargets(
   mem: LearningMemory | null | undefined,
   limit = 3,
 ): PracticeTarget[] {
   if (!mem?.skills?.length) return [];
+  const zpdBand = [...mem.skills]
+    .filter((s) => s.pKnown >= 0.35 && s.pKnown <= 0.72)
+    .sort((a, b) => {
+      // Prefer closer to soft target P≈0.55, then lower Elo (easier entry)
+      const da = Math.abs(a.pKnown - 0.55);
+      const db = Math.abs(b.pKnown - 0.55);
+      if (da !== db) return da - db;
+      return (a.eloState?.rating || 1500) - (b.eloState?.rating || 1500);
+    });
   const weak = skillWeaknesses(mem, limit);
   const review = needsReviewSkills(mem, limit);
   const zpd = zpdWarmUpSkills(mem, limit);
-  return dedupeSkills([...weak, ...review, ...zpd], limit);
+  return dedupeSkills([...zpdBand, ...weak, ...review, ...zpd], limit);
 }
 
 export function buildPracticeKickoffMessage(targets: PracticeTarget[]): string {
   const labels = targets.map((t) => t.label).join(", ");
-  return `Let's practice: ${labels}. Give me 3 short questions one at a time — Socratic hints only, no spoilers.`;
+  return `Let's practice: ${labels}. Give me 3 short questions one at a time — aim each just above my current comfort (soft ZPD, roughly 70% chance if I try hard). Socratic hints only, no spoilers.`;
 }
 
 export function savePracticeOffer(offer: PendingPracticeOffer): void {

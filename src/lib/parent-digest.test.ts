@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { normalizeMemory, type LearningMemory } from "./learning-memory";
-import { buildParentDailyDigest } from "./parent-digest";
+import {
+  buildParentDailyDigest,
+  buildParentWeeklyDigest,
+} from "./parent-digest";
 
 function mem(): LearningMemory {
   const now = Date.now();
@@ -18,6 +21,9 @@ function mem(): LearningMemory {
         lastSeen: now,
         sm2State: { ef: 2.2, interval: 3, reps: 1, prevReview: now - 86_400_000 },
         eloState: { rating: 1200, n: 5, lastUpdate: now },
+        misconceptionHits: [
+          { id: "frac-add-denom", count: 4, lastSeen: now },
+        ],
       },
       {
         id: "place-value",
@@ -46,5 +52,15 @@ describe("parent-digest (D2)", () => {
     const line = buildParentDailyDigest(mem());
     expect(line).toMatch(/Fraction concepts|Place value/);
     expect(line.length).toBeLessThanOrEqual(280);
+  });
+
+  it("R6: weekly digest includes practiced, misconceptions, focus", () => {
+    const w = buildParentWeeklyDigest(mem());
+    expect(w.practiced.some((p) => p.id === "fractions-concepts")).toBe(true);
+    expect(w.topMisconceptions[0]?.id).toBe("frac-add-denom");
+    expect(w.nextWeekFocus.length).toBeGreaterThan(0);
+    expect(w.text).toMatch(/Week of/);
+    expect(w.text).toMatch(/Frequent patterns|Adding across/i);
+    expect(w.text).toMatch(/Next week focus/);
   });
 });

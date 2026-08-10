@@ -105,24 +105,28 @@ function StepReveal({
         Step-by-step
       </p>
       <p className="mb-2 text-[12px] text-[var(--ink-muted)]">
-        Click each step to reveal — one at a time.
+        Tap Next to open one step at a time.
       </p>
       {steps.map((step, i) => {
         const st = states[i]!;
         const isRevealed = st === "revealed";
+        const prevDone = i === 0 || states[i - 1] === "revealed";
+        const canReveal = !isRevealed && prevDone;
         return (
           <div
             key={i}
             className={`mb-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
               isRevealed
                 ? "border-[var(--teal)]/35 bg-[var(--surface)]"
-                : "cursor-pointer border-[var(--line)] bg-[var(--surface-muted)] hover:border-[var(--teal)]/50 hover:bg-[var(--surface-muted)]"
+                : canReveal
+                  ? "cursor-pointer border-[var(--line)] bg-[var(--surface-muted)] hover:border-[var(--teal)]/50"
+                  : "border-[var(--line)]/40 bg-[var(--surface-muted)] opacity-50"
             }`}
-            onClick={() => !isRevealed && reveal(i)}
+            onClick={() => canReveal && reveal(i)}
             role="button"
-            tabIndex={0}
+            tabIndex={canReveal ? 0 : -1}
             onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && !isRevealed) reveal(i);
+              if ((e.key === "Enter" || e.key === " ") && canReveal) reveal(i);
             }}
           >
             <div className="flex items-center gap-2">
@@ -140,8 +144,13 @@ function StepReveal({
                   isRevealed ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
                 }`}
               >
-                {step.label}
+                {isRevealed || canReveal ? step.label : "…"}
               </span>
+              {canReveal ? (
+                <span className="ml-auto text-[11px] font-semibold text-[var(--teal)]">
+                  Next
+                </span>
+              ) : null}
             </div>
             {isRevealed ? (
               <div className="mt-2 ml-7 text-[14px] leading-6 text-[var(--ink)] whitespace-pre-wrap">

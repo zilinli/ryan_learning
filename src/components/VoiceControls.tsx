@@ -17,9 +17,11 @@ import { sttLangFromVoice } from "@/lib/stt-lang";
 import {
   getTutorVoice,
   loadSpeakEnabled,
+  loadVoiceAutoSend,
   loadVoiceId,
   normalizeVoiceId,
   saveSpeakEnabled,
+  saveVoiceAutoSend,
   saveVoiceId,
   TUTOR_VOICES,
   type TutorVoiceId,
@@ -58,6 +60,9 @@ type Props = {
   onVoiceEnabledChange: (v: boolean) => void;
   onVoiceIdChange?: (id: TutorVoiceId) => void;
   onTranscript: (text: string) => void;
+  /** Report-v3 R4 — when true, Composer may auto-send STT (parent/student opt-in) */
+  voiceAutoSend?: boolean;
+  onVoiceAutoSendChange?: (v: boolean) => void;
   onSpeakApi?: (api: SpeakStreamApi | null) => void;
   /** UI-B2a — parent shows composer status line while TTS is active */
   onSpeakingChange?: (speaking: boolean) => void;
@@ -91,6 +96,8 @@ export function VoiceControls({
   onVoiceEnabledChange,
   onVoiceIdChange,
   onTranscript,
+  voiceAutoSend = false,
+  onVoiceAutoSendChange,
   onSpeakApi,
   onSpeakingChange,
   recentSkillIds = [],
@@ -691,6 +698,27 @@ export function VoiceControls({
               onClick={() => setVoiceMenuOpen(false)}
             />
             <ul className="absolute bottom-full right-0 z-20 mb-1 w-52 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-1 shadow-lg backdrop-blur">
+              <li className="border-b border-[var(--line)]/60 px-1 pb-1 mb-1">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    const next = !voiceAutoSend;
+                    saveVoiceAutoSend(next, accountId);
+                    onVoiceAutoSendChange?.(next);
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] text-[var(--ink)] hover:bg-[var(--mist)]"
+                >
+                  <span>Auto-send mic</span>
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      voiceAutoSend ? "text-[var(--teal)]" : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {voiceAutoSend ? "On" : "Off"}
+                  </span>
+                </button>
+              </li>
               {TUTOR_VOICES.map((v) => (
                 <li key={v.id}>
                   <button

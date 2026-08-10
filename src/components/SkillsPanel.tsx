@@ -8,7 +8,7 @@ import {
   skillWeaknesses,
   zpdWarmUpSkills,
 } from "@/lib/learning-memory";
-import { buildParentDailyDigest } from "@/lib/parent-digest";
+import { buildParentDailyDigest, buildParentWeeklyDigest } from "@/lib/parent-digest";
 import { hasParentPin, PinGate } from "./PinGate";
 import type { SkillMastery } from "@/lib/learning-memory";
 
@@ -87,6 +87,8 @@ export function SkillsPanel({
   );
   const pinSet = useMemo(() => hasParentPin(), [showPin, parentUnlocked]);
   const digest = useMemo(() => buildParentDailyDigest(mem), [mem]);
+  const weekly = useMemo(() => buildParentWeeklyDigest(mem), [mem]);
+  const [digestTab, setDigestTab] = useState<"today" | "week">("week");
 
   if (!mem?.skills.length) return null;
 
@@ -231,14 +233,87 @@ export function SkillsPanel({
               </button>
             ) : (
               <div className="mt-1.5 space-y-2">
-                <p className="text-[12px] leading-snug text-[var(--ink)]">
-                  {digest}
-                </p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setDigestTab("week")}
+                    className={`min-h-9 rounded-lg px-2 text-[11px] ${
+                      digestTab === "week"
+                        ? "bg-[var(--teal)]/15 font-semibold text-[var(--teal)]"
+                        : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    This week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDigestTab("today")}
+                    className={`min-h-9 rounded-lg px-2 text-[11px] ${
+                      digestTab === "today"
+                        ? "bg-[var(--teal)]/15 font-semibold text-[var(--teal)]"
+                        : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    Today
+                  </button>
+                </div>
+                {digestTab === "week" ? (
+                  <div className="space-y-1.5 text-[12px] leading-snug text-[var(--ink)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                      Week of {weekly.weekOf}
+                    </p>
+                    {weekly.practiced.length ? (
+                      <p>
+                        Practiced:{" "}
+                        {weekly.practiced
+                          .slice(0, 4)
+                          .map((p) => `${p.label} (~${p.mastery}%)`)
+                          .join("; ")}
+                      </p>
+                    ) : (
+                      <p className="text-[var(--ink-muted)]">
+                        No chats in the last 7 days.
+                      </p>
+                    )}
+                    {weekly.masteryDown.length ? (
+                      <p>
+                        Watch:{" "}
+                        {weekly.masteryDown.map((s) => s.label).join(", ")}
+                      </p>
+                    ) : null}
+                    {weekly.topMisconceptions.length ? (
+                      <p>
+                        Patterns:{" "}
+                        {weekly.topMisconceptions
+                          .map((m) => `${m.label}×${m.count}`)
+                          .join("; ")}
+                      </p>
+                    ) : null}
+                    {weekly.reviewDue.length ? (
+                      <p>
+                        SM-2 due:{" "}
+                        {weekly.reviewDue.map((s) => s.label).join(", ")}
+                      </p>
+                    ) : null}
+                    {weekly.nextWeekFocus.length ? (
+                      <p>
+                        Next week:{" "}
+                        {weekly.nextWeekFocus.map((s) => s.label).join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-[12px] leading-snug text-[var(--ink)]">
+                    {digest}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      void navigator.clipboard?.writeText(digest).then(() => {
+                      const text =
+                        digestTab === "week" ? weekly.text : digest;
+                      void navigator.clipboard?.writeText(text).then(() => {
                         setCopied(true);
                         window.setTimeout(() => setCopied(false), 1500);
                       });

@@ -18,6 +18,23 @@
 
 ---
 
+## 📊 Report-v3 optimizations (2026-08-10)
+
+> **Feasibility:** [subsystems/report-v3-feasibility.md](subsystems/report-v3-feasibility.md) · third-party audit Top3
+
+- [x] **R2** — BKT → misconception → multi-rep closed-loop gate (`pedagogy-loop.ts`)
+- [x] **R6** — Parent weekly digest (in-app, PIN) via `buildParentWeeklyDigest`
+- [x] **R1** — `/dashboard` MVP (radar, SM-2, trend, misconception heat)
+- [x] **R3** — Sequential `~~~step` Next reveal + prompt reinforcement
+- [x] **R7** — Science experiment guide flow in prompts
+- [x] **R4** — Voice auto-send opt-in (default off); dialects/yue confirm
+- [x] **R8** — Cross-discipline Spark fence + UI badge
+- [x] **R9** — Soft-ZPD practice target picking
+- [ ] **R5** — Peer battle / BKT compare (deferred)
+- [ ] **R10** — Voice emotion detection (deferred)
+
+---
+
 ## 🤖 AI FAQ — Ask AI in Help & feedback (2026-08-10)
 
 > **Design:** [subsystems/ai-faq.md](subsystems/ai-faq.md) · [faq-feedback-panel.md](subsystems/faq-feedback-panel.md)

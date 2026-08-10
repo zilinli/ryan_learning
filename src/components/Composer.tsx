@@ -9,8 +9,9 @@ import {
 } from "@/lib/file-payload";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
-import { getTutorVoice, type TutorVoiceId } from "@/lib/voices";
+import { getTutorVoice, loadVoiceAutoSend, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
+import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
 
 export type ComposerApi = {
   openCamera: () => void;
@@ -58,6 +59,7 @@ export function Composer({
   const [adding, setAdding] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
+  const [voiceAutoSend, setVoiceAutoSend] = useState(false);
   const [dialectPending, setDialectPending] = useState(false);
   const [voiceConfirm, setVoiceConfirm] = useState<{
     line: string;
@@ -73,6 +75,10 @@ export function Composer({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => {
+    setVoiceAutoSend(loadVoiceAutoSend(accountId || RYAN_ACCOUNT));
+  }, [accountId]);
 
   useEffect(() => {
     onComposerApi?.({
@@ -306,13 +312,25 @@ export function Composer({
             onSpeakingChange={onSpeakingChange}
             recentSkillIds={recentSkillIds}
             onConfirmIntent={setVoiceConfirm}
+            voiceAutoSend={voiceAutoSend}
+            onVoiceAutoSendChange={setVoiceAutoSend}
             onTranscript={(t) => {
               const lang = getTutorVoice(voiceId).lang;
-              if (lang === "teo" || lang === "hak") {
-                // 方言模式：不自动发送；纠错后填入输入框，由用户确认/编辑后再发送
+              const needsConfirm =
+                lang === "teo" ||
+                lang === "hak" ||
+                lang === "sha" ||
+                lang === "yue" ||
+                !voiceAutoSend;
+              if (lang === "teo" || lang === "hak" || lang === "sha") {
+                // 方言：填入输入框；teo/hak 可尝试纠错；sha 仅人工确认
                 const token = dialectTokenRef.current + 1;
                 dialectTokenRef.current = token;
                 setText(t);
+                if (lang === "sha") {
+                  setDialectPending(false);
+                  return;
+                }
                 setDialectPending(true);
                 void (async () => {
                   try {
@@ -325,11 +343,10 @@ export function Composer({
                     const data = (await res.json().catch(() => null)) as {
                       corrected?: string;
                     } | null;
-                    // 用户已手动输入或已发送时，丢弃纠错结果
                     if (token !== dialectTokenRef.current) return;
                     if (data?.corrected) setText(data.corrected);
                   } catch {
-                    // 纠错失败：保留原始转写文本，仍然交给用户确认
+                    // keep original transcript
                   } finally {
                     if (token === dialectTokenRef.current) {
                       setDialectPending(false);
@@ -339,7 +356,9 @@ export function Composer({
                 return;
               }
               setText(t);
-              window.setTimeout(() => submit(t), 0);
+              if (!needsConfirm) {
+                window.setTimeout(() => submit(t), 0);
+              }
             }}
           />
 

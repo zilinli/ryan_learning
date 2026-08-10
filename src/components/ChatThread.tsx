@@ -10,6 +10,7 @@ import {
 } from "@/lib/worksheet-planner";
 import { stripScratchDiagnosisFence } from "@/lib/scratch-diagnosis";
 import { stripMisconceptionFence } from "@/lib/misconceptions";
+import { parseSparkFence, stripSparkFence } from "@/lib/spark-moment";
 import { collapseDiagramsInMessages } from "@/lib/diagram-lifecycle";
 import type { PendingPracticeOffer } from "@/lib/session-practice";
 import type { SessionOpener } from "@/lib/session-opener";
@@ -17,8 +18,10 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
 
 function stripHiddenFences(content: string): string {
-  return stripMisconceptionFence(
-    stripScratchDiagnosisFence(stripWorksheetPlanFence(content)),
+  return stripSparkFence(
+    stripMisconceptionFence(
+      stripScratchDiagnosisFence(stripWorksheetPlanFence(content)),
+    ),
   );
 }
 
@@ -444,6 +447,7 @@ export function ChatThread({
         const displayContent = isUser
           ? m.content
           : stripHiddenFences(m.content);
+        const spark = !isUser ? parseSparkFence(m.content) : null;
         const wasSeen = seenIds.has(m.id);
         const animateIn =
           !wasSeen &&
@@ -583,6 +587,12 @@ export function ChatThread({
                       </span>
                     );
                   })}
+                </div>
+              ) : null}
+              {spark ? (
+                <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--teal)]">
+                  <span aria-hidden>✦</span>
+                  <span className="truncate">Spark · {spark.title}</span>
                 </div>
               ) : null}
               {displayContent ? (

@@ -315,6 +315,29 @@ export function saveSpeakEnabled(enabled: boolean, accountId: string = RYAN_ACCO
   }
 }
 
+/**
+ * Report-v3 R4 — optional auto-send after STT.
+ * Default OFF (safer for dialects / kids); when on, Composer may submit immediately.
+ */
+export function loadVoiceAutoSend(accountId: string = RYAN_ACCOUNT): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const saved = localStorage.getItem(nsKey(accountId, "voiceAutoSend"));
+    if (saved == null) return false;
+    return saved === "1" || saved === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function saveVoiceAutoSend(enabled: boolean, accountId: string = RYAN_ACCOUNT) {
+  try {
+    localStorage.setItem(nsKey(accountId, "voiceAutoSend"), enabled ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
 /** Reply language locked by the voice picker (Auto = follow the student). */
 export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak" | "sha";
 

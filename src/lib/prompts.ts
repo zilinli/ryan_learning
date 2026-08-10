@@ -22,9 +22,13 @@ import { misconceptionPromptLines } from "./misconceptions";
 import {
   isRepresentation,
   multiRepPromptLines,
-  pickForcedRepresentation,
   type Representation,
 } from "./multi-rep";
+import {
+  pedagogyLoopPromptLines,
+  planPedagogyLoop,
+} from "./pedagogy-loop";
+import { sparkPromptLines } from "./spark-moment";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
@@ -235,8 +239,8 @@ function subjectCoachingLines(band?: GradeBand): string {
     "",
     "► MIXED / UNKNOWN:",
     "- Ask «is this math, reading, science, or writing?» then switch to the right mode.",
-    "Progressive disclosure: when showing step-by-step work, wrap each step in a",
-    "`~~~step` code fence (numbered), so the UI can reveal them one at a time.",
+    "Progressive disclosure: when showing step-by-step work, wrap EACH step in its own",
+    "`~~~step` fence (Step 1 / Step 2…). The UI reveals only one step until the student taps Next — never dump a long list of open steps.",
     "",
   ].join("\n");
 }
@@ -407,8 +411,15 @@ export function buildTutorPrompt(params: {
     "3) ONE small improvement using THEIR words;",
     "4) Never rewrite their sentence for them.",
     "",
-    "Science how/why: ask what they already know → a thought experiment (“What if…?”) →",
-    "something they can observe → kid-friendly sources via web_search (NASA Kids, Nat Geo Kids) when useful.",
+    "Science how/why — experiment guide (Report-v3 R7): when the question is causal (“why / what if”), run this flow in order:",
+    "1) Ask what they already know (prior knowledge).",
+    "2) Thought experiment: “What if…?” — let them predict.",
+    "3) Suggest ONE safe at-home observation or mini-experiment (no heat/chemicals unless adult).",
+    "4) Ask them to predict the result before doing it.",
+    "5) After they observe, compare prediction vs result — celebrate the mismatch.",
+    "6) Optional: web_search kid-friendly sources (NASA Kids, Nat Geo Kids) for a picture or short fact.",
+    "You MAY mark the stage with a hidden fence (never read aloud): ~~~experiment {\"stage\":\"predict\"} ~~~",
+    "Do not skip to the scientific answer before stages 1–2.",
     "",
     "Anti-spoiler (conceptual / homework):",
     "- Do NOT give the final answer, the blank-fill word, or the key numeric result “as a hint”.",
@@ -474,24 +485,14 @@ export function buildTutorPrompt(params: {
     : "";
 
   const mem = params.learningMemory;
+  const loop = planPedagogyLoop(mem);
   const preferredRaw = mem?.preferredRepBySkill || {};
   const preferred: Record<string, Representation> = {};
   for (const [k, v] of Object.entries(preferredRaw)) {
     if (isRepresentation(v)) preferred[k] = v;
   }
-  const stuck = mem?.stuckStreakBySkill || {};
-  let forced: { skillId: string; rep: Representation } | null = null;
-  for (const [skillId, streak] of Object.entries(stuck)) {
-    const rep = pickForcedRepresentation(skillId, Number(streak) || 0, preferred);
-    if (rep) {
-      forced = { skillId, rep };
-      break;
-    }
-  }
-  const recentMc = (mem?.skills || [])
-    .flatMap((s) => s.misconceptionHits || [])
-    .sort((a, b) => b.lastSeen - a.lastSeen)
-    .slice(0, 4);
+  const forced = loop.forced;
+  const recentMc = loop.misconceptionHits;
 
   return [
     "[Tutor context]",
@@ -502,6 +503,7 @@ export function buildTutorPrompt(params: {
     ...curriculumPromptLines(profile),
     ...subjectCoachingLines(profile.gradeBand),
     ...crossDisciplineLines(),
+    ...sparkPromptLines(),
     ...learningMemoryPromptLines(params.learningMemory),
     ...confidenceMismatchPromptLines(params.learningMemory, profile.name),
     ...formatEngagementLines(params.engagement),
@@ -525,6 +527,7 @@ export function buildTutorPrompt(params: {
       : thinkFirstRules,
     homeworkCoach,
     ...scratchDiagnosisPromptLines(hasHomework),
+    ...pedagogyLoopPromptLines(loop),
     ...misconceptionPromptLines(recentMc),
     ...multiRepPromptLines(preferred, forced),
     checkModeBlock,
