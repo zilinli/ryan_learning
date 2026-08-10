@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     return Response.json({
       translation: result.translation,
       alreadyEnglish: result.alreadyTarget,
+      detectedSource: result.detectedSource,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Translation failed";

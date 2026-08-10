@@ -201,45 +201,59 @@ export async function gtxTranslate(
   const sl = GTX_CODES[from];
   const tl = GTX_CODES[to];
   if (!sl || !tl) return null;
-  return gtxTranslateRaw(q, sl, tl);
+  const out = await gtxTranslateRaw(q, sl, tl);
+  return out?.text ?? null;
 }
 
 /**
  * Translate a chat / passage into English (or another DictLang).
  * Uses Google gtx with auto source detection; chunks long text.
+ *
+ * Do NOT treat “mostly Latin letters” as English — Malay / Spanish / French
+ * are Latin-script and must go through MT (see looksMostlyEnglish history).
  */
 export async function gtxTranslatePassage(
   text: string,
   to: DictLang = "en",
   opts: { maxChunk?: number } = {},
-): Promise<{ translation: string; alreadyTarget: boolean } | null> {
+): Promise<{
+  translation: string;
+  alreadyTarget: boolean;
+  detectedSource?: string;
+} | null> {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) return null;
   const tl = GTX_CODES[to];
   if (!tl) return null;
 
-  if (to === "en" && looksMostlyEnglish(cleaned)) {
-    return { translation: cleaned, alreadyTarget: true };
-  }
-
   const maxChunk = opts.maxChunk ?? 280;
   const chunks = splitForGtx(cleaned, maxChunk);
   const parts: string[] = [];
+  let detected: string | undefined;
   for (const chunk of chunks) {
     const out = await gtxTranslateRaw(chunk, "auto", tl);
-    if (!out) return null;
-    parts.push(out);
+    if (!out?.text) return null;
+    parts.push(out.text);
+    if (!detected && out.detected) detected = out.detected;
   }
   const translation = parts.join(" ").replace(/\s+/g, " ").trim();
   if (!translation) return null;
-  return { translation, alreadyTarget: false };
+
+  const alreadyTarget = isGtxLangMatch(detected, to, tl);
+  return {
+    translation: alreadyTarget ? cleaned : translation,
+    alreadyTarget,
+    detectedSource: detected,
+  };
 }
+
+type GtxRawResult = { text: string; detected?: string };
 
 async function gtxTranslateRaw(
   q: string,
   sl: string,
   tl: string,
-): Promise<string | null> {
+): Promise<GtxRawResult | null> {
   try {
     const url =
       `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}` +
@@ -253,18 +267,66 @@ async function gtxTranslateRaw(
       if (Array.isArray(seg) && typeof seg[0] === "string") parts.push(seg[0]);
     }
     const out = parts.join("").trim();
-    return out || null;
+    if (!out) return null;
+    // When sl=auto, data[2] is usually the detected language code (e.g. "ms", "es", "zh-CN")
+    const detected =
+      typeof data[2] === "string" && data[2].trim()
+        ? data[2].trim().toLowerCase()
+        : undefined;
+    return { text: out, detected };
   } catch {
     return null;
   }
 }
 
-/** Latin-script tutoring text that is already English (skip MT). */
+/** True when gtx detected language is already the translation target. */
+export function isGtxLangMatch(
+  detected: string | undefined,
+  to: DictLang,
+  tlCode: string,
+): boolean {
+  if (!detected) return false;
+  const d = detected.toLowerCase();
+  if (d === to || d === tlCode.toLowerCase()) return true;
+  if (to === "en" && (d === "en" || d.startsWith("en-"))) return true;
+  if (to === "zh" && (d === "zh" || d.startsWith("zh-"))) return true;
+  if (to === "yue" && (d === "yue" || d === "zh-tw" || d === "zh-hk")) return true;
+  return false;
+}
+
+/**
+ * @deprecated Latin-script ≠ English. Kept for tests that document the pitfall;
+ * passage translate must not use this to skip MT.
+ */
 export function looksMostlyEnglish(text: string): boolean {
   const t = (text || "").trim();
   if (!t) return false;
   const han = (t.match(/[\u4e00-\u9fff]/g) || []).length;
   if (han >= 2) return false;
+  // Strong non-English Latin cues → not English
+  if (
+    /\b(yang|nak|macam|buat|hari|ni|kita|atau|selamat|pagi|matematik|tuan-tuan|puan-puan|bacaan|cerita)\b/i.test(
+      t,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\b(hola|gracias|porque|también|usted|está|qué|cómo|español|matemáticas)\b/i.test(
+      t,
+    ) ||
+    /[ñ¿¡]/.test(t)
+  ) {
+    return false;
+  }
+  if (
+    /\b(bonjour|merci|parce|français|vous|nous|aujourd'hui|élève|mathématiques)\b/i.test(
+      t,
+    ) ||
+    /[àâäèêëïîôùûüçœ]/i.test(t)
+  ) {
+    return false;
+  }
   const letters = (t.match(/[A-Za-z]/g) || []).length;
   const other = t.replace(/\s/g, "").length - letters;
   return letters >= 8 && letters >= other * 2;

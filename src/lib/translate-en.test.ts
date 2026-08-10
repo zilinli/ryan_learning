@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   gtxTranslatePassage,
+  isGtxLangMatch,
   looksMostlyEnglish,
 } from "./dict-translate";
 
@@ -11,42 +12,105 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("looksMostlyEnglish", () => {
+describe("looksMostlyEnglish (heuristic only — not used to skip MT)", () => {
   it("accepts plain English tutoring text", () => {
     expect(looksMostlyEnglish("Let's draw a right triangle together.")).toBe(
       true,
     );
   });
 
-  it("rejects Chinese or mixed Han text", () => {
+  it("rejects Chinese", () => {
     expect(looksMostlyEnglish("我们来画一个直角三角形吧")).toBe(false);
-    expect(looksMostlyEnglish("OK 我们再试一次")).toBe(false);
+  });
+
+  it("rejects Malay / Spanish / French Latin script", () => {
+    expect(
+      looksMostlyEnglish(
+        "Hai Ching! Apa yang nak kita buat hari ni? Matematik atau cerita?",
+      ),
+    ).toBe(false);
+    expect(
+      looksMostlyEnglish("Hola — ¿qué matemáticas hacemos hoy?"),
+    ).toBe(false);
+    expect(
+      looksMostlyEnglish("Bonjour — qu'est-ce qu'on fait aujourd'hui?"),
+    ).toBe(false);
+  });
+});
+
+describe("isGtxLangMatch", () => {
+  it("matches English detections", () => {
+    expect(isGtxLangMatch("en", "en", "en")).toBe(true);
+    expect(isGtxLangMatch("en-us", "en", "en")).toBe(true);
+    expect(isGtxLangMatch("ms", "en", "en")).toBe(false);
+    expect(isGtxLangMatch("es", "en", "en")).toBe(false);
   });
 });
 
 describe("gtxTranslatePassage", () => {
-  it("short-circuits when text is already English", async () => {
-    const out = await gtxTranslatePassage(
-      "Please solve this fraction problem step by step.",
-      "en",
-    );
-    expect(out?.alreadyTarget).toBe(true);
-    expect(out?.translation).toMatch(/fraction/);
-  });
-
-  it("chunks and joins Google gtx segments", async () => {
+  it("always calls gtx for Latin-script Malay (never Already English skip)", async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify([[["Hello there.", "你好。", null, null, 10]]]),
+        JSON.stringify([
+          [["Hi Ching! What shall we do today?", "Hai Ching!...", null, null, 10]],
+          null,
+          "ms",
+        ]),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
     vi.stubGlobal("fetch", mockFetch);
 
-    const out = await gtxTranslatePassage("你好。", "en");
+    const malay =
+      "Hai Ching! Bunyi macam nak buat ucapan besar — Apa yang nak kita buat hari ni?";
+    const out = await gtxTranslatePassage(malay, "en");
+    expect(mockFetch).toHaveBeenCalled();
     expect(out?.alreadyTarget).toBe(false);
-    expect(out?.translation).toBe("Hello there.");
-    expect(String(mockFetch.mock.calls[0]![0])).toContain("sl=auto");
-    expect(String(mockFetch.mock.calls[0]![0])).toContain("tl=en");
+    expect(out?.detectedSource).toBe("ms");
+    expect(out?.translation).toMatch(/What shall we do|today/i);
+    expect(out?.translation).not.toMatch(/macam nak buat/i);
+  });
+
+  it("marks alreadyTarget only when gtx detects English", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          [["Please solve this fraction problem.", "Please solve this fraction problem.", null, null, 10]],
+          null,
+          "en",
+        ]),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const out = await gtxTranslatePassage(
+      "Please solve this fraction problem.",
+      "en",
+    );
+    expect(out?.alreadyTarget).toBe(true);
+    expect(out?.detectedSource).toBe("en");
+  });
+
+  it("translates Spanish via gtx", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          [["Hello — what math shall we do today?", "Hola...", null, null, 10]],
+          null,
+          "es",
+        ]),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const out = await gtxTranslatePassage(
+      "Hola — ¿qué matemáticas hacemos hoy?",
+      "en",
+    );
+    expect(out?.alreadyTarget).toBe(false);
+    expect(out?.detectedSource).toBe("es");
+    expect(out?.translation).toMatch(/math|today/i);
   });
 });

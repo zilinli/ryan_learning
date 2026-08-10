@@ -58,7 +58,9 @@ Finished **assistant** bubbles show a **Listen / Stop** control under the messag
 
 ## Translate to English
 
-Same row as Listen: **EN English** → `POST /api/translate-en` → Google gtx (`sl=auto`) after `cleanTutorSpeechText`. Shows a compact English panel under the bubble (toggle Hide). Already-English text is returned as-is without MT.
+Same row as Listen: **EN English** → `POST /api/translate-en` → Google gtx (`sl=auto`) after `cleanTutorSpeechText`. Shows a compact English panel under the bubble (toggle Hide).
+
+**Already English** only when gtx reports detected source `en` — never from a Latin-letter heuristic (Malay / Spanish / French are Latin-script and must be translated).
 | Stop | `NeuralSpeechEngine.stop()` aborts in-flight `/api/tts` and clears `audio.src` |
 
 ## Language Detection
