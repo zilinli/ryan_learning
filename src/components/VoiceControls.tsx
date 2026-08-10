@@ -511,11 +511,11 @@ export function VoiceControls({
     const picked = getTutorVoice(id);
     if (picked.lang === "teo" || picked.lang === "hak") {
       try {
-        if (!window.localStorage.getItem("spark-dialect-notice-v9")) {
-          window.localStorage.setItem("spark-dialect-notice-v9", "1");
+        if (!window.localStorage.getItem("spark-dialect-notice-v10")) {
+          window.localStorage.setItem("spark-dialect-notice-v10", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "潮汕话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走百炼复刻，无密钥时用粤语 edge 临时兜底。"
+              ? "闽南话：识别走讯飞 + 百炼 + 本地 SenseVoice 三层兜底；朗读走百炼闽南 TTS，无密钥时用粤语 edge 临时兜底。"
               : "客家话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走 FormoSpeech 真客语（繁体用字）。",
           );
         }

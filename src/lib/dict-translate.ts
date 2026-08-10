@@ -24,7 +24,7 @@ const GTX_CODES: Record<DictLang, string> = {
   fr: "fr",
   zh: "zh-CN",
   yue: "zh-TW", // closest free MT proxy; prefer local Cantonese when available
-  teo: "zh-CN", // no Teochew engine on Google — closest is simplified Chinese
+  teo: "zh-CN", // no Hokkien engine on Google — closest is simplified Chinese
   hak: "zh-CN", // no Hakka engine on Google — closest is simplified Chinese
 };
 
@@ -153,7 +153,7 @@ export function localTranslate(
   const hit = map.get(key);
   if (hit) return hit;
 
-  // Cantonese / Teochew / Hakka: search by English gloss or character
+  // Cantonese / Hokkien / Hakka: search by English gloss or character
   if ((to === "yue" || to === "teo" || to === "hak") && from === "en") {
     const hits =
       to === "yue"

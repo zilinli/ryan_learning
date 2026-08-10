@@ -146,12 +146,12 @@ describe("appendIflytekFrame", () => {
   }
 
   it("each frame carries the full recognized text (not incremental)", () => {
-    const r1 = appendIflytekFrame("", frame("潮汕", 1));
-    expect(r1.text).toBe("潮汕");
+    const r1 = appendIflytekFrame("", frame("闽南", 1));
+    expect(r1.text).toBe("闽南");
     expect(r1.done).toBe(false);
-    // 下一帧是完整结果"潮汕話真好食"，覆盖而非追加
-    const r2 = appendIflytekFrame(r1.text, frame("潮汕話真好食", 1));
-    expect(r2.text).toBe("潮汕話真好食");
+    // 下一帧是完整结果"闽南話真好食"，覆盖而非追加
+    const r2 = appendIflytekFrame(r1.text, frame("闽南話真好食", 1));
+    expect(r2.text).toBe("闽南話真好食");
     expect(r2.done).toBe(false);
   });
 

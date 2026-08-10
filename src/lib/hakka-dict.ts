@@ -19,7 +19,7 @@
  * Notes:
  * - 涯 (ngaiˇ, "I") is the common online form; the formal standard is 𠊎.
  * - 佢 (giˇ, "he/she") matches the Cantonese character.
- * - 个 (ge) is the possessive marker, same character as Cantonese/Teochew.
+ * - 个 (ge) is the possessive marker, same character as Cantonese/Hokkien.
  */
 
 import type { DictEntry, DictResponse } from "./dict-types";

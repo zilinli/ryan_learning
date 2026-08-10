@@ -28,7 +28,7 @@ describe("dict-translate helpers", () => {
     expect(localTranslate("water", "en", "yue")).toBe("水");
   });
 
-  it("localTranslate maps English to Teochew/Hakka and back", () => {
+  it("localTranslate maps English to Hokkien/Hakka and back", () => {
     expect(localTranslate("I", "en", "teo")).toBe("我");
     expect(localTranslate("water", "en", "teo")).toBe("水");
     expect(localTranslate("I", "en", "hak")).toBe("涯");
@@ -82,7 +82,7 @@ describe("enrichDictResponse", () => {
     expect(out.crossTranslations![0]!.text.toLowerCase()).toContain("hello");
   });
 
-  it("adds an English gloss for Teochew/Hakka lookups", async () => {
+  it("adds an English gloss for Hokkien/Hakka lookups", async () => {
     const teo: DictResponse = {
       word: "个",
       lang: "teo",

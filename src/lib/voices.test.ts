@@ -58,7 +58,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
   it("maps dialect voices to teo/hak langs without Cantonese TTS fallback", () => {
     expect(getTutorVoice("teochew").lang).toBe("teo");
     expect(getTutorVoice("hakka").lang).toBe("hak");
-    expect(getTutorVoice("teochew").label).toMatch(/潮汕话/);
+    expect(getTutorVoice("teochew").label).toMatch(/闽南话/);
     expect(getTutorVoice("hakka").label).toMatch(/FormoSpeech|客家话/);
     // edgeVoice 字段仅为兼容；方言朗读走 /api/tts?lang=，禁止粤语顶替
     expect(getTutorVoice("teochew").edgeVoice).not.toMatch(/^zh-HK/);
@@ -169,10 +169,10 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(resolveReplyLanguage("hakka", "这一题怎么解？")).toBe("hak");
 
     const teo = replyLanguageInstructions("teo").join("\n");
-    expect(teo).toMatch(/潮汕话/);
+    expect(teo).toMatch(/闽南话/);
     expect(teo).toMatch(/REQUIRED/);
     expect(teo).toMatch(/「个」/);
-    expect(teo).toMatch(/「唔」/);
+    expect(teo).toMatch(/「毋」/);
     expect(teo).toMatch(/食/);
 
     const hak = replyLanguageInstructions("hak").join("\n");

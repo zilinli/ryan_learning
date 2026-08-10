@@ -38,7 +38,7 @@ describe("buildSentenceTranslatePrompt", () => {
       to: "teo",
       hasImages: false,
     });
-    expect(teo).toMatch(/Teochew/);
+    expect(teo).toMatch(/Hokkien/);
 
     const hak = buildSentenceTranslatePrompt({
       text: "hello",

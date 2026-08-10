@@ -15,7 +15,7 @@ const LANG_NAME: Record<DictLang, string> = {
   fr: "French",
   zh: "Simplified Chinese (Mandarin)",
   yue: "Cantonese (written Traditional Chinese preferred)",
-  teo: "Teochew (潮汕话) — written in Chinese characters with Teochew grammar and vocabulary",
+  teo: "Hokkien (闽南话) — written in Chinese characters with Hokkien grammar and vocabulary",
   hak: "Hakka (客家话) — written in Chinese characters with Hakka grammar and vocabulary",
 };
 

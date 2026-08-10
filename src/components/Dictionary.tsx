@@ -25,7 +25,7 @@ const SOURCE_BADGE: Record<DictEntry["source"], string> = {
   freedict: "FD",
   translate: "TR",
   "cantonese-local": "粵",
-  "teochew-local": "潮",
+  "teochew-local": "閩",
   "hakka-local": "客",
 };
 

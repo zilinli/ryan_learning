@@ -75,7 +75,7 @@ type DialectTtsEngine =
   | "formospeech-cache";
 
 /**
- * 方言 TTS：潮汕话 / 客家话。
+ * 方言 TTS：闽南话 / 客家话。
  * teo 无百炼密钥时用粤语 edge 临时兜底；hak 固定 FormoSpeech。
  */
 async function synthesizeDialect(
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
             hint:
               dialectLang === "hak"
                 ? "客家话请确认 formospeech-tts 服务在跑（pm2），或预合成高频句；不使用粤语顶替。"
-                : "潮汕话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
+                : "闽南话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
           },
           { status: 503 },
         );

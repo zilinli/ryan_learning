@@ -73,7 +73,7 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
       };
     }
     // No key at all → edge fallback (Cantonese) as audible last resort.
-    console.warn("[tts] 潮汕话百炼未配，用粤语 edge 兜底。");
+    console.warn("[tts] 闽南话百炼未配，用粤语 edge 兜底。");
     return { kind: "edge", voice: edgeVoiceForLang("yue") };
   }
 

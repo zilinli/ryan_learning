@@ -142,7 +142,7 @@ async function tryBailianAsr(
 // ── Engine-order STT walk ───────────────────────────────────────────
 // For dialect languages (teo/hak): tries each engine in the configured order,
 // short-circuiting on first success. Enables quality routing (e.g. iFlytek-first
-// for Teochew if A/B eval confirms it wins).
+// for teo if A/B eval confirms it wins).
 //
 // For non-dialect languages (en/zh/yue/es/fr/auto): fixed Bailian → local chain
 // (outage recovery only — unchanged from before).

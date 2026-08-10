@@ -1,5 +1,5 @@
 /**
- * Local Teochew (潮汕话 / 潮州话) dictionary dataset.
+ * Local Hokkien (闽南话) dictionary dataset, sourced from Teochew lexicon.
  *
  * Curated seed lexicon for learners, based on the common written form
  * used online (expert character + homophone hybrid) and Peng'im

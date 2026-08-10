@@ -24,7 +24,7 @@ describe("topDialectWords", () => {
 describe("buildDialectCorrectionPrompt", () => {
   it("embeds dialect name and high-frequency words", () => {
     const teo = buildDialectCorrectionPrompt("我个书", "teo");
-    expect(teo).toContain("潮汕话");
+    expect(teo).toContain("闽南话");
     expect(teo).toContain("我个书");
     expect(teo).toContain("只修正");
     const hak = buildDialectCorrectionPrompt("涯个书", "hak");

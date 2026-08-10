@@ -154,31 +154,31 @@ describe("normalizeForTTS", () => {
     expect(normalizeForTTS("Hola mundo", "es")).toBe("Hola mundo");
   });
 
-  it("replaces Teochew 'you' 汝 with Cantonese 你", () => {
+  it("replaces Hokkien 'you' 汝 with Cantonese 你", () => {
     expect(normalizeForTTS("汝好，食饭未？", "teo")).toBe(
       "你好，食饭未？",
     );
   });
 
-  it("replaces Teochew 'don't' 勿 with Cantonese 唔好", () => {
+  it("replaces Hokkien 'don't' 勿 with Cantonese 唔好", () => {
     expect(normalizeForTTS("勿惊，慢慢来", "teo")).toBe(
       "唔好惊，慢慢来",
     );
   });
 
-  it("replaces Teochew 'what' 乜个 with Cantonese 乜嘢", () => {
+  it("replaces Hokkien 'what' 乜个 with Cantonese 乜嘢", () => {
     expect(normalizeForTTS("汝想买乜个？", "teo")).toBe(
       "你想买乜嘢？",
     );
   });
 
-  it("replaces Teochew 'how' 怎呢 with Cantonese 點樣", () => {
+  it("replaces Hokkien 'how' 怎呢 with Cantonese 點樣", () => {
     expect(normalizeForTTS("汝觉得怎呢？", "teo")).toBe(
       "你觉得點樣？",
     );
   });
 
-  it("replaces Teochew 'many' 㩼 with Cantonese 多", () => {
+  it("replaces Hokkien 'many' 㩼 with Cantonese 多", () => {
     expect(normalizeForTTS("㩼谢汝个帮助", "teo")).toBe(
       "多谢你嘅帮助",
     );
@@ -223,7 +223,7 @@ describe("normalizeForTTS", () => {
     );
     expect(out).toBe("你好！我係先生，你有乜嘢问题？");
 
-    // Teochew mixed sentence: 汝→你, 乜个→乜嘢, 怎呢→點樣
+    // Hokkien mixed sentence: 汝→你, 乜个→乜嘢, 怎呢→點樣
     const out2 = normalizeForTTS(
       "汝好！汝有乜个问题？怎呢做？",
       "teo",

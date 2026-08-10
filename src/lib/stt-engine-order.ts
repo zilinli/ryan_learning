@@ -5,7 +5,7 @@
  * each language gets an ordered list of engines to try.
  *
  * Today: teo/hak both default to Bailian-first (matched by route.ts's current behavior).
- * After TEO.0 A/B eval: if iFlytek proves better for Teochew, override via env
+ * After TEO.0 A/B eval: if iFlytek proves better for teo, override via env
  *   STT_ENGINE_ORDER_TEO=iflytek,bailian,local
  *
  * Design: [teochew-stt-remediation.md](../docs/subsystems/teochew-stt-remediation.md) §5

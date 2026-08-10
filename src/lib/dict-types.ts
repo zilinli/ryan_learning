@@ -8,7 +8,7 @@ export const DICT_LANG_LABELS: Record<DictLang, string> = {
   fr: "Français",
   zh: "中文",
   yue: "粵語",
-  teo: "潮汕話",
+  teo: "閩南話",
   hak: "客家話",
 };
 
