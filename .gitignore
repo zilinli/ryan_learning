@@ -49,6 +49,7 @@ yarn-error.log*
 /data/history/
 /data/learning/
 /data/deletions/
+/data/console/
 /data/dialect-feedback.jsonl
 /data/tts-cache/
 /vendor/taiwanese-hakka-tts/
