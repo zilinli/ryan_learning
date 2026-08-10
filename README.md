@@ -30,7 +30,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
 - **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. Voice picker labels are language-only (no engine names). See [design doc](docs/subsystems/dialect-support-teochew-hakka.md) and [Shanghainese](docs/subsystems/shanghainese-support.md).
-- **Help & feedback** — sidebar panel (Linear/Notion-style): browse FAQ or submit feature requests / bug reports to GitHub Issues. Each submission gets an automatic feasibility analysis (effort, risk, roadmap fit) appended to `docs/TODO.md`. See [design doc](docs/subsystems/faq-feedback-panel.md).
+- **Help & feedback** — sidebar panel: **Ask AI** (default; answers from docs + code, any language, voice/photo/file), browse FAQ, or submit suggestions to GitHub Issues (with feasibility → `docs/TODO.md`). See [faq-feedback-panel.md](docs/subsystems/faq-feedback-panel.md) and [ai-faq.md](docs/subsystems/ai-faq.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid; comic/joke SVG viewBoxes auto-expand so labels are not clipped
 - **Voice** — neural TTS + STT; Auto language switching; **Listen** on finished assistant messages to replay any history turn. See [voice-tts-stt.md](docs/subsystems/voice-tts-stt.md).

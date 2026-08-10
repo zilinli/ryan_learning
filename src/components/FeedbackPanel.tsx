@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FaqAskPanel } from "./FaqAskPanel";
 
 const FAQ_ITEMS = [
   {
@@ -18,6 +19,10 @@ const FAQ_ITEMS = [
   {
     q: "How do I translate a reply into English?",
     a: 'Under any finished tutor message, tap "EN English" next to Listen. Spark shows an English panel (tap Hide to collapse). Diagrams and code blocks are skipped so you get readable prose.',
+  },
+  {
+    q: "What is Ask AI in Help & feedback?",
+    a: 'Open Help & feedback → Ask AI (default tab). Type, speak, upload a file, or take a photo of your question in any language. Spark Help searches the product docs and code, then answers in your language. For product changes, use the Suggest tab.',
   },
   {
     q: "How do I submit homework photos?",
@@ -92,7 +97,7 @@ type Props = {
 };
 
 export function FeedbackPanel({ open, onClose }: Props) {
-  const [tab, setTab] = useState<"faq" | "suggest">("faq");
+  const [tab, setTab] = useState<"ask" | "faq" | "suggest">("ask");
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
   const [category, setCategory] = useState<FeedbackCategory>("feature");
@@ -113,7 +118,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
     setTitle("");
     setDescription("");
     setCategory("feature");
-    setTab("faq");
+    setTab("ask");
     setExpandedFaq(0);
   }, [open]);
 
@@ -200,7 +205,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
               Help & feedback
             </h2>
             <p className="mt-0.5 text-[12px] leading-snug text-[var(--ink-muted)]">
-              Quick answers, or tell us what to improve.
+              Ask AI from our docs, browse FAQ, or suggest an improvement.
             </p>
           </div>
           <button
@@ -217,10 +222,11 @@ export function FeedbackPanel({ open, onClose }: Props) {
 
         {/* Segmented control */}
         <div
-          className="relative mt-4 grid grid-cols-2 gap-1 rounded-xl bg-[var(--surface-muted)] p-1 ring-1 ring-[var(--line)]/60"
+          className="relative mt-4 grid grid-cols-3 gap-1 rounded-xl bg-[var(--surface-muted)] p-1 ring-1 ring-[var(--line)]/60"
           role="tablist"
         >
           {([
+            { id: "ask" as const, label: "Ask AI" },
             { id: "faq" as const, label: "FAQ" },
             { id: "suggest" as const, label: "Suggest" },
           ]).map((t) => (
@@ -233,7 +239,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
                 setTab(t.id);
                 setResult(null);
               }}
-              className={`rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+              className={`rounded-lg px-2 py-2 text-[11.5px] font-semibold transition sm:text-[12px] ${
                 tab === t.id
                   ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm ring-1 ring-[var(--line)]/70"
                   : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -246,8 +252,14 @@ export function FeedbackPanel({ open, onClose }: Props) {
       </div>
 
       {/* Body */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {tab === "faq" ? (
+      <div
+        className={`min-h-0 flex-1 overscroll-contain ${
+          tab === "ask" ? "flex flex-col overflow-hidden" : "overflow-y-auto"
+        }`}
+      >
+        {tab === "ask" ? (
+          <FaqAskPanel onOpenSuggest={() => setTab("suggest")} />
+        ) : tab === "faq" ? (
           <div className="space-y-2 p-4">
             {FAQ_ITEMS.map((item, idx) => {
               const openItem = expandedFaq === idx;
@@ -482,7 +494,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
         aria-hidden
       />
 
-      <div className="fixed right-0 top-0 z-50 hidden h-dvh w-[min(420px,92vw)] border-l border-[var(--line)]/70 bg-[var(--surface)] shadow-[-18px_0_50px_-28px_rgba(0,0,0,0.35)] animate-slide-in-right lg:flex">
+      <div className="fixed right-0 top-0 z-50 hidden h-dvh w-[min(460px,94vw)] border-l border-[var(--line)]/70 bg-[var(--surface)] shadow-[-18px_0_50px_-28px_rgba(0,0,0,0.35)] animate-slide-in-right lg:flex">
         {panel}
       </div>
 
@@ -493,7 +505,7 @@ export function FeedbackPanel({ open, onClose }: Props) {
           onClick={onClose}
           aria-hidden
         />
-        <div className="absolute inset-x-0 bottom-0 flex max-h-[82vh] flex-col overflow-hidden rounded-t-[22px] bg-[var(--surface)] shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.4)] animate-slide-up">
+        <div className="absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col overflow-hidden rounded-t-[22px] bg-[var(--surface)] shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.4)] animate-slide-up">
           <div className="flex justify-center pb-1 pt-2.5">
             <div className="h-1 w-9 rounded-full bg-[var(--line)]" />
           </div>

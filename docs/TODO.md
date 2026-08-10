@@ -14,6 +14,19 @@
 > P0 hardening: **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** · B3: **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)**  
 > Code Agent pipeline: **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** (research → design → TODO → develop push → deploy)
 > Listen sync + Stop: **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)**
+> AI FAQ (Ask AI): **[subsystems/ai-faq.md](subsystems/ai-faq.md)**
+
+---
+
+## 🤖 AI FAQ — Ask AI in Help & feedback (2026-08-10)
+
+> **Design:** [subsystems/ai-faq.md](subsystems/ai-faq.md) · [faq-feedback-panel.md](subsystems/faq-feedback-panel.md)
+
+- [x] **FAQ-AI.1** — `POST /api/faq-ai` SSE + read-only tools (`createFaqAiTools`)
+- [x] **FAQ-AI.2** — `FaqAskPanel`: multilingual composer + mic / upload / camera
+- [x] **FAQ-AI.3** — FeedbackPanel 3 tabs (Ask AI default · FAQ · Suggest); wider panel
+- [x] **FAQ-AI.4** — Docs: `ai-faq.md`, DESIGN map, README, canned FAQ entry
+- [x] **FAQ-AI.5** — Unit tests for prompt + tool surface
 
 ---
 

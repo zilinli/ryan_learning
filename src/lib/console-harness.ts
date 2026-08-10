@@ -528,3 +528,28 @@ export function createConsoleHarnessTools(): Record<string, SDKCustomTool> {
     ),
   });
 }
+
+/** Read-only tools for Help & feedback → Ask AI (never mutate the repo). */
+export function createFaqAiTools(): Record<string, SDKCustomTool> {
+  return {
+    read_file: tool(
+      "Read a file with line numbers (docs or source).",
+      { type: "object", properties: { filepath: { type: "string" } }, required: ["filepath"] },
+      readFile,
+    ),
+    search_code: tool(
+      "Search docs/ and src/ with ripgrep.",
+      {
+        type: "object",
+        properties: { query: { type: "string" }, glob: { type: "string" } },
+        required: ["query"],
+      },
+      searchCode,
+    ),
+    list_files: tool(
+      "List directory contents under the repo root.",
+      { type: "object", properties: { dirpath: { type: "string" } }, required: ["dirpath"] },
+      listFiles,
+    ),
+  };
+}

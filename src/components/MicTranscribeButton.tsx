@@ -36,6 +36,8 @@ type Props = {
   disabled?: boolean;
   onTranscript: (text: string) => void;
   className?: string;
+  /** Smaller control for embedded composers (Help Ask AI, etc.) */
+  compact?: boolean;
 };
 
 export function MicTranscribeButton({
@@ -43,6 +45,7 @@ export function MicTranscribeButton({
   disabled,
   onTranscript,
   className = "",
+  compact = false,
 }: Props) {
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -221,7 +224,11 @@ export function MicTranscribeButton({
             void stopListening();
           }
         }}
-        className={`relative inline-flex h-[3.25rem] w-[3.25rem] shrink-0 touch-manipulation select-none flex-col items-center justify-center rounded-xl border text-sm font-medium transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+        className={`relative inline-flex shrink-0 touch-manipulation select-none flex-col items-center justify-center rounded-xl border text-sm font-medium transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+          compact
+            ? "h-8 w-8 rounded-full"
+            : "h-[3.25rem] w-[3.25rem]"
+        } ${
           listening
             ? "border-[var(--coral)] bg-[var(--coral)] text-white animate-pulse-ring"
             : busy

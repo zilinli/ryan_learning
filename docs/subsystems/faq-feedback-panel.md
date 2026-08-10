@@ -10,10 +10,13 @@
 
 Add a **Help & feedback** control beside GitHub in the sidebar footer. Opens a drawer/modal where users can:
 
-1. **Browse FAQ** — common questions about the tutor
-2. **Suggest improvement** — submit feature requests / bug reports
+1. **Ask AI** — free-form product Q&A grounded in docs + code (any language; voice / photo / file)
+2. **Browse FAQ** — common canned questions about the tutor
+3. **Suggest improvement** — submit feature requests / bug reports
 
-On submit: creates a GitHub issue in `zilinli/ryan_learning` via REST API, then runs an AI-driven feasibility analysis (strict) and appends the result to TODO.md under a "User Feedback" section (or a dedicated plan doc for larger items).
+On Suggest submit: creates a GitHub issue in `zilinli/ryan_learning` via REST API, then runs an AI-driven feasibility analysis (strict) and appends the result to TODO.md under a "User Feedback" section (or a dedicated plan doc for larger items).
+
+Ask AI details: **[ai-faq.md](ai-faq.md)**.
 
 ---
 
@@ -31,12 +34,13 @@ No emoji in labels. Icons are stroke SVGs.
 
 ### 2.2 Panel (modal / slide-over)
 
-Opens from right on desktop (soft backdrop blur + shadow), bottom sheet on mobile.
-Visual language: Linear / Notion help-center — surface panel, soft gradient header wash, segmented control (not underline tabs), numbered FAQ cards, 2×2 category tiles with SVG icons (no emoji pills).
+Opens from right on desktop (soft backdrop blur + shadow), bottom sheet on mobile (~92vh for Ask).
+Visual language: Linear / Notion help-center — surface panel, soft gradient header wash, **3-way** segmented control, numbered FAQ cards, 2×2 category tiles with SVG icons (no emoji pills).
 
 | Tab | Content |
 |-----|---------|
-| **FAQ** (default) | Numbered expandable cards; first item open by default; CTA at bottom → Suggest |
+| **Ask AI** (default) | Thread + multilingual composer (mic / upload / camera); streamed Spark Help answers |
+| **FAQ** | Numbered expandable cards; first item open by default; CTA → Suggest |
 | **Suggest** | Category tiles (Bug / Feature / Question / Docs), title, details, primary submit |
 
 ### 2.3 States
@@ -101,12 +105,15 @@ For `epic` items: a dedicated plan file is created in `docs/subsystems/`.
 
 | File | Type | Description |
 |------|------|-------------|
-| `src/components/FeedbackPanel.tsx` | New | FAQ/Suggest panel component |
-| `src/components/FeedbackPanel.test.tsx` | New | Component tests |
-| `src/app/api/feedback/route.ts` | New | API route |
-| `src/lib/feedback-analysis.ts` | New | Feasibility analysis logic |
-| `src/lib/feedback-analysis.test.ts` | New | Analysis tests |
-| `src/components/HistorySidebar.tsx` | Edit | Add feedback button |
+| `src/components/FeedbackPanel.tsx` | Edit | 3-tab shell (Ask AI · FAQ · Suggest) |
+| `src/components/FaqAskPanel.tsx` | New | Ask AI composer + thread |
+| `src/app/api/faq-ai/route.ts` | New | Read-only SSE help agent |
+| `src/lib/faq-ai.ts` | New | Prompt helpers |
+| `src/app/api/feedback/route.ts` | Existing | Suggest → GitHub + feasibility |
+| `src/lib/feedback-analysis.ts` | Existing | Feasibility analysis |
+| `src/components/HistorySidebar.tsx` | Existing | Help & feedback entry |
+
+See also **[ai-faq.md](ai-faq.md)**.
 
 ---
 
@@ -114,13 +121,11 @@ For `epic` items: a dedicated plan file is created in `docs/subsystems/`.
 
 | Test case | Assert |
 |-----------|--------|
-| Panel opens on click | modal visible |
+| Panel opens on Ask AI | default tab is Ask AI |
+| Ask AI mic / upload / camera | composer controls present |
 | FAQ tab shows questions | at least 3 questions rendered |
-| Suggest tab shows form | category dropdown + title + description + submit |
+| Suggest tab shows form | category + title + description + submit |
 | Submit with empty fields | validation error shown |
 | Submit success | "Thank you" + GitHub link |
-| Submit error | error message + retry button |
 | Panel closes on × / Escape | modal hidden |
-| feedback-analysis: quick_win bug | correctly classified |
-| feedback-analysis: large feature | flagged as epic, needs plan doc |
-| feedback-analysis: duplicate | detected via TODO.md scan |
+| faq-ai tools | only read_file / search_code / list_files |
