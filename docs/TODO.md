@@ -50,6 +50,16 @@
 - [x] **DOC-iOS2.4** — apply_changes → publish_develop → deploy_live
 - [ ] **DOC-iOS2.5** — Manual: iPhone Safari → 附件 → Browse → 选 `.md` → 出现 pill
 
+### DOC-iOS3: attach still broken on device (2026-08-10)
+> **Report:** 还是上传不了附件（defer-mount 已部署仍失败）
+> **Fixes:** Apple `accept=*/*`; opacity 0.01; ≥44px hit target; shared FileAttachControl; paste-files fallback
+
+- [x] **DOC-iOS3.1** — `resolveFilePickerAccept` → `*/*` on Apple; update unit tests
+- [x] **DOC-iOS3.2** — `FileAttachControl` + wire Composer / ConsoleComposer / FaqAskPanel
+- [x] **DOC-iOS3.3** — Paste `clipboardData.files` on composer textareas
+- [x] **DOC-iOS3.4** — run_tests → apply_changes → publish_develop → deploy_live
+- [ ] **DOC-iOS3.5** — Manual: iPhone Attach→Browse `.md` OR Copy→Paste → pill
+
 ---
 
 ## 📊 Report-v3 optimizations (2026-08-10)

@@ -126,17 +126,19 @@ export function isAppleTouchDevice(
 }
 
 /**
- * Desktop: keep accept= filter. iOS: omit accept — WebKit grays out uncommon
- * extensions like `.md` when accept lists MIME/ext tokens.
+ * Desktop: keep accept= filter. iOS: use accept all-files (`*` + `/` + `*`) —
+ * WebKit grays out uncommon extensions like `.md` when accept lists MIME/ext
+ * tokens. Explicit all-files accept is more reliable than omitting the attribute
+ * on some iOS versions.
  *
  * Callers must mount `<input type="file">` only AFTER this resolves, and must
- * never first paint with a desktop accept then clear it (WebKit keeps the first filter).
+ * never first paint with a desktop accept then change it (WebKit keeps the first filter).
  */
 export function resolveFilePickerAccept(
   desktopAccept: string,
   appleTouch = isAppleTouchDevice(),
 ): string | undefined {
-  return appleTouch ? undefined : desktopAccept;
+  return appleTouch ? "*/*" : desktopAccept;
 }
 
 export function normalizeMime(mimeType: string, name: string): string {

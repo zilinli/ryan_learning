@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS, resolveFilePickerAccept } from "@/lib/attachments";
+import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
 import {
   attachmentFromCameraCapture,
   filesToAttachments,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/file-payload";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
+import { FileAttachControl } from "./FileAttachControl";
 import { getTutorVoice, loadVoiceAutoSend, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
@@ -68,21 +69,12 @@ export function Composer({
     onDismiss: () => void;
   } | null>(null);
   const dialectTokenRef = useRef(0);
-  const [fileAccept, setFileAccept] = useState<string | undefined>(undefined);
-  const [pickerReady, setPickerReady] = useState(false);
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   // Keep a ref of the latest attachments for stable event-handler closures
   // (addFiles/submit are recreated or memoized without deps).
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
-
-  // Defer mounting the file input until accept is resolved — never paint with
-  // desktop accept then clear it on iPhone (WebKit keeps the first filter).
-  useEffect(() => {
-    setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
-    setPickerReady(true);
-  }, []);
 
   useEffect(() => {
     setVoiceAutoSend(loadVoiceAutoSend(accountId || RYAN_ACCOUNT));
@@ -208,6 +200,13 @@ export function Composer({
             el.style.height = "auto";
             el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
           }}
+          onPaste={(e) => {
+            const files = e.clipboardData?.files;
+            if (files && files.length > 0) {
+              e.preventDefault();
+              void addFiles(files);
+            }
+          }}
           onKeyDown={(e) => {
             // Enter = send, Shift+Enter = newline
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -257,33 +256,18 @@ export function Composer({
         ) : null}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <label
-            aria-disabled={pickDisabled}
-            className={`relative inline-flex min-h-[2.75rem] w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
-              pickDisabled ? "pointer-events-none opacity-30" : ""
-            }`}
+          <FileAttachControl
+            disabled={pickDisabled}
+            desktopAccept={FILE_INPUT_ACCEPT}
             title="Upload file / PDF / Markdown"
-            aria-label="Upload file"
+            ariaLabel="Upload file"
+            className="rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+            onFiles={(files) => void addFiles(files)}
           >
-            {pickerReady ? (
-              <input
-                type="file"
-                multiple
-                {...(fileAccept ? { accept: fileAccept } : {})}
-                className="absolute inset-0 z-10 cursor-pointer opacity-0"
-                disabled={pickDisabled}
-                aria-label="Upload file"
-                onChange={(e) => {
-                  const files = e.target.files ? Array.from(e.target.files) : [];
-                  e.target.value = "";
-                  void addFiles(files);
-                }}
-              />
-            ) : null}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
-          </label>
+          </FileAttachControl>
 
           {/* Camera — primary photo-first action */}
           <button

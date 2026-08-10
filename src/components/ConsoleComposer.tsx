@@ -5,9 +5,9 @@ import { startWavRecorder } from "@/lib/wav-recorder";
 import {
   CONSOLE_FILE_INPUT_ACCEPT,
   MAX_ATTACHMENTS,
-  resolveFilePickerAccept,
 } from "@/lib/attachments";
 import { CameraCapture } from "./CameraCapture";
+import { FileAttachControl } from "./FileAttachControl";
 
 export type ComposerSubmit = {
   text: string;
@@ -33,19 +33,11 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
   const [micHint, setMicHint] = useState("");
   const [err, setErr] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [fileAccept, setFileAccept] = useState<string | undefined>(undefined);
-  const [pickerReady, setPickerReady] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const attsRef = useRef(atts);
   const recorderRef = useRef<RecorderSession | null>(null);
 
   useEffect(() => () => { void recorderRef.current?.stop().catch(() => undefined); }, []);
-
-  // Defer file-input mount until accept is resolved (iOS never sees desktop accept first).
-  useEffect(() => {
-    setFileAccept(resolveFilePickerAccept(CONSOLE_FILE_INPUT_ACCEPT));
-    setPickerReady(true);
-  }, []);
 
   useEffect(() => { attsRef.current = atts; }, [atts]);
 
@@ -81,10 +73,8 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
     }
   }, [atts.length]);
 
-  const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    e.target.value = "";
-    if (files?.length) void addFiles(files);
+  const onFileInput = useCallback((files: File[]) => {
+    if (files.length) void addFiles(files);
   }, [addFiles]);
 
   const removeAtt = useCallback((id: string) => {
@@ -193,6 +183,13 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
             e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
           }
         }}
+        onPaste={(e) => {
+          const files = e.clipboardData?.files;
+          if (files && files.length > 0) {
+            e.preventDefault();
+            void addFiles(files);
+          }
+        }}
         onKeyDown={kd}
         className="w-full resize-none bg-transparent py-1 text-[15px] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] disabled:opacity-50"
       />
@@ -205,30 +202,17 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          {/* Attach — opacity overlay inside label; mount only after accept resolved */}
-          <label
-            aria-disabled={disabled || atts.length >= MAX_ATTACHMENTS}
-            className={`relative inline-flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
-              disabled || atts.length >= MAX_ATTACHMENTS
-                ? "pointer-events-none opacity-40"
-                : ""
-            }`}
+          {/* Attach — shared iOS-safe control (44px, opacity 0.01, star accept on Apple) */}
+          <FileAttachControl
+            disabled={disabled || atts.length >= MAX_ATTACHMENTS}
+            desktopAccept={CONSOLE_FILE_INPUT_ACCEPT}
             title="Attach file / PDF / Markdown / image"
-            aria-label="Attach file"
+            ariaLabel="Attach file"
+            className="h-11 w-11 rounded-full text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+            onFiles={onFileInput}
           >
-            {pickerReady ? (
-              <input
-                type="file"
-                multiple
-                {...(fileAccept ? { accept: fileAccept } : {})}
-                className="absolute inset-0 z-10 cursor-pointer opacity-0"
-                disabled={disabled || atts.length >= MAX_ATTACHMENTS}
-                aria-label="Attach file"
-                onChange={onFileInput}
-              />
-            ) : null}
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-          </label>
+          </FileAttachControl>
 
           {/* Camera — opens live viewfinder for photo capture */}
           <button type="button" disabled={disabled || atts.length >= MAX_ATTACHMENTS}

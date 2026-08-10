@@ -65,13 +65,13 @@ describe("document upload allowlist", () => {
     expect(FILE_INPUT_ACCEPT).toContain(".md");
   });
 
-  it("omits accept on Apple touch devices so iOS can pick .md", () => {
+  it("uses all-files accept on Apple touch devices so iOS can pick .md", () => {
     expect(
       isAppleTouchDevice(
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
       ),
     ).toBe(true);
-    expect(resolveFilePickerAccept(FILE_INPUT_ACCEPT, true)).toBeUndefined();
+    expect(resolveFilePickerAccept(FILE_INPUT_ACCEPT, true)).toBe("*/*");
     expect(resolveFilePickerAccept(FILE_INPUT_ACCEPT, false)).toBe(
       FILE_INPUT_ACCEPT,
     );
@@ -89,12 +89,12 @@ describe("document upload allowlist", () => {
     ).toBe(false);
   });
 
-  it("defer-mount contract: Apple gets undefined accept, desktop keeps filter", () => {
+  it("defer-mount contract: Apple gets all-files accept, desktop keeps filter", () => {
     // Composers must mount <input> only after resolveFilePickerAccept — never
-    // paint desktop accept then clear it (WebKit keeps the first filter).
+    // paint desktop accept then change it (WebKit keeps the first filter).
     const apple = resolveFilePickerAccept(FILE_INPUT_ACCEPT, true);
     const desktop = resolveFilePickerAccept(FILE_INPUT_ACCEPT, false);
-    expect(apple).toBeUndefined();
+    expect(apple).toBe("*/*");
     expect(desktop).toBeTruthy();
     expect(desktop).toContain(".md");
   });

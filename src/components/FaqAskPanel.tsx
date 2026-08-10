@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CameraCapture } from "@/components/CameraCapture";
+import { FileAttachControl } from "@/components/FileAttachControl";
 import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 import {
   attachmentFromCameraCapture,
@@ -11,7 +12,6 @@ import {
 import {
   FILE_INPUT_ACCEPT,
   MAX_ATTACHMENTS,
-  resolveFilePickerAccept,
 } from "@/lib/attachments";
 import type { FaqReplyLang } from "@/lib/faq-ai";
 import { sttLangFromDictLang } from "@/lib/stt-lang";
@@ -62,16 +62,8 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
   const [busy, setBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [hint, setHint] = useState("");
-  const [fileAccept, setFileAccept] = useState<string | undefined>(undefined);
-  const [pickerReady, setPickerReady] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  // Defer file-input mount until accept is resolved (iOS never sees desktop accept first).
-  useEffect(() => {
-    setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
-    setPickerReady(true);
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -86,8 +78,8 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
 
   const atLimit = attachments.length >= MAX_ATTACHMENTS;
 
-  const addFiles = async (list: FileList | null) => {
-    if (!list?.length) return;
+  const addFiles = async (list: FileList | File[] | null) => {
+    if (!list || ("length" in list && list.length === 0)) return;
     setHint("");
     try {
       const { items, errors } = await filesToAttachments(
@@ -421,6 +413,13 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
             disabled={busy}
             placeholder="Ask about Spark… (any language)"
             className="min-h-[2.75rem] max-h-28 flex-1 resize-y rounded-xl border border-[var(--line)]/70 bg-[var(--bg0)]/35 px-3 py-2 text-[13px] leading-snug text-[var(--ink)] outline-none transition placeholder:text-[var(--ink-muted)]/55 focus:border-[var(--teal)]/55 focus:ring-2 focus:ring-[var(--teal)]/15 disabled:opacity-50"
+            onPaste={(e) => {
+              const files = e.clipboardData?.files;
+              if (files && files.length > 0) {
+                e.preventDefault();
+                void addFiles(files);
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -439,28 +438,16 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <label
-            aria-disabled={busy || atLimit}
-            className={`relative inline-flex cursor-pointer items-center gap-1 overflow-hidden rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)] ${
-              busy || atLimit ? "pointer-events-none opacity-40" : ""
-            }`}
+          <FileAttachControl
+            disabled={busy || atLimit}
+            desktopAccept={FILE_INPUT_ACCEPT}
+            title="Upload file"
+            ariaLabel="Upload file"
+            className="rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)]"
+            onFiles={(files) => void addFiles(files)}
           >
-            {pickerReady ? (
-              <input
-                type="file"
-                multiple
-                {...(fileAccept ? { accept: fileAccept } : {})}
-                className="absolute inset-0 z-10 cursor-pointer opacity-0"
-                disabled={busy || atLimit}
-                aria-label="Upload file"
-                onChange={(e) => {
-                  void addFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-            ) : null}
             Upload
-          </label>
+          </FileAttachControl>
           <button
             type="button"
             disabled={busy || atLimit}
