@@ -21,18 +21,22 @@ flowchart LR
 Models sometimes emit space-collapsed SVG such as `svg<svgxmlns=...viewBox="00320240..."`. The `repairCollapsedSvg` function fixes:
 
 - Glued tag names (`svg<svg` → `<svg`)  
-- Missing spaces (`<svgxmlns=` → `<svg xmlns=`)  
+- Missing spaces (`<svgxmlns=` → `<svg xmlns=`) — **only when glued to an attribute (`…=`)**, never when the tag is a longer name (`linearGradient`, `textPath`)  
 - Collapsed viewBox (`"00320240"` → `"0 0 320 240"`)  
 - Lost opening `<` before child elements (`>rectwidth=` → `><rect width=`)  
 - Broken `xmlns` values  
+
+**Regression (2026-08-10):** matching `line` as a prefix inside `linearGradient` used to produce `<line arGradient>` and broken diagram images.
 
 ### Sanitization
 
 `sanitizeSvg` strips: `<script>`, `<foreignObject>`, `on*` handlers, `javascript:` URIs, `data:text/html`.
 
+Then **`expandSvgViewBoxToFit`** widens the root `viewBox` (and matching full-bleed background `<rect>`) when speech / joke text would otherwise paint past the right edge — required because `<img data:image/svg+xml>` always clips to the viewBox.
+
 ### Rendering Strategy
 
-Base64-encoded SVG data URIs rendered as `<img>` elements **outside** react-markdown. Long percent-encoded data URIs frequently fail inside markdown parsers. `splitTutorContent` extracts all `![alt](data:image/svg+xml;base64,...)` patterns and renders them as native `<img>` tags while the remaining text goes through react-markdown for formatting.
+Base64-encoded SVG data URIs rendered as `<img>` elements **outside** react-markdown. Long percent-encoded data URIs frequently fail inside markdown parsers. `splitTutorContent` extracts all `![alt](data:image/svg+xml;base64,...)` patterns and renders them as native `<img>` tags while the remaining text goes through react-markdown for formatting. CSS: `.tutor-md-img` uses `width: 100%` + `object-fit: contain` so comic panels use the bubble width.
 
 ### Mermaid Support
 

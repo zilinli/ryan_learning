@@ -1,6 +1,6 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.3.2 · August 2026  
+> Version 0.3.3 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---
@@ -79,6 +79,8 @@ flowchart TB
 | **[subsystems/dialect-cloud-tts-poc.md](subsystems/dialect-cloud-tts-poc.md)** | POC verification notes & homepage acceptance checklist |
 | **[subsystems/teochew-stt-remediation.md](subsystems/teochew-stt-remediation.md)** | Teochew STT remediation — generic Minnan vs. local Chaoshan root cause, A/B eval, feedback enrichment |
 | **[subsystems/malay-language-support.md](subsystems/malay-language-support.md)** | Malay (Bahasa Melayu) language support — edge-tts TTS, Bailian STT, es/fr-style prompt branches |
+| **[subsystems/shanghainese-support.md](subsystems/shanghainese-support.md)** | Shanghainese (上海话) — Bailian STT primary, edge Cantonese TTS + Wu→粤 character map |
+| **[subsystems/faq-feedback-panel.md](subsystems/faq-feedback-panel.md)** | Help & feedback panel — FAQ + GitHub Issues + feasibility → TODO |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |

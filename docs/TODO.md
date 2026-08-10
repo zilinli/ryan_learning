@@ -16,6 +16,18 @@
 
 ---
 
+## ✅ UX: History Listen + Short Voice Labels (2026-08-10)
+
+> **Design:** [subsystems/voice-tts-stt.md](subsystems/voice-tts-stt.md) · [geometry-diagrams.md](subsystems/geometry-diagrams.md)
+
+- [x] **UX.V1** — Assistant bubbles: Listen / Stop (`speakOnce`) for history replay
+- [x] **UX.V2** — Voice picker labels language-only (no 百炼/FormoSpeech/Edge TTS suffixes)
+- [x] **UX.V3** — TTS never soft-breaks into SVG `<style>`; `/api/tts` cleans at entry
+- [x] **UX.V4** — SVG `linearGradient` repair + viewBox auto-expand for comic panels
+- [x] **UX.V5** — README + DESIGN + subsystem docs updated; tests green; develop + master
+
+---
+
 ## ✅ FB: FAQ / Feedback Panel + GitHub Issue Sync (2026-08-10)
 
 > **Design:** [subsystems/faq-feedback-panel.md](subsystems/faq-feedback-panel.md)

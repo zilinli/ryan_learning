@@ -81,7 +81,7 @@ Add `"sha"` to `MULTI_ENGINE_LANGS` in `stt-engine-order.ts`.
 
 | File | Change |
 |---|---|
-| `voices.ts` | `SpeechLang` += `"sha"`; `TutorVoiceId` += `"shanghainese"`; `ReplyLangMode` += `"sha"`; add `TUTOR_VOICES.shanghainese` entry (label: `Shanghainese (上海话 · Cantonese Edge TTS)`); `edgeVoiceForLang`: `sha → zh-HK-WanLungNeural` |
+| `voices.ts` | `SpeechLang` += `"sha"`; `TutorVoiceId` += `"shanghainese"`; `ReplyLangMode` += `"sha"`; add `TUTOR_VOICES.shanghainese` entry (label: `Shanghainese (上海话)` — no engine suffix in UI); `edgeVoiceForLang`: `sha → zh-HK-WanLungNeural` |
 | `stt-lang.ts` | `SttLang` += `"sha"`; 3 mapping functions |
 | `transcribe/route.ts` | ALLOWED += `"sha"`; aliases: `shanghainese`, `上海话`, `上海`, `wu` |
 | `bailian-asr.ts` | `bailianAsrLanguageHint("sha") → "zh"` |

@@ -1,6 +1,7 @@
 # 🎙️ Voice, TTS & STT
 
-> **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)
+> **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
+> Status: **shipped** · updated 2026-08-10
 
 ---
 
@@ -14,28 +15,44 @@ flowchart LR
     end
 
     subgraph Output
-        Text["Tutor reply"] --> Clean["cleanTutorSpeechText"]
-        Clean --> Chunk["chunkForNeuralTts"]
+        Text["Tutor reply / history Listen"] --> Clean["cleanTutorSpeechText"]
+        Clean --> Chunk["chunkForNeuralTts / speakOnce"]
         Chunk --> API2["/api/tts"]
         API2 --> Player["Speech Player"]
     end
 
     subgraph Backend
-        API1 --> STT["Local STT :8765"]
-        API2 --> Edge["Edge Neural TTS"]
+        API1 --> Engines["Bailian / iFlytek / local STT"]
+        API2 --> TTS["Bailian CosyVoice · FormoSpeech · Edge"]
     end
 ```
 
-## Voice Inventory
+## Voice Inventory (UI labels)
 
-| Voice ID | Language | Neural Voice ID |
-|----------|----------|----------------|
-| `ava` | English (US) | `en-US-AvaNeural` |
-| `ryan` | English (GB) | `en-GB-RyanNeural` |
-| `yunxi` | 普通话 | `zh-CN-YunxiNeural` |
-| `wanLung` | 粤语 | `zh-HK-WanLungNeural` |
-| `alvaro` | Español (ES) | `es-ES-AlvaroNeural` |
-| `jorge` | Español (MX) | `es-MX-JorgeNeural` |
+Picker labels show **language only** — no engine names (avoids wrap / noise).
+
+| Voice ID | UI label | Speech lang | TTS routing (internal) |
+|----------|----------|-------------|------------------------|
+| `auto` | Auto (粤语优先) | auto | edge by detected lang |
+| `ryan` / `ava` | Ryan / Ava (English) | en | edge |
+| `yunxi` | Yunxi (Mandarin) | zh | edge |
+| `wanLung` | WanLung (Cantonese) | yue | edge |
+| `alvaro` / `jorge` | Álvaro / Jorge (Spanish) | es | edge |
+| `henri` | Henri (French) | fr | edge |
+| `osman` / `yasmin` | Osman / Yasmin (Bahasa Melayu) | ms | edge |
+| `teochew` | Hokkien (闽南话) | teo | Bailian CosyVoice (edge fallback) |
+| `hakka` | Hakka (客家话) | hak | FormoSpeech |
+| `shanghainese` | Shanghainese (上海话) | sha | edge Cantonese + `normalizeForTTS` |
+
+## History message replay (one-click Listen)
+
+Finished **assistant** bubbles show a **Listen / Stop** control under the message (`ChatThread`).
+
+| Piece | Behavior |
+|-------|----------|
+| `SpeakStreamApi.speakOnce(text)` | Replays cleaned text with the current voice (works even if auto-Speak is off) |
+| `TutorShell.speakingMessageId` | Highlights the active Listen button; Stop clears it |
+| Streaming bubble | No Listen until the reply finishes |
 
 ## Language Detection
 
@@ -46,31 +63,40 @@ flowchart LR
 
 ## TTS Text Cleaning
 
-`cleanTutorSpeechText()`:
-- Strips diagrams and data-URI junk
-- LaTeX → speech: `\frac{1}{2}` → "1 over 2", `x^2` → "x squared", `\sqrt{2}` → "square root of 2"
-- Removes markdown chrome, code fences, blockquote formatting
-- Collapses whitespace, joins CJK without Latin spaces
+`cleanTutorSpeechText()` / streaming `pullSpeakableFromBuffer()`:
+
+- Strips ```svg / ```mermaid fences, bare `<svg>`, data-URIs, mid-stream CSS leftovers
+- Diagram masks use a private-use char (`\uE000`), **not spaces** — soft-breaks must not cut inside SVG `<style>` (regression: speaking `font-family` / `@keyframes`)
+- `/api/tts` also runs `cleanTutorSpeechText` at entry (belt & suspenders)
+- LaTeX → speech: `\frac{1}{2}` → "1 over 2", `x^2` → "x squared"
+- Removes markdown chrome; joins CJK without Latin spaces
 
 ## Streaming TTS
 
-`chunkForNeuralTts()` splits at sentence boundaries (max 280 chars). `pullSpeakableFromBuffer()` yields complete sentences early while streaming — no waiting for the full reply.
+`chunkForNeuralTts()` splits at sentence boundaries. `pullSpeakableFromBuffer()` yields speakable phrases while streaming and **never** soft-breaks into a complete or incomplete diagram payload.
+
+## Test design
+
+| ID | Case |
+|----|------|
+| V-L1 | Voice labels for teo/hak/sha contain language name, not `TTS` / `FormoSpeech` / `百炼` |
+| V-L2 | `speakOnce` API exists on `SpeakStreamApi` |
+| V-S1 | Streaming buffer with fenced SVG + `<style>` never speaks `font-family` / `@keyframes` |
+| V-S2 | Full session with ```svg cleans to prose only via `cleanTutorSpeechText` |
 
 ## Files
 
 | File | Role |
 |------|------|
 | `src/lib/tts-text.ts` | Speech cleaning, chunking, streaming buffer |
-| `src/lib/tts-text.test.ts` | 11 tests |
-| `src/lib/voices.ts` | Voice definitions, lang detection, TTS resolution |
-| `src/lib/voices.test.ts` | Voice / language tests |
-| `src/lib/speech-player.ts` | Mobile-first TTS queue with abort/cancel |
-| `src/lib/wav-recorder.ts` | Browser mic → WAV encoder |
-| `src/api/tts/route.ts` | TTS proxy → Edge Neural |
-| `src/api/transcribe/route.ts` | STT endpoint → local service |
-| `scripts/stt_server.py` | faster-whisper + SenseVoice server |
-| `src/components/VoiceControls.tsx` | Mic / Speak / voice picker UI — layout in [ui-composer.md](ui-composer.md) |
+| `src/lib/tts-text.test.ts` / `diagram-tts.test.ts` | Cleaning + no-speak-diagram regressions |
+| `src/lib/voices.ts` | Voice definitions (short UI labels) |
+| `src/lib/speech-player.ts` | TTS queue; re-cleans in `enqueueChunk` |
+| `src/app/api/tts/route.ts` | TTS proxy (dialect + edge) |
+| `src/components/VoiceControls.tsx` | Mic / Speak / picker + `speakOnce` |
+| `src/components/ChatThread.tsx` | History **Listen / Stop** |
+| `src/components/TutorShell.tsx` | Wires `speakingMessageId` ↔ speak API |
 
 ## UI chrome vs tutoring language
 
-Voice **picker labels and hints** are English ([ui-composer.md](ui-composer.md) §6). TTS preview strings and agent reply language remain multilingual; Cantonese stays the Chinese family default.
+Voice **picker labels and hints** stay short and language-first. TTS preview strings and agent reply language remain multilingual; Cantonese stays the Chinese family default.
