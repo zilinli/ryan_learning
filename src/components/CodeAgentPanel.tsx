@@ -3,7 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CodeAgentThread } from "./CodeAgentThread";
 import { ConsoleComposer, type ComposerSubmit } from "./ConsoleComposer";
 import { PinGate } from "./PinGate";
-import { getConsoleSessionId } from "@/lib/mini-console-store";
+import {
+  clearCodeAgentPanelContext,
+  getConsoleSessionId,
+  loadCodeAgentPanelContext,
+  saveCodeAgentPanelContext,
+} from "@/lib/mini-console-store";
+import { consumeConsoleSse } from "@/lib/console-sse";
+import type { ConsoleRunSnapshot } from "@/lib/console-run-store";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type { ConsoleMessage, DiffBlock, ToolCall } from "@/lib/types";
 
@@ -21,6 +28,26 @@ const HINT_EXAMPLES = [
   "Add a new subject filter",
 ];
 
+function finishFromText(
+  full: string,
+  setDiff: (d: DiffBlock | null) => void,
+  setPhase: (p: "idle" | "thinking" | "diff" | "applied" | "error") => void,
+) {
+  const hasDiff = /\+\+\+|diff --git/i.test(full);
+  if (hasDiff) {
+    const m = full.match(/```diff\n?([\s\S]*?)```/);
+    const raw = m ? m[1]! : full;
+    setDiff({
+      filepath: (full.match(/file[:\s]+([a-z0-9_/. -]+\.(tsx?|css|js|json|md))/i)?.[1]) || "file",
+      hunks: raw, added: (raw.match(/^\+/gm) || []).length, removed: (raw.match(/^-/gm) || []).length,
+    });
+    setPhase("diff");
+  } else {
+    setPhase("applied");
+    setTimeout(() => setPhase("idle"), 4000);
+  }
+}
+
 export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const [phase, setPhase] = useState<"idle" | "thinking" | "diff" | "applied" | "error">("idle");
   const [msgs, setMsgs] = useState<ConsoleMessage[]>([]);
@@ -34,20 +61,204 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const [runningTools, setRunningTools] = useState<ToolCall[]>([]);
   const sid = useRef(getConsoleSessionId());
   const ab = useRef<AbortController | null>(null);
+  const runIdRef = useRef<string | undefined>(undefined);
+  const lastEventIdRef = useRef(0);
+  const resumingRef = useRef(false);
+  const restoredRef = useRef(false);
+  const phaseRef = useRef(phase);
+  const msgsRef = useRef(msgs);
+  const streamRef = useRef(streamingContent);
+  const statusRef = useRef(statusText);
+  const errRef = useRef(err);
+  phaseRef.current = phase;
+  msgsRef.current = msgs;
+  streamRef.current = streamingContent;
+  statusRef.current = statusText;
+  errRef.current = err;
 
+  const persist = useCallback((patch?: {
+    phase?: typeof phase;
+    messages?: ConsoleMessage[];
+    runId?: string | null;
+    streamingContent?: string;
+    statusText?: string;
+    error?: string;
+  }) => {
+    const nextRunId = patch && "runId" in patch
+      ? (patch.runId ?? undefined)
+      : runIdRef.current;
+    if (patch && "runId" in patch) runIdRef.current = nextRunId;
+    saveCodeAgentPanelContext({
+      sessionId: sid.current,
+      phase: patch?.phase ?? phaseRef.current,
+      messages: patch?.messages ?? msgsRef.current,
+      runId: nextRunId,
+      lastEventId: lastEventIdRef.current,
+      streamingContent: patch?.streamingContent ?? streamRef.current,
+      statusText: patch?.statusText ?? statusRef.current,
+      error: patch?.error ?? errRef.current,
+      updatedAt: Date.now(),
+    });
+  }, []);
+
+  const bindSseHandlers = useCallback(() => ({
+    onDelta: (_t: string, full: string) => setStreamingContent(full),
+    onStatus: (status: string, data: Record<string, unknown>) => {
+      setStatusText(status);
+      if (data.running && typeof data.tool === "string") {
+        setRunningTools(prev => [...prev, {
+          tool: data.tool as string, input: data.input as string,
+          output: data.output as string, status: "running" as const,
+          time: new Date().toISOString(),
+        }]);
+      }
+    },
+    onToolCall: (data: Record<string, unknown>) => {
+      const tc: ToolCall = {
+        tool: String(data.tool || ""), input: data.input as string,
+        output: data.output as string, status: data.error ? "error" : "success",
+        time: new Date().toISOString(),
+      };
+      setRunningTools(prev => {
+        const updated = [...prev];
+        const idx = updated.findIndex(t => t.tool === tc.tool && t.status === "running");
+        if (idx >= 0) updated[idx] = tc; else updated.push(tc);
+        return updated.slice(-10);
+      });
+      setStatusText(data.error ? ("✗ " + tc.tool) : ("✓ " + tc.tool));
+    },
+    onEventId: (id: number) => { lastEventIdRef.current = id; },
+  }), []);
+
+  const applyAssistantResult = useCallback((full: string, tools?: ToolCall[]) => {
+    setStreamingContent(""); setStatusText("");
+    runIdRef.current = undefined;
+    lastEventIdRef.current = 0;
+    setMsgs(p => {
+      const next = [...p, {
+        id: "cm_" + Date.now(), role: "assistant" as const,
+        content: full || "Done!", createdAt: Date.now(),
+        tools: tools?.length ? tools : undefined,
+      }];
+      persist({ phase: "applied", messages: next, runId: null, streamingContent: "", statusText: "" });
+      return next;
+    });
+    finishFromText(full, setDiff, setPhase);
+  }, [persist]);
+
+  const attachToRun = useCallback(async (runId: string, after: number, signal: AbortSignal): Promise<string> => {
+    const url = `/api/console/chat?sessionId=${encodeURIComponent(sid.current)}`
+      + `&runId=${encodeURIComponent(runId)}&after=${after}`;
+    const res = await fetch(url, { signal, cache: "no-store" });
+    if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Error " + res.status);
+    return consumeConsoleSse(res.body, signal, bindSseHandlers(), streamRef.current);
+  }, [bindSseHandlers]);
+
+  const resumeActive = useCallback(async () => {
+    if (resumingRef.current) return;
+    resumingRef.current = true;
+    try {
+      const res = await fetch(`/api/console/chat?sessionId=${encodeURIComponent(sid.current)}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const d = await res.json() as {
+        messages?: ConsoleMessage[];
+        activeRun?: ConsoleRunSnapshot | null;
+      };
+      if (Array.isArray(d.messages) && d.messages.length) {
+        setMsgs(d.messages.slice(-20));
+      }
+      const active = d.activeRun;
+      if (!active) {
+        if (runIdRef.current) {
+          runIdRef.current = undefined;
+          lastEventIdRef.current = 0;
+          const nextPhase = phaseRef.current === "thinking" ? "idle" : phaseRef.current;
+          persist({ runId: null, phase: nextPhase });
+          if (phaseRef.current === "thinking") setPhase("idle");
+        }
+        return;
+      }
+      runIdRef.current = active.runId;
+      lastEventIdRef.current = Math.max(lastEventIdRef.current, active.lastEventId);
+      if (active.status === "running") {
+        setPhase("thinking");
+        if (active.fullText) setStreamingContent(active.fullText);
+        setStatusText("Resuming…");
+        persist({ phase: "thinking", runId: active.runId, streamingContent: active.fullText || undefined });
+        ab.current?.abort();
+        const c = new AbortController(); ab.current = c;
+        try {
+          const full = await attachToRun(active.runId, lastEventIdRef.current, c.signal);
+          const text = full || active.fullText || "Done!";
+          applyAssistantResult(text);
+        } catch (e) {
+          if ((e as Error).name === "AbortError") return;
+          setStatusText("Reconnecting…");
+        }
+      } else if (active.status === "done" && active.fullText) {
+        setMsgs(p => {
+          const last = p[p.length - 1];
+          if (last?.role === "assistant" && last.content === active.fullText) return p;
+          const next = [...p, {
+            id: "cm_" + Date.now(), role: "assistant" as const,
+            content: active.fullText, createdAt: Date.now(),
+          }];
+          persist({ phase: "applied", messages: next, runId: null, streamingContent: "" });
+          return next;
+        });
+        setStreamingContent("");
+        runIdRef.current = undefined;
+        finishFromText(active.fullText, setDiff, setPhase);
+      } else if (active.status === "error") {
+        setError(active.error || "Run failed");
+        setPhase("error");
+        setStreamingContent("");
+        runIdRef.current = undefined;
+        persist({ phase: "error", runId: null, error: active.error || "Run failed" });
+      }
+    } finally {
+      resumingRef.current = false;
+    }
+  }, [attachToRun, applyAssistantResult, persist]);
+
+  // Restore local context once, then sync from server when panel opens
   useEffect(() => {
     if (!open) return;
-    let cancelled = false;
-    fetch(`/api/console/chat?sessionId=${encodeURIComponent(sid.current)}`)
-      .then(r => r.ok ? r.json().catch(() => ({})) : ({} as Record<string,unknown>))
-      .then(d => {
-        if (cancelled) return;
-        const ms = (d as { messages?: ConsoleMessage[] }).messages;
-        if (Array.isArray(ms) && ms.length) setMsgs(ms.slice(-10));
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [open]);
+    if (!restoredRef.current) {
+      restoredRef.current = true;
+      const ctx = loadCodeAgentPanelContext();
+      if (ctx.sessionId === sid.current || !ctx.sessionId) {
+        if (ctx.messages.length) setMsgs(ctx.messages);
+        if (ctx.phase === "thinking" || ctx.runId) {
+          setPhase("thinking");
+          if (ctx.streamingContent) setStreamingContent(ctx.streamingContent);
+          if (ctx.statusText) setStatusText(ctx.statusText);
+          runIdRef.current = ctx.runId;
+          lastEventIdRef.current = ctx.lastEventId ?? 0;
+        } else if (ctx.phase && ctx.phase !== "idle") {
+          setPhase(ctx.phase);
+        }
+        if (ctx.error) setError(ctx.error);
+      }
+    }
+    void resumeActive();
+  }, [open, resumeActive]);
+
+  // Mobile: when tab/app becomes visible again, reattach
+  useEffect(() => {
+    if (!open) return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") void resumeActive();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [open, resumeActive]);
+
+  // Persist panel context while open
+  useEffect(() => {
+    if (!open) return;
+    persist();
+  }, [open, msgs, phase, streamingContent, statusText, err, persist]);
 
   useEffect(() => {
     if (!open) return; let cancelled = false;
@@ -78,16 +289,21 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const send = useCallback(async ({ text, attachments, voiceLang }: ComposerSubmit) => {
     setPhase("thinking"); setError(""); setDiff(null);
     setStreamingContent(""); setStatusText("Starting…"); setRunningTools([]);
-    setMsgs(p => [...p, {
+    lastEventIdRef.current = 0;
+    const userMsg: ConsoleMessage = {
       id: "cm_" + Date.now(), role: "user", content: text,
       attachments: attachments.map((a: ClientAttachment) => ({ name: a.name, kind: a.kind })),
       createdAt: Date.now(),
-    }]);
+    };
+    setMsgs(p => {
+      const next = [...p, userMsg];
+      persist({ phase: "thinking", messages: next, streamingContent: "", statusText: "Starting…" });
+      return next;
+    });
     ab.current?.abort();
     const c = new AbortController(); ab.current = c;
 
-    /** Read SSE stream with watchdog — retries once on network drop. */
-    const streamRequest = async (): Promise<string> => {
+    const startPost = async (): Promise<{ full: string; runId?: string }> => {
       const res = await fetch("/api/console/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,96 +317,35 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
         cache: "no-store",
       });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Error " + res.status);
-
-      let full = ""; const tools: ToolCall[] = [];
-      const reader = res.body!.getReader(); const dec = new TextDecoder(); let buf = "";
-
-      while (true) {
-        // watchdog: if no bytes arrive in 45s, assume connection dropped
-        let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
-        const readWithWatchdog = Promise.race([
-          reader.read(),
-          new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
-            watchdogTimer = setTimeout(() => reject(new Error("watchdog")), 45_000);
-          }),
-        ]);
-
-        let done: boolean, value: Uint8Array | undefined;
-        try {
-          ({ done, value } = await readWithWatchdog);
-          clearTimeout(watchdogTimer);
-        } catch (e) {
-          clearTimeout(watchdogTimer);
-          if ((e as Error).message === "watchdog") throw new Error("watchdog");
-          throw e;
-        }
-
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split("\n\n"); buf = parts.pop() ?? "";
-        for (const p of parts) {
-          const ls = p.split("\n"); let ev = "message", dl = "";
-          for (const l of ls) {
-            if (l.startsWith("event:")) ev = l.slice(6).trim();
-            if (l.startsWith("data:")) dl += l.slice(5).trim();
-          }
-          if (!dl) continue;
-          try {
-            const data = JSON.parse(dl) as Record<string,unknown>;
-            if (ev === "hb") { /* heartbeat — ignore */ }
-            else if (ev === "delta" && typeof data.text === "string") {
-              full += data.text; setStreamingContent(full);
-            } else if (ev === "status" && typeof data.status === "string") {
-              setStatusText(data.status);
-              if (data.running && typeof data.tool === "string") {
-                setRunningTools(prev => [...prev, { tool: data.tool as string, input: data.input as string, output: data.output as string, status: "running", time: new Date().toISOString() }]);
-              }
-            } else if (ev === "tool_call") {
-              const tc: ToolCall = { tool: String(data.tool || ""), input: data.input as string, output: data.output as string, status: data.error ? "error" : "success", time: new Date().toISOString() };
-              tools.push(tc);
-              setRunningTools(prev => {
-                const updated = [...prev];
-                const idx = updated.findIndex(t => t.tool === tc.tool && t.status === "running");
-                if (idx >= 0) updated[idx] = tc; else updated.push(tc);
-                return updated.slice(-10);
-              });
-              setStatusText(data.error ? ("✗ " + tc.tool) : ("✓ " + tc.tool));
-            } else if (ev === "error" && typeof data.error === "string") {
-              throw new Error(data.error);
-            } else if (ev === "done") {
-              if (typeof data.text === "string" && data.text.length > full.length) {
-                full = data.text; setStreamingContent(full);
-              }
-            }
-          } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
-        }
+      const runId = res.headers.get("X-Console-Run-Id") || undefined;
+      if (runId) {
+        runIdRef.current = runId;
+        persist({ phase: "thinking", runId });
       }
-      return full;
+      if (!res.body) throw new Error("No stream");
+      const full = await consumeConsoleSse(res.body, c.signal, bindSseHandlers());
+      return { full, runId };
     };
 
     let retries = 0;
-    while (retries <= 1) {
+    while (retries <= 2) {
       try {
         retries++;
-        const full = await streamRequest();
-        setStreamingContent(""); setStatusText("");
-        const hasDiff = /\+\+\+|diff --git/i.test(full);
-        setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "assistant", content: full || "Done!", createdAt: Date.now(), tools: runningTools.length ? runningTools : undefined }]);
-        if (hasDiff) {
-          const m = full.match(/```diff\n?([\s\S]*?)```/);
-          const raw = m ? m[1] : full;
-          setDiff({
-            filepath: (full.match(/file[:\s]+([a-z0-9_/. -]+\.(tsx?|css|js|json|md))/i)?.[1]) || "file",
-            hunks: raw, added: (raw.match(/^\+/gm) || []).length, removed: (raw.match(/^-/gm) || []).length,
-          });
-          setPhase("diff");
-        } else { setPhase("applied"); setTimeout(() => setPhase("idle"), 4000); }
+        let full: string;
+        if (retries === 1) {
+          ({ full } = await startPost());
+        } else if (runIdRef.current) {
+          setStatusText("Reconnecting…");
+          full = await attachToRun(runIdRef.current, lastEventIdRef.current, c.signal);
+        } else {
+          ({ full } = await startPost());
+        }
+        applyAssistantResult(full, runningTools);
         return;
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
         const msg = e instanceof Error ? e.message : "Error";
-        // If watchdog or network drop and haven't retried yet — retry once
-        if ((msg === "watchdog" || msg.includes("network") || msg.includes("fetch")) && retries < 2) {
+        if ((msg === "watchdog" || msg.includes("network") || msg.includes("fetch") || msg.includes("Failed")) && retries < 3) {
           setStatusText("Reconnecting…");
           continue;
         }
@@ -202,15 +357,18 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
         setError(friendly[msg] || friendly[msg.split(" ").slice(0, 2).join(" ")] || msg);
         setPhase("error"); setStreamingContent(""); setStatusText("");
         setMsgs(p => [...p, { id: "cm_" + Date.now(), role: "system", content: "Error: " + msg, createdAt: Date.now() }]);
+        persist({ phase: "error", error: msg });
         return;
       }
     }
-  }, [runningTools]);
+  }, [runningTools, bindSseHandlers, attachToRun, applyAssistantResult, persist]);
 
   const clearSession = useCallback(() => {
     setMsgs([]); setPhase("idle"); setDiff(null); setError("");
     setStreamingContent(""); setStatusText(""); setRunningTools([]);
+    runIdRef.current = undefined; lastEventIdRef.current = 0;
     ab.current?.abort();
+    clearCodeAgentPanelContext();
   }, []);
 
   const lock = useCallback(() => {

@@ -178,3 +178,15 @@ export interface ConsoleMessage { id: string; role: "user" | "assistant" | "syst
 export interface ConsoleSessionState { sessionId: string; messages: ConsoleMessage[]; fileChangeCount: number; hasUncommittedChanges: boolean; }
 export interface ConsoleChatRequestBody { sessionId: string; message: string; attachments?: ChatAttachmentPayload[]; voiceLang?: string; pin?: string; pinHash?: string; action?: string; }
 export interface MiniConsoleState { open: boolean; sessionId: string; phase: "idle" | "thinking" | "diff" | "applied" | "error"; userMessage: string; agentMessage: string; diff?: DiffBlock; testResults?: TestResult; error?: string; }
+/** Client-persisted Code Agent panel context for mobile resume */
+export interface CodeAgentPanelContext {
+  sessionId: string;
+  phase: "idle" | "thinking" | "diff" | "applied" | "error";
+  messages: ConsoleMessage[];
+  runId?: string;
+  lastEventId?: number;
+  streamingContent?: string;
+  statusText?: string;
+  error?: string;
+  updatedAt: number;
+}

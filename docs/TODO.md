@@ -892,6 +892,17 @@
 | ✅ 8.8 | Session load + "+ New" | done | `CodeAgentPanel.tsx` |
 | ✅ 8.9 | ACC link when :3001 reachable | done | `CodeAgentPanel.tsx` |
 
+### Mobile disconnect / context resume (2026-08-10)
+
+> **Design:** [subsystems/code-agent-mobile-resume.md](subsystems/code-agent-mobile-resume.md)
+
+- [x] **MR-1** — `console-run-store`: create / append / finish / eventsAfter / session active
+- [x] **MR-2** — Detach agent from `req.signal` abort in `/api/console/chat` (abort closes SSE only)
+- [x] **MR-3** — `GET /api/console/chat?sessionId=` → messages + `activeRun`; optional `runId`+`after` SSE reattach
+- [x] **MR-4** — Persist Code Agent panel context (msgs, phase, runId) in `mini-console-store`
+- [x] **MR-5** — `CodeAgentPanel`: visibility resume + poll/reattach; unit tests green
+
+
 ---
 
 ## ✅ Phase 9: STT Service Reliability — done
