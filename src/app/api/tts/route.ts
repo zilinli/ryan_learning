@@ -73,7 +73,8 @@ type DialectTtsEngine =
   | "aliyun-clone"
   | "aliyun-minnan"
   | "formospeech"
-  | "formospeech-cache";
+  | "formospeech-cache"
+  | "edge-fallback";
 
 /**
  * 方言 TTS：闽南话 / 客家话。
@@ -163,7 +164,7 @@ export async function POST(req: Request) {
     if (dialectLang) {
       try {
         const { audio, engine } = await synthesizeDialect(text, dialectLang);
-        return new Response(audio, {
+        return new Response(new Uint8Array(audio), {
           headers: {
             "Content-Type": "audio/mpeg",
             "Cache-Control": "no-store",
@@ -196,7 +197,7 @@ export async function POST(req: Request) {
 
     // zh/yue/en/es/fr/ms/sha：走 edge-tts
     const audio = await synthesizeEdge(ttsText, voice);
-    return new Response(audio, {
+    return new Response(new Uint8Array(audio), {
       headers: {
         "Content-Type": "audio/mpeg",
         "Cache-Control": "no-store",
