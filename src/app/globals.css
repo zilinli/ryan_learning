@@ -395,8 +395,15 @@ textarea:focus-visible {
   margin: 0 auto;
 }
 
-.tutor-md-img {
+.tutor-md-img,
+.tutor-diagram img {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: min(28rem, 70vh);
+  object-fit: contain;
+  object-position: left center;
 }
 
 @keyframes slide-up {

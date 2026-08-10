@@ -23,7 +23,198 @@ export function sanitizeSvg(raw: string): string | null {
   if (!s.includes("xmlns=")) {
     s = s.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
   }
+  // Models often draw joke/comic text past the right edge of a tight viewBox;
+  // <img> always clips to viewBox — expand so labels are not cut off.
+  s = expandSvgViewBoxToFit(s);
   return s;
+}
+
+/** Rough advance width for mixed CJK + Latin (good enough for viewBox padding). */
+export function estimateSvgTextWidth(text: string, fontSize: number): number {
+  let w = 0;
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (
+      (code >= 0x1100 && code <= 0x11ff) ||
+      (code >= 0x2e80 && code <= 0x9fff) ||
+      (code >= 0xf900 && code <= 0xfaff) ||
+      (code >= 0xff00 && code <= 0xffef) ||
+      (code >= 0x3040 && code <= 0x30ff) ||
+      (code >= 0xac00 && code <= 0xd7af)
+    ) {
+      w += fontSize * 1.05;
+    } else if (ch === " " || ch === "\t") {
+      w += fontSize * 0.33;
+    } else if (code > 0x7f) {
+      w += fontSize * 0.85;
+    } else {
+      w += fontSize * 0.62;
+    }
+  }
+  return w;
+}
+
+/**
+ * Expand root viewBox (and numeric width/height) so text / shapes near the
+ * edges are not clipped when the SVG is rendered as an <img>.
+ */
+export function expandSvgViewBoxToFit(svg: string): string {
+  const vbMatch = /viewBox\s*=\s*"([^"]+)"/i.exec(svg);
+  if (!vbMatch) return svg;
+  const nums = vbMatch[1]!.trim().split(/[\s,]+/).map(Number);
+  if (nums.length !== 4 || nums.some((n) => !Number.isFinite(n))) return svg;
+
+  const [vbMinX, vbMinY, vbW, vbH] = nums as [number, number, number, number];
+  let contentMinX = vbMinX;
+  let contentMinY = vbMinY;
+  let contentMaxX = vbMinX + vbW;
+  let contentMaxY = vbMinY + vbH;
+
+  const note = (left: number, top: number, right: number, bottom: number) => {
+    if (![left, top, right, bottom].every(Number.isFinite)) return;
+    contentMinX = Math.min(contentMinX, left);
+    contentMinY = Math.min(contentMinY, top);
+    contentMaxX = Math.max(contentMaxX, right);
+    contentMaxY = Math.max(contentMaxY, bottom);
+  };
+
+  const attrNum = (attrs: string, name: string, fallback = NaN) => {
+    const m = new RegExp(`(?:^|\\s)${name}\\s*=\\s*"([^"]*)"`, "i").exec(attrs);
+    if (!m) return fallback;
+    const n = parseFloat(m[1]!);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  // <text> labels — the usual overflow culprit in joke / comic panels
+  const textRe = /<text\b([^>]*)>([\s\S]*?)<\/text>/gi;
+  let tm: RegExpExecArray | null;
+  while ((tm = textRe.exec(svg))) {
+    const attrs = tm[1] || "";
+    const body = (tm[2] || "").replace(/<[^>]+>/g, "");
+    if (!body.trim()) continue;
+    const x = attrNum(attrs, "x", 0);
+    const y = attrNum(attrs, "y", 0);
+    const fs = attrNum(attrs, "font-size", 14);
+    const anchor = /text-anchor\s*=\s*"([^"]*)"/i.exec(attrs)?.[1] || "start";
+    const tw = estimateSvgTextWidth(body, fs);
+    let left = x;
+    let right = x + tw;
+    if (anchor === "middle" || anchor === "center") {
+      left = x - tw / 2;
+      right = x + tw / 2;
+    } else if (anchor === "end") {
+      left = x - tw;
+      right = x;
+    }
+    note(left, y - fs, right, y + fs * 0.4);
+  }
+
+  // Common shapes that may sit past the right/bottom edge
+  const shapeRe =
+    /<(?:rect|circle|ellipse|line|polyline|polygon)\b([^>]*?)(?:\/>|>)/gi;
+  let sm: RegExpExecArray | null;
+  while ((sm = shapeRe.exec(svg))) {
+    const attrs = sm[1] || "";
+    const tag = sm[0].slice(1, sm[0].search(/[\s>/]/)).toLowerCase();
+    if (tag === "rect") {
+      const x = attrNum(attrs, "x", 0);
+      const y = attrNum(attrs, "y", 0);
+      const w = attrNum(attrs, "width", 0);
+      const h = attrNum(attrs, "height", 0);
+      if (w > 0 && h > 0) note(x, y, x + w, y + h);
+    } else if (tag === "circle") {
+      const cx = attrNum(attrs, "cx", 0);
+      const cy = attrNum(attrs, "cy", 0);
+      const r = attrNum(attrs, "r", 0);
+      note(cx - r, cy - r, cx + r, cy + r);
+    } else if (tag === "ellipse") {
+      const cx = attrNum(attrs, "cx", 0);
+      const cy = attrNum(attrs, "cy", 0);
+      const rx = attrNum(attrs, "rx", 0);
+      const ry = attrNum(attrs, "ry", 0);
+      note(cx - rx, cy - ry, cx + rx, cy + ry);
+    } else if (tag === "line") {
+      const x1 = attrNum(attrs, "x1", 0);
+      const y1 = attrNum(attrs, "y1", 0);
+      const x2 = attrNum(attrs, "x2", 0);
+      const y2 = attrNum(attrs, "y2", 0);
+      note(Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2));
+    }
+  }
+
+  const pad = 18;
+  const overflowLeft = contentMinX < vbMinX - 0.5;
+  const overflowTop = contentMinY < vbMinY - 0.5;
+  const overflowRight = contentMaxX > vbMinX + vbW + 0.5;
+  const overflowBottom = contentMaxY > vbMinY + vbH + 0.5;
+
+  const originX = Math.min(vbMinX, contentMinX) - (overflowLeft ? pad : 0);
+  const originY = Math.min(vbMinY, contentMinY) - (overflowTop ? pad : 0);
+  const finalMaxX =
+    Math.max(vbMinX + vbW, contentMaxX) + (overflowRight ? pad : 0);
+  const finalMaxY =
+    Math.max(vbMinY + vbH, contentMaxY) + (overflowBottom ? pad : 0);
+  const finalW = finalMaxX - originX;
+  const finalH = finalMaxY - originY;
+
+  // No meaningful expansion
+  if (
+    Math.abs(originX - vbMinX) < 0.5 &&
+    Math.abs(originY - vbMinY) < 0.5 &&
+    Math.abs(finalW - vbW) < 0.5 &&
+    Math.abs(finalH - vbH) < 0.5
+  ) {
+    return svg;
+  }
+
+  const r = (n: number) => Math.round(n * 10) / 10;
+  let out = svg.replace(
+    /viewBox\s*=\s*"[^"]+"/i,
+    `viewBox="${r(originX)} ${r(originY)} ${r(finalW)} ${r(finalH)}"`,
+  );
+  // Keep intrinsic size in sync so <img> layout matches the new canvas
+  if (/\bwidth\s*=\s*"[\d.]+"/i.test(out)) {
+    out = out.replace(/\bwidth\s*=\s*"[\d.]+"/i, `width="${Math.ceil(finalW)}"`);
+  }
+  if (/\bheight\s*=\s*"[\d.]+"/i.test(out)) {
+    out = out.replace(/\bheight\s*=\s*"[\d.]+"/i, `height="${Math.ceil(finalH)}"`);
+  }
+
+  // Stretch full-bleed background rects that matched the old canvas
+  // so expanded joke panels don't leave a blank strip on the right/bottom.
+  out = out.replace(/<rect\b([^>]*?)\/>/gi, (full, attrs: string) => {
+    const x = attrNum(attrs, "x", 0);
+    const y = attrNum(attrs, "y", 0);
+    const w = attrNum(attrs, "width", NaN);
+    const h = attrNum(attrs, "height", NaN);
+    if (!Number.isFinite(w) || !Number.isFinite(h)) return full;
+    const coversOld =
+      Math.abs(x - vbMinX) < 1 &&
+      Math.abs(y - vbMinY) < 1 &&
+      Math.abs(w - vbW) < 1 &&
+      Math.abs(h - vbH) < 1;
+    if (!coversOld) return full;
+    let next = attrs;
+    if (/\bwidth\s*=/.test(next)) {
+      next = next.replace(/\bwidth\s*=\s*"[^"]*"/i, `width="${r(finalW)}"`);
+    }
+    if (/\bheight\s*=/.test(next)) {
+      next = next.replace(/\bheight\s*=\s*"[^"]*"/i, `height="${r(finalH)}"`);
+    }
+    if (originX !== vbMinX && /\bx\s*=/.test(next)) {
+      next = next.replace(/\bx\s*=\s*"[^"]*"/i, `x="${r(originX)}"`);
+    } else if (originX !== vbMinX && !/\bx\s*=/.test(next)) {
+      next = ` x="${r(originX)}"${next}`;
+    }
+    if (originY !== vbMinY && /\by\s*=/.test(next)) {
+      next = next.replace(/\by\s*=\s*"[^"]*"/i, `y="${r(originY)}"`);
+    } else if (originY !== vbMinY && !/\by\s*=/.test(next)) {
+      next = ` y="${r(originY)}"${next}`;
+    }
+    return `<rect${next}/>`;
+  });
+
+  return out;
 }
 
 /** Repair SVG that lost spaces in streaming (e.g. `<svgxmlns=` / `viewBox="00320240"`). */

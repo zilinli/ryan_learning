@@ -31,6 +31,23 @@ describe("sanitizeSvg", () => {
     expect(out).toContain("<svg");
     expect(out!.trim().startsWith("svg")).toBe(false);
   });
+
+  it("expands viewBox when joke text overflows the right edge", () => {
+    // Real production case: electron joke — text at x=250 past viewBox 360
+    const raw = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220">
+  <rect width="360" height="220" fill="#0f172a" rx="12"/>
+  <text x="250" y="55" fill="#e2e8f0" font-size="13">「我掉一个电子！」</text>
+  <text x="250" y="195" fill="#fbbf24" font-size="13" font-weight="700">「确定！我是 positive！」</text>
+</svg>`;
+    const out = sanitizeSvg(raw)!;
+    const vb = /viewBox="([^"]+)"/.exec(out)![1]!.split(/\s+/).map(Number);
+    expect(vb[0]).toBe(0);
+    expect(vb[2]).toBeGreaterThan(360);
+    const w = /width="(\d+)"/.exec(out);
+    expect(Number(w![1])).toBeGreaterThan(360);
+    // Background rect should stretch with the new canvas
+    expect(out).toMatch(/<rect[^>]*width="4\d{2}"/);
+  });
 });
 
 describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {

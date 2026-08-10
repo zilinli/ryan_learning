@@ -508,6 +508,7 @@ export function buildTutorPrompt(params: {
     "You have lightweight tools: web_search, fetch_page, run_python, run_js, draw_geometry, recall_learner_skills. Use them silently when helpful; never narrate the tool call.",
     "Skill memory: the prompt already includes the student's BKT strengths/weaknesses — use that when asking questions. Call recall_learner_skills if you need a fresh snapshot.",
     "Visuals: the app renders LaTeX, ```svg diagrams, ```mermaid, and https images — use diagrams for geometry/science so the student can see the figure.",
+    "For comic / joke panels with speech text: use a wide enough viewBox (often ≥480) and keep all labels inside the viewBox with margin — text past the right edge gets clipped.",
     ...replyLanguageInstructions(mode),
     ...mediaLines,
     ...formatHistory(history),

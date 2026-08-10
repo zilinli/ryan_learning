@@ -174,7 +174,7 @@ function TutorImg({
     <img
       src={src}
       alt={alt || "diagram"}
-      className={`tutor-md-img my-2 max-h-80 w-auto max-w-full rounded-xl object-contain ${
+      className={`tutor-md-img my-2 w-full max-w-full rounded-xl object-contain ${
         user
           ? "border border-[var(--surface)]"
           : "border border-[var(--line)] bg-[var(--surface)]"

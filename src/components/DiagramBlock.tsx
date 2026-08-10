@@ -64,7 +64,7 @@ function SvgDiagram({ code, user }: { code: string; user?: boolean }) {
       <img
         src={src}
         alt="diagram"
-        className="mx-auto max-h-80 w-auto max-w-full"
+        className="tutor-diagram-img mx-auto w-full max-w-full"
       />
     </div>
   );
