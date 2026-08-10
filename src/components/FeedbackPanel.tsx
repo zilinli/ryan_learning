@@ -16,6 +16,10 @@ const FAQ_ITEMS = [
     a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
   },
   {
+    q: "How do I translate a reply into English?",
+    a: 'Under any finished tutor message, tap "EN English" next to Listen. Spark shows an English panel (tap Hide to collapse). Diagrams and code blocks are skipped so you get readable prose.',
+  },
+  {
     q: "How do I submit homework photos?",
     a: "Tap the camera icon to take a photo, or the paperclip icon to upload from your gallery. The AI will read the homework and coach you step by step.",
   },
