@@ -135,6 +135,11 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     runIdRef.current = undefined;
     lastEventIdRef.current = 0;
     setMsgs(p => {
+      const last = p[p.length - 1];
+      if (last?.role === "assistant" && last.content === (full || "Done!")) {
+        persist({ phase: "applied", messages: p, runId: null, streamingContent: "", statusText: "" });
+        return p;
+      }
       const next = [...p, {
         id: "cm_" + Date.now(), role: "assistant" as const,
         content: full || "Done!", createdAt: Date.now(),
