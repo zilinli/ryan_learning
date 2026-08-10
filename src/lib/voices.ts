@@ -110,7 +110,7 @@ export const TUTOR_VOICES: TutorVoice[] = [
   },
   {
     id: "teochew",
-    label: "Hokkien (闽南话 · 百炼 TTS)",
+    label: "Hokkien (闽南话)",
     // 方言不走 edge（禁止粤语/普通话顶替）；实际 /api/tts?lang=teo
     edgeVoice: "en-GB-RyanNeural",
     preview: "汝好，我是 Spark，我会用闽南话给你讲。",
@@ -118,7 +118,7 @@ export const TUTOR_VOICES: TutorVoice[] = [
   },
   {
     id: "hakka",
-    label: "Hakka (客家话 · FormoSpeech TTS)",
+    label: "Hakka (客家话)",
     // 方言不走 edge；实际 /api/tts?lang=hak → FormoSpeech 缓存
     edgeVoice: "en-GB-RyanNeural",
     preview: "你好！涯係 Spark，涯會用客家話同你傾。",
@@ -126,7 +126,7 @@ export const TUTOR_VOICES: TutorVoice[] = [
   },
   {
     id: "shanghainese",
-    label: "Shanghainese (上海话 · Cantonese Edge TTS)",
+    label: "Shanghainese (上海话)",
     // 上海话无 Bailian/iFlytek TTS → edge-tts 粤语兜底 + normalizeForTTS 字符替换
     edgeVoice: "zh-HK-WanLungNeural",
     preview: "侬好！我是 Spark，我会用上海话对侬讲闲话。",

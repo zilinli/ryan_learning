@@ -59,7 +59,11 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     expect(getTutorVoice("teochew").lang).toBe("teo");
     expect(getTutorVoice("hakka").lang).toBe("hak");
     expect(getTutorVoice("teochew").label).toMatch(/闽南话/);
-    expect(getTutorVoice("hakka").label).toMatch(/FormoSpeech|客家话/);
+    expect(getTutorVoice("hakka").label).toMatch(/客家话/);
+    expect(getTutorVoice("teochew").label).not.toMatch(/百炼|TTS|FormoSpeech/i);
+    expect(getTutorVoice("hakka").label).not.toMatch(/FormoSpeech|TTS/i);
+    expect(getTutorVoice("shanghainese").label).toMatch(/上海话/);
+    expect(getTutorVoice("shanghainese").label).not.toMatch(/Cantonese|Edge|TTS/i);
     // edgeVoice 字段仅为兼容；方言朗读走 /api/tts?lang=，禁止粤语顶替
     expect(getTutorVoice("teochew").edgeVoice).not.toMatch(/^zh-HK/);
     expect(getTutorVoice("hakka").edgeVoice).not.toMatch(/^zh-HK/);

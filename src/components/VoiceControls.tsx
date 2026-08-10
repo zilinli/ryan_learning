@@ -42,6 +42,8 @@ export type SpeakStreamApi = {
   begin: () => void;
   push: (delta: string) => void;
   finish: (fullText: string) => void;
+  /** Replay a finished message (history / one-click speak). */
+  speakOnce: (text: string) => Promise<void>;
   stop: () => void;
   unlocked: () => boolean;
 };
@@ -275,6 +277,10 @@ export function VoiceControls({
         }, 200);
         window.setTimeout(() => window.clearInterval(watch), 180_000);
       },
+      speakOnce: async (text: string) => {
+        // History replay works even if auto-speak is off
+        await runSpeak(text);
+      },
       stop: () => stopSpeaking(),
       unlocked: () => getSharedSpeechEngine().isUnlocked(),
     };
@@ -282,7 +288,7 @@ export function VoiceControls({
     return () => {
       onSpeakApiRef.current?.(null);
     };
-  }, [makeHandlers, stopSpeaking]);
+  }, [makeHandlers, stopSpeaking, runSpeak]);
 
   useEffect(
     () => () => {
@@ -515,10 +521,10 @@ export function VoiceControls({
           window.localStorage.setItem("spark-dialect-notice-v11", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "闽南话：识别走讯飞 + 百炼 + 本地 SenseVoice 三层兜底；朗读走百炼闽南 TTS，无密钥时用粤语 edge 临时兜底。"
+              ? "闽南话：识别三层兜底（讯飞→百炼→本地）；朗读用闽南音色。"
               : picked.lang === "hak"
-              ? "客家话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走 FormoSpeech 真客语（繁体用字）。"
-              : "上海话：识别走百炼 Fun-ASR（兜底: 讯飞→本地）；朗读走粤语 edge TTS + 吴语字符映射（暂无上海话 TTS 商业 API）。",
+              ? "客家话：识别走本地 SenseVoice；朗读用客语音色。"
+              : "上海话：识别走百炼（兜底讯飞→本地）；朗读暂用粤语音色近似。",
           );
         }
       } catch {

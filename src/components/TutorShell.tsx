@@ -329,6 +329,7 @@ export function TutorShell() {
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [checkMode, setCheckMode] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
@@ -606,6 +607,11 @@ export function TutorShell() {
     speakApiRef.current = api;
   }, []);
 
+  const stopSpeakAll = useCallback(() => {
+    stopSpeakAll();
+    setSpeakingMessageId(null);
+  }, []);
+
   // Debounce localStorage + server sync while streaming — sync writes freeze the UI on iPad
   useEffect(() => {
     if (!ready || !store) return;
@@ -826,7 +832,7 @@ export function TutorShell() {
     const nextStore = loadConversations(id);
     setStore(nextStore);
     setError("");
-    speakApiRef.current?.stop();
+    stopSpeakAll();
     if (nextStore.conversations.length > 0) {
       setUrlSession(nextStore.activeId, id);
     }
@@ -906,7 +912,7 @@ export function TutorShell() {
       ],
     });
     setError("");
-    speakApiRef.current?.stop();
+    stopSpeakAll();
     setUrlSession(id, accountId);
 
     // CA-3 — once/day opener on empty new chat (practice offer takes precedence in UI)
@@ -916,7 +922,7 @@ export function TutorShell() {
 
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
-    speakApiRef.current?.stop();
+    stopSpeakAll();
     const mem = learningMemory || loadLearningMemory(accountId);
     const leaving = getActiveConversation(store);
     let conversations = store.conversations;
@@ -966,7 +972,7 @@ export function TutorShell() {
       }
     }
     resetIdsRef.current.delete(id);
-    speakApiRef.current?.stop();
+    stopSpeakAll();
     const nextStore = { version: 3 as const, activeId, conversations };
     setStore(nextStore);
     setUrlSession(activeId, accountId);
@@ -1040,6 +1046,7 @@ export function TutorShell() {
     );
 
     if (shouldSpeak) {
+      setSpeakingMessageId(null);
       speakApiRef.current?.begin();
     }
 
@@ -1184,7 +1191,7 @@ export function TutorShell() {
       if (msg.includes("CURSOR_API_KEY") || msg.includes("API Key")) {
         setKeyMissing(true);
       }
-      speakApiRef.current?.stop();
+      stopSpeakAll();
       setStore((prev) => {
         if (!prev) return prev;
         const cur = getActiveConversation(prev);
@@ -1402,6 +1409,20 @@ export function TutorShell() {
                 setSessionOpener(null);
               }
               composerApiRef.current?.openCamera();
+            }}
+            speakingMessageId={speakingMessageId}
+            onSpeakMessage={(messageId, text) => {
+              setSpeakingMessageId(messageId);
+              void speakApiRef.current
+                ?.speakOnce(text)
+                .finally(() => {
+                  setSpeakingMessageId((cur) =>
+                    cur === messageId ? null : cur,
+                  );
+                });
+            }}
+            onStopSpeak={() => {
+              stopSpeakAll();
             }}
           />
         </main>

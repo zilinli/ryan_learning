@@ -34,6 +34,12 @@ type Props = {
   onOpenerTry?: () => void;
   /** Snap homework — dismiss opener + open camera */
   onSnapHomework?: () => void;
+  /** One-click replay for a finished message */
+  onSpeakMessage?: (messageId: string, text: string) => void;
+  /** Stop current replay / TTS */
+  onStopSpeak?: () => void;
+  /** Message id currently being spoken (for button state) */
+  speakingMessageId?: string | null;
 };
 
 function formatTime(epochMs: number): string {
@@ -107,6 +113,9 @@ export function ChatThread({
   onPracticeDismiss,
   onOpenerTry,
   onSnapHomework,
+  onSpeakMessage,
+  onStopSpeak,
+  speakingMessageId,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -521,6 +530,68 @@ export function ChatThread({
                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-[var(--teal)] align-middle" />
               ) : null}
             </div>
+            {/* One-click replay for finished assistant messages */}
+            {!isUser &&
+            displayContent &&
+            onSpeakMessage &&
+            !(
+              streaming &&
+              m === messages[messages.length - 1]
+            ) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (speakingMessageId === m.id) {
+                    onStopSpeak?.();
+                    return;
+                  }
+                  onSpeakMessage(m.id, displayContent);
+                }}
+                className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
+                  speakingMessageId === m.id
+                    ? "bg-[var(--teal)]/15 text-[var(--teal)]"
+                    : "text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--teal)]"
+                }`}
+                aria-label={
+                  speakingMessageId === m.id ? "Stop reading" : "Read aloud"
+                }
+                title={
+                  speakingMessageId === m.id ? "Stop reading" : "Read aloud"
+                }
+              >
+                {speakingMessageId === m.id ? (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    aria-hidden
+                  >
+                    <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    aria-hidden
+                  >
+                    <path
+                      d="M2.5 6.5v3h2.2L8 12.5V3.5L4.7 6.5H2.5Z"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10 5.8a2.6 2.6 0 0 1 0 4.4M11.7 4.2a4.6 4.6 0 0 1 0 7.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                )}
+                {speakingMessageId === m.id ? "Stop" : "Listen"}
+              </button>
+            ) : null}
           </article>
         );
       })}
