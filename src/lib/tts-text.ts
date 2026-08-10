@@ -77,9 +77,23 @@ export function cleanTutorSpeechText(text: string): string {
   // Markdown chrome
   t = t.replace(/^#{1,6}\s+/gm, "");
   t = t.replace(/^\s*>\s?/gm, "");
+  // Task list markers — must run before the general list marker rule
+  t = t.replace(/^\s*[-*]\s*\[[ xX]\]\s*/gm, "");
   t = t.replace(/^\s*[-*+]\s+/gm, "");
   t = t.replace(/^\s*\d+\.\s+/gm, "");
   t = t.replace(/[*_~]+/g, "");
+  // Strip markdown tables (pipe-delimited rows + separator lines)
+  t = t.replace(/\|[\s\-:|]+\|/g, " ");
+  t = t.replace(/\|[^|\n]+\|/g, " ");
+  // Horizontal rules
+  t = t.replace(/^[-*_]{3,}\s*$/gm, " ");
+  // Strip HTML tags (keep nothing inside)
+  t = t.replace(/<[^>]*>/g, " ");
+  // Strip raw URLs
+  t = t.replace(/https?:\/\/[^\s)]+/g, " ");
+  // Strip HTML entities
+  t = t.replace(/&[a-zA-Z]+;/g, " ");
+  t = t.replace(/&#\d+;/g, " ");
 
   if (isMostlyCjk(t)) {
     t = t.replace(/\n{2,}/g, "。");

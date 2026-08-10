@@ -71,6 +71,34 @@ describe("cleanTutorSpeechText", () => {
     expect(out).toContain("先睇图");
     expect(out).toContain("你睇到咩");
   });
+
+  it("strips HTML tags from speech", () => {
+    expect(cleanTutorSpeechText("你好<img src='x.png'>世界")).toBe("你好世界");
+    expect(cleanTutorSpeechText("请看<br>下面<br/>内容")).toBe("请看下面内容");
+  });
+
+  it("strips markdown tables", () => {
+    const out = cleanTutorSpeechText("| 姓名 | 分数 |\n|---|---|\n| 小明 | 90 |");
+    expect(out).not.toMatch(/[|]/);
+  });
+
+  it("strips markdown horizontal rules", () => {
+    expect(cleanTutorSpeechText("上面内容\n---\n下面内容")).toBe("上面内容下面内容");
+    expect(cleanTutorSpeechText("上面内容\n***\n下面内容")).toBe("上面内容。下面内容");
+  });
+
+  it("strips task list markers", () => {
+    expect(cleanTutorSpeechText("- [ ] 未完成\n- [x] 已完成")).toBe("未完成已完成");
+  });
+
+  it("strips raw URLs from speech", () => {
+    expect(cleanTutorSpeechText("打开 https://example.com 看看")).toBe("打开看看");
+    expect(cleanTutorSpeechText("参考 (https://a.b/c) 就行")).toBe("参考 ( ) 就行");
+  });
+
+  it("strips HTML entities", () => {
+    expect(cleanTutorSpeechText("a &amp; b &lt; c &gt; d")).toBe("a b c d");
+  });
 });
 
 describe("chunkForNeuralTts", () => {
