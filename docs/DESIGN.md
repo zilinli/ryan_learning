@@ -78,6 +78,7 @@ flowchart TB
 | **[subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md)** | Dialect cloud STT/TTS + correction UX（历史设计；STT 主路径已迁百炼） |
 | **[subsystems/dialect-cloud-tts-poc.md](subsystems/dialect-cloud-tts-poc.md)** | POC verification notes & homepage acceptance checklist |
 | **[subsystems/teochew-stt-remediation.md](subsystems/teochew-stt-remediation.md)** | Teochew STT remediation — generic Minnan vs. local Chaoshan root cause, A/B eval, feedback enrichment |
+| **[subsystems/malay-language-support.md](subsystems/malay-language-support.md)** | Malay (Bahasa Melayu) language support — edge-tts TTS, Bailian STT, es/fr-style prompt branches |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
