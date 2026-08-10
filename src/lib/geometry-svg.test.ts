@@ -87,7 +87,32 @@ describe("svgToMarkdownImage / normalizeTutorMarkdown", () => {
     expect(decoded).toContain(">C<");
   });
 
-  it("repairs space-collapsed SVG from streaming (real chat bug)", () => {
+  it("does not corrupt linearGradient / radialGradient / textPath tags", () => {
+    const raw = `\`\`\`svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 260">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B8E0F8"/>
+    </linearGradient>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#E09B1A"/>
+    </marker>
+  </defs>
+  <rect width="360" height="260" fill="url(#sky)" rx="12"/>
+  <textPath href="#p">hi</textPath>
+</svg>
+\`\`\``;
+    const out = normalizeTutorMarkdown(raw);
+    expect(out).toContain("data:image/svg+xml;base64,");
+    const b64 = out.match(/base64,([^)\s]+)/)?.[1];
+    const decoded = Buffer.from(b64!, "base64").toString("utf8");
+    expect(decoded).toContain("<linearGradient");
+    expect(decoded).not.toContain("<line arGradient");
+    expect(decoded).toContain('id="sky"');
+    expect(decoded).toContain("url(#sky)");
+  });
+
+  it("still repairs collapsed <svgxmlns= / <rectwidth=", () => {
     const collapsed =
       '```svg<svgxmlns="http://wwww3.org2000svgviewBox="00320240width="100%"role="img">' +
       'rectwidth="100%"height="100%"fill="#f7fbfa"/>' +

@@ -34,13 +34,16 @@ export function repairCollapsedSvg(raw: string): string {
   s = s.replace(/^svg(?=<svg)/i, "");
 
   // <svgxmlns= → <svg xmlns=
+  // IMPORTANT: only split when the tag is glued to an *attribute* (…=),
+  // never when it is a longer tag name (linearGradient, textPath, …).
+  // Bad old pattern `(?=[a-zA-Z_])` turned <linearGradient into <line arGradient.
   s = s.replace(
-    /<(svg|path|circle|line|polygon|polyline|rect|text|g|defs)(?=[a-zA-Z_])/gi,
+    /<(svg|polyline|polygon|circle|path|rect|text|line|defs|g)(?=[a-zA-Z_][\w:.-]*=)/gi,
     "<$1 ",
   );
   // >rectwidth= → ><rect width=  (opening < lost after previous tag)
   s = s.replace(
-    />(svg|path|circle|line|polygon|polyline|rect|text|g|defs)(?=[a-zA-Z_][\w:-]*=)/gi,
+    />(svg|polyline|polygon|circle|path|rect|text|line|defs|g)(?=[a-zA-Z_][\w:.-]*=)/gi,
     "><$1 ",
   );
 
