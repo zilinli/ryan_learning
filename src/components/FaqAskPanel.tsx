@@ -8,7 +8,7 @@ import {
   filesToAttachments,
   type ClientAttachment,
 } from "@/lib/file-payload";
-import { MAX_ATTACHMENTS } from "@/lib/attachments";
+import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
 import type { FaqReplyLang } from "@/lib/faq-ai";
 import { sttLangFromDictLang } from "@/lib/stt-lang";
 import type { DictLang } from "@/lib/dict-types";
@@ -431,7 +431,7 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,.pdf,.txt,.md"
+            accept={FILE_INPUT_ACCEPT}
             multiple
             className="hidden"
             onChange={(e) => {

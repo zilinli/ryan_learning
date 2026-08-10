@@ -27,7 +27,11 @@ export function isAllowedAttachment(
     "text/plain",
     "text/markdown",
     "text/csv",
+    "text/html",
     "application/json",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ];
   const allowedExts = [
     ".png",
@@ -39,7 +43,10 @@ export function isAllowedAttachment(
     ".pdf",
     ".txt",
     ".md",
+    ".markdown",
     ".csv",
+    ".html",
+    ".htm",
     ".json",
     ".log",
     ".ts",
@@ -47,6 +54,9 @@ export function isAllowedAttachment(
     ".js",
     ".jsx",
     ".py",
+    ".docx",
+    ".pptx",
+    ".xlsx",
   ];
   return (
     allowedMimes.includes(mime) ||

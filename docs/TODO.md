@@ -18,6 +18,20 @@
 
 ---
 
+## 📎 DOC: Document upload parse — MD / Office / HTML (2026-08-10)
+
+> **Design:** [subsystems/document-upload-parse.md](subsystems/document-upload-parse.md)
+> **Goal:** Tutor / Code Agent / Ask AI accept Markdown, Word, PPT, Excel, HTML and inject extracted text into the model.
+
+- [x] **DOC.1** — Allowlist + `FILE_INPUT_ACCEPT` in `attachments.ts` (+ agent-chat parity)
+- [x] **DOC.2** — `file-payload`: Office as base64; HTML/MD/code as text
+- [x] **DOC.3** — `extract-files`: officeparser + HTML strip; wire into existing summaries
+- [x] **DOC.4** — Update Composer / ConsoleComposer / FaqAskPanel `accept=`
+- [x] **DOC.5** — Unit tests (allowlist + extract fixtures)
+- [x] **DOC.6** — run_tests → apply_changes → publish_develop → deploy_live
+
+---
+
 ## 📊 Report-v3 optimizations (2026-08-10)
 
 > **Feasibility:** [subsystems/report-v3-feasibility.md](subsystems/report-v3-feasibility.md) · third-party audit Top3

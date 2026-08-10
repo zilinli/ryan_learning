@@ -1,5 +1,6 @@
 import {
   isAllowedAttachment,
+  isOfficeAttachment,
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
   normalizeMime,
@@ -55,7 +56,7 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
       mimeType = file.type || "image/jpeg";
     } else {
       throw new Error(
-        `Unsupported file: ${name || "unknown"}. Use photos, PDF, or text.`,
+        `Unsupported file: ${name || "unknown"}. Use photos, PDF, Markdown, Word, PowerPoint, Excel, HTML, or text.`,
       );
     }
   }
@@ -104,7 +105,20 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
     };
   }
 
-  // Text docs: keep text for the tutor + a dataUrl so history can download
+  // Office Open XML — binary; server extracts text (never readAsText)
+  if (isOfficeAttachment(mimeType, name)) {
+    const dataUrl = await readAsDataURL(file);
+    return {
+      id,
+      name,
+      mimeType,
+      kind: "file",
+      dataUrl,
+      data: stripDataUrlPrefix(dataUrl),
+    };
+  }
+
+  // Text docs (md/html/code/csv/…): keep text for the tutor + a dataUrl so history can download
   const textContent = await readAsText(file);
   const clipped = textContent.slice(0, 80_000);
   const dataUrl = `data:${mimeType || "text/plain"};charset=utf-8,${encodeURIComponent(clipped)}`;

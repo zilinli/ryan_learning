@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { MAX_ATTACHMENTS } from "@/lib/attachments";
+import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
 import {
   attachmentFromCameraCapture,
   filesToAttachments,
@@ -253,7 +253,7 @@ export function Composer({
             id={fileId}
             type="file"
             multiple
-            accept="image/*,.pdf,.txt,.md,.csv,application/pdf,text/plain,text/csv"
+            accept={FILE_INPUT_ACCEPT}
             className="sr-only"
             disabled={pickDisabled}
             onChange={(e) => {

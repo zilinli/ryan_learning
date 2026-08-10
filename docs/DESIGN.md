@@ -83,6 +83,7 @@ flowchart TB
 | **[subsystems/shanghainese-support.md](subsystems/shanghainese-support.md)** | Shanghainese (上海话) — Bailian STT + 千问 TTS `Jada`（禁粤语 edge） |
 | **[subsystems/faq-feedback-panel.md](subsystems/faq-feedback-panel.md)** | Help & feedback panel — Ask AI + FAQ + GitHub Issues + feasibility → TODO |
 | **[subsystems/ai-faq.md](subsystems/ai-faq.md)** | Ask AI — multilingual help grounded in docs/code (read-only agent) |
+| **[subsystems/document-upload-parse.md](subsystems/document-upload-parse.md)** | Upload MD / Word / PPT / Excel / HTML — allowlist + server text extract |
 | **[subsystems/report-v3-feasibility.md](subsystems/report-v3-feasibility.md)** | Third-party audit R1–R10 feasibility + W1–W3 landing notes |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |

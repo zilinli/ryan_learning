@@ -4,8 +4,65 @@ export const MAX_ATTACHMENTS = 9;
 export const MAX_FILE_BYTES = 12 * 1024 * 1024;
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|heic|heif)$/i;
-const TEXT_EXT = /\.(txt|md|csv|json|log|text)$/i;
+const TEXT_EXT =
+  /\.(txt|md|markdown|csv|json|log|text|html?|ts|tsx|js|jsx|py|mjs|cjs)$/i;
 const PDF_EXT = /\.pdf$/i;
+const OFFICE_EXT = /\.(docx|pptx|xlsx)$/i;
+
+/** Shared `<input type="file" accept>` for Tutor + Ask AI */
+export const FILE_INPUT_ACCEPT = [
+  "image/*",
+  ".pdf",
+  ".txt",
+  ".md",
+  ".markdown",
+  ".csv",
+  ".html",
+  ".htm",
+  ".docx",
+  ".pptx",
+  ".xlsx",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "text/html",
+  "text/markdown",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
+
+/** Code Agent also accepts common source / log files */
+export const CONSOLE_FILE_INPUT_ACCEPT = [
+  FILE_INPUT_ACCEPT,
+  ".json",
+  ".log",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".py",
+  ".mjs",
+  ".cjs",
+].join(",");
+
+export function isOfficeAttachment(mimeType: string, name: string): boolean {
+  if (OFFICE_EXT.test(name)) return true;
+  const mime = (mimeType || "").toLowerCase();
+  return (
+    mime ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mime ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    mime ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+}
+
+export function isHtmlAttachment(mimeType: string, name: string): boolean {
+  if (/\.html?$/i.test(name)) return true;
+  return (mimeType || "").toLowerCase() === "text/html";
+}
 
 export function guessKind(mimeType: string, name: string): AttachmentKind {
   if (mimeType.startsWith("image/") || IMAGE_EXT.test(name)) return "image";
@@ -18,7 +75,12 @@ export function isAllowedAttachment(mimeType: string, name: string): boolean {
   if (!name || name === "image.jpg" || name === "blob") {
     if (!mimeType || mimeType === "application/octet-stream") return true;
   }
-  if (IMAGE_EXT.test(name) || PDF_EXT.test(name) || TEXT_EXT.test(name)) {
+  if (
+    IMAGE_EXT.test(name) ||
+    PDF_EXT.test(name) ||
+    TEXT_EXT.test(name) ||
+    OFFICE_EXT.test(name)
+  ) {
     return true;
   }
   if (
@@ -26,7 +88,14 @@ export function isAllowedAttachment(mimeType: string, name: string): boolean {
     mimeType === "text/plain" ||
     mimeType === "text/markdown" ||
     mimeType === "text/csv" ||
-    mimeType === "application/json"
+    mimeType === "text/html" ||
+    mimeType === "application/json" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   ) {
     return true;
   }
@@ -41,9 +110,24 @@ export function normalizeMime(mimeType: string, name: string): string {
     else if (lower.endsWith(".webp")) mime = "image/webp";
     else if (lower.endsWith(".gif")) mime = "image/gif";
     else if (lower.endsWith(".pdf")) mime = "application/pdf";
-    else if (lower.endsWith(".txt") || lower.endsWith(".md")) mime = "text/plain";
+    else if (lower.endsWith(".html") || lower.endsWith(".htm"))
+      mime = "text/html";
+    else if (lower.endsWith(".md") || lower.endsWith(".markdown"))
+      mime = "text/markdown";
+    else if (lower.endsWith(".txt")) mime = "text/plain";
     else if (lower.endsWith(".csv")) mime = "text/csv";
+    else if (lower.endsWith(".json")) mime = "application/json";
+    else if (lower.endsWith(".docx"))
+      mime =
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    else if (lower.endsWith(".pptx"))
+      mime =
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    else if (lower.endsWith(".xlsx"))
+      mime =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     else if (IMAGE_EXT.test(lower)) mime = "image/jpeg";
+    else if (TEXT_EXT.test(lower)) mime = "text/plain";
     else mime = "application/octet-stream";
   }
   if (mime === "image/jpg") mime = "image/jpeg";
