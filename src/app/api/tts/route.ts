@@ -78,7 +78,8 @@ type DialectTtsEngine =
 
 /**
  * 方言 TTS：闽南话 / 客家话。
- * teo 无百炼密钥时用粤语 edge 临时兜底；hak 固定 FormoSpeech。
+ * teo → 百炼；失败抛错（禁止粤语 edge 顶替）。
+ * hak → FormoSpeech（或家人复刻）；失败抛错。
  */
 async function synthesizeDialect(
   text: string,
@@ -87,14 +88,15 @@ async function synthesizeDialect(
   const provider = ttsProviderForLang(dialectLang);
 
   if (provider.kind === "edge") {
-    // Fallback: 方言无百炼/FormoSpeech → edge 临时兜底；先做字符映射
-    const edgeText = normalizeForTTS(text, dialectLang);
-    const audio = await synthesizeEdge(edgeText, provider.voice);
-    return { audio, engine: "edge-fallback" };
+    // 设计上 teo/hak 不应落到 edge；若误配置则拒绝粤语顶替
+    throw new DialectTtsUnavailableError(
+      dialectLang === "teo"
+        ? "闽南话未配置百炼音色，拒绝粤语 edge 顶替。"
+        : "客家话未配置 FormoSpeech，拒绝粤语 edge 顶替。",
+    );
   }
 
   if (provider.kind === "aliyun-clone") {
-    // Try Aliyun clone. If it fails (e.g. invalid API key), fall back to edge silently.
     try {
       const cacheVoice = provider.voiceId;
       const engine: DialectTtsEngine =
@@ -113,14 +115,13 @@ async function synthesizeDialect(
       );
       return { audio, engine };
     } catch (err) {
-      console.warn(
-        `[tts] aliyun clone failed for ${dialectLang}, falling back to edge:`,
-        err instanceof Error ? err.message : err,
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[tts] aliyun clone failed for ${dialectLang}:`, msg);
+      throw new DialectTtsUnavailableError(
+        dialectLang === "teo"
+          ? `闽南话百炼合成失败：${msg}。不使用粤语顶替。`
+          : `客家话百炼合成失败：${msg}。不使用粤语顶替。`,
       );
-      const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
-      const edgeText = normalizeForTTS(text, dialectLang);
-      const audio = await synthesizeEdge(edgeText, edgeVoice);
-      return { audio, engine: "edge-fallback" };
     }
   }
 
@@ -139,11 +140,9 @@ async function synthesizeDialect(
     return { audio, engine: "formospeech" };
   }
 
-  // Last resort: edge fallback (belt & suspenders — applies normalizeForTTS)
-  const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
-  const edgeText = normalizeForTTS(text, dialectLang);
-  const audio = await synthesizeEdge(edgeText, edgeVoice);
-  return { audio, engine: "edge-fallback" };
+  throw new DialectTtsUnavailableError(
+    `方言 TTS 未配置 provider（${dialectLang}）。`,
+  );
 }
 
 export async function POST(req: Request) {

@@ -9,10 +9,12 @@ afterEach(() => {
 
 describe("sttEngineOrder", () => {
   it("returns three-tier fallback for teo by default", () => {
+    delete process.env.STT_ENGINE_ORDER_TEO;
     expect(sttEngineOrder("teo")).toEqual(["bailian", "iflytek", "local"]);
   });
 
   it("returns three-tier fallback for hak by default", () => {
+    delete process.env.STT_ENGINE_ORDER_HAK;
     expect(sttEngineOrder("hak")).toEqual(["bailian", "iflytek", "local"]);
   });
 

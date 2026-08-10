@@ -1452,6 +1452,7 @@ export function TutorShell() {
         <div className="shrink-0 border-t border-[var(--line)]/60 bg-[color-mix(in_srgb,var(--bg0)_82%,transparent)] backdrop-blur-md">
         <Composer
           disabled={busy}
+          accountId={accountId}
           voiceEnabled={voiceEnabled}
           onVoiceEnabledChange={setVoiceEnabled}
           onVoiceIdChange={setVoiceId}

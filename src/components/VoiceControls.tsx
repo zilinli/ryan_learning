@@ -24,6 +24,7 @@ import {
   TUTOR_VOICES,
   type TutorVoiceId,
 } from "@/lib/voices";
+import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
 import {
   blobLooksSilent,
   filenameForAudioBlob,
@@ -51,6 +52,8 @@ export type SpeakStreamApi = {
 
 type Props = {
   disabled?: boolean;
+  /** Active student account — voice prefs must not leak across accounts */
+  accountId?: string;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onVoiceIdChange?: (id: TutorVoiceId) => void;
@@ -83,6 +86,7 @@ type RecorderSession = {
 
 export function VoiceControls({
   disabled,
+  accountId = RYAN_ACCOUNT,
   voiceEnabled,
   onVoiceEnabledChange,
   onVoiceIdChange,
@@ -120,15 +124,20 @@ export function VoiceControls({
     onSpeakApiRef.current = onSpeakApi;
   }, [onSpeakApi]);
 
+  const accountIdRef = useRef(accountId);
+  useEffect(() => {
+    accountIdRef.current = accountId;
+  }, [accountId]);
+
   useEffect(() => {
     let cancelled = false;
     const t = setTimeout(() => {
       if (cancelled) return;
-      const id = loadVoiceId();
+      const id = loadVoiceId(accountId);
       setVoiceId(id);
       voiceIdRef.current = id;
       onVoiceIdChange?.(id);
-      const enabled = loadSpeakEnabled();
+      const enabled = loadSpeakEnabled(accountId);
       wantSpeakRef.current = enabled;
       if (enabled !== voiceEnabled) onVoiceEnabledChange(enabled);
     }, 0);
@@ -136,12 +145,13 @@ export function VoiceControls({
       cancelled = true;
       clearTimeout(t);
     };
+    // Re-load when switching student accounts — do not inherit Ryan prefs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [accountId]);
 
   useEffect(() => {
     wantSpeakRef.current = voiceEnabled;
-    saveSpeakEnabled(voiceEnabled);
+    saveSpeakEnabled(voiceEnabled, accountIdRef.current);
   }, [voiceEnabled]);
 
   useEffect(() => {
@@ -504,7 +514,7 @@ export function VoiceControls({
     const next = !voiceEnabled;
     wantSpeakRef.current = next;
     onVoiceEnabledChange(next);
-    saveSpeakEnabled(next);
+    saveSpeakEnabled(next, accountIdRef.current);
     if (!next) {
       stopSpeaking();
       setHint("Speak off");
@@ -523,7 +533,7 @@ export function VoiceControls({
   const changeVoice = async (id: TutorVoiceId) => {
     setVoiceId(id);
     voiceIdRef.current = id;
-    saveVoiceId(id);
+    saveVoiceId(id, accountIdRef.current);
     onVoiceIdChange?.(id);
     setVoiceMenuOpen(false);
     const picked = getTutorVoice(id);
@@ -546,7 +556,7 @@ export function VoiceControls({
     const voice = picked;
     wantSpeakRef.current = true;
     if (!voiceEnabled) onVoiceEnabledChange(true);
-    saveSpeakEnabled(true);
+    saveSpeakEnabled(true, accountIdRef.current);
     try {
       await getSharedSpeechEngine().unlock();
       void runSpeak(voice.preview);

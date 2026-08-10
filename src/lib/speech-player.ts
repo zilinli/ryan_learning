@@ -78,6 +78,8 @@ export class NeuralSpeechEngine {
   private silentUri: string | null = null;
   /** Prefetch next chunk(s) while the current one plays — kills inter-paragraph gaps */
   private prefetch = new Map<string, Promise<ArrayBuffer>>();
+  /** Abort in-flight /api/tts when Stop bumps generation */
+  private fetchAbort: AbortController | null = null;
 
   isUnlocked() {
     return this.unlocked && !!this.audio;
@@ -157,12 +159,21 @@ export class NeuralSpeechEngine {
     this.streamBuf = "";
     this.playedInStream = false;
     this.prefetch.clear();
+    try {
+      this.fetchAbort?.abort();
+    } catch {
+      // ignore
+    }
+    this.fetchAbort = null;
     const a = this.audio;
     if (a) {
       try {
         a.onended = null;
         a.onerror = null;
         a.pause();
+        // Clear src so buffered MP3 cannot keep playing after revoke
+        a.removeAttribute("src");
+        a.load();
       } catch {
         // ignore
       }
@@ -369,21 +380,36 @@ export class NeuralSpeechEngine {
     // FormoSpeech / Aliyun clone 合成可达数十秒；sha=edge正常超时
     const timeoutMs = dialect ? 90_000 : 45_000;
     const attempt = async (): Promise<ArrayBuffer> => {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice, lang: dialectTts }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error || `TTS HTTP ${res.status}`);
+      const gen = this.generation;
+      const ac = new AbortController();
+      this.fetchAbort = ac;
+      const timer = window.setTimeout(() => ac.abort(), timeoutMs);
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice, lang: dialectTts }),
+          signal: ac.signal,
+        });
+        if (gen !== this.generation) {
+          throw new Error("TTS cancelled");
+        }
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(data?.error || `TTS HTTP ${res.status}`);
+        }
+        const ab = await res.arrayBuffer();
+        if (gen !== this.generation) {
+          throw new Error("TTS cancelled");
+        }
+        if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
+        return ab;
+      } finally {
+        window.clearTimeout(timer);
+        if (this.fetchAbort === ac) this.fetchAbort = null;
       }
-      const ab = await res.arrayBuffer();
-      if (ab.byteLength < 100) throw new Error("TTS returned empty audio");
-      return ab;
     };
     try {
       return await attempt();
@@ -391,6 +417,9 @@ export class NeuralSpeechEngine {
       // Dialect：失败不重试第二次长等待（否则像卡死）；非方言仍快速重试一次
       if (dialect) {
         throw err instanceof Error ? err : new Error("TTS failed");
+      }
+      if (err instanceof Error && /cancel/i.test(err.message)) {
+        throw err;
       }
       await new Promise((r) => setTimeout(r, 280));
       try {

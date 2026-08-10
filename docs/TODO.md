@@ -13,6 +13,20 @@
 > Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** · **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)**  
 > P0 hardening: **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** · B3: **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)**  
 > Code Agent pipeline: **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** (research → design → TODO → develop push → deploy)
+> Listen sync + Stop: **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)**
+
+---
+
+## 🔧 FIX: Listen voice sync + Stop (2026-08-10)
+
+> **Design:** [subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md) · [voice-tts-stt.md](subsystems/voice-tts-stt.md)
+> **Bug:** `acct_ching` 选闽南话但 Listen 播粤语；Stop 停不了。
+
+- [ ] **LVS.1** — Pass `accountId` TutorShell → Composer → VoiceControls; scoped load/save voice
+- [ ] **LVS.2** — teo TTS: remove Cantonese edge silent fallback (503 / throw)
+- [ ] **LVS.3** — `speech-player.stop()`: abort fetch + clear `audio.src`
+- [ ] **LVS.4** — Unit tests (provider + voice isolation + stop generation)
+- [ ] **LVS.5** — run_tests → apply_changes → publish_develop → deploy_live
 
 ---
 

@@ -1,16 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   ALLOWED_EDGE_VOICES,
   DEFAULT_VOICE_ID,
   detectSpeechLang,
   getTutorVoice,
+  loadVoiceId,
   normalizeVoiceId,
   replyLangFromVoice,
   replyLanguageInstructions,
   resolveEdgeVoice,
   resolveReplyLanguage,
+  saveVoiceId,
   TUTOR_VOICES,
 } from "./voices";
+import { nsKey } from "./tenant-storage";
 
 describe("normalizeVoiceId", () => {
   it("defaults empty/unknown to auto", () => {
@@ -203,5 +206,38 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(ms).toMatch(/Bahasa Melayu/);
     expect(ms).toMatch(/REQUIRED/);
     expect(ms).toMatch(/Malaysia|Melayu/);
+  });
+});
+
+describe("per-account voice prefs (LVS)", () => {
+  const store = new Map<string, string>();
+  const ls = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+  };
+
+  beforeEach(() => {
+    store.clear();
+    (globalThis as Record<string, unknown>).localStorage = ls;
+    (globalThis as Record<string, unknown>).window = { localStorage: ls };
+  });
+
+  afterEach(() => {
+    store.clear();
+  });
+
+  it("saveVoiceId for acct_ching does not change acct_ryan", () => {
+    saveVoiceId("teochew", "acct_ching");
+    saveVoiceId("wanLung", "acct_ryan");
+    expect(loadVoiceId("acct_ching")).toBe("teochew");
+    expect(loadVoiceId("acct_ryan")).toBe("wanLung");
+    expect(localStorage.getItem(nsKey("acct_ching", "ttsVoice"))).toBe(
+      "teochew",
+    );
   });
 });

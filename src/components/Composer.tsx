@@ -18,6 +18,8 @@ export type ComposerApi = {
 
 type Props = {
   disabled?: boolean;
+  /** Active student account — forwarded to VoiceControls for scoped prefs */
+  accountId?: string;
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onVoiceIdChange?: (id: TutorVoiceId) => void;
@@ -38,6 +40,7 @@ type Props = {
 
 export function Composer({
   disabled,
+  accountId,
   voiceEnabled,
   onVoiceEnabledChange,
   onVoiceIdChange,
@@ -292,6 +295,7 @@ export function Composer({
 
           <VoiceControls
             disabled={disabled || adding}
+            accountId={accountId}
             voiceEnabled={voiceEnabled}
             onVoiceEnabledChange={onVoiceEnabledChange}
             onVoiceIdChange={(id) => {

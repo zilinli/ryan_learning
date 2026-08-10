@@ -20,13 +20,11 @@ afterEach(() => {
 });
 
 describe("ttsProviderForLang", () => {
-  it("teo without Bailian key falls back to edge (zh-HK-WanLungNeural)", () => {
+  it("teo without Bailian key throws (never zh-HK edge)", () => {
     delete process.env.ALIYUN_DASHSCOPE_API_KEY;
     delete process.env.TEO_CLONE_VOICE_ID;
-    expect(ttsProviderForLang("teo")).toEqual({
-      kind: "edge",
-      voice: "zh-HK-WanLungNeural",
-    });
+    expect(() => ttsProviderForLang("teo")).toThrow(DialectTtsUnavailableError);
+    expect(() => ttsProviderForLang("teo")).toThrow(/粤语|闽南/);
   });
 
   it("hak without clone uses FormoSpeech voice id (never zh-HK)", () => {

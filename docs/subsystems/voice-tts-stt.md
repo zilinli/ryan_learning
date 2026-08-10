@@ -50,9 +50,12 @@ Finished **assistant** bubbles show a **Listen / Stop** control under the messag
 
 | Piece | Behavior |
 |-------|----------|
-| `SpeakStreamApi.speakOnce(text)` | Replays cleaned text with the current voice (works even if auto-Speak is off) |
+| `SpeakStreamApi.speakOnce(text, voiceId)` | Replays cleaned text with the **current account’s** voice (works even if auto-Speak is off) |
 | `TutorShell.speakingMessageId` | Highlights the active Listen button; Stop clears it |
 | Streaming bubble | No Listen until the reply finishes |
+| Voice prefs | `loadVoiceId` / `saveVoiceId` are **account-scoped** (`VoiceControls` must receive `accountId`) — see [listen-voice-sync-stop.md](listen-voice-sync-stop.md) |
+| teo TTS | Bailian only; **no Cantonese edge fallback** (503 if unavailable) |
+| Stop | `NeuralSpeechEngine.stop()` aborts in-flight `/api/tts` and clears `audio.src` |
 
 ## Language Detection
 
