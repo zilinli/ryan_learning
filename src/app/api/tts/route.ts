@@ -1,6 +1,7 @@
 import {
   callAliyunCloneTts,
   callFormospeechTts,
+  callQwenTts,
   DialectTtsUnavailableError,
   ttsProviderForLang,
 } from "@/lib/tts-provider";
@@ -9,7 +10,7 @@ import {
   setCachedTts,
 } from "@/lib/tts-cache";
 import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
-import { cleanTutorSpeechText, normalizeForTTS } from "@/lib/tts-text";
+import { cleanTutorSpeechText } from "@/lib/tts-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,27 +73,29 @@ async function synthesizeEdge(text: string, voice: string): Promise<Buffer> {
 type DialectTtsEngine =
   | "aliyun-clone"
   | "aliyun-minnan"
+  | "qwen-shanghai"
   | "formospeech"
   | "formospeech-cache"
   | "edge-fallback";
 
 /**
- * 方言 TTS：闽南话 / 客家话。
- * teo → 百炼；失败抛错（禁止粤语 edge 顶替）。
- * hak → FormoSpeech（或家人复刻）；失败抛错。
+ * 方言 TTS：闽南话 / 客家话 / 上海话。
+ * teo → 百炼；sha → 百炼千问 Jada（或复刻）；hak → FormoSpeech。
+ * 失败抛错（禁止粤语 edge 顶替）。
  */
 async function synthesizeDialect(
   text: string,
-  dialectLang: "teo" | "hak",
+  dialectLang: "teo" | "hak" | "sha",
 ): Promise<{ audio: Buffer; engine: DialectTtsEngine }> {
   const provider = ttsProviderForLang(dialectLang);
 
   if (provider.kind === "edge") {
-    // 设计上 teo/hak 不应落到 edge；若误配置则拒绝粤语顶替
     throw new DialectTtsUnavailableError(
       dialectLang === "teo"
         ? "闽南话未配置百炼音色，拒绝粤语 edge 顶替。"
-        : "客家话未配置 FormoSpeech，拒绝粤语 edge 顶替。",
+        : dialectLang === "sha"
+          ? "上海话未配置百炼音色，拒绝粤语 edge 顶替。"
+          : "客家话未配置 FormoSpeech，拒绝粤语 edge 顶替。",
     );
   }
 
@@ -120,7 +123,33 @@ async function synthesizeDialect(
       throw new DialectTtsUnavailableError(
         dialectLang === "teo"
           ? `闽南话百炼合成失败：${msg}。不使用粤语顶替。`
-          : `客家话百炼合成失败：${msg}。不使用粤语顶替。`,
+          : dialectLang === "sha"
+            ? `上海话百炼复刻合成失败：${msg}。不使用粤语顶替。`
+            : `客家话百炼合成失败：${msg}。不使用粤语顶替。`,
+      );
+    }
+  }
+
+  if (provider.kind === "qwen-tts") {
+    try {
+      const cacheVoice = `qwen:${provider.model}:${provider.voiceId}`;
+      const cached = await getCachedTts(text, cacheVoice);
+      if (cached) return { audio: cached, engine: "qwen-shanghai" };
+
+      const audio = await callQwenTts(text, provider.voiceId, {
+        model: provider.model,
+        languageType: provider.languageType,
+      });
+      void setCachedTts(text, cacheVoice, audio);
+      console.info(
+        `[tts] qwen-shanghai ok voice=${provider.voiceId} bytes=${audio.byteLength}`,
+      );
+      return { audio, engine: "qwen-shanghai" };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[tts] qwen TTS failed for ${dialectLang}:`, msg);
+      throw new DialectTtsUnavailableError(
+        `上海话百炼千问 TTS 失败：${msg}。不使用粤语顶替。`,
       );
     }
   }
@@ -159,7 +188,13 @@ export async function POST(req: Request) {
     }
 
     const dialectLang =
-      body.lang === "teo" ? "teo" : body.lang === "hak" ? "hak" : null;
+      body.lang === "teo"
+        ? "teo"
+        : body.lang === "hak"
+          ? "hak"
+          : body.lang === "sha"
+            ? "sha"
+            : null;
     if (dialectLang) {
       try {
         const { audio, engine } = await synthesizeDialect(text, dialectLang);
@@ -179,23 +214,22 @@ export async function POST(req: Request) {
             hint:
               dialectLang === "hak"
                 ? "客家话请确认 formospeech-tts 服务在跑（pm2），或预合成高频句；不使用粤语顶替。"
-                : "闽南话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
+                : dialectLang === "sha"
+                  ? "上海话请配置 ALIYUN_DASHSCOPE_API_KEY（或 SHA_CLONE_VOICE_ID）；不使用粤语顶替。"
+                  : "闽南话请配置 ALIYUN_DASHSCOPE_API_KEY（或 TEO_CLONE_VOICE_ID）；不使用粤语顶替。",
           },
           { status: 503 },
         );
       }
     }
 
-    // Shanghainese: normalize Wu characters before edge TTS (Cantonese voice misreads 侬/阿拉/etc.)
-    const ttsText = body.lang === "sha" ? normalizeForTTS(text, "sha") : text;
-
     const voice =
       body.voice && ALLOWED_VOICES.has(body.voice)
         ? body.voice
         : "en-GB-RyanNeural";
 
-    // zh/yue/en/es/fr/ms/sha：走 edge-tts
-    const audio = await synthesizeEdge(ttsText, voice);
+    // zh/yue/en/es/fr/ms：走 edge-tts
+    const audio = await synthesizeEdge(text, voice);
     return new Response(new Uint8Array(audio), {
       headers: {
         "Content-Type": "audio/mpeg",

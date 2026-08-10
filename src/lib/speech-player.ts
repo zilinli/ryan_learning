@@ -16,11 +16,11 @@ export type SpeakHandlers = {
   shouldContinue?: () => boolean;
 };
 
-/** teo/hak 走重推理 sidecar，并发预取会把 4GB 机器拖死，听感像「读完一句卡死」。 */
+/** teo/hak/sha 走百炼或 FormoSpeech，并发预取会把机器拖死。 */
 function isDialectHandlers(h: SpeakHandlers): boolean {
   if (h.voiceId == null) return false;
   const lang = getTutorVoice(h.voiceId).lang;
-  return lang === "teo" || lang === "hak";
+  return lang === "teo" || lang === "hak" || lang === "sha";
 }
 
 /**
@@ -377,9 +377,8 @@ export class NeuralSpeechEngine {
         ? dialectLang
         : undefined;
     const voice = this.resolveVoice(text, h);
-    const dialect = dialectTts === "teo" || dialectTts === "hak";
-    // FormoSpeech / Aliyun clone 合成可达数十秒；sha=edge正常超时
-    const timeoutMs = dialect ? 90_000 : 45_000;
+    // 方言百炼 / FormoSpeech 合成可达数十秒（与闽南/客家同超时）
+    const timeoutMs = dialectTts ? 90_000 : 45_000;
     const attempt = async (): Promise<ArrayBuffer> => {
       const gen = this.generation;
       const ac = new AbortController();

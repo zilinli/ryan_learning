@@ -539,14 +539,14 @@ export function VoiceControls({
     const picked = getTutorVoice(id);
     if (picked.lang === "teo" || picked.lang === "hak" || picked.lang === "sha") {
       try {
-        if (!window.localStorage.getItem("spark-dialect-notice-v11")) {
-          window.localStorage.setItem("spark-dialect-notice-v11", "1");
+        if (!window.localStorage.getItem("spark-dialect-notice-v12")) {
+          window.localStorage.setItem("spark-dialect-notice-v12", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "闽南话：识别三层兜底（讯飞→百炼→本地）；朗读用闽南音色。"
+              ? "闽南话：识别走百炼（可选讯飞备份）；朗读用百炼闽南音色。"
               : picked.lang === "hak"
-              ? "客家话：识别走本地 SenseVoice；朗读用客语音色。"
-              : "上海话：识别走百炼（兜底讯飞→本地）；朗读暂用粤语音色近似。",
+              ? "客家话：识别走百炼；朗读用客语音色（FormoSpeech）。"
+              : "上海话：识别走百炼（吴语）；朗读用百炼上海音色（阿珍），不走粤语。",
           );
         }
       } catch {

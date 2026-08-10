@@ -42,7 +42,7 @@ Picker labels show **language only** — no engine names (avoids wrap / noise).
 | `osman` | Osman (Bahasa Melayu) | ms | edge |
 | `teochew` | Hokkien (闽南话) | teo | Bailian CosyVoice (edge fallback) |
 | `hakka` | Hakka (客家话) | hak | FormoSpeech |
-| `shanghainese` | Shanghainese (上海话) | sha | edge Cantonese + `normalizeForTTS` |
+| `shanghainese` | Shanghainese (上海话) | sha | Bailian 千问 `Jada`（禁粤语 edge） |
 
 ## History message replay (one-click Listen)
 

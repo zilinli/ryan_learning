@@ -22,10 +22,11 @@ Fun-ASR 覆盖客家/闽南/粤等方言；短录音走 multimodal-generation + 
 | Lang | Provider |
 |------|----------|
 | **teo** | 百炼复刻 → `longanmin_v3`（闽南）→ 503（禁粤语） |
+| **sha** | 百炼复刻 → 千问 TTS **`Jada`（上海-阿珍）** → 503（禁粤语） |
 | **hak** | FormoSpeech（缓存 / sidecar）；有 `HAK_CLONE_VOICE_ID` 时复刻 |
-| **zh / yue / en / es / fr** | **edge-tts**（与切百炼 STT 之前一致，不改） |
+| **zh / yue / en / es / fr / ms** | **edge-tts** |
 
-`X-TTS-Engine`: 方言为 `aliyun-*` / `formospeech*`；其余为 `edge`。
+`X-TTS-Engine`: 方言为 `aliyun-*` / `qwen-shanghai` / `formospeech*`；其余为 `edge`。
 
 ## 环境变量
 
@@ -33,7 +34,9 @@ Fun-ASR 覆盖客家/闽南/粤等方言；短录音走 multimodal-generation + 
 ALIYUN_DASHSCOPE_API_KEY=sk-xxx
 # ALIYUN_ASR_MODEL=fun-asr-flash-2026-06-15
 # ALIYUN_ASR_FALLBACK_MODEL=qwen3-asr-flash
-# STT_BACKUP_IFYTEK=0   # 默认关闭讯飞；设 1 启用 teo/hak 备份
+# TEO_CLONE_VOICE_ID=...
+# SHA_CLONE_VOICE_ID=...   # optional Shanghainese CosyVoice clone
+# STT_BACKUP_IFYTEK=0
 FORMOSPEECH_TTS_URL=http://127.0.0.1:9876
 ```
 

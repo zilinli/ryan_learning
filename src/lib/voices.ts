@@ -120,8 +120,8 @@ export const TUTOR_VOICES: TutorVoice[] = [
   {
     id: "shanghainese",
     label: "Shanghainese (上海话)",
-    // 上海话无 Bailian/iFlytek TTS → edge-tts 粤语兜底 + normalizeForTTS 字符替换
-    edgeVoice: "zh-HK-WanLungNeural",
+    // 方言不走粤语 edge；实际 /api/tts?lang=sha → 百炼千问 Jada（或 SHA_CLONE）
+    edgeVoice: "en-GB-RyanNeural",
     preview: "侬好！我是 Spark，我会用上海话对侬讲闲话。",
     lang: "sha",
   },
@@ -226,8 +226,7 @@ export function detectSpeechLang(text: string): SpeechLang {
 export function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "yue") return "zh-HK-WanLungNeural";
   // teo/hak/sha 禁止粤语/普通话 edge 顶替；朗读走 /api/tts dialect provider
-  if (lang === "teo" || lang === "hak") return "en-GB-RyanNeural";
-  if (lang === "sha") return "zh-HK-WanLungNeural";
+  if (lang === "teo" || lang === "hak" || lang === "sha") return "en-GB-RyanNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";

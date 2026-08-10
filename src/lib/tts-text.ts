@@ -459,20 +459,8 @@ export function normalizeForTTS(text: string, lang: SpeechLang): string {
   }
 
   if (lang === "sha") {
-    // Shanghainese Wu characters → Cantonese approximations for edge-tts playback
-    t = t.replace(/侬/g, "你");         // "you" → Cantonese 你
-    t = t.replace(/阿拉/g, "我哋");     // "we/us" → Cantonese 我哋
-    t = t.replace(/(^|[\s，。！？、])伊(?=[\s，。！？、\u4e00-\u9fff])/g, "$1佢"); // "he/she/it" at clause boundary
-    t = t.replace(/弗/g, "唔");         // "not" → Cantonese 唔
-    t = t.replace(/勿/g, "唔好");       // "don't" → Cantonese periphrasis
-    t = t.replace(/勒/g, "咗");         // "already/了" → Cantonese 咗
-    t = t.replace(/垃海/g, "喺度");     // "at/here" → Cantonese 喺度
-    t = t.replace(/垃搭/g, "喺度");     // alternate "at/here"
-    t = t.replace(/搿个/g, "呢個");     // "this one" → Cantonese 呢個
-    t = t.replace(/迭个/g, "呢個");     // alternate "this"
-    t = t.replace(/埃个/g, "嗰個");     // "that" → Cantonese 嗰個
-    t = t.replace(/个(?=[\s，。！？、\n]|$)/g, "嘅");
-    // Possessive 个 → 嘅: 我个→我嘅, 侬个→你个 (侬 already replaced above)
+    // 上海话已走百炼千问 Jada，保留吴语用字；禁止再改成粤语近似。
+    return text;
   }
 
   // After pronoun substitutions: replace possessive 个 with Cantonese 嘅

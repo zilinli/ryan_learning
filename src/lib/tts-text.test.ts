@@ -301,31 +301,17 @@ describe("normalizeForTTS", () => {
     expect(out2).toBe("你好！你有乜嘢问题？點樣做？");
   });
 
-  it("normalizes Shanghainese 侬→你 and 阿拉→我哋", () => {
+  it("leaves Shanghainese text unchanged (Bailian Jada, no Wu→粤)", () => {
     expect(normalizeForTTS("侬好，阿拉去吃饭", "sha")).toBe(
-      "你好，我哋去吃饭",
+      "侬好，阿拉去吃饭",
     );
-  });
-
-  it("normalizes Shanghainese 伊→佢 and 弗→唔", () => {
-    expect(normalizeForTTS("伊弗是老师", "sha")).toBe("佢唔是老师");
-  });
-
-  it("normalizes Shanghainese possessive 个 after pronoun→嘅", () => {
-    // 侬→你 first, then 你个→你嘅
-    expect(normalizeForTTS("侬个书来了", "sha")).toBe("你嘅书来了");
-  });
-
-  it("normalizes Shanghainese 勒→咗 and 垃海→喺度", () => {
+    expect(normalizeForTTS("伊弗是老师", "sha")).toBe("伊弗是老师");
+    expect(normalizeForTTS("侬个书来了", "sha")).toBe("侬个书来了");
     expect(normalizeForTTS("伊吃饭勒。我垃海学堂。", "sha")).toBe(
-      "佢吃饭咗。我喺度学堂。",
+      "伊吃饭勒。我垃海学堂。",
     );
-  });
-
-  it("normalizes Shanghainese 搿个→呢個 and 埃个→嗰個 (勿→唔好 causes double 好)", () => {
-    // 勿→唔好 means "don't"; 唔好+好吃 → "唔好好吃" — expected for lossy Cantonese TTS
     expect(normalizeForTTS("搿个好吃，埃个勿好吃。", "sha")).toBe(
-      "呢個好吃，嗰個唔好好吃。",
+      "搿个好吃，埃个勿好吃。",
     );
   });
 });

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ALIYUN_CLONE_MODEL,
   ALIYUN_CLONE_TTS_TIMEOUT_MS,
+  ALIYUN_QWEN_TTS_MODEL,
+  ALIYUN_SHA_SYSTEM_VOICE,
   ALIYUN_TEO_SYSTEM_MODEL,
   ALIYUN_TEO_SYSTEM_VOICE,
   DialectTtsUnavailableError,
@@ -65,6 +67,25 @@ describe("ttsProviderForLang", () => {
     });
   });
 
+  it("routes sha to Bailian Qwen Jada (never zh-HK edge)", () => {
+    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
+    delete process.env.SHA_CLONE_VOICE_ID;
+    expect(ttsProviderForLang("sha")).toEqual({
+      kind: "qwen-tts",
+      voiceId: ALIYUN_SHA_SYSTEM_VOICE,
+      model: ALIYUN_QWEN_TTS_MODEL,
+      source: "shanghai-system",
+      languageType: "Chinese",
+    });
+  });
+
+  it("sha without Bailian key throws (never zh-HK edge)", () => {
+    delete process.env.ALIYUN_DASHSCOPE_API_KEY;
+    delete process.env.SHA_CLONE_VOICE_ID;
+    expect(() => ttsProviderForLang("sha")).toThrow(DialectTtsUnavailableError);
+    expect(() => ttsProviderForLang("sha")).toThrow(/粤语|上海/);
+  });
+
   it("keeps zh/yue/en/es/fr on edge (unchanged from pre-Bailian-TTS)", () => {
     process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     expect(ttsProviderForLang("en").kind).toBe("edge");
@@ -79,8 +100,10 @@ describe("aliyunCloneVoiceIdForLang", () => {
   it("reads per-language voice IDs from env", () => {
     process.env.TEO_CLONE_VOICE_ID = " teo-v1 ";
     process.env.HAK_CLONE_VOICE_ID = " hak-v1 ";
+    process.env.SHA_CLONE_VOICE_ID = " sha-v1 ";
     expect(aliyunCloneVoiceIdForLang("teo")).toBe("teo-v1");
     expect(aliyunCloneVoiceIdForLang("hak")).toBe("hak-v1");
+    expect(aliyunCloneVoiceIdForLang("sha")).toBe("sha-v1");
     expect(aliyunCloneVoiceIdForLang("en")).toBeNull();
   });
 });

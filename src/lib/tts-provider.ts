@@ -1,12 +1,13 @@
 /**
  * TTS Provider 路由。
  *
- * 方言模式（teo/hak）—— **禁止粤语 zh-HK edge 顶替**：
+ * 方言模式 —— **禁止粤语 zh-HK edge 顶替**：
  *   teo: 家人复刻 → 百炼闽南话系统音色 longanmin_v3 → 失败抛错
- *   hak: FormoSpeech（预合成缓存 / sidecar；本周不改）→ 失败抛错
+ *   hak: FormoSpeech（预合成缓存 / sidecar）→ 失败抛错
+ *   sha: 家人复刻 → 百炼千问 TTS「上海-阿珍」Jada → 失败抛错
  *
- * 非方言（zh/yue/en/es/fr）：保持 edge-tts（与改百炼 STT 之前一致）。
- * 见 docs/subsystems/bailian-stt-tts.md。
+ * 非方言（zh/yue/en/es/fr）：保持 edge-tts。
+ * 见 docs/subsystems/bailian-stt-tts.md · shanghainese-support.md。
  */
 import { edgeVoiceForLang, type SpeechLang } from "./voices";
 
@@ -20,6 +21,13 @@ export type TtsProvider =
       voiceId: string;
       model: string;
       source: "clone" | "minnan-system";
+    }
+  | {
+      kind: "qwen-tts";
+      voiceId: string;
+      model: string;
+      source: "shanghai-system" | "clone";
+      languageType?: string;
     }
   | { kind: "formospeech"; voice: string };
 
@@ -41,6 +49,7 @@ export class DialectTtsUnavailableError extends Error {
 export function aliyunCloneVoiceIdForLang(lang: SpeechLang): string | null {
   if (lang === "teo") return process.env.TEO_CLONE_VOICE_ID?.trim() || null;
   if (lang === "hak") return process.env.HAK_CLONE_VOICE_ID?.trim() || null;
+  if (lang === "sha") return process.env.SHA_CLONE_VOICE_ID?.trim() || null;
   return null;
 }
 
@@ -49,6 +58,10 @@ export const ALIYUN_TEO_SYSTEM_VOICE = "longanmin_v3";
 export const ALIYUN_SYSTEM_MODEL = "cosyvoice-v3-flash";
 /** @deprecated use ALIYUN_SYSTEM_MODEL */
 export const ALIYUN_TEO_SYSTEM_MODEL = ALIYUN_SYSTEM_MODEL;
+
+/** 千问3-TTS 上海话系统音色（上海-阿珍）。 */
+export const ALIYUN_SHA_SYSTEM_VOICE = "Jada";
+export const ALIYUN_QWEN_TTS_MODEL = "qwen3-tts-flash";
 
 export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   if (lang === "teo") {
@@ -92,9 +105,29 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   }
 
   if (lang === "sha") {
-    // 上海话无双 TTS 商业 API → Cantonese edge-tts 兜底 + normalizeForTTS 字符映射
-    console.warn("[tts] 上海话无百炼/讯飞 TTS，用粤语 edge 兜底。");
-    return { kind: "edge", voice: edgeVoiceForLang("yue") };
+    const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
+    const voiceId = aliyunCloneVoiceIdForLang("sha");
+    if (key && voiceId) {
+      // 家人复刻音色：走 CosyVoice SpeechSynthesizer（与闽南复刻同路径）
+      return {
+        kind: "aliyun-clone",
+        voiceId,
+        model: ALIYUN_CLONE_MODEL,
+        source: "clone",
+      };
+    }
+    if (key) {
+      return {
+        kind: "qwen-tts",
+        voiceId: ALIYUN_SHA_SYSTEM_VOICE,
+        model: ALIYUN_QWEN_TTS_MODEL,
+        source: "shanghai-system",
+        languageType: "Chinese",
+      };
+    }
+    throw new DialectTtsUnavailableError(
+      "上海话朗读需要 ALIYUN_DASHSCOPE_API_KEY（可选 SHA_CLONE_VOICE_ID）；不使用粤语顶替。",
+    );
   }
 
   return { kind: "edge", voice: edgeVoiceForLang(lang) };
@@ -230,4 +263,91 @@ export async function callAliyunCloneTts(
     throw new Error("aliyun clone TTS returned empty audio");
   }
   return audio;
+}
+
+/**
+ * 百炼千问3-TTS（multimodal-generation）。上海话系统音色 Jada 走此接口。
+ * 文档：https://help.aliyun.com/zh/model-studio/qwen-tts-api
+ */
+export async function callQwenTts(
+  text: string,
+  voiceId: string,
+  opts: {
+    model?: string;
+    languageType?: string;
+    timeoutMs?: number;
+    apiKey?: string;
+  } = {},
+): Promise<Buffer> {
+  const apiKey = opts.apiKey?.trim() || process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
+  if (!apiKey) {
+    throw new TtsProviderNotConfiguredError(
+      "阿里云百炼未配置 (ALIYUN_DASHSCOPE_API_KEY)",
+    );
+  }
+  const model = opts.model?.trim() || ALIYUN_QWEN_TTS_MODEL;
+  const timeoutMs = opts.timeoutMs ?? ALIYUN_CLONE_TTS_TIMEOUT_MS;
+  const workspaceId = process.env.ALIYUN_WORKSPACE_ID?.trim();
+  const region = process.env.ALIYUN_DASHSCOPE_REGION?.trim() || "cn-beijing";
+  const baseUrl = workspaceId
+    ? `https://${workspaceId}.${region}.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`
+    : "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+
+  const body = {
+    model,
+    input: {
+      text,
+      voice: voiceId,
+      language_type: opts.languageType || "Chinese",
+    },
+  };
+
+  const res = await fetch(baseUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-DashScope-SSE": "disable",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  const raw = await res.text();
+  if (!res.ok) {
+    throw new Error(
+      `qwen TTS failed (HTTP ${res.status}): ${raw.slice(0, 300)}`,
+    );
+  }
+
+  let data: {
+    code?: string;
+    message?: string;
+    output?: { audio?: { url?: string; data?: string } };
+  } | null;
+  try {
+    data = JSON.parse(raw) as typeof data;
+  } catch {
+    throw new Error("qwen TTS returned non-JSON");
+  }
+  if (data?.code && data.code !== "Success") {
+    throw new Error(data.message || data.code || "qwen TTS error");
+  }
+  const b64 = data?.output?.audio?.data;
+  if (b64 && b64.length > 100) {
+    return Buffer.from(b64, "base64");
+  }
+  const audioUrl = data?.output?.audio?.url;
+  if (audioUrl) {
+    const audioRes = await fetch(audioUrl, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!audioRes.ok) {
+      throw new Error(`qwen TTS audio download failed (HTTP ${audioRes.status})`);
+    }
+    const audio = Buffer.from(await audioRes.arrayBuffer());
+    if (audio.byteLength < 100) throw new Error("qwen TTS returned empty audio");
+    return audio;
+  }
+  throw new Error(data?.message || "qwen TTS response missing audio");
 }
