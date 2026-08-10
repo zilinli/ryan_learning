@@ -152,6 +152,16 @@ describe("chunkForNeuralTts", () => {
     expect(parts.every((p) => p.length <= 80)).toBe(true);
     expect(parts.join(" ")).toContain("Sentence number 0");
   });
+
+  it("dialect-sized maxLen splits long Chinese Listen text", () => {
+    const long =
+      "好呀！我们来画一个直角三角形吧。直角在左下角，两条直角边分别是 3 和 4，斜边是 5。你可以先画水平的底边，再向上画竖直的边，最后连斜边。".repeat(
+        2,
+      );
+    const parts = chunkForNeuralTts(long, 120);
+    expect(parts.length).toBeGreaterThan(1);
+    expect(Math.max(...parts.map((p) => p.length))).toBeLessThanOrEqual(120);
+  });
 });
 
 describe("pullSpeakableFromBuffer", () => {

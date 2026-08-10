@@ -194,9 +194,9 @@ export class NeuralSpeechEngine {
     this.streamBuf += delta;
     const dialect = isDialectHandlers(this.activeHandlers);
     const { ready, rest } = pullSpeakableFromBuffer(this.streamBuf, {
-      // 方言：多攒一点再送合成，减少「一句一请求」的长空隙
-      minChars: dialect ? 48 : 28,
-      maxWaitChars: dialect ? 220 : 160,
+      // 方言：多攒一点再送合成，但单片仍控制在百炼可承受范围内
+      minChars: dialect ? 40 : 28,
+      maxWaitChars: dialect ? 120 : 160,
     });
     this.streamBuf = rest;
     for (const chunk of ready) this.enqueueChunk(chunk);
@@ -224,7 +224,8 @@ export class NeuralSpeechEngine {
     if (handlers) this.activeHandlers = handlers;
     this.streamFlush(handlers);
     if (!this.playedInStream && this.queue.length === 0) {
-      const chunks = chunkForNeuralTts(fullText);
+      const dialect = isDialectHandlers(this.activeHandlers);
+      const chunks = chunkForNeuralTts(fullText, dialect ? 120 : 280);
       for (const c of chunks) this.enqueueChunk(c);
     }
   }
@@ -235,10 +236,10 @@ export class NeuralSpeechEngine {
     if (cleaned.length < 2) return;
     const last = this.queue[this.queue.length - 1];
     const dialect = isDialectHandlers(this.activeHandlers);
-    // 方言合成很慢：尽量拼成更长片段，少打几次 FormoSpeech / 百炼
-    const gluePrev = dialect ? 140 : 48;
-    const glueNext = dialect ? 100 : 28;
-    const glueMax = dialect ? 360 : 240;
+    // 方言：片段不宜太长（百炼长文易超时），也不宜太碎（往返开销）
+    const gluePrev = dialect ? 72 : 48;
+    const glueNext = dialect ? 48 : 28;
+    const glueMax = dialect ? 140 : 240;
     if (
       last &&
       (last.length < gluePrev || cleaned.length < glueNext) &&
@@ -510,7 +511,14 @@ export class NeuralSpeechEngine {
     text: string,
     handlers: SpeakHandlers = {},
   ): Promise<"played" | "cancelled" | "empty" | "error"> {
-    const chunks = chunkForNeuralTts(text);
+    // Dialect Bailian/FormoSpeech: shorter chunks avoid 15–30s+ single-shot timeouts
+    const dialectMax =
+      handlers.voiceId != null &&
+      (getTutorVoice(handlers.voiceId).lang === "teo" ||
+        getTutorVoice(handlers.voiceId).lang === "hak")
+        ? 120
+        : 280;
+    const chunks = chunkForNeuralTts(text, dialectMax);
     if (!chunks.length) return "empty";
 
     this.beginStream(handlers);

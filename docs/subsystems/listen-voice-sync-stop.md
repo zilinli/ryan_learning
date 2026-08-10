@@ -42,6 +42,7 @@
 
 - 无百炼密钥时闽南话 Listen 会失败并提示，而非「错成粤语」——可接受（诚实失败）。
 - 旧会话若只把音色写在 Ryan flat key，非 Ryan 账号需重新选一次语音。
+- 百炼默认超时曾为 **15s**：长文 Listen（~200+ 字）会超时 503 → 无声。已改为 `ALIYUN_CLONE_TTS_TIMEOUT_MS=90s`，方言分片 ≤120 字。
 
 ## Test design
 
@@ -51,4 +52,5 @@
 | LVS-2 | unit | teo 有 key → aliyun-clone / minnan-system（不变） |
 | LVS-3 | unit | `saveVoiceId(id, acct_a)` 不影响 `loadVoiceId(acct_b)` |
 | LVS-4 | unit | `NeuralSpeechEngine.stop()` 递增 generation 且清空 queue（可测逻辑） |
-| LVS-5 | manual | `acct_ching` 选闽南话 → Listen 为闽南（或 503 提示），绝非粤语；Stop 立刻静音 |
+| LVS-5 | unit | `ALIYUN_CLONE_TTS_TIMEOUT_MS` ≥ 60s；长文分片 ≤120 |
+| LVS-6 | manual | `acct_ching` 选闽南话 → Listen 有声（或明确 503 提示），绝非粤语；Stop 立刻静音 |

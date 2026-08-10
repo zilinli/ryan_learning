@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ALIYUN_CLONE_MODEL,
+  ALIYUN_CLONE_TTS_TIMEOUT_MS,
   ALIYUN_TEO_SYSTEM_MODEL,
   ALIYUN_TEO_SYSTEM_VOICE,
   DialectTtsUnavailableError,
@@ -147,4 +148,24 @@ describe("callAliyunCloneTts", () => {
     expect(audio.length).toBe(150);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
+
+  it("defaults to a long timeout suitable for dialect passages", async () => {
+    const mp3 = Buffer.alloc(120, 0x55);
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(mp3, {
+        status: 200,
+        headers: { "Content-Type": "audio/mpeg" },
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    await callAliyunCloneTts("你好", "longanmin_v3", ALIYUN_CLONE_MODEL, {
+      apiKey: "sk-x",
+    });
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const signal = init.signal as AbortSignal;
+    expect(signal).toBeDefined();
+    expect(ALIYUN_CLONE_TTS_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000);
+  });
 });
+

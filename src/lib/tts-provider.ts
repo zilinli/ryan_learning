@@ -144,6 +144,9 @@ export async function callFormospeechTts(
  * 阿里云百炼 CosyVoice / 声音复刻音色合成（非实时 HTTP SpeechSynthesizer）。
  * 文档：https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
  */
+/** Bailian CosyVoice often needs 20–60s for ~200+ char dialect passages. */
+export const ALIYUN_CLONE_TTS_TIMEOUT_MS = 90_000;
+
 export async function callAliyunCloneTts(
   text: string,
   voiceId: string,
@@ -156,7 +159,7 @@ export async function callAliyunCloneTts(
       "阿里云百炼未配置 (ALIYUN_DASHSCOPE_API_KEY)",
     );
   }
-  const timeoutMs = opts.timeoutMs ?? 15_000;
+  const timeoutMs = opts.timeoutMs ?? ALIYUN_CLONE_TTS_TIMEOUT_MS;
   const workspaceId = process.env.ALIYUN_WORKSPACE_ID?.trim();
   const baseUrl =
     process.env.ALIYUN_DASHSCOPE_BASE_URL?.trim() ||
