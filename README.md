@@ -22,14 +22,15 @@ Most chatbots spoil homework. Spark is tuned for **thinking first**:
 | Medium computation (e.g. `256÷8`) | One scaffold first, then check |
 | Conceptual / homework | Hint ladder L0→L3 with **explain-your-reasoning**, second chances, analogies |
 
-Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish, French, Malay, and TTS/STT, and experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
+Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish, French, Malay, Shanghainese, and TTS/STT for experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
 
 ---
 
 ## Features
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
-- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)** via LLM prompting. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md).
+- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md) and [Shanghainese](docs/subsystems/shanghainese-support.md).
+- **💡 FAQ / Feedback** — sidebar panel: browse FAQ or submit feature requests / bug reports directly to GitHub Issues. Each submission gets an automatic feasibility analysis (effort, risk, roadmap fit) appended to `docs/TODO.md`. See [design doc](docs/subsystems/faq-feedback-panel.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching

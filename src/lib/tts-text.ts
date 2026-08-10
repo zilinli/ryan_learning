@@ -437,7 +437,7 @@ export function normalizeForTTS(text: string, lang: SpeechLang): string {
     // Shanghainese Wu characters → Cantonese approximations for edge-tts playback
     t = t.replace(/侬/g, "你");         // "you" → Cantonese 你
     t = t.replace(/阿拉/g, "我哋");     // "we/us" → Cantonese 我哋
-    t = t.replace(/伊(?=[\s，。！？、])/g, "佢"); // "he/she/it" → Cantonese 佢 (only standalone)
+    t = t.replace(/(^|[\s，。！？、])伊(?=[\s，。！？、\u4e00-\u9fff])/g, "$1佢"); // "he/she/it" at clause boundary
     t = t.replace(/弗/g, "唔");         // "not" → Cantonese 唔
     t = t.replace(/勿/g, "唔好");       // "don't" → Cantonese periphrasis
     t = t.replace(/勒/g, "咗");         // "already/了" → Cantonese 咗

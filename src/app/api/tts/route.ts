@@ -9,6 +9,7 @@ import {
   setCachedTts,
 } from "@/lib/tts-cache";
 import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
+import { cleanTutorSpeechText, normalizeForTTS } from "@/lib/tts-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,8 +86,9 @@ async function synthesizeDialect(
   const provider = ttsProviderForLang(dialectLang);
 
   if (provider.kind === "edge") {
-    // Fallback: 方言无百炼/FormoSpeech → edge 临时兜底
-    const audio = await synthesizeEdge(text, provider.voice);
+    // Fallback: 方言无百炼/FormoSpeech → edge 临时兜底；先做字符映射
+    const edgeText = normalizeForTTS(text, dialectLang);
+    const audio = await synthesizeEdge(edgeText, provider.voice);
     return { audio, engine: "edge-fallback" };
   }
 
@@ -115,7 +117,8 @@ async function synthesizeDialect(
         err instanceof Error ? err.message : err,
       );
       const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
-      const audio = await synthesizeEdge(text, edgeVoice);
+      const edgeText = normalizeForTTS(text, dialectLang);
+      const audio = await synthesizeEdge(edgeText, edgeVoice);
       return { audio, engine: "edge-fallback" };
     }
   }
@@ -135,9 +138,10 @@ async function synthesizeDialect(
     return { audio, engine: "formospeech" };
   }
 
-  // Last resort: edge fallback
+  // Last resort: edge fallback (belt & suspenders — applies normalizeForTTS)
   const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
-  const audio = await synthesizeEdge(text, edgeVoice);
+  const edgeText = normalizeForTTS(text, dialectLang);
+  const audio = await synthesizeEdge(edgeText, edgeVoice);
   return { audio, engine: "edge-fallback" };
 }
 
@@ -148,7 +152,8 @@ export async function POST(req: Request) {
       voice?: string;
       lang?: string;
     };
-    const text = (body.text || "").trim();
+    // Always clean text before TTS — strips markdown, SVG, data URIs, HTML, URLs
+    const text = cleanTutorSpeechText(body.text || "");
     if (!text) {
       return Response.json({ error: "empty text" }, { status: 400 });
     }
@@ -181,13 +186,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Shanghainese: normalize Wu characters before edge TTS (Cantonese voice misreads 侬/阿拉/etc.)
+    const ttsText = body.lang === "sha" ? normalizeForTTS(text, "sha") : text;
+
     const voice =
       body.voice && ALLOWED_VOICES.has(body.voice)
         ? body.voice
         : "en-GB-RyanNeural";
 
-    // zh/yue/en/es/fr：保持 edge-tts（与百炼 STT 切换前一致）
-    const audio = await synthesizeEdge(text, voice);
+    // zh/yue/en/es/fr/ms/sha：走 edge-tts
+    const audio = await synthesizeEdge(ttsText, voice);
     return new Response(audio, {
       headers: {
         "Content-Type": "audio/mpeg",

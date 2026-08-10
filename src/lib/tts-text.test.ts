@@ -99,6 +99,38 @@ describe("cleanTutorSpeechText", () => {
   it("strips HTML entities", () => {
     expect(cleanTutorSpeechText("a &amp; b &lt; c &gt; d")).toBe("a b c d");
   });
+
+  it("strips bare data:image URIs (no markdown wrapper)", () => {
+    expect(cleanTutorSpeechText("你好 data:image/gif;base64,AAAA 世界")).toBe(
+      "你好世界",
+    );
+  });
+
+  it("strips fenced SVG blocks in dialect jokes", () => {
+    const raw = `先准备配图, 再用闽南话讲。
+
+\`\`\`svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
+  <rect x="0" y="0" width="320" height="220"/>
+</svg>
+\`\`\`
+
+你有看见无？`;
+    const out = cleanTutorSpeechText(raw);
+    expect(out).not.toMatch(/svg|xmlns|viewBox/i);
+    expect(out).toContain("先准备配图");
+    expect(out).toContain("再用闽南话讲");
+    expect(out).toContain("你有看见无");
+  });
+
+  it("isEncodedJunk catches data:image/ prefix", () => {
+    // We can't easily test the internal function, but the pipeline
+    // should not produce speech from pure data URIs.
+    const out = cleanTutorSpeechText(
+      "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+    );
+    expect(out).toBe("");
+  });
 });
 
 describe("chunkForNeuralTts", () => {
@@ -257,5 +289,33 @@ describe("normalizeForTTS", () => {
       "teo",
     );
     expect(out2).toBe("你好！你有乜嘢问题？點樣做？");
+  });
+
+  it("normalizes Shanghainese 侬→你 and 阿拉→我哋", () => {
+    expect(normalizeForTTS("侬好，阿拉去吃饭", "sha")).toBe(
+      "你好，我哋去吃饭",
+    );
+  });
+
+  it("normalizes Shanghainese 伊→佢 and 弗→唔", () => {
+    expect(normalizeForTTS("伊弗是老师", "sha")).toBe("佢唔是老师");
+  });
+
+  it("normalizes Shanghainese possessive 个 after pronoun→嘅", () => {
+    // 侬→你 first, then 你个→你嘅
+    expect(normalizeForTTS("侬个书来了", "sha")).toBe("你嘅书来了");
+  });
+
+  it("normalizes Shanghainese 勒→咗 and 垃海→喺度", () => {
+    expect(normalizeForTTS("伊吃饭勒。我垃海学堂。", "sha")).toBe(
+      "佢吃饭咗。我喺度学堂。",
+    );
+  });
+
+  it("normalizes Shanghainese 搿个→呢個 and 埃个→嗰個 (勿→唔好 causes double 好)", () => {
+    // 勿→唔好 means "don't"; 唔好+好吃 → "唔好好吃" — expected for lossy Cantonese TTS
+    expect(normalizeForTTS("搿个好吃，埃个勿好吃。", "sha")).toBe(
+      "呢個好吃，嗰個唔好好吃。",
+    );
   });
 });

@@ -353,21 +353,24 @@ export class NeuralSpeechEngine {
     text: string,
     h: SpeakHandlers,
   ): Promise<ArrayBuffer> {
-    // Dialect: send original text + lang to /api/tts (teo/hak never use粤语 edge).
+    // Dialect + Shanghainese: send lang param for TTS route normalization
     const dialectLang =
       h.voiceId != null
         ? getTutorVoice(h.voiceId).lang
         : undefined;
-    const ttsLang = dialectLang === "teo" || dialectLang === "hak" ? dialectLang : undefined;
+    const dialectTts =
+      dialectLang === "teo" || dialectLang === "hak" || dialectLang === "sha"
+        ? dialectLang
+        : undefined;
     const voice = this.resolveVoice(text, h);
-    const dialect = ttsLang === "teo" || ttsLang === "hak";
-    // FormoSpeech CPU 合成单句可达数十秒；给足时间但绝不无限挂起
+    const dialect = dialectTts === "teo" || dialectTts === "hak";
+    // FormoSpeech / Aliyun clone 合成可达数十秒；sha=edge正常超时
     const timeoutMs = dialect ? 90_000 : 45_000;
     const attempt = async (): Promise<ArrayBuffer> => {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice, lang: ttsLang }),
+        body: JSON.stringify({ text, voice, lang: dialectTts }),
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) {
