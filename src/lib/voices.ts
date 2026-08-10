@@ -8,7 +8,6 @@ export type TutorVoiceId =
   | "jorge"
   | "henri"
   | "osman"
-  | "yasmin"
   | "teochew"
   | "hakka"
   | "shanghainese";
@@ -32,6 +31,7 @@ const LEGACY_VOICE_IDS: Record<string, TutorVoiceId> = {
   hiuMaan: "wanLung",
   elvira: "alvaro",
   dalia: "jorge",
+  yasmin: "osman",
 };
 
 export const DEFAULT_VOICE_ID: TutorVoiceId = "auto";
@@ -102,13 +102,6 @@ export const TUTOR_VOICES: TutorVoice[] = [
     lang: "ms",
   },
   {
-    id: "yasmin",
-    label: "Yasmin (Bahasa Melayu)",
-    edgeVoice: "ms-MY-YasminNeural",
-    preview: "Hai, saya Spark. Saya akan membaca jawapan dalam Bahasa Melayu.",
-    lang: "ms",
-  },
-  {
     id: "teochew",
     label: "Hokkien (闽南话)",
     // 方言不走 edge（禁止粤语/普通话顶替）；实际 /api/tts?lang=teo
@@ -152,7 +145,6 @@ export const ALLOWED_EDGE_VOICES = [
   "fr-FR-HenriNeural",
   "fr-FR-DeniseNeural",
   "ms-MY-OsmanNeural",
-  "ms-MY-YasminNeural",
 ] as const;
 
 const VOICE_IDS = new Set<string>(TUTOR_VOICES.map((v) => v.id));
@@ -344,7 +336,6 @@ export function replyLangFromVoice(
     case "henri":
       return "fr";
     case "osman":
-    case "yasmin":
       return "ms";
     case "teochew":
       return "teo";

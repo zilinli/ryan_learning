@@ -1,8 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach, vi } from "vitest";
 import {
   bailianAsrLanguageHint,
+  bailianAsrModelFor,
+  bailianAsrScriptMismatch,
   extractBailianAsrText,
+  loadBailianAsrConfig,
 } from "./bailian-asr";
+
+const OLD = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...OLD };
+  vi.restoreAllMocks();
+});
 
 describe("bailianAsrLanguageHint", () => {
   it("maps dialect and CJK langs", () => {
@@ -15,6 +25,37 @@ describe("bailianAsrLanguageHint", () => {
 
   it("returns ms for Malay", () => {
     expect(bailianAsrLanguageHint("ms")).toBe("ms");
+  });
+});
+
+describe("bailianAsrModelFor", () => {
+  it("routes Malay to Qwen / MTL instead of Chinese Fun-ASR primary", () => {
+    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
+    delete process.env.ALIYUN_ASR_MTL_MODEL;
+    process.env.ALIYUN_ASR_MODEL = "fun-asr-flash-2026-06-15";
+    process.env.ALIYUN_ASR_FALLBACK_MODEL = "qwen3-asr-flash";
+    const cfg = loadBailianAsrConfig();
+    expect(bailianAsrModelFor("ms", cfg)).toBe("qwen3-asr-flash");
+    expect(bailianAsrModelFor("zh", cfg)).toBe("fun-asr-flash-2026-06-15");
+  });
+
+  it("honors ALIYUN_ASR_MTL_MODEL for Malay", () => {
+    process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
+    process.env.ALIYUN_ASR_MTL_MODEL = "fun-asr-mtl";
+    const cfg = loadBailianAsrConfig();
+    expect(bailianAsrModelFor("ms", cfg)).toBe("fun-asr-mtl");
+  });
+});
+
+describe("bailianAsrScriptMismatch", () => {
+  it("flags Chinese transcript when Malay/English was requested", () => {
+    expect(bailianAsrScriptMismatch("你好，我们来做数学题", "ms")).toBe(true);
+    expect(bailianAsrScriptMismatch("Selamat pagi, mari belajar", "ms")).toBe(
+      false,
+    );
+    expect(bailianAsrScriptMismatch("Hello there", "en")).toBe(false);
+    expect(bailianAsrScriptMismatch("你好世界测试", "en")).toBe(true);
+    expect(bailianAsrScriptMismatch("你好", "zh")).toBe(false);
   });
 });
 

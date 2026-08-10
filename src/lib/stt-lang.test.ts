@@ -18,13 +18,13 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromVoice("teochew")).toBe("teo");
     expect(sttLangFromVoice("hakka")).toBe("hak");
     expect(sttLangFromVoice("osman")).toBe("ms");
-    expect(sttLangFromVoice("yasmin")).toBe("ms");
   });
 
   it("honors legacy voice ids via normalizeVoiceId", () => {
     expect(sttLangFromVoice("xiaoxiao")).toBe("zh");
     expect(sttLangFromVoice("hiuMaan")).toBe("yue");
     expect(sttLangFromVoice("elvira")).toBe("es");
+    expect(sttLangFromVoice("yasmin")).toBe("ms");
   });
 
   it("falls back to auto for unknown ids", () => {

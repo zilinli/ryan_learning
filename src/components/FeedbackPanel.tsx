@@ -13,7 +13,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change the voice?",
-    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman/Yasmin (Malay), Shanghainese, Hokkien, or Hakka.',
+    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
   },
   {
     q: "How do I submit homework photos?",

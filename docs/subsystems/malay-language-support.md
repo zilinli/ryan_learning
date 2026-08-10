@@ -78,41 +78,30 @@ bahasa: "ms",
 "bahasa melayu": "ms",
 ```
 
-### 4.3 `bailian-asr.ts` — language hint + conditional model override
+### 4.3 `bailian-asr.ts` — language hint + Malay model routing
+
+**Root cause (2026-08-10):** Fun-ASR multimodal calls sent `format`/`sample_rate` only — **no `language_hints`**. Without a hint, Chinese-dialect-biased Fun-ASR often transcribed Malay speech as Mandarin. Qwen3 already had `asr_options.language`, but Malay never reached it when Fun-ASR returned a non-empty Chinese string.
+
+**Fix:**
+
+1. Fun-ASR parameters include `language_hints: [hint]` when known (`ms` / `en` / `es` / …).
+2. `bailianAsrModelFor("ms")` defaults primary to `qwen3-asr-flash` (or `ALIYUN_ASR_MTL_MODEL` if set).
+3. `bailianAsrScriptMismatch` rejects Han-heavy transcripts when the locked voice is `ms`/`en`/`es`/`fr`, forcing the secondary model / local Whisper.
 
 ```ts
-export function bailianAsrLanguageHint(lang: string): string | undefined {
-  switch (lang) {
-    case "zh":
-    case "teo":
-    case "hak":
-      return "zh";
-    case "yue":
-      return "yue";
-    case "en":
-      return "en";
-    case "es":
-      return "es";
-    case "fr":
-      return "fr";
-    case "ms":
-      return "ms";
-    default:
-      return undefined;
-  }
-}
-
-/** Only Malay needs a model override today — see §3 spike result. */
-export function bailianAsrModelFor(lang: string, config: ReturnType<typeof loadBailianAsrConfig>): string {
-  if (!config) throw new Error("no bailian config");
-  if (lang === "ms" && process.env.ALIYUN_ASR_MTL_MODEL) {
-    return process.env.ALIYUN_ASR_MTL_MODEL; // e.g. "fun-asr-mtl", set only if §3 spike shows it's needed
+export function bailianAsrModelFor(lang: string, config: …): string {
+  if (lang === "ms") {
+    return process.env.ALIYUN_ASR_MTL_MODEL?.trim()
+      || config.fallbackModel
+      || "qwen3-asr-flash";
   }
   return config.model;
 }
 ```
 
-Kept as an **env-gated override**, not a hardcoded swap — if §3's spike shows the default model already covers Malay, `ALIYUN_ASR_MTL_MODEL` simply stays unset and this function is a no-op passthrough. No code path changes based on a guess.
+### 5.1 Voices — Osman only
+
+Picker keeps a single Malay TTS voice: **Osman** (`ms-MY-OsmanNeural`). Legacy `yasmin` localStorage ids normalize → `osman`.
 
 ### 4.4 Local Whisper fallback — already fine, no change needed
 

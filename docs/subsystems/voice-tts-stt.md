@@ -39,7 +39,7 @@ Picker labels show **language only** — no engine names (avoids wrap / noise).
 | `wanLung` | WanLung (Cantonese) | yue | edge |
 | `alvaro` / `jorge` | Álvaro / Jorge (Spanish) | es | edge |
 | `henri` | Henri (French) | fr | edge |
-| `osman` / `yasmin` | Osman / Yasmin (Bahasa Melayu) | ms | edge |
+| `osman` | Osman (Bahasa Melayu) | ms | edge |
 | `teochew` | Hokkien (闽南话) | teo | Bailian CosyVoice (edge fallback) |
 | `hakka` | Hakka (客家话) | hak | FormoSpeech |
 | `shanghainese` | Shanghainese (上海话) | sha | edge Cantonese + `normalizeForTTS` |

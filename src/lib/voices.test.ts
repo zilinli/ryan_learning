@@ -27,6 +27,7 @@ describe("normalizeVoiceId", () => {
     expect(normalizeVoiceId("hiuMaan")).toBe("wanLung");
     expect(normalizeVoiceId("elvira")).toBe("alvaro");
     expect(normalizeVoiceId("dalia")).toBe("jorge");
+    expect(normalizeVoiceId("yasmin")).toBe("osman");
   });
 
   it("accepts every current picker id", () => {
@@ -190,15 +191,16 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(hak).toMatch(/讲分|講分/);
   });
 
-  it("maps Malay voices and returns edge TTS provider", () => {
+  it("maps Malay Osman voice and returns edge TTS provider", () => {
     expect(getTutorVoice("osman").lang).toBe("ms");
-    expect(getTutorVoice("yasmin").lang).toBe("ms");
     expect(getTutorVoice("osman").label).toMatch(/Bahasa Melayu/);
     expect(getTutorVoice("osman").edgeVoice).toBe("ms-MY-OsmanNeural");
-    expect(getTutorVoice("yasmin").edgeVoice).toBe("ms-MY-YasminNeural");
+    expect(normalizeVoiceId("yasmin")).toBe("osman");
     expect(replyLangFromVoice("osman")).toBe("ms");
     expect(replyLangFromVoice("yasmin")).toBe("ms");
     expect(resolveReplyLanguage("osman", "hello")).toBe("ms");
+    expect(TUTOR_VOICES.filter((v) => v.lang === "ms")).toHaveLength(1);
+    expect(ALLOWED_EDGE_VOICES).not.toContain("ms-MY-YasminNeural");
   });
 
   it("emits Malay instruction block", () => {

@@ -49,7 +49,6 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
     case "henri":
       return "fr";
     case "osman":
-    case "yasmin":
       return "ms";
     case "teochew":
       // Dedicated dialect STT path — Whisper with Teochew function-word

@@ -27,16 +27,43 @@ export function loadBailianAsrConfig(): {
   };
 }
 
-/** Only Malay may need a model override — env-gated, see docs/subsystems/malay-language-support.md §4.3. */
+/**
+ * Primary Bailian ASR model for a language.
+ * Malay: prefer Qwen3 (explicit `asr_options.language=ms`) or env MTL model —
+ * Fun-ASR-Flash without language_hints often hallucinates Chinese for Malay audio.
+ * See docs/subsystems/malay-language-support.md §4.3.
+ */
 export function bailianAsrModelFor(
   lang: string,
   config: ReturnType<typeof loadBailianAsrConfig>,
 ): string {
   if (!config) throw new Error("no bailian config");
-  if (lang === "ms" && process.env.ALIYUN_ASR_MTL_MODEL) {
-    return process.env.ALIYUN_ASR_MTL_MODEL;
+  if (lang === "ms") {
+    return (
+      process.env.ALIYUN_ASR_MTL_MODEL?.trim() ||
+      config.fallbackModel ||
+      "qwen3-asr-flash"
+    );
   }
   return config.model;
+}
+
+/**
+ * Reject primary ASR when the transcript script clearly mismatches the locked language
+ * (e.g. Malay mic → Chinese characters). Forces Qwen / next engine.
+ */
+export function bailianAsrScriptMismatch(
+  text: string,
+  lang: string,
+): boolean {
+  if (lang !== "ms" && lang !== "en" && lang !== "es" && lang !== "fr") {
+    return false;
+  }
+  const t = (text || "").trim();
+  if (!t) return false;
+  const han = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  const latin = (t.match(/[A-Za-zÀ-ÖØ-öø-ÿ]/g) || []).length;
+  return han >= 3 && han > latin * 2;
 }
 
 /** Map Spark STT lang → asr_options.language when supported. */
@@ -176,6 +203,11 @@ async function callModel(opts: {
         parameters: {
           format: formatParam(opts.mime),
           sample_rate: "16000",
+          // Without language_hints, Fun-ASR (Chinese-dialect biased) often
+          // transcribes Malay / ES / FR speech as Mandarin.
+          ...(opts.languageHint
+            ? { language_hints: [opts.languageHint] }
+            : {}),
         },
       }
     : {
@@ -256,13 +288,25 @@ export async function transcribeWithBailian(
   if (!apiKey) {
     throw new Error("阿里云百炼未配置 (ALIYUN_DASHSCOPE_API_KEY)");
   }
-  const primary = opts.model || cfg?.model || "fun-asr-flash-2026-06-15";
+  const lang = opts.language || "auto";
+  const primary =
+    opts.model ||
+    (cfg ? bailianAsrModelFor(lang, cfg) : "fun-asr-flash-2026-06-15");
   const fallback =
-    opts.fallbackModel || cfg?.fallbackModel || "qwen3-asr-flash";
+    opts.fallbackModel ||
+    cfg?.fallbackModel ||
+    "qwen3-asr-flash";
+  // Malay primary may already be qwen3 — keep Fun-ASR as secondary if distinct
+  const secondary =
+    fallback !== primary
+      ? fallback
+      : lang === "ms"
+        ? cfg?.model || "fun-asr-flash-2026-06-15"
+        : "";
   const timeoutMs = opts.timeoutMs ?? 45_000;
   const mime = mimeFromBytes(audio, opts.mimeHint);
   const dataUri = `data:${mime};base64,${Buffer.from(audio).toString("base64")}`;
-  const languageHint = bailianAsrLanguageHint(opts.language || "auto");
+  const languageHint = bailianAsrLanguageHint(lang);
 
   try {
     const result = await callModel({
@@ -273,7 +317,18 @@ export async function transcribeWithBailian(
       languageHint,
       timeoutMs,
     });
-    if (result.text.trim()) return result;
+    if (
+      result.text.trim() &&
+      !bailianAsrScriptMismatch(result.text, lang)
+    ) {
+      return result;
+    }
+    if (result.text.trim() && bailianAsrScriptMismatch(result.text, lang)) {
+      console.warn(
+        `[bailian-asr] primary ${primary} script mismatch for ${lang}:`,
+        result.text.slice(0, 80),
+      );
+    }
   } catch (err) {
     console.warn(
       `[bailian-asr] primary ${primary} failed:`,
@@ -281,15 +336,24 @@ export async function transcribeWithBailian(
     );
   }
 
-  if (fallback && fallback !== primary) {
+  if (secondary && secondary !== primary) {
     const result = await callModel({
       apiKey,
-      model: fallback,
+      model: secondary,
       dataUri,
       mime,
       languageHint,
       timeoutMs,
     });
+    if (
+      result.text.trim() &&
+      bailianAsrScriptMismatch(result.text, lang)
+    ) {
+      console.warn(
+        `[bailian-asr] secondary ${secondary} still script-mismatched for ${lang}`,
+      );
+      return { text: "", model: secondary };
+    }
     return result;
   }
 
