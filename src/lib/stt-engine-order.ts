@@ -14,8 +14,8 @@
 export type SttEngine = "bailian" | "iflytek" | "local";
 
 const DEFAULT_ORDER: Record<string, SttEngine[]> = {
-  teo: ["bailian", "local"],
-  hak: ["bailian", "local"],
+  teo: ["bailian", "iflytek", "local"],
+  hak: ["bailian", "iflytek", "local"],
 };
 
 /** Languages that support multi-engine quality routing (dialect-only for now). */

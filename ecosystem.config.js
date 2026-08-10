@@ -1,3 +1,27 @@
+const fs = require("fs");
+const path = require("path");
+
+function loadEnvFile(filePath) {
+  const env = {};
+  if (!fs.existsSync(filePath)) return env;
+  const content = fs.readFileSync(filePath, "utf-8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let val = trimmed.slice(idx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    if (key) env[key] = val;
+  }
+  return env;
+}
+
+const envLocal = loadEnvFile(path.join(__dirname, ".env.local"));
+
 module.exports = {
   apps: [
     {
@@ -7,8 +31,7 @@ module.exports = {
       cwd: "/root/codes/ryan_learning",
       env: {
         NODE_ENV: "production",
-        // Secrets are in .env.local (gitignored) — Next.js auto-loads it.
-        // ALIYUN_DASHSCOPE_API_KEY, CURSOR_API_KEY, etc.
+        ...envLocal,
       },
     },
     {

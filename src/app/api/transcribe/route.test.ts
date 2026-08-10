@@ -122,7 +122,7 @@ describe("POST /api/transcribe — Bailian primary", () => {
     expect(data.engine).toBe("local");
   });
 
-  it("does not call iflytek when not in engine order for teo", async () => {
+  it("calls iFlytek as tier-2 fallback for teo when Bailian fails", async () => {
     process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     process.env.IFYTEK_API_KEY = "k1";
     process.env.IFYTEK_API_SECRET = "s1";
@@ -130,16 +130,19 @@ describe("POST /api/transcribe — Bailian primary", () => {
     vi.spyOn(bailianAsr, "loadBailianAsrConfig").mockReturnValue(null);
     const iflySpy = vi
       .spyOn(iflytekAsr, "transcribeWithIflytek")
-      .mockResolvedValue({ text: "should not" });
+      .mockResolvedValue({ text: "讯飞兜底" });
     mockSttServer("local", "teo");
 
-    await POST(
+    const res = await POST(
       new Request("http://localhost/api/transcribe", {
         method: "POST",
         body: makeForm("teo"),
       }),
     );
-    expect(iflySpy).not.toHaveBeenCalled();
+    const data = await res.json();
+    expect(iflySpy).toHaveBeenCalled();
+    expect(data.text).toBe("讯飞兜底");
+    expect(data.engine).toBe("iflytek");
   });
 
   it("uses iFlytek when engine order includes it and Bailian misses", async () => {

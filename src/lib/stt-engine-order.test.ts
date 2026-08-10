@@ -8,12 +8,12 @@ afterEach(() => {
 });
 
 describe("sttEngineOrder", () => {
-  it("returns Bailian-first for teo by default", () => {
-    expect(sttEngineOrder("teo")).toEqual(["bailian", "local"]);
+  it("returns three-tier fallback for teo by default", () => {
+    expect(sttEngineOrder("teo")).toEqual(["bailian", "iflytek", "local"]);
   });
 
-  it("returns Bailian-first for hak by default", () => {
-    expect(sttEngineOrder("hak")).toEqual(["bailian", "local"]);
+  it("returns three-tier fallback for hak by default", () => {
+    expect(sttEngineOrder("hak")).toEqual(["bailian", "iflytek", "local"]);
   });
 
   it("returns Bailian-first for unknown languages", () => {
@@ -39,7 +39,7 @@ describe("sttEngineOrder", () => {
 
   it("falls back to default when env yields empty list", () => {
     process.env.STT_ENGINE_ORDER_TEO = "garbage";
-    expect(sttEngineOrder("teo")).toEqual(["bailian", "local"]);
+    expect(sttEngineOrder("teo")).toEqual(["bailian", "iflytek", "local"]);
   });
 });
 
