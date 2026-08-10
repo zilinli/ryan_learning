@@ -1,6 +1,6 @@
 /** Shared types for the multilingual dictionary system. */
 
-export type DictLang = "en" | "es" | "fr" | "zh" | "yue" | "ms" | "teo" | "hak";
+export type DictLang = "en" | "es" | "fr" | "zh" | "yue" | "ms" | "teo" | "hak" | "sha";
 
 export const DICT_LANG_LABELS: Record<DictLang, string> = {
   en: "English",
@@ -11,6 +11,7 @@ export const DICT_LANG_LABELS: Record<DictLang, string> = {
   ms: "Bahasa Melayu",
   teo: "閩南話",
   hak: "客家話",
+  sha: "上海話",
 };
 
 /** A single sense/translation within an entry. */
@@ -40,7 +41,7 @@ export type DictEntry = {
   /** Inflected forms */
   inflections?: { label: string; form: string }[];
   /** Data source label */
-  source: "merriam-webster" | "freedict" | "cantonese-local" | "teochew-local" | "hakka-local" | "translate";
+  source: "merriam-webster" | "freedict" | "cantonese-local" | "teochew-local" | "hakka-local" | "shanghainese-local" | "translate";
 };
 
 /** Top-level response from /api/dict */

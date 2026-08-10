@@ -2,7 +2,7 @@ import { normalizeVoiceId, type TutorVoiceId } from "./voices";
 import type { DictLang } from "./dict-types";
 
 /** Languages the STT backend understands */
-export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak";
+export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak" | "sha";
 
 /**
  * Dictionary / Translation language → tutor voice id for TTS.
@@ -26,6 +26,8 @@ export function voiceIdFromDictLang(lang: DictLang | string | null): TutorVoiceI
       return "teochew";
     case "hak":
       return "hakka";
+    case "sha":
+      return "shanghainese";
     default:
       return "auto";
   }
@@ -55,6 +57,8 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
       return "teo";
     case "hakka":
       return "hak";
+    case "shanghainese":
+      return "sha";
     case "auto":
     default:
       return "auto";
@@ -77,6 +81,8 @@ export function sttLangFromDictLang(lang: DictLang | string | null): SttLang {
       return "teo";
     case "hak":
       return "hak";
+    case "sha":
+      return "sha";
     case "ms":
       return "ms";
     default:

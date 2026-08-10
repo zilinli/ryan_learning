@@ -272,18 +272,18 @@ export function searchShanghainese(query: string, limit = 20): ShanghaineseEntry
 
 function shanghaineseEntryToDictEntry(e: ShanghaineseEntry): DictEntry {
   return {
-    headword: e.traditional,
-    simplified: e.simplified,
+    headword: `${e.traditional} (${e.simplified})`,
     pronunciation: e.roman,
-    pronunciationType: "shanghainese-wu",
-    definitions: [e.gloss],
     partOfSpeech: "",
-    language: "zh",
-    mandarin: e.mandarin,
-    examples: e.example ? [e.example] : [],
+    senses: [
+      {
+        definition: e.gloss,
+        example: e.example,
+        translations: e.mandarin ? [{ lang: "zh", text: e.mandarin }] : [],
+      },
+    ],
     source: "shanghainese-local",
-    confidence: e.confidence,
-  } satisfies DictEntry;
+  };
 }
 
 /** Full DictResponse from local Shanghainese data. */
@@ -291,8 +291,7 @@ export function shanghaineseLookup(query: string): DictResponse {
   const entries = searchShanghainese(query, 15);
   return {
     word: query,
-    language: "zh",
-    romanization: "",
+    lang: "sha",
     entries: entries.map(shanghaineseEntryToDictEntry),
   };
 }

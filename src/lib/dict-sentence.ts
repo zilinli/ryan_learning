@@ -18,6 +18,7 @@ const LANG_NAME: Record<DictLang, string> = {
   teo: "Hokkien (闽南话) — written in Chinese characters with Hokkien grammar and vocabulary",
   hak: "Hakka (客家话) — written in Chinese characters with Hakka grammar and vocabulary",
   ms: "Malay (Bahasa Melayu) — natural Malay language for tutoring and conversation",
+  sha: "Shanghainese (上海话) — Wu dialect, written in Chinese characters with Shanghainese vocabulary and grammar",
 };
 
 export function buildSentenceTranslatePrompt(params: {

@@ -34,6 +34,7 @@ function isEncodedJunk(text: string): boolean {
   if (!t) return false;
   const pct = (t.match(/%[0-9A-Fa-f]{2}/g) || []).length;
   if (pct >= 6) return true;
+  if (/^data:image\//i.test(t)) return true;
   if (/data:image\/svg\+xml/i.test(t)) return true;
   if (/%3C\s*\/?\s*svg/i.test(t)) return true;
   if (/xmlns%3D|viewBox%3D|stroke-width%3D|font-family%3D/i.test(t)) return true;
@@ -44,8 +45,10 @@ export function cleanTutorSpeechText(text: string): string {
   let t = text.replace(/\r\n/g, "\n").trim();
   if (!t) return "";
 
-  // Never speak diagrams / SVG / mermaid payloads
-  t = t.replace(/!\[[^\]]*\]\(data:image\/[^)]*\)/gi, " ");
+  // Strip bare data: URIs (no ![]() wrapper — e.g. raw tool output)
+  t = t.replace(/data:image\/[^\s)]+/gi, " ");
+  // Never speak diagrams / SVG / mermaid payloads — lazy match handles long base64 payloads
+  t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*?\)/gi, " ");
   t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*$/gi, " ");
   t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, " ");
   t = t.replace(/\bsvg\s*(<svg\b[\s\S]*?<\/svg>)/gi, " ");
@@ -223,7 +226,7 @@ function findSoftBreak(
 function maskCompleteDiagrams(text: string): string {
   let t = text;
   const blank = (m: string) => " ".repeat(m.length);
-  t = t.replace(/!\[[^\]]*\]\(data:image\/[^)]*\)/gi, blank);
+  t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*?\)/gi, blank);
   t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, blank);
   t = t.replace(/\bsvg\s*<svg\b[\s\S]*?<\/svg>/gi, blank);
   t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, blank);
@@ -280,6 +283,25 @@ function incompleteDiagramStart(buf: string): number {
         }
       }
       if (!covered) candidates.push(mid);
+    }
+  }
+
+  // Bare data:image/ mid-stream (no ![]() wrapper) — hold until resolved or force
+  const bareData = buf.search(/data:image\/(?!svg\+xml)/i);
+  if (bareData >= 0) {
+    const beforeBare = buf.slice(0, bareData);
+    const openImg = beforeBare.lastIndexOf("![");
+    let covered = false;
+    if (openImg >= 0) {
+      if (/^!\[[^\]]*\]\(data:image\/[\s\S]*?\)/i.test(buf.slice(openImg))) {
+        covered = true;
+      }
+    }
+    if (!covered) {
+      // Don't push if already caught by SVG mid-URI above
+      if (!candidates.includes(bareData)) {
+        candidates.push(bareData);
+      }
     }
   }
 
@@ -383,7 +405,7 @@ export function pullSpeakableFromBuffer(
  *  This is a lossy approximation — the goal is to avoid the most jarring
  *  mispronunciations, not to produce true Cantonese text. */
 export function normalizeForTTS(text: string, lang: SpeechLang): string {
-  if (lang !== "teo" && lang !== "hak") return text;
+  if (lang !== "teo" && lang !== "hak" && lang !== "sha") return text;
 
   let t = text;
 
@@ -409,6 +431,23 @@ export function normalizeForTTS(text: string, lang: SpeechLang): string {
     t = t.replace(/毋好/g, "唔好");     // alternate "don't"
     t = t.replace(/當\s*(?=好|多)/g, "好"); // "very" → Cantonese 好
     // 冇, 但係, 食 — shared with Cantonese, intentionally kept
+  }
+
+  if (lang === "sha") {
+    // Shanghainese Wu characters → Cantonese approximations for edge-tts playback
+    t = t.replace(/侬/g, "你");         // "you" → Cantonese 你
+    t = t.replace(/阿拉/g, "我哋");     // "we/us" → Cantonese 我哋
+    t = t.replace(/伊(?=[\s，。！？、])/g, "佢"); // "he/she/it" → Cantonese 佢 (only standalone)
+    t = t.replace(/弗/g, "唔");         // "not" → Cantonese 唔
+    t = t.replace(/勿/g, "唔好");       // "don't" → Cantonese periphrasis
+    t = t.replace(/勒/g, "咗");         // "already/了" → Cantonese 咗
+    t = t.replace(/垃海/g, "喺度");     // "at/here" → Cantonese 喺度
+    t = t.replace(/垃搭/g, "喺度");     // alternate "at/here"
+    t = t.replace(/搿个/g, "呢個");     // "this one" → Cantonese 呢個
+    t = t.replace(/迭个/g, "呢個");     // alternate "this"
+    t = t.replace(/埃个/g, "嗰個");     // "that" → Cantonese 嗰個
+    t = t.replace(/个(?=[\s，。！？、\n]|$)/g, "嘅");
+    // Possessive 个 → 嘅: 我个→我嘅, 侬个→你个 (侬 already replaced above)
   }
 
   // After pronoun substitutions: replace possessive 个 with Cantonese 嘅

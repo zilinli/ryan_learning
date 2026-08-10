@@ -19,6 +19,7 @@ const SAMPLE_WORDS: Record<DictLang, string[]> = {
   teo: ["我", "食饭", "汝好", "莫惊", "啥物", "多谢"],
   hak: ["涯", "食饭", "你好", "毋係", "多謝", "麼个"],
   ms: ["saya", "kamu", "makan", "air", "terima kasih", "sekolah"],
+  sha: ["侬", "吃饭", "侬好", "勿是", "谢谢", "看"],
 };
 
 const SOURCE_BADGE: Record<DictEntry["source"], string> = {
@@ -28,6 +29,7 @@ const SOURCE_BADGE: Record<DictEntry["source"], string> = {
   "cantonese-local": "粵",
   "teochew-local": "閩",
   "hakka-local": "客",
+  "shanghainese-local": "滬",
 };
 
 // ── Entry card ──

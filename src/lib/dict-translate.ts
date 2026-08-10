@@ -26,6 +26,7 @@ const GTX_CODES: Record<DictLang, string> = {
   yue: "zh-TW", // closest free MT proxy; prefer local Cantonese when available
   teo: "zh-CN", // no Hokkien engine on Google — closest is simplified Chinese
   hak: "zh-CN", // no Hakka engine on Google — closest is simplified Chinese
+  sha: "zh-CN", // no Shanghainese engine on Google — closest is simplified Chinese
   ms: "ms", // Google Translate supports Malay natively
 };
 
@@ -155,7 +156,7 @@ export function localTranslate(
   if (hit) return hit;
 
   // Cantonese / Hokkien / Hakka: search by English gloss or character
-  if ((to === "yue" || to === "teo" || to === "hak") && from === "en") {
+  if ((to === "yue" || to === "teo" || to === "hak" || to === "sha") && from === "en") {
     const hits =
       to === "yue"
         ? searchCantonese(word, 5)
@@ -174,7 +175,7 @@ export function localTranslate(
       return hits[0].traditional;
     }
   }
-  if ((from === "yue" || from === "teo" || from === "hak") && to === "en") {
+  if ((from === "yue" || from === "teo" || from === "hak" || from === "sha") && to === "en") {
     const hits =
       from === "yue"
         ? searchCantonese(word, 3)

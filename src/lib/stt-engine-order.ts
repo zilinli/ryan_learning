@@ -16,10 +16,11 @@ export type SttEngine = "bailian" | "iflytek" | "local";
 const DEFAULT_ORDER: Record<string, SttEngine[]> = {
   teo: ["bailian", "iflytek", "local"],
   hak: ["bailian", "iflytek", "local"],
+  sha: ["bailian", "iflytek", "local"],
 };
 
 /** Languages that support multi-engine quality routing (dialect-only for now). */
-const MULTI_ENGINE_LANGS = new Set(["teo", "hak"]);
+const MULTI_ENGINE_LANGS = new Set(["teo", "hak", "sha"]);
 
 /**
  * Return the ordered list of STT engines to try for a given language.

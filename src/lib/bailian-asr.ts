@@ -47,6 +47,7 @@ export function bailianAsrLanguageHint(
     case "zh":
     case "teo":
     case "hak":
+    case "sha":
       return "zh";
     case "yue":
       return "yue";

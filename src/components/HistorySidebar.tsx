@@ -5,8 +5,9 @@ import type { ConversationRecord } from "@/lib/types";
 import type { LearningMemory } from "@/lib/learning-memory";
 import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
 import { searchConversations } from "@/lib/history-retention";
-import { SPARK_GITHUB_LABEL, SPARK_GITHUB_URL } from "@/lib/site";
+import { SPARK_GITHUB_LABEL, SPARK_GITHUB_URL, SPARK_FEEDBACK_LABEL } from "@/lib/site";
 import { SkillsPanel } from "./SkillsPanel";
+import { FeedbackPanel } from "./FeedbackPanel";
 
 type Props = {
   open: boolean;
@@ -59,6 +60,7 @@ export function HistorySidebar({
 }: Props) {
   const [query, setQuery] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const hits = useMemo(
     () => searchConversations(conversations, query),
@@ -290,6 +292,14 @@ export function HistorySidebar({
           </svg>
           {SPARK_GITHUB_LABEL}
         </a>
+        <span className="text-[10px] text-[var(--ink-muted)]/50">·</span>
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          className="inline-flex items-center gap-1 text-[11px] text-[var(--ink-muted)] underline-offset-2 transition hover:text-[var(--coral)] hover:underline"
+        >
+          {SPARK_FEEDBACK_LABEL}
+        </button>
       </div>
     </aside>
   );
@@ -343,6 +353,7 @@ export function HistorySidebar({
           </div>
         </div>
       ) : null}
+      <FeedbackPanel open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
 }

@@ -509,14 +509,16 @@ export function VoiceControls({
     onVoiceIdChange?.(id);
     setVoiceMenuOpen(false);
     const picked = getTutorVoice(id);
-    if (picked.lang === "teo" || picked.lang === "hak") {
+    if (picked.lang === "teo" || picked.lang === "hak" || picked.lang === "sha") {
       try {
-        if (!window.localStorage.getItem("spark-dialect-notice-v10")) {
-          window.localStorage.setItem("spark-dialect-notice-v10", "1");
+        if (!window.localStorage.getItem("spark-dialect-notice-v11")) {
+          window.localStorage.setItem("spark-dialect-notice-v11", "1");
           setDialectNotice(
             picked.lang === "teo"
               ? "闽南话：识别走讯飞 + 百炼 + 本地 SenseVoice 三层兜底；朗读走百炼闽南 TTS，无密钥时用粤语 edge 临时兜底。"
-              : "客家话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走 FormoSpeech 真客语（繁体用字）。",
+              : picked.lang === "hak"
+              ? "客家话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走 FormoSpeech 真客语（繁体用字）。"
+              : "上海话：识别走百炼 Fun-ASR（兜底: 讯飞→本地）；朗读走粤语 edge TTS + 吴语字符映射（暂无上海话 TTS 商业 API）。",
           );
         }
       } catch {

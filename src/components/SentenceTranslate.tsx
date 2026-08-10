@@ -25,6 +25,8 @@ const SAMPLE_SENTENCES: Record<DictLang, string> = {
   yue: "你可唔可以幫我做呢份功課？",
   teo: "汝会唔会帮我睇下这道题？",
   hak: "你得唔得閒帮涯看下这只题？",
+  ms: "Bolehkah anda bantu saya dengan kerja rumah ini?",
+  sha: "侬好帮我看看搿道题目好口伐？",
 };
 
 type PhotoAtt = TranslateImagePayload & { id: string };

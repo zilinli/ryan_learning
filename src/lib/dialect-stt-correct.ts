@@ -10,6 +10,7 @@
 import type { SpeechLang } from "./voices";
 import { TEOCHEW_DICT } from "./teochew-dict";
 import { HAKKA_DICT } from "./hakka-dict";
+import { SHANGHAINESE_DICT } from "./shanghainese-dict";
 
 export type DialectSttCorrectResult = {
   corrected: string;
@@ -17,14 +18,16 @@ export type DialectSttCorrectResult = {
   raw: string;
 };
 
-export type DialectKind = "teo" | "hak";
+export type DialectKind = "teo" | "hak" | "sha";
 
 /** 从词典抽取高置信度的核心词汇，用于给 LLM 提供同音词纠错参考。 */
 export function topDialectWords(
   dialect: DialectKind,
   limit = 40,
 ): string[] {
-  const dict = dialect === "teo" ? TEOCHEW_DICT : HAKKA_DICT;
+  const dict = dialect === "teo" ? TEOCHEW_DICT
+    : dialect === "hak" ? HAKKA_DICT
+    : SHANGHAINESE_DICT;
   const verified = dict
     .filter((e) => e.source === "community-verified")
     .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
@@ -48,7 +51,7 @@ export function buildDialectCorrectionPrompt(
   raw: string,
   dialect: DialectKind,
 ): string {
-  const name = dialect === "teo" ? "闽南话" : "客家话";
+  const name = dialect === "teo" ? "闽南话" : dialect === "hak" ? "客家话" : "上海话";
   const words = topDialectWords(dialect).join(" ");
   return [
     `你是方言语音转写校对助手。以下是一段儿童用【${name}】说的话被语音识别（ASR）转写出的文本，可能含很多普通话同音字错误。`,
@@ -100,5 +103,5 @@ export function parseCorrectionResult(
 
 /** 供外部调用方判断当前 voice 是否为方言模式。 */
 export function isDialectLang(lang: SpeechLang | "auto"): lang is DialectKind {
-  return lang === "teo" || lang === "hak";
+  return lang === "teo" || lang === "hak" || lang === "sha";
 }

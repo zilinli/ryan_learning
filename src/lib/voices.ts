@@ -10,11 +10,12 @@ export type TutorVoiceId =
   | "osman"
   | "yasmin"
   | "teochew"
-  | "hakka";
+  | "hakka"
+  | "shanghainese";
 
 import { FLAT_KEYS, nsKey, readFlatKey, RYAN_ACCOUNT } from "./tenant-storage";
 
-export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak";
+export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak" | "sha";
 
 export type TutorVoice = {
   id: TutorVoiceId;
@@ -123,6 +124,14 @@ export const TUTOR_VOICES: TutorVoice[] = [
     preview: "你好！涯係 Spark，涯會用客家話同你傾。",
     lang: "hak",
   },
+  {
+    id: "shanghainese",
+    label: "Shanghainese (上海话 · Cantonese Edge TTS)",
+    // 上海话无 Bailian/iFlytek TTS → edge-tts 粤语兜底 + normalizeForTTS 字符替换
+    edgeVoice: "zh-HK-WanLungNeural",
+    preview: "侬好！我是 Spark，我会用上海话对侬讲闲话。",
+    lang: "sha",
+  },
 ];
 
 /** All edge-tts ShortNames we allow through the API */
@@ -224,8 +233,9 @@ export function detectSpeechLang(text: string): SpeechLang {
 
 export function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "yue") return "zh-HK-WanLungNeural";
-  // teo/hak 禁止粤语/普通话 edge 顶替；朗读走 /api/tts dialect provider
+  // teo/hak/sha 禁止粤语/普通话 edge 顶替；朗读走 /api/tts dialect provider
   if (lang === "teo" || lang === "hak") return "en-GB-RyanNeural";
+  if (lang === "sha") return "zh-HK-WanLungNeural";
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";
@@ -315,7 +325,7 @@ export function saveSpeakEnabled(enabled: boolean, accountId: string = RYAN_ACCO
 }
 
 /** Reply language locked by the voice picker (Auto = follow the student). */
-export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak";
+export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak" | "sha";
 
 export function replyLangFromVoice(
   voiceId: TutorVoiceId | string | null | undefined,
@@ -340,6 +350,8 @@ export function replyLangFromVoice(
       return "teo";
     case "hakka":
       return "hak";
+    case "shanghainese":
+      return "sha";
     case "auto":
     default:
       return "auto";
@@ -512,6 +524,41 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
       "- Petikan dari foto/PDF mesti kekal dalam bahasa asal.",
       "- Soalan dan petunjuk juga dalam Bahasa Melayu, cth.: «Cuba lihat ayat ni — apa maksudnya?»",
       "- Formula matematik boleh dikekalkan dalam LaTeX; penerangan dalam Bahasa Melayu.",
+    ];
+  }
+  if (mode === "sha") {
+    return [
+      "",
+      "[Reply language — 上海话 — REQUIRED]",
+      "- 请用【上海话（吴语太湖片）】与学生交流。用汉字书写，融入上海话的口语词汇和语法，不要用普通话。",
+      "- 必用词汇替换（务必遵守）：",
+      "  - 「我」→「我」（不变）；「你」→「侬」　例：「你」→「侬」",
+      "  - 「他/她」→「伊」　例：「他是谁」→「伊是啥人」",
+      "  - 「我们」→「阿拉」　例：「我们一起」→「阿拉一道」",
+      "  - 「的」→「个」　例：「侬个」、「我个」",
+      "  - 「不/没有」→「弗」或「呒没」　例：「不是」→「弗是」、「没有」→「呒没」",
+      "  - 「不要」→「勿要」或「覅」　例：「不要怕」→「覅吓」",
+      "  - 「这」→「搿」或「迭」　例：「这个」→「搿个」或「迭个」",
+      "  - 「那」→「埃」　例：「那个」→「埃个」",
+      "  - 「什么」→「啥」或「啥物事」",
+      "  - 「怎么」→「哪能」",
+      "  - 「在/正在」→「垃海」或「勒」　例：「在吃饭」→「垃海吃饭」",
+      "  - 「吃」→「吃」（不变）或「喫」　例：「吃饭」→「吃饭」",
+      "  - 「看」→「看」或「望」　例：「看看」→「看看」",
+      "  - 「很」→「交关」或「老」　例：「很好」→「老好」",
+      "  - 「吗（疑问）」→「口伐」　例：「好吗」→「好口伐」",
+      "  - 「了（完成）」→「勒」　例：「吃了」→「吃勒」",
+      "  - 「和/跟」→「搭」或「帮」　例：「和他」→「搭伊」",
+      "- 语气亲切自然，像上海本地的家长教小囡；句子短小，避免过长书面句。",
+      "- 数学公式保留 LaTeX；解释和提问必须用上海话书面形式。",
+      "- 【禁止编造生僻字】遇到不确定的方言词汇，优先使用上面列出的高频词，或直接使用标准中文词汇；禁止编造生僻方言字或 CJK 扩展区字符（大多数设备字体不支持渲染）。",
+      "- 开场示例：「侬好！来，看看搿道题目，侬觉着哪能做？」",
+      "",
+      "[上海话对话示例（few-shot，模仿这个感觉写，不要照抄内容）]",
+      "学生：搿道题目我做勿来。",
+      "老师：覅吓。侬先看看搿道题，题目帮侬讲啥物事？",
+      "学生：讲要算面积。",
+      "老师：好个。侬记牢面积公式口伐？慢慢叫想，想出来搭我讲。",
     ];
   }
   // es

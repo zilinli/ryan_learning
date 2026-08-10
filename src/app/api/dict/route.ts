@@ -15,6 +15,7 @@ import { freeDictLookup } from "@/lib/freedict-client";
 import { cantoneseLookup } from "@/lib/cantonese-dict";
 import { teochewLookup } from "@/lib/teochew-dict";
 import { hakkaLookup } from "@/lib/hakka-dict";
+import { shanghaineseLookup } from "@/lib/shanghainese-dict";
 import { localSeedLookup } from "@/lib/local-seeds";
 import {
   buildSuggestions,
@@ -34,6 +35,7 @@ const FALLBACK_CACHE_SOURCES = [
   "cantonese-local",
   "teochew-local",
   "hakka-local",
+  "shanghainese-local",
   "local-seed",
   "translate",
 ] as const;
@@ -109,6 +111,11 @@ async function exactLookup(
   } else if (lang === "hak") {
     const hak = hakkaLookup(wordLower);
     if (hak.entries.length > 0) return { result: hak, source: "hakka-local" };
+    const fd = await freeDictLookup(wordLower, "zh");
+    if (fd?.entries.length) return { result: fd, source: "freedict" };
+  } else if (lang === "sha") {
+    const sha = shanghaineseLookup(wordLower);
+    if (sha.entries.length > 0) return { result: sha, source: "shanghainese-local" };
     const fd = await freeDictLookup(wordLower, "zh");
     if (fd?.entries.length) return { result: fd, source: "freedict" };
   }

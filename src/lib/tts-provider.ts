@@ -92,6 +92,12 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
     return { kind: "formospeech", voice: FORMOSPEECH_HAK_VOICE };
   }
 
+  if (lang === "sha") {
+    // 上海话无双 TTS 商业 API → Cantonese edge-tts 兜底 + normalizeForTTS 字符映射
+    console.warn("[tts] 上海话无百炼/讯飞 TTS，用粤语 edge 兜底。");
+    return { kind: "edge", voice: edgeVoiceForLang("yue") };
+  }
+
   return { kind: "edge", voice: edgeVoiceForLang(lang) };
 }
 

@@ -16,6 +16,32 @@
 
 ---
 
+## 🟡 FB: FAQ / Feedback Panel + GitHub Issue Sync (2026-08-10)
+
+> **Design:** [subsystems/faq-feedback-panel.md](subsystems/faq-feedback-panel.md)
+> **Goal:** Sidebar "💡 FAQ / Feedback" button → FAQ panel + suggest form → auto-creates GitHub issue → feasibility analysis → TODO.md
+
+### FB.1 — UI
+
+- [x] **FB.1.1** — `FeedbackPanel.tsx`: FAQ tab (collapsible) + Suggest tab (category / title / description / submit)
+- [x] **FB.1.2** — Wire into `HistorySidebar.tsx`: button next to GitHub link
+- [x] **FB.1.3** — Desktop: slide-in right panel; Mobile: bottom sheet (matches component pattern)
+
+### FB.2 — Backend
+
+- [x] **FB.2.1** — `/api/feedback` POST: validates input → creates GitHub issue via REST API (or `gh` CLI fallback)
+- [x] **FB.2.2** — `feedback-analysis.ts`: effort estimation, duplicate check, roadmap fit, risk, recommendation
+- [x] **FB.2.3** — Append analysis result to `docs/TODO.md` under `📬 User Feedback` section
+
+### FB.3 — Release
+
+- [ ] **FB.3.1** — `npm test` green
+- [ ] **FB.3.2** — `npm run build` passes
+- [ ] **FB.3.3** — Commit + push develop
+- [ ] **FB.3.4** — PM2 restart spark-tutor
+
+---
+
 ## ✅ Completed (2026-08-10) — Code Agent Delivery Pipeline
 
 - [x] `CONSOLE_SYS` phases P0–P6 (`src/lib/console-sys.ts`)
@@ -201,6 +227,70 @@
 
 > **P1 / P2 / P3 backlog** moved to § Competitive Analysis Backlog v2 above (includes A3/B3/D1/D2).  
 > CA-10 weekly report demoted to **P3**; prefer **D2** daily one-liner.
+
+---
+
+## 🟡 SHA: Shanghainese (上海话) Full Support + TTS Image Fix (2026-08-10)
+
+> **Design:** [subsystems/shanghainese-support.md](subsystems/shanghainese-support.md)
+> **Goal:** Wire Shanghainese (sha) into all integration points; fix TTS reading base64 image content.
+
+### SHA — TTS Image Content Fix (🔴 critical)
+
+- [ ] **SHA-FIX.1** — `cleanTutorSpeechText`: add bare `data:image/` stripping; make `![]()` image regex multiline-safe with `[\s\S]*?`
+- [ ] **SHA-FIX.2** — `incompleteDiagramStart`: add bare `data:image/` mid-stream detection
+- [ ] **SHA-FIX.3** — `maskCompleteDiagrams`: sync with multiline-safe pattern
+- [ ] **SHA-FIX.4** — `isEncodedJunk`: add `data:image/` prefix detection
+- [ ] **SHA-FIX.5** — Unit tests: bare data URI, multiline data URI, `isEncodedJunk` data:image
+
+### SHA.1 — Type surface + voice
+
+- [ ] **SHA.1.1** — `voices.ts`: `TutorVoiceId` += `"shanghainese"`; `SpeechLang` += `"sha"`; `ReplyLangMode` += `"sha"`; `TUTOR_VOICES` entry; `edgeVoiceForLang`; `replyLangFromVoice`
+- [ ] **SHA.1.2** — `voices.test.ts`: label, edge voice, reply lang, instructions
+
+### SHA.2 — STT integration
+
+- [ ] **SHA.2.1** — `stt-lang.ts`: `SttLang` += `"sha"`; `voiceIdFromDictLang`, `sttLangFromVoice`, `sttLangFromDictLang`
+- [ ] **SHA.2.2** — `stt-lang.test.ts`: voice/lang/dictLang mappings
+- [ ] **SHA.2.3** — `transcribe/route.ts`: ALLOWED += `"sha"`; aliases `shanghainese`, `上海话`, `上海`, `wu`
+- [ ] **SHA.2.4** — `transcribe/route.test.ts`: sha in ALLOWED; aliases
+- [ ] **SHA.2.5** — `bailian-asr.ts`: `bailianAsrLanguageHint("sha") → "zh"`
+- [ ] **SHA.2.6** — `bailian-asr.test.ts`: language hint = "zh"
+- [ ] **SHA.2.7** — `stt-engine-order.ts`: `DEFAULT_ORDER["sha"]`; `MULTI_ENGINE_LANGS` += `"sha"`
+- [ ] **SHA.2.8** — `stt-engine-order.test.ts`: default order + multi-engine
+
+### SHA.3 — TTS + prompt + dialect correction
+
+- [ ] **SHA.3.1** — `tts-provider.ts`: `lang === "sha"` → edge (no Bailian/iFlytek Shanghainese TTS)
+- [ ] **SHA.3.2** — `tts-provider.test.ts`: sha returns edge
+- [ ] **SHA.3.3** — `prompts.ts`: `audienceLine`, `styleLine`, `findThisCue`, `defaultStudentLine` for `"sha"`
+- [ ] **SHA.3.4** — `prompts.test.ts`: Shanghainese prompt blocks
+- [ ] **SHA.3.5** — `dialect-stt-correct.ts`: `DialectKind.sha = "sha"` + use shanghainese-dict
+- [ ] **SHA.3.6** — `dialect-stt-correct.test.ts`: DialectKind, correction prompt
+
+### SHA.4 — Dictionary / Translation
+
+- [ ] **SHA.4.1** — `dict-types.ts`: `DictLang` += `"sha"`; `DICT_LANG_LABELS.sha = "上海話"`; source badge
+- [ ] **SHA.4.2** — `dict-sentence.ts`: `LANG_NAME.sha` + test
+- [ ] **SHA.4.3** — `dict-translate.ts`: `GTX_CODES["sha"] = "zh-CN"`; `translateWithGtx` conditional + test
+- [ ] **SHA.4.4** — `dict-suggest.ts`: `voiceIdFromDictLang` -> already handled via stt-lang; `listSeedWords` add sha
+- [ ] **SHA.4.5** — `local-seeds.ts`: add `"sha"` to `listSeedWords` (return shanghainese dict headwords)
+- [ ] **SHA.4.6** — `Dictionary.tsx`: sample words `["侬", "吃饭", "侬好", "勿是", "谢谢", "看"]`; badge `滬`
+- [ ] **SHA.4.7** — `VoiceControls.tsx`: dialect notice for sha
+
+### SHA.5 — TTS text normalization
+
+- [ ] **SHA.5.1** — `tts-text.ts`: `normalizeForTTS` add `sha` branch (Shanghainese→Cantonese char mapping)
+- [ ] **SHA.5.2** — `tts-text.test.ts`: `normalizeForTTS("sha")` tests
+
+### SHA.6 — Release
+
+- [ ] **SHA.6.1** — README.md: add Shanghainese
+- [ ] **SHA.6.2** — docs/DESIGN.md: link shanghainese-support.md
+- [ ] **SHA.6.3** — `npm test` green
+- [ ] **SHA.6.4** — `npm run build` passes
+- [ ] **SHA.6.5** — Commit + push develop
+- [ ] **SHA.6.6** — PM2 restart spark-tutor
 
 ---
 
