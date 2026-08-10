@@ -201,26 +201,108 @@ export async function gtxTranslate(
   const sl = GTX_CODES[from];
   const tl = GTX_CODES[to];
   if (!sl || !tl) return null;
+  return gtxTranslateRaw(q, sl, tl);
+}
+
+/**
+ * Translate a chat / passage into English (or another DictLang).
+ * Uses Google gtx with auto source detection; chunks long text.
+ */
+export async function gtxTranslatePassage(
+  text: string,
+  to: DictLang = "en",
+  opts: { maxChunk?: number } = {},
+): Promise<{ translation: string; alreadyTarget: boolean } | null> {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  const tl = GTX_CODES[to];
+  if (!tl) return null;
+
+  if (to === "en" && looksMostlyEnglish(cleaned)) {
+    return { translation: cleaned, alreadyTarget: true };
+  }
+
+  const maxChunk = opts.maxChunk ?? 280;
+  const chunks = splitForGtx(cleaned, maxChunk);
+  const parts: string[] = [];
+  for (const chunk of chunks) {
+    const out = await gtxTranslateRaw(chunk, "auto", tl);
+    if (!out) return null;
+    parts.push(out);
+  }
+  const translation = parts.join(" ").replace(/\s+/g, " ").trim();
+  if (!translation) return null;
+  return { translation, alreadyTarget: false };
+}
+
+async function gtxTranslateRaw(
+  q: string,
+  sl: string,
+  tl: string,
+): Promise<string | null> {
   try {
     const url =
       `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}` +
       `&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) return null;
     const data = (await res.json()) as unknown;
-    // Shape: [[["Hola","hello",...],...], ...]
     if (!Array.isArray(data) || !Array.isArray(data[0])) return null;
     const parts: string[] = [];
     for (const seg of data[0] as unknown[]) {
       if (Array.isArray(seg) && typeof seg[0] === "string") parts.push(seg[0]);
     }
     const out = parts.join("").trim();
-    if (!out) return null;
-    // Allow same-spelling cognates (hotel, radio, no) — still useful for learners
-    return out;
+    return out || null;
   } catch {
     return null;
   }
+}
+
+/** Latin-script tutoring text that is already English (skip MT). */
+export function looksMostlyEnglish(text: string): boolean {
+  const t = (text || "").trim();
+  if (!t) return false;
+  const han = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  if (han >= 2) return false;
+  const letters = (t.match(/[A-Za-z]/g) || []).length;
+  const other = t.replace(/\s/g, "").length - letters;
+  return letters >= 8 && letters >= other * 2;
+}
+
+function splitForGtx(text: string, maxLen: number): string[] {
+  if (text.length <= maxLen) return [text];
+  const sentences = text.split(/(?<=[.!?。！？；;])\s*/).filter(Boolean);
+  const out: string[] = [];
+  let buf = "";
+  for (const s of sentences) {
+    if (!buf) {
+      buf = s;
+      continue;
+    }
+    if (`${buf} ${s}`.length <= maxLen) {
+      buf = `${buf} ${s}`;
+    } else {
+      out.push(buf);
+      buf = s;
+    }
+  }
+  if (buf) out.push(buf);
+
+  const flat: string[] = [];
+  for (const p of out.length ? out : [text]) {
+    if (p.length <= maxLen) {
+      flat.push(p);
+      continue;
+    }
+    let rest = p;
+    while (rest.length > maxLen) {
+      flat.push(rest.slice(0, maxLen).trim());
+      rest = rest.slice(maxLen).trim();
+    }
+    if (rest) flat.push(rest);
+  }
+  return flat.filter(Boolean);
 }
 
 export async function translateWord(

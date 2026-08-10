@@ -55,6 +55,10 @@ Finished **assistant** bubbles show a **Listen / Stop** control under the messag
 | Streaming bubble | No Listen until the reply finishes |
 | Voice prefs | `loadVoiceId` / `saveVoiceId` are **account-scoped** (`VoiceControls` must receive `accountId`) — see [listen-voice-sync-stop.md](listen-voice-sync-stop.md) |
 | teo TTS | Bailian only; **no Cantonese edge fallback** (503 if unavailable) |
+
+## Translate to English
+
+Same row as Listen: **EN English** → `POST /api/translate-en` → Google gtx (`sl=auto`) after `cleanTutorSpeechText`. Shows a compact English panel under the bubble (toggle Hide). Already-English text is returned as-is without MT.
 | Stop | `NeuralSpeechEngine.stop()` aborts in-flight `/api/tts` and clears `audio.src` |
 
 ## Language Detection

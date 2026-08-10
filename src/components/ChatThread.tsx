@@ -22,6 +22,15 @@ function stripHiddenFences(content: string): string {
   );
 }
 
+type BubbleTranslation = {
+  status: "loading" | "ready" | "error";
+  text?: string;
+  alreadyEnglish?: boolean;
+  error?: string;
+  /** Ready but panel collapsed (button toggles) */
+  hidden?: boolean;
+};
+
 type Props = {
   messages: ChatMessage[];
   streaming?: boolean;
@@ -127,9 +136,67 @@ export function ChatThread({
   const [userScrolled, setUserScrolled] = useState(false);
   const [planExpanded, setPlanExpanded] = useState(false);
   const [hideCompletePlan, setHideCompletePlan] = useState(false);
+  const [translations, setTranslations] = useState<
+    Record<string, BubbleTranslation>
+  >({});
+  const translateAbortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+
+  const translateToEnglish = async (messageId: string, raw: string) => {
+    const existing = translations[messageId];
+    if (existing?.status === "ready") {
+      setTranslations((prev) => {
+        const cur = prev[messageId];
+        if (!cur || cur.status !== "ready") return prev;
+        return { ...prev, [messageId]: { ...cur, hidden: !cur.hidden } };
+      });
+      return;
+    }
+    if (existing?.status === "loading") return;
+
+    setTranslations((prev) => ({
+      ...prev,
+      [messageId]: { status: "loading" },
+    }));
+    try {
+      translateAbortRef.current?.abort();
+      const ac = new AbortController();
+      translateAbortRef.current = ac;
+      const res = await fetch("/api/translate-en", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: raw }),
+        signal: ac.signal,
+      });
+      const data = (await res.json()) as {
+        translation?: string;
+        alreadyEnglish?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.translation) {
+        throw new Error(data.error || `Translate failed (${res.status})`);
+      }
+      setTranslations((prev) => ({
+        ...prev,
+        [messageId]: {
+          status: "ready",
+          text: data.translation,
+          alreadyEnglish: Boolean(data.alreadyEnglish),
+        },
+      }));
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setTranslations((prev) => ({
+        ...prev,
+        [messageId]: {
+          status: "error",
+          error: err instanceof Error ? err.message : "Translation failed",
+        },
+      }));
+    }
+  };
 
   const planComplete = isWorksheetComplete(worksheetPlan);
   useEffect(() => {
@@ -530,67 +597,123 @@ export function ChatThread({
                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-[var(--teal)] align-middle" />
               ) : null}
             </div>
-            {/* One-click replay for finished assistant messages */}
+            {/* Listen + English under finished assistant messages */}
             {!isUser &&
             displayContent &&
-            onSpeakMessage &&
             !(
               streaming &&
               m === messages[messages.length - 1]
             ) ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (speakingMessageId === m.id) {
-                    onStopSpeak?.();
-                    return;
-                  }
-                  onSpeakMessage(m.id, displayContent);
-                }}
-                className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
-                  speakingMessageId === m.id
-                    ? "bg-[var(--teal)]/15 text-[var(--teal)]"
-                    : "text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--teal)]"
-                }`}
-                aria-label={
-                  speakingMessageId === m.id ? "Stop reading" : "Read aloud"
-                }
-                title={
-                  speakingMessageId === m.id ? "Stop reading" : "Read aloud"
-                }
-              >
-                {speakingMessageId === m.id ? (
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                    aria-hidden
+              <div className="mt-1 flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-0.5">
+                  {onSpeakMessage ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (speakingMessageId === m.id) {
+                          onStopSpeak?.();
+                          return;
+                        }
+                        onSpeakMessage(m.id, displayContent);
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
+                        speakingMessageId === m.id
+                          ? "bg-[var(--teal)]/15 text-[var(--teal)]"
+                          : "text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--teal)]"
+                      }`}
+                      aria-label={
+                        speakingMessageId === m.id
+                          ? "Stop reading"
+                          : "Read aloud"
+                      }
+                      title={
+                        speakingMessageId === m.id
+                          ? "Stop reading"
+                          : "Read aloud"
+                      }
+                    >
+                      {speakingMessageId === m.id ? (
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          aria-hidden
+                        >
+                          <rect
+                            x="3.5"
+                            y="3.5"
+                            width="9"
+                            height="9"
+                            rx="1.5"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          aria-hidden
+                        >
+                          <path
+                            d="M2.5 6.5v3h2.2L8 12.5V3.5L4.7 6.5H2.5Z"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M10 5.8a2.6 2.6 0 0 1 0 4.4M11.7 4.2a4.6 4.6 0 0 1 0 7.6"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      )}
+                      {speakingMessageId === m.id ? "Stop" : "Listen"}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void translateToEnglish(m.id, displayContent)}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
+                      translations[m.id]?.status === "loading" ||
+                      (translations[m.id]?.status === "ready" &&
+                        !translations[m.id]?.hidden)
+                        ? "bg-[var(--teal)]/15 text-[var(--teal)]"
+                        : "text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--teal)]"
+                    }`}
+                    aria-label="Translate to English"
+                    title="Translate to English"
+                    disabled={translations[m.id]?.status === "loading"}
                   >
-                    <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    aria-hidden
-                  >
-                    <path
-                      d="M2.5 6.5v3h2.2L8 12.5V3.5L4.7 6.5H2.5Z"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M10 5.8a2.6 2.6 0 0 1 0 4.4M11.7 4.2a4.6 4.6 0 0 1 0 7.6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                )}
-                {speakingMessageId === m.id ? "Stop" : "Listen"}
-              </button>
+                    <span className="font-semibold tracking-wide">EN</span>
+                    {translations[m.id]?.status === "loading"
+                      ? "…"
+                      : translations[m.id]?.status === "ready" &&
+                          !translations[m.id]?.hidden
+                        ? "Hide"
+                        : "English"}
+                  </button>
+                </div>
+                {translations[m.id]?.status === "error" ? (
+                  <p className="max-w-prose px-1 text-[11px] text-[var(--coral)]">
+                    {translations[m.id]?.error || "Translation failed"}
+                  </p>
+                ) : null}
+                {translations[m.id]?.status === "ready" &&
+                translations[m.id]?.text &&
+                !translations[m.id]?.hidden ? (
+                  <div className="max-w-prose rounded-xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-3 py-2 text-[12px] leading-relaxed text-[var(--ink)]">
+                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                      {translations[m.id]?.alreadyEnglish
+                        ? "Already English"
+                        : "English"}
+                    </p>
+                    <p className="whitespace-pre-wrap">
+                      {translations[m.id]?.text}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </article>
         );
