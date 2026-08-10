@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   FILE_INPUT_ACCEPT,
   isAllowedAttachment,
+  isAppleTouchDevice,
   isHtmlAttachment,
   isOfficeAttachment,
   normalizeMime,
+  resolveFilePickerAccept,
 } from "./attachments";
 
 describe("document upload allowlist", () => {
@@ -16,6 +18,13 @@ describe("document upload allowlist", () => {
     expect(isAllowedAttachment("", "hw.docx")).toBe(true);
     expect(isAllowedAttachment("", "slides.pptx")).toBe(true);
     expect(isAllowedAttachment("", "grades.xlsx")).toBe(true);
+  });
+
+  it("allows text/* and markdown MIME aliases from iOS", () => {
+    expect(isAllowedAttachment("text/plain", "notes.md")).toBe(true);
+    expect(isAllowedAttachment("text/x-markdown", "notes.md")).toBe(true);
+    expect(isAllowedAttachment("application/markdown", "a.md")).toBe(true);
+    expect(isAllowedAttachment("text/csv", "data.csv")).toBe(true);
   });
 
   it("allows console code extensions", () => {
@@ -38,6 +47,7 @@ describe("document upload allowlist", () => {
     expect(normalizeMime("", "a.xlsx")).toContain("spreadsheetml");
     expect(normalizeMime("", "a.html")).toBe("text/html");
     expect(normalizeMime("", "a.md")).toBe("text/markdown");
+    expect(normalizeMime("text/x-markdown", "a.md")).toBe("text/markdown");
   });
 
   it("isOfficeAttachment / isHtmlAttachment helpers", () => {
@@ -52,5 +62,30 @@ describe("document upload allowlist", () => {
     expect(FILE_INPUT_ACCEPT).toContain(".pptx");
     expect(FILE_INPUT_ACCEPT).toContain(".xlsx");
     expect(FILE_INPUT_ACCEPT).toContain(".html");
+    expect(FILE_INPUT_ACCEPT).toContain(".md");
+  });
+
+  it("omits accept on Apple touch devices so iOS can pick .md", () => {
+    expect(
+      isAppleTouchDevice(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+      ),
+    ).toBe(true);
+    expect(resolveFilePickerAccept(FILE_INPUT_ACCEPT, true)).toBeUndefined();
+    expect(resolveFilePickerAccept(FILE_INPUT_ACCEPT, false)).toBe(
+      FILE_INPUT_ACCEPT,
+    );
+    expect(
+      isAppleTouchDevice("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", {
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      }),
+    ).toBe(true);
+    expect(
+      isAppleTouchDevice("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", {
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      }),
+    ).toBe(false);
   });
 });

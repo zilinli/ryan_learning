@@ -70,10 +70,20 @@ export function guessKind(mimeType: string, name: string): AttachmentKind {
 }
 
 export function isAllowedAttachment(mimeType: string, name: string): boolean {
-  if (mimeType.startsWith("image/")) return true;
+  const mime = (mimeType || "").toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  // iOS / editors often report markdown as text/* or x-markdown
+  if (mime.startsWith("text/")) return true;
+  if (
+    mime === "application/markdown" ||
+    mime === "text/x-markdown" ||
+    mime === "text/x-web-markdown"
+  ) {
+    return true;
+  }
   // Phone camera / WeChat often give empty filename
   if (!name || name === "image.jpg" || name === "blob") {
-    if (!mimeType || mimeType === "application/octet-stream") return true;
+    if (!mime || mime === "application/octet-stream") return true;
   }
   if (
     IMAGE_EXT.test(name) ||
@@ -84,22 +94,46 @@ export function isAllowedAttachment(mimeType: string, name: string): boolean {
     return true;
   }
   if (
-    mimeType === "application/pdf" ||
-    mimeType === "text/plain" ||
-    mimeType === "text/markdown" ||
-    mimeType === "text/csv" ||
-    mimeType === "text/html" ||
-    mimeType === "application/json" ||
-    mimeType ===
+    mime === "application/pdf" ||
+    mime === "application/json" ||
+    mime ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    mimeType ===
+    mime ===
       "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-    mimeType ===
+    mime ===
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   ) {
     return true;
   }
   return false;
+}
+
+/** iPhone / iPad (incl. iPadOS desktop UA). */
+export function isAppleTouchDevice(
+  ua = typeof navigator !== "undefined" ? navigator.userAgent : "",
+  opts?: { platform?: string; maxTouchPoints?: number },
+): boolean {
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  const platform =
+    opts?.platform ??
+    (typeof navigator !== "undefined" ? navigator.platform : "");
+  const maxTouchPoints =
+    opts?.maxTouchPoints ??
+    (typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0);
+  // iPadOS 13+ reports as MacIntel with touch
+  if (platform === "MacIntel" && maxTouchPoints > 1) return true;
+  return false;
+}
+
+/**
+ * Desktop: keep accept= filter. iOS: omit accept — WebKit grays out uncommon
+ * extensions like `.md` when accept lists MIME/ext tokens.
+ */
+export function resolveFilePickerAccept(
+  desktopAccept: string,
+  appleTouch = isAppleTouchDevice(),
+): string | undefined {
+  return appleTouch ? undefined : desktopAccept;
 }
 
 export function normalizeMime(mimeType: string, name: string): string {
@@ -129,6 +163,13 @@ export function normalizeMime(mimeType: string, name: string): string {
     else if (IMAGE_EXT.test(lower)) mime = "image/jpeg";
     else if (TEXT_EXT.test(lower)) mime = "text/plain";
     else mime = "application/octet-stream";
+  }
+  if (
+    mime === "text/x-markdown" ||
+    mime === "text/x-web-markdown" ||
+    mime === "application/markdown"
+  ) {
+    mime = "text/markdown";
   }
   if (mime === "image/jpg") mime = "image/jpeg";
   return mime;

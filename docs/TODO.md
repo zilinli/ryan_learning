@@ -30,6 +30,16 @@
 - [x] **DOC.5** — Unit tests (allowlist + extract fixtures)
 - [x] **DOC.6** — run_tests → apply_changes → publish_develop → deploy_live
 
+### DOC-iOS: iPhone Markdown picker (2026-08-10)
+
+> **Goal:** iPhone Safari Code Agent can select and attach `.md` files.
+
+- [x] **DOC-iOS.1** — `isAppleTouchDevice` + `resolveFilePickerAccept` (omit accept on iOS)
+- [x] **DOC-iOS.2** — Allow `text/*` / markdown MIME aliases in allowlist
+- [x] **DOC-iOS.3** — ConsoleComposer + FaqAskPanel: `label` + `sr-only` (not `hidden` + click)
+- [x] **DOC-iOS.4** — Unit tests + run_tests
+- [x] **DOC-iOS.5** — apply_changes → publish_develop → deploy_live
+
 ---
 
 ## 📊 Report-v3 optimizations (2026-08-10)

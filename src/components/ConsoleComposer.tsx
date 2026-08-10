@@ -1,8 +1,12 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { filesToAttachments, attachmentFromCameraCapture, type ClientAttachment } from "@/lib/file-payload";
 import { startWavRecorder } from "@/lib/wav-recorder";
-import { CONSOLE_FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
+import {
+  CONSOLE_FILE_INPUT_ACCEPT,
+  MAX_ATTACHMENTS,
+  resolveFilePickerAccept,
+} from "@/lib/attachments";
 import { CameraCapture } from "./CameraCapture";
 
 export type ComposerSubmit = {
@@ -29,12 +33,19 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
   const [micHint, setMicHint] = useState("");
   const [err, setErr] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [fileAccept, setFileAccept] = useState<string | undefined>(
+    CONSOLE_FILE_INPUT_ACCEPT,
+  );
   const ref = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileId = useId();
   const attsRef = useRef(atts);
   const recorderRef = useRef<RecorderSession | null>(null);
 
   useEffect(() => () => { void recorderRef.current?.stop().catch(() => undefined); }, []);
+
+  useEffect(() => {
+    setFileAccept(resolveFilePickerAccept(CONSOLE_FILE_INPUT_ACCEPT));
+  }, []);
 
   useEffect(() => { attsRef.current = atts; }, [atts]);
 
@@ -194,14 +205,29 @@ export function ConsoleComposer({ disabled, placeholder, singleLine, onSubmit }:
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          {/* Attach file */}
-          <button type="button" disabled={disabled || atts.length >= MAX_ATTACHMENTS}
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] disabled:opacity-40"
-            title="Attach file / PDF / image" aria-label="Attach file">
+          {/* Attach file — label+sr-only (iOS-safe); omit accept on iPhone so .md is selectable */}
+          <input
+            id={fileId}
+            type="file"
+            multiple
+            accept={fileAccept}
+            className="sr-only"
+            disabled={disabled || atts.length >= MAX_ATTACHMENTS}
+            onChange={onFileInput}
+          />
+          <label
+            htmlFor={fileId}
+            aria-disabled={disabled || atts.length >= MAX_ATTACHMENTS}
+            className={`inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
+              disabled || atts.length >= MAX_ATTACHMENTS
+                ? "pointer-events-none opacity-40"
+                : ""
+            }`}
+            title="Attach file / PDF / Markdown / image"
+            aria-label="Attach file"
+          >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-          </button>
-          <input ref={fileRef} type="file" multiple accept={CONSOLE_FILE_INPUT_ACCEPT} className="hidden" onChange={onFileInput} />
+          </label>
 
           {/* Camera — opens live viewfinder for photo capture */}
           <button type="button" disabled={disabled || atts.length >= MAX_ATTACHMENTS}

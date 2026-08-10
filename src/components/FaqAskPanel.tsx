@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { CameraCapture } from "@/components/CameraCapture";
 import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 import {
@@ -8,7 +8,11 @@ import {
   filesToAttachments,
   type ClientAttachment,
 } from "@/lib/file-payload";
-import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
+import {
+  FILE_INPUT_ACCEPT,
+  MAX_ATTACHMENTS,
+  resolveFilePickerAccept,
+} from "@/lib/attachments";
 import type { FaqReplyLang } from "@/lib/faq-ai";
 import { sttLangFromDictLang } from "@/lib/stt-lang";
 import type { DictLang } from "@/lib/dict-types";
@@ -58,9 +62,16 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
   const [busy, setBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [hint, setHint] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileId = useId();
+  const [fileAccept, setFileAccept] = useState<string | undefined>(
+    FILE_INPUT_ACCEPT,
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -429,24 +440,26 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <input
-            ref={fileRef}
+            id={fileId}
             type="file"
-            accept={FILE_INPUT_ACCEPT}
+            accept={fileAccept}
             multiple
-            className="hidden"
+            className="sr-only"
+            disabled={busy || atLimit}
             onChange={(e) => {
               void addFiles(e.target.files);
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
-            disabled={busy || atLimit}
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-1 rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)] disabled:opacity-40"
+          <label
+            htmlFor={fileId}
+            aria-disabled={busy || atLimit}
+            className={`inline-flex cursor-pointer items-center gap-1 rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)] ${
+              busy || atLimit ? "pointer-events-none opacity-40" : ""
+            }`}
           >
             Upload
-          </button>
+          </label>
           <button
             type="button"
             disabled={busy || atLimit}

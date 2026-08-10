@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS } from "@/lib/attachments";
+import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS, resolveFilePickerAccept } from "@/lib/attachments";
 import {
   attachmentFromCameraCapture,
   filesToAttachments,
@@ -69,12 +69,19 @@ export function Composer({
   } | null>(null);
   const dialectTokenRef = useRef(0);
   const fileId = useId();
+  const [fileAccept, setFileAccept] = useState<string | undefined>(
+    FILE_INPUT_ACCEPT,
+  );
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   // Keep a ref of the latest attachments for stable event-handler closures
   // (addFiles/submit are recreated or memoized without deps).
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => {
+    setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
+  }, []);
 
   useEffect(() => {
     setVoiceAutoSend(loadVoiceAutoSend(accountId || RYAN_ACCOUNT));
@@ -253,7 +260,7 @@ export function Composer({
             id={fileId}
             type="file"
             multiple
-            accept={FILE_INPUT_ACCEPT}
+            accept={fileAccept}
             className="sr-only"
             disabled={pickDisabled}
             onChange={(e) => {
