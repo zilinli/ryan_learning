@@ -77,9 +77,11 @@ flowchart TB
 | **[subsystems/bailian-stt-tts.md](subsystems/bailian-stt-tts.md)** | Bailian Fun-ASR primary STT + CosyVoice TTS；讯飞可选备份；客家朗读 FormoSpeech |
 | **[subsystems/dialect-cloud-tts-stt-correct.md](subsystems/dialect-cloud-tts-stt-correct.md)** | Dialect cloud STT/TTS + correction UX（历史设计；STT 主路径已迁百炼） |
 | **[subsystems/dialect-cloud-tts-poc.md](subsystems/dialect-cloud-tts-poc.md)** | POC verification notes & homepage acceptance checklist |
+| **[subsystems/teochew-stt-remediation.md](subsystems/teochew-stt-remediation.md)** | Teochew STT remediation — generic Minnan vs. local Chaoshan root cause, A/B eval, feedback enrichment |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
-| **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy gap — deploy_live rebuilds .next + pm2 |
+| **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
+| **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |
 | **[subsystems/agent-console-panel.md](subsystems/agent-console-panel.md)** | 🖥 Agent Chat Console (port 3001) embedded into Spark sidebar |
 | **[subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)** | 🪟 Code Agent mini window UX: vibe coding, diff/apply, close behavior |

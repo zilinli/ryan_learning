@@ -11,7 +11,16 @@
 > Dictionary / Translation: **[subsystems/dictionary-api.md](subsystems/dictionary-api.md)** (word + LLM sentence/photo translate)  
 > Entertainments: **[subsystems/entertainments.md](subsystems/entertainments.md)** (v0.6 — challenge AI depths + quiescence)  
 > Competitive analysis v2: **[subsystems/competitive-product-plan-v2.md](subsystems/competitive-product-plan-v2.md)** · **[subsystems/competitive-feature-analysis.md](subsystems/competitive-feature-analysis.md)** · **[subsystems/competitive-ui-design.md](subsystems/competitive-ui-design.md)**  
-> P0 hardening: **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** · B3: **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)**
+> P0 hardening: **[subsystems/ca-p0-acceptance-hardening.md](subsystems/ca-p0-acceptance-hardening.md)** · B3: **[subsystems/ca-b3-voice-tolerance.md](subsystems/ca-b3-voice-tolerance.md)**  
+> Code Agent pipeline: **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** (research → design → TODO → develop push → deploy)
+
+---
+
+## ✅ Completed (2026-08-10) — Code Agent Delivery Pipeline
+
+- [x] `CONSOLE_SYS` phases P0–P6 (`src/lib/console-sys.ts`)
+- [x] Tools: `web_research`, `fetch_page`, `write_file`, `publish_develop` (+ `deploy_live`)
+- [x] Edit budget 25; README / DESIGN / harness tests updated
 
 ---
 
@@ -460,6 +469,19 @@
 - [ ] **15.5.2** — 闽南语替代潮汕话（仅"实在无潮汕话录音"时权宜，音系差异需实测）
 - [ ] **15.5.3** — 客家话本地量化模型（VoxHakka / `mms-tts-hak` 等；4GB 机器不常驻；优先仍是家人复刻 15.2.7）
 
+### 15.6 — TEO: Teochew STT Remediation（2026-08-10）
+
+> **Design:** [subsystems/teochew-stt-remediation.md](subsystems/teochew-stt-remediation.md) — root cause analysis (Bailian generic-Minnan vs. local Chaoshan), iFlytek A/B eval, feedback enrichment, engine routing.
+> **Principle:** TEO.4 already done (feedback fields). TEO.0 blocks TEO.1–3. TEO.5 is independent.
+
+- [ ] **TEO.0** — Real-audio A/B: Bailian vs. iFlytek on 12–15 Teochew clips (internet datasets — `panlr/teochew_wild`; human-scored) — see §4
+- [x] **TEO.4** — Feedback log: `DialectFeedback.engine` + `.original` fields — `dialect-feedback.ts` + tests (6 passing)
+- [ ] **TEO.5** — Wire UI call site (`Composer.tsx` / dialect-correct path) to pass `engine` + `original` through to `/api/dialect-feedback`
+- [ ] **TEO.1–3** — Per-dialect STT engine routing (`stt-engine-order.ts` + `route.ts` rewire) — only if TEO.0 confirms iFlytek wins
+  - [ ] **TEO.1** — `stt-engine-order.ts` + unit tests
+  - [ ] **TEO.2** — Rewire `route.ts` POST to walk ordered list for `teo`/`hak`
+  - [ ] **TEO.3** — Regression: `hak` behavior unchanged (Bailian-first)
+
 ---
 
 ## Legacy Pending
@@ -903,6 +925,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 | **Deletion sync + themes + F dialect** | ✅ done | — |
 | **Phase G dialect speech** | 🟡 partial | G.3 local Teochew TTS; G.4 LoRA STT (optional); G.5.3 GPT-SoVITS; **15.2.6** clone ID |
 | **Phase 15 cloud dialect** | 🟡 nearly done | **15.2.6** family Teochew clone; 15.5 backlog |
+| **TEO Teochew STT remediation** | 🟡 feedback done | TEO.4 done; TEO.0 A/B eval + TEO.5 wire-up pending; TEO.1-3 blocked on TEO.0 result |
 | **Phase 0 UI** | ✅ code done | Manual 0.14 QA; competitive polish separate |
 | **Phase 6 testing gaps** | 🔴 open | cursor-agent / speech-player / chat route / TutorShell RTL |
 | **Phase 7–9, 11** | ✅ done | — |
@@ -919,4 +942,5 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 1. **CA-P0.R3** — human smoke M1–M4 on live (worksheet chip, practice, opener, barge-in)
 2. **P1 competitive** — C1/CA-5 (scratch-work / **2.4**), C2–C4 teaching depth
 3. **Phase G / 15 remaining** — Teochew family clone ID (**15.2.6**); optional G.3/G.4 only if cloud quality insufficient
+4. **TEO Teochew STT** — run A/B eval TEO.0 (internet Teochew samples → human-scored) + TEO.5 wire-up; TEO.1-3 routing only if iFlytek wins
 4. **Phase 10.3 / Phase 6** — CI + coverage gaps when hardening

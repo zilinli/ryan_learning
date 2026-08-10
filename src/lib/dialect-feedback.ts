@@ -22,6 +22,10 @@ export type DialectFeedback = {
   text: string;
   dialect: "teo" | "hak";
   timestamp: number;
+  /** Which STT engine produced the raw transcript — used to assess engine quality over time. */
+  engine?: "bailian" | "iflytek" | "local";
+  /** Raw transcript before LLM correction — the (original, corrected) pairs form a Chaoshan corpus. */
+  original?: string;
 };
 
 const pendingWrites = new Map<string, Promise<void>>();
@@ -46,7 +50,9 @@ async function appendLine(
   await next;
 }
 
-/** Append one feedback record. Throws on failure so callers can return 500. */
+/** Append one feedback record. Throws on failure so callers can return 500.
+ *  Optional engine/original fields are persisted to enable engine-quality analysis
+ *  and Chaoshuan corpus construction over time. */
 export async function appendDialectFeedback(
   fb: DialectFeedback,
 ): Promise<void> {
@@ -54,8 +60,21 @@ export async function appendDialectFeedback(
   const dialect = fb.dialect === "hak" ? "hak" : "teo";
   const timestamp = Number.isFinite(fb.timestamp) ? fb.timestamp : Date.now();
   if (!text) throw new Error("empty feedback text");
-  await appendLine(
-    feedbackFile(),
-    JSON.stringify({ text: text.slice(0, 2000), dialect, timestamp }),
-  );
+
+  const engine = fb.engine === "bailian" || fb.engine === "iflytek" || fb.engine === "local"
+    ? fb.engine
+    : undefined;
+  const original = typeof fb.original === "string" && fb.original.trim()
+    ? fb.original.trim().slice(0, 2000)
+    : undefined;
+
+  const record: Record<string, unknown> = {
+    text: text.slice(0, 2000),
+    dialect,
+    timestamp,
+  };
+  if (engine) record.engine = engine;
+  if (original) record.original = original;
+
+  await appendLine(feedbackFile(), JSON.stringify(record));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer, type ComposerApi } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
@@ -305,6 +305,16 @@ export function TutorShell() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const isLg = useSyncExternalStore(
+    (onStoreChange) => {
+      const mq = window.matchMedia("(min-width: 1024px)");
+      mq.addEventListener("change", onStoreChange);
+      return () => mq.removeEventListener("change", onStoreChange);
+    },
+    () => window.matchMedia("(min-width: 1024px)").matches,
+    () => true,
+  );
   const [agentPanelOpen, setAgentPanelOpen] = useState(false);
   const [agentPanelMinimized, setAgentPanelMinimized] = useState(false);
   const [engagement, setEngagement] = useState<EngagementState | null>(null);
@@ -774,7 +784,7 @@ export function TutorShell() {
     }
   }, [ready, store, accountId, sessionId, messages.length, learningMemory]);
 
-  // Esc closes sidebar
+  // Esc closes mobile sidebar drawer
   useEffect(() => {
     if (!sidebarOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -1244,7 +1254,9 @@ export function TutorShell() {
 
       <HistorySidebar
         open={sidebarOpen}
+        desktopOpen={desktopSidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onDesktopClose={() => setDesktopSidebarOpen(false)}
         conversations={store.conversations}
         activeId={store.activeId}
         disabled={busy}
@@ -1287,11 +1299,18 @@ export function TutorShell() {
         <header className="safe-top flex w-full shrink-0 items-center gap-2 px-3 py-2 sm:px-4" style={{ minHeight: 48 }}>
           <button
             type="button"
-            onClick={() => setSidebarOpen((p) => !p)}
+            onClick={() => {
+              if (isLg) setDesktopSidebarOpen((p) => !p);
+              else setSidebarOpen((p) => !p);
+            }}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            aria-label={sidebarOpen ? "Close menu" : "Menu"}
+            aria-label={
+              (isLg ? desktopSidebarOpen : sidebarOpen)
+                ? "Close chat column"
+                : "Open chat column"
+            }
           >
-            {sidebarOpen ? (
+            {(isLg ? desktopSidebarOpen : sidebarOpen) ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />

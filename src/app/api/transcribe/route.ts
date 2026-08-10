@@ -7,6 +7,7 @@ import {
   loadIflytekConfig,
   transcribeWithIflytek,
 } from "@/lib/iflytek-asr";
+import { sttEngineOrder, type SttEngine } from "@/lib/stt-engine-order";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,18 +139,20 @@ async function tryBailianAsr(
   }
 }
 
-/**
- * 备份：讯飞方言识别（仅 teo/hak，且 STT_BACKUP_IFYTEK=1）。
- */
-async function tryIflytekDialectBackup(
+// ── Engine-order STT walk ───────────────────────────────────────────
+// For dialect languages (teo/hak): tries each engine in the configured order,
+// short-circuiting on first success. Enables quality routing (e.g. iFlytek-first
+// for Teochew if A/B eval confirms it wins).
+//
+// For non-dialect languages (en/zh/yue/es/fr/auto): fixed Bailian → local chain
+// (outage recovery only — unchanged from before).
+
+async function tryIflytekAsr(
   audio: Blob,
   language: string,
 ): Promise<{ text: string; language: string } | null> {
-  if (!isIflytekBackupEnabled()) return null;
   const config = loadIflytekConfig();
   if (!config) return null;
-  if (language !== "teo" && language !== "hak") return null;
-
   try {
     const wavBytes = new Uint8Array(await audio.arrayBuffer());
     const { text } = await transcribeWithIflytek(config, wavBytes, {
@@ -160,11 +163,90 @@ async function tryIflytekDialectBackup(
     return { text: clean, language };
   } catch (err) {
     console.warn(
-      `[transcribe] iflytek backup STT failed for ${language}:`,
+      `[transcribe] iflytek ASR failed for ${language}:`,
       err instanceof Error ? err.message : err,
     );
     return null;
   }
+}
+
+async function tryLocalAsr(
+  audio: Blob,
+  language: string,
+): Promise<{ text: string; language: string } | null> {
+  let { res, data } = await forwardOnce(audio, language);
+
+  if (!res.ok && res.status >= 500) {
+    await new Promise((r) => setTimeout(r, 400));
+    ({ res, data } = await forwardOnce(audio, language));
+  }
+
+  if (!res.ok) return null;
+
+  const text = (data?.text || "").trim();
+  if (!text) return null;
+
+  return { text, language: data?.language || language };
+}
+
+/**
+ * Walk the engine order for a language: try each engine, return on first success.
+ * Dialect languages (teo/hak) can reorder via STT_ENGINE_ORDER_{LANG} env var;
+ * non-dialect languages always use short-circuit Bailian → local.
+ */
+async function walkEngineOrder(
+  audio: Blob,
+  language: string,
+): Promise<{
+  text: string;
+  language: string;
+  engine: SttEngine;
+  model?: string;
+}> {
+  const order = sttEngineOrder(language);
+
+  for (const engine of order) {
+    switch (engine) {
+      case "bailian": {
+        const result = await tryBailianAsr(audio, language);
+        if (result) {
+          return {
+            text: result.text,
+            language: result.language,
+            engine: "bailian",
+            model: result.model,
+          };
+        }
+        break;
+      }
+      case "iflytek": {
+        const result = await tryIflytekAsr(audio, language);
+        if (result) {
+          return {
+            text: result.text,
+            language: result.language,
+            engine: "iflytek",
+          };
+        }
+        break;
+      }
+      case "local": {
+        const result = await tryLocalAsr(audio, language);
+        if (result) {
+          return {
+            text: result.text,
+            language: result.language,
+            engine: "local",
+          };
+        }
+        break;
+      }
+    }
+  }
+
+  throw new Error(
+    `No STT engine succeeded for ${language} (tried: ${order.join(", ")})`,
+  );
 }
 
 export async function POST(req: Request) {
@@ -188,64 +270,27 @@ export async function POST(req: Request) {
       String(form.get("language") || "auto"),
     );
 
-    // ① 百炼主识别
-    const bailian = await tryBailianAsr(audio, language);
-    if (bailian) {
+    // Walk engine order: dialect languages (teo/hak) honour STT_ENGINE_ORDER_{LANG};
+    // non-dialect languages use default Bailian → local.
+    try {
+      const result = await walkEngineOrder(audio, language);
       return NextResponse.json({
-        text: bailian.text,
-        language: bailian.language,
-        engine: "bailian",
-        model: bailian.model,
+        text: result.text,
+        language: result.language,
+        engine: result.engine,
+        model: result.model,
       });
-    }
-
-    // ② 可选讯飞备份（默认关闭）
-    const iflytek = await tryIflytekDialectBackup(audio, language);
-    if (iflytek) {
-      return NextResponse.json({
-        text: iflytek.text,
-        language: iflytek.language,
-        engine: "iflytek",
-      });
-    }
-
-    // ③ 本地 Whisper / SenseVoice
-    let { res, data } = await forwardOnce(audio, language);
-
-    if (!res.ok && res.status >= 500) {
-      await new Promise((r) => setTimeout(r, 400));
-      ({ res, data } = await forwardOnce(audio, language));
-    }
-
-    if (!res.ok) {
+    } catch (err) {
+      // All engines failed
+      const msg = err instanceof Error ? err.message : "Transcribe failed";
       return NextResponse.json(
         {
           error:
-            data?.error ||
-            (res.status === 503
-              ? "Voice service busy — try again in a moment."
-              : "Speech recognition failed — try again."),
-        },
-        { status: res.status === 400 || res.status === 422 ? res.status : 502 },
-      );
-    }
-
-    const text = (data?.text || "").trim();
-    if (!text) {
-      return NextResponse.json(
-        {
-          error:
-            "Didn’t catch that — speak a bit louder, or pick the matching language voice.",
+            "Didn't catch that — speak a bit louder, or pick the matching language voice.",
         },
         { status: 422 },
       );
     }
-
-    return NextResponse.json({
-      text,
-      language: data?.language || language,
-      engine: "local",
-    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Transcribe failed";
     const busy =

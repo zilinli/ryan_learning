@@ -80,15 +80,28 @@ Beyond text, the code agent accepts:
 | 🎤 **Voice** | Tap the mic to record → automatic STT transcription in the input box |
 | zh/en | Toggle voice language between Chinese and English |
 
+### Delivery pipeline
+
+For non-trivial prompts / requirements, Code Agent follows:
+
+1. **Intake** — restate the goal  
+2. **Research** — `web_research` / `fetch_page` + codebase search  
+3. **Design** — update `docs/subsystems/*` (include test design)  
+4. **Plan** — checklist in `docs/TODO.md`  
+5. **Implement** — `edit_file` / `write_file` + `run_tests`  
+6. **Release** — `apply_changes` (commit) → `publish_develop` (push `origin/develop`)  
+7. **Deploy** — `deploy_live` (`npm run build` + `pm2 restart spark-tutor` + health check)
+
+Tiny fixes may skip research/design. Source edits alone do **not** refresh the live site until `deploy_live` succeeds. Details: [docs/subsystems/code-agent-pipeline.md](docs/subsystems/code-agent-pipeline.md).
+
 ### What you can ask
 
-The code agent reads your project files, searches code, makes edits, and runs tests. Example prompts:
+The code agent researches, designs, edits, tests, pushes to `develop`, and deploys. Example prompts:
 
 - "Make the text bigger"
 - "Add a dark orange accent color"
 - "Fix the photo button on mobile"
-- "Show math steps one by one"
-- "Add a new subject filter"
+- "Research Teochew STT options and implement a remediation plan end-to-end"
 
 ### Window controls
 
@@ -103,9 +116,15 @@ The code agent reads your project files, searches code, makes edits, and runs te
 
 When the agent proposes code changes, it shows a diff block with file name, added (+) and removed (−) line counts. Click **Apply** to accept (requires PIN gate confirmation) or **Cancel** to discard. After applying, a ✓ banner confirms the changes.
 
-### Auto-Git Pipeline
+### Auto-Git & deploy
 
-After each successful agent session, the system runs a test gate and automatically commits + pushes to the `develop` branch on GitHub. A commit badge (SHA + test result) appears at the end of the agent's response.
+After implementation, the agent should:
+
+1. Gate on tests via `apply_changes` (local commit)  
+2. `publish_develop` → push `origin/develop`  
+3. `deploy_live` → rebuild `.next` + restart PM2 so the public site updates  
+
+A commit / push / deploy status line appears in the agent reply when those tools run.
 
 ### Agent Chat Console (port 3001)
 

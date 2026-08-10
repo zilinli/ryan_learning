@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "description": "TEO.0 Teochew STT A/B eval set (Bailian vs. iFlytek). Place real Teochew speech WAV files (16kHz mono) under samples/. Sources: panlr/teochew_wild (HuggingFace), YouTube Teochew conversations, family recordings.",
+  "scoring": "human (not CER). Two columns per sample: usable-as-is (yes/no), closer-to-chaoshan (Bailian/iFlytek/neither/same).",
+  "created": "2026-08-10",
+  "samples": [
+    {
+      "id": "teo-01",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "汝食了未",
+      "domain": "greeting",
+      "comment": "Common Chaoshan greeting — 汝+食+了+未"
+    },
+    {
+      "id": "teo-02",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "我做完功课了",
+      "domain": "homework",
+      "comment": "Homework-completion phrase — G4-level vocabulary"
+    },
+    {
+      "id": "teo-03",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "今日天气真好",
+      "domain": "casual",
+      "comment": "Simple everyday sentence"
+    },
+    {
+      "id": "teo-04",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "一二三四五六七八九十",
+      "domain": "numbers",
+      "comment": "Numbers 1-10 — ties into B3 confusable-glossary"
+    },
+    {
+      "id": "teo-05",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "三个苹果加两个苹果",
+      "domain": "math",
+      "comment": "Simple addition phrase"
+    },
+    {
+      "id": "teo-06",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "多谢你",
+      "domain": "greeting",
+      "comment": "Thank you — high-frequency courtesy"
+    },
+    {
+      "id": "teo-07",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "我唔知点做",
+      "domain": "homework",
+      "comment": "I don't know how to do it — child frustration"
+    },
+    {
+      "id": "teo-08",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "只猫好可爱",
+      "domain": "casual",
+      "comment": "The cat is cute — everyday-life topic"
+    },
+    {
+      "id": "teo-09",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "三点半放学",
+      "domain": "school",
+      "comment": "Time + school routine"
+    },
+    {
+      "id": "teo-10",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "你个名係乜个",
+      "domain": "greeting",
+      "comment": "What is your name — basic conversational phrase"
+    },
+    {
+      "id": "teo-11",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "乜个係长方形",
+      "domain": "math",
+      "comment": "What is a rectangle — geometry vocabulary"
+    },
+    {
+      "id": "teo-12",
+      "file": null,
+      "speaker": "TBD",
+      "gloss": "今日学潮汕话",
+      "domain": "casual",
+      "comment": "Today we learn Teochew — meta language-learning"
+    }
+  ]
+}

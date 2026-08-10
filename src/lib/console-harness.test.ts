@@ -27,6 +27,12 @@ describe("createConsoleHarnessTools", () => {
     expect(tools.deploy_live).toBeDefined();
     expect(tools.deploy_live!.description.toLowerCase()).toMatch(/build|pm2|\.next/);
   });
+  it("CD1b: exposes pipeline tools", () => {
+    expect(tools.web_research).toBeDefined();
+    expect(tools.fetch_page).toBeDefined();
+    expect(tools.write_file).toBeDefined();
+    expect(tools.publish_develop).toBeDefined();
+  });
   it("CD2: deploy_live dry-run", async () => {
     const prev = process.env.CONSOLE_DEPLOY_DRY_RUN;
     process.env.CONSOLE_DEPLOY_DRY_RUN = "1";
@@ -42,17 +48,39 @@ describe("createConsoleHarnessTools", () => {
       resetConsoleHarnessToolsCache();
     }
   });
-  it("CD3: console chat SYS mentions deploy_live and .next", async () => {
+  it("CD2b: publish_develop dry-run", async () => {
+    const prev = process.env.CONSOLE_PUBLISH_DRY_RUN;
+    process.env.CONSOLE_PUBLISH_DRY_RUN = "1";
+    try {
+      resetConsoleHarnessToolsCache();
+      const t = createConsoleHarnessTools();
+      const r = JSON.parse(asString(await t.publish_develop!.execute({}, ctx)));
+      expect(r.ok).toBe(true);
+      expect(r.dryRun).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.CONSOLE_PUBLISH_DRY_RUN;
+      else process.env.CONSOLE_PUBLISH_DRY_RUN = prev;
+      resetConsoleHarnessToolsCache();
+    }
+  });
+  it("CD3: console SYS mentions full pipeline + deploy_live", async () => {
+    const { CONSOLE_SYS } = await import("./console-sys");
+    expect(CONSOLE_SYS).toContain("deploy_live");
+    expect(CONSOLE_SYS).toMatch(/\.next/);
+    expect(CONSOLE_SYS).toContain("Max 25");
+    expect(CONSOLE_SYS).toContain("P1 — Research");
+    expect(CONSOLE_SYS).toContain("P2 — Design");
+    expect(CONSOLE_SYS).toContain("P3 — Plan");
+    expect(CONSOLE_SYS).toContain("publish_develop");
+    expect(CONSOLE_SYS).toContain("web_research");
     const src = await fs.readFile(
       path.join(ROOT, "src/app/api/console/chat/route.ts"),
       "utf-8",
     );
-    expect(src).toContain("deploy_live");
-    expect(src).toMatch(/\.next/);
-    expect(src).toContain("Max 15 edits");
+    expect(src).toContain("CONSOLE_SYS");
   });
   it("CD4: allows MAX_EDITS_PER_SESSION edits then throws", async () => {
-    expect(MAX_EDITS_PER_SESSION).toBe(15);
+    expect(MAX_EDITS_PER_SESSION).toBe(25);
     for (let i = 0; i < MAX_EDITS_PER_SESSION; i++) {
       const name = `e${i}.ts`;
       await fs.writeFile(path.join(TMP, name), "v0");
@@ -67,7 +95,7 @@ describe("createConsoleHarnessTools", () => {
         { filepath: "_test_tmp/overflow.ts", old_string: "v0", new_string: "v1" },
         ctx,
       ),
-    ).rejects.toThrow(/Max 15/);
+    ).rejects.toThrow(/Max 25/);
   });
   describe("list_files", () => {
     it("lists directory contents", async () => {

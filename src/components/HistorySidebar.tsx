@@ -10,7 +10,11 @@ import { SkillsPanel } from "./SkillsPanel";
 
 type Props = {
   open: boolean;
+  /** Desktop chat column visibility (defaults to true). */
+  desktopOpen?: boolean;
   onClose: () => void;
+  /** Close the desktop chat column (X button). */
+  onDesktopClose?: () => void;
   conversations: ConversationRecord[];
   activeId: string;
   disabled?: boolean;
@@ -38,7 +42,9 @@ function relativeTime(ts: number): string {
 
 export function HistorySidebar({
   open,
+  desktopOpen = true,
   onClose,
+  onDesktopClose,
   conversations,
   activeId,
   disabled,
@@ -79,11 +85,18 @@ export function HistorySidebar({
         </div>
         <button
           type="button"
-          className="min-h-10 rounded-full px-3 text-sm text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] lg:hidden"
-          onClick={onClose}
-          aria-label="Close sidebar"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          onClick={() => {
+            onClose();
+            onDesktopClose?.();
+          }}
+          aria-label="Close chat column"
+          title="Close chat column"
         >
-          Close
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
 
@@ -283,8 +296,10 @@ export function HistorySidebar({
 
   return (
     <>
-      {/* Desktop: always visible */}
-      <div className="relative z-20 hidden h-full shrink-0 lg:block">{panel}</div>
+      {/* Desktop chat column — closable */}
+      {desktopOpen ? (
+        <div className="relative z-20 hidden h-full shrink-0 lg:block">{panel}</div>
+      ) : null}
 
       {/* Mobile drawer — slide animation */}
       {open ? (

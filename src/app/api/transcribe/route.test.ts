@@ -122,7 +122,7 @@ describe("POST /api/transcribe — Bailian primary", () => {
     expect(data.engine).toBe("local");
   });
 
-  it("does not call iflytek unless STT_BACKUP_IFYTEK is on", async () => {
+  it("does not call iflytek when not in engine order for teo", async () => {
     process.env.ALIYUN_DASHSCOPE_API_KEY = "sk-test";
     process.env.IFYTEK_API_KEY = "k1";
     process.env.IFYTEK_API_SECRET = "s1";
@@ -142,8 +142,8 @@ describe("POST /api/transcribe — Bailian primary", () => {
     expect(iflySpy).not.toHaveBeenCalled();
   });
 
-  it("uses iflytek backup when enabled and Bailian misses", async () => {
-    process.env.STT_BACKUP_IFYTEK = "1";
+  it("uses iFlytek when engine order includes it and Bailian misses", async () => {
+    process.env.STT_ENGINE_ORDER_HAK = "bailian,iflytek,local";
     process.env.IFYTEK_API_KEY = "k1";
     process.env.IFYTEK_API_SECRET = "s1";
     process.env.IFYTEK_APP_ID = "a1";
@@ -179,7 +179,7 @@ describe("POST /api/transcribe — Bailian primary", () => {
     expect(res.status).toBe(422);
   });
 
-  it("returns 502 when local STT server is down", async () => {
+  it("returns 422 when all engines fail (no text)", async () => {
     mockSttServerFail();
     const res = await POST(
       new Request("http://localhost/api/transcribe", {
@@ -187,6 +187,6 @@ describe("POST /api/transcribe — Bailian primary", () => {
         body: makeForm("auto"),
       }),
     );
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(422);
   });
 });

@@ -21,7 +21,7 @@ const STORE_KEY = FLAT_KEYS.sessions;
 
 /** Hard caps so localStorage + RAM stay small on phones */
 export const MAX_CONVERSATIONS = 100;
-export const MAX_MESSAGES_PER_CHAT = 80;
+export const MAX_MESSAGES_PER_CHAT = 300;
 const MAX_CONTENT_CHARS = 32_000;
 const MAX_TITLE_LEN = 42;
 
@@ -167,7 +167,7 @@ function pruneStore(store: ConversationsStore): ConversationsStore {
     (c) => c.sessionId === store.activeId || c.messages.length > 0,
   );
 
-  // Global message + size retention (keep newest ~1k messages)
+  // Global message + size retention (keep newest ~2k messages)
   list = enforceHistoryRetention(list, {
     maxMessages: MAX_TOTAL_MESSAGES,
   });

@@ -3,14 +3,16 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { SDKCustomTool, SDKJsonValue } from "@cursor/sdk";
+import { fetchPageText, webSearch } from "./tutor-harness";
 
 const GIT_TO = 15000;
 const RUN_TO = 30000;
 const TEST_TO = 60000;
 const BUILD_TO = 240000;
+const PUSH_TO = 120000;
 
-/** Raised from 5 — complex design/implement prompts need more edits. */
-export const MAX_EDITS_PER_SESSION = 15;
+/** Full pipeline (research → design → TODO → code) needs a higher budget. */
+export const MAX_EDITS_PER_SESSION = 25;
 
 let _root: string | undefined;
 function root(): string {
@@ -151,6 +153,54 @@ async function editFile(args: Record<string, SDKJsonValue>): Promise<string> {
   return "Edited " + rel + " (+" + Math.max(0, ad) + " -" + Math.max(0, rm) + ")";
 }
 
+/** Create or overwrite a file (for new design docs / modules). Counts toward edit budget. */
+async function writeFileTool(args: Record<string, SDKJsonValue>): Promise<string> {
+  inc();
+  const fp = safe(as(args.filepath));
+  const content = as(args.content);
+  if (!content && content !== "") throw new Error("content required");
+  if (content.length > 500_000) throw new Error("Too large");
+  await ensureBak();
+  await fs.mkdir(path.dirname(fp), { recursive: true });
+  try {
+    const prev = await fs.readFile(fp, "utf-8");
+    await fs.writeFile(bok(fp), prev, "utf-8");
+  } catch {
+    // new file
+  }
+  await fs.writeFile(fp, content, "utf-8");
+  const rel = path.relative(root(), fp);
+  await exe("git", ["add", "--", rel], { timeout: GIT_TO });
+  const lines = (content.match(/\n/g) || []).length + 1;
+  return `Wrote ${rel} (${lines} lines)`;
+}
+
+async function webResearch(args: Record<string, SDKJsonValue>): Promise<string> {
+  const q = as(args.query).trim();
+  if (!q) throw new Error("query required");
+  const limit = Math.min(Math.max(Number(args.limit) || 6, 1), 10);
+  const hits = await webSearch(q, limit);
+  if (!hits.length) return "No web results (try a shorter query or fetch_page with a known URL).";
+  return hits
+    .map(
+      (h, i) =>
+        `${i + 1}. ${h.title}\n   ${h.url}\n   ${h.snippet || "(no snippet)"} [${h.source}]`,
+    )
+    .join("\n\n");
+}
+
+async function fetchPage(args: Record<string, SDKJsonValue>): Promise<string> {
+  const url = as(args.url).trim();
+  if (!/^https?:\/\//i.test(url)) throw new Error("url must be http(s)");
+  try {
+    const page = await fetchPageText(url);
+    const body = (page.text || "").slice(0, 12000);
+    return `# ${page.title || url}\nURL: ${page.url}\n\n${body}`;
+  } catch (err) {
+    return `fetch_page failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
 async function runTests(args: Record<string, SDKJsonValue>): Promise<string> {
   const a = [
     "vitest",
@@ -196,6 +246,7 @@ async function applyChanges(args: Record<string, SDKJsonValue>): Promise<string>
       ":(exclude)node_modules",
       ":(exclude).env*",
       ":(exclude).console-backups",
+      ":(exclude)data",
     ],
     { timeout: GIT_TO },
   );
@@ -207,8 +258,76 @@ async function applyChanges(args: Record<string, SDKJsonValue>): Promise<string>
   resetFileChangeCount();
   return (
     (co + ce || "Applied.") +
-    "\nNote: commit does NOT update the live site — call deploy_live after src/ changes."
+    "\nNote: commit is local only — call publish_develop to push origin/develop, and deploy_live after src/ changes."
   );
+}
+
+/**
+ * Push current branch to origin/develop (must already be on develop).
+ * Prefer after apply_changes. Dry-run: CONSOLE_PUBLISH_DRY_RUN=1.
+ */
+async function publishDevelop(args: Record<string, SDKJsonValue>): Promise<string> {
+  if (process.env.CONSOLE_PUBLISH_DRY_RUN === "1") {
+    return JSON.stringify({
+      ok: true,
+      dryRun: true,
+      steps: ["verify develop", "git push -u origin develop"],
+    });
+  }
+
+  const { stdout: branchOut } = await exe(
+    "git",
+    ["rev-parse", "--abbrev-ref", "HEAD"],
+    { timeout: GIT_TO },
+  );
+  const branch = branchOut.trim();
+  if (branch !== "develop") {
+    return JSON.stringify({
+      ok: false,
+      phase: "branch",
+      branch,
+      error: "Must be on develop to publish (current: " + branch + ")",
+    });
+  }
+
+  const { stdout: porcelain } = await exe("git", ["status", "--porcelain"], {
+    timeout: GIT_TO,
+  });
+  if (porcelain.trim()) {
+    // Auto-commit remaining work if message provided; else ask apply_changes first
+    const msg = as(args.message).trim();
+    if (!msg) {
+      return JSON.stringify({
+        ok: false,
+        phase: "dirty",
+        error: "Uncommitted changes — call apply_changes first (or pass message to publish_develop).",
+      });
+    }
+    await applyChanges({ message: msg });
+  }
+
+  const push = await exe("git", ["push", "-u", "origin", "HEAD:develop"], {
+    timeout: PUSH_TO,
+  });
+  if (push.exitCode !== 0) {
+    return JSON.stringify({
+      ok: false,
+      phase: "push",
+      exitCode: push.exitCode,
+      log: (push.stdout + push.stderr).slice(-4000),
+    });
+  }
+
+  const { stdout: sha } = await exe("git", ["rev-parse", "--short", "HEAD"], {
+    timeout: GIT_TO,
+  });
+  return JSON.stringify({
+    ok: true,
+    phase: "done",
+    branch: "develop",
+    sha: sha.trim(),
+    log: (push.stdout + push.stderr).slice(-1500),
+  });
 }
 
 /**
@@ -339,6 +458,39 @@ export function createConsoleHarnessTools(): Record<string, SDKCustomTool> {
       },
       editFile,
     ),
+    write_file: tool(
+      "Create or overwrite a file (new design docs, TODO sections, new modules). Counts toward edit budget.",
+      {
+        type: "object",
+        properties: {
+          filepath: { type: "string" },
+          content: { type: "string" },
+        },
+        required: ["filepath", "content"],
+      },
+      writeFileTool,
+    ),
+    web_research: tool(
+      "Web search for APIs, docs, UX patterns (P1 research). Returns title/url/snippet list.",
+      {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          limit: { type: "number" },
+        },
+        required: ["query"],
+      },
+      webResearch,
+    ),
+    fetch_page: tool(
+      "Fetch a URL and return cleaned plain text (after web_research).",
+      {
+        type: "object",
+        properties: { url: { type: "string" } },
+        required: ["url"],
+      },
+      fetchPage,
+    ),
     run_tests: tool(
       "Run vitest tests.",
       { type: "object", properties: { file: { type: "string" } }, required: [] },
@@ -346,9 +498,18 @@ export function createConsoleHarnessTools(): Record<string, SDKCustomTool> {
     ),
     git_diff: tool("Show uncommitted diff.", { type: "object", properties: {}, required: [] }, gitDiff),
     apply_changes: tool(
-      "Commit changes (tests must pass first). Does NOT update live site — use deploy_live.",
+      "Commit changes on current branch (tests must pass). Does NOT push or rebuild — use publish_develop + deploy_live.",
       { type: "object", properties: { message: { type: "string" } }, required: ["message"] },
       applyChanges,
+    ),
+    publish_develop: tool(
+      "Push to origin/develop (must be on develop). Optional message commits dirty tree first. Dry-run: CONSOLE_PUBLISH_DRY_RUN=1.",
+      {
+        type: "object",
+        properties: { message: { type: "string" } },
+        required: [],
+      },
+      publishDevelop,
     ),
     deploy_live: tool(
       "Rebuild production .next (npm run build) and pm2 restart spark-tutor, then health-check. REQUIRED after src/ changes so the live site updates. Dry-run when CONSOLE_DEPLOY_DRY_RUN=1.",

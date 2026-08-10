@@ -2,6 +2,7 @@ import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { SDKAgent, SDKImage, SDKUserMessage } from "@cursor/sdk";
 import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { createConsoleHarnessTools } from "@/lib/console-harness";
+import { CONSOLE_SYS } from "@/lib/console-sys";
 import { readConsoleSession, writeConsoleSession } from "@/lib/console-session-store";
 import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachments";
 import { buildFileSummaries } from "@/lib/extract-files";
@@ -18,11 +19,7 @@ function key() {
   return k;
 }
 
-const SYS = `You are Spark Builder. Project: Next.js 16 + React 19 + TypeScript.
-Tools: read_file, search_code, edit_file, run_tests, git_diff, apply_changes, deploy_live, revert_changes, list_files.
-Safety rules: Never edit .git/, node_modules/, .env*, data/. Never delete files. Run tests after edits. Max 15 edits per session.
-CRITICAL — live deploy: PM2 spark-tutor serves production .next via \`npm start\`. Editing source alone does NOT update the public site. After any src/ / public/ / next.config change that users should see, you MUST call deploy_live (build + pm2 restart + health check) and report its JSON result. apply_changes only git-commits; it does not rebuild.
-Workflow: search_code -> read_file -> edit_file -> run_tests -> deploy_live -> git_diff -> ask user approval -> apply_changes (optional commit).`;
+const SYS = CONSOLE_SYS;
 
 export async function POST(req: Request) {
   let body: ConsoleChatRequestBody;
