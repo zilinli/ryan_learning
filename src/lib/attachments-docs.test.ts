@@ -88,4 +88,14 @@ describe("document upload allowlist", () => {
       }),
     ).toBe(false);
   });
+
+  it("defer-mount contract: Apple gets undefined accept, desktop keeps filter", () => {
+    // Composers must mount <input> only after resolveFilePickerAccept — never
+    // paint desktop accept then clear it (WebKit keeps the first filter).
+    const apple = resolveFilePickerAccept(FILE_INPUT_ACCEPT, true);
+    const desktop = resolveFilePickerAccept(FILE_INPUT_ACCEPT, false);
+    expect(apple).toBeUndefined();
+    expect(desktop).toBeTruthy();
+    expect(desktop).toContain(".md");
+  });
 });

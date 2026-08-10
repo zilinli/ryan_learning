@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FILE_INPUT_ACCEPT, MAX_ATTACHMENTS, resolveFilePickerAccept } from "@/lib/attachments";
 import {
   attachmentFromCameraCapture,
@@ -68,10 +68,8 @@ export function Composer({
     onDismiss: () => void;
   } | null>(null);
   const dialectTokenRef = useRef(0);
-  const fileId = useId();
-  const [fileAccept, setFileAccept] = useState<string | undefined>(
-    FILE_INPUT_ACCEPT,
-  );
+  const [fileAccept, setFileAccept] = useState<string | undefined>(undefined);
+  const [pickerReady, setPickerReady] = useState(false);
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   // Keep a ref of the latest attachments for stable event-handler closures
   // (addFiles/submit are recreated or memoized without deps).
@@ -79,8 +77,11 @@ export function Composer({
     attachmentsRef.current = attachments;
   }, [attachments]);
 
+  // Defer mounting the file input until accept is resolved — never paint with
+  // desktop accept then clear it on iPhone (WebKit keeps the first filter).
   useEffect(() => {
     setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
+    setPickerReady(true);
   }, []);
 
   useEffect(() => {
@@ -256,29 +257,30 @@ export function Composer({
         ) : null}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <input
-            id={fileId}
-            type="file"
-            multiple
-            accept={fileAccept}
-            className="sr-only"
-            disabled={pickDisabled}
-            onChange={(e) => {
-              const files = e.target.files ? Array.from(e.target.files) : [];
-              e.target.value = "";
-              void addFiles(files);
-            }}
-          />
           <label
-            htmlFor={fileId}
             aria-disabled={pickDisabled}
-            className={`inline-flex min-h-[2.75rem] w-10 cursor-pointer items-center justify-center rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
+            className={`relative inline-flex min-h-[2.75rem] w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)] ${
               pickDisabled ? "pointer-events-none opacity-30" : ""
             }`}
-            title="Upload file"
+            title="Upload file / PDF / Markdown"
             aria-label="Upload file"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            {pickerReady ? (
+              <input
+                type="file"
+                multiple
+                {...(fileAccept ? { accept: fileAccept } : {})}
+                className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                disabled={pickDisabled}
+                aria-label="Upload file"
+                onChange={(e) => {
+                  const files = e.target.files ? Array.from(e.target.files) : [];
+                  e.target.value = "";
+                  void addFiles(files);
+                }}
+              />
+            ) : null}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
           </label>

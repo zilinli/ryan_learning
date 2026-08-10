@@ -40,6 +40,16 @@
 - [x] **DOC-iOS.4** — Unit tests + run_tests
 - [x] **DOC-iOS.5** — apply_changes → publish_develop → deploy_live
 
+### DOC-iOS2: iPhone still cannot see/pick `.md` (2026-08-10 follow-up)
+> **Report:** 点击文件附件仍看不到 / 选不了 md（omit-accept 已部署仍失败）
+> **Root cause hypothesis:** input first mounts with desktop `accept`, then useEffect clears it — WebKit keeps the first filter; `sr-only` off-screen input can also drop `change` on iOS.
+
+- [x] **DOC-iOS2.1** — Mount file input only after accept resolved; never apply desktop accept on Apple touch
+- [x] **DOC-iOS2.2** — Overlay opacity-0 input on attach label (Tutor / Console / Ask AI)
+- [x] **DOC-iOS2.3** — Unit test defer-mount contract; run_tests
+- [x] **DOC-iOS2.4** — apply_changes → publish_develop → deploy_live
+- [ ] **DOC-iOS2.5** — Manual: iPhone Safari → 附件 → Browse → 选 `.md` → 出现 pill
+
 ---
 
 ## 📊 Report-v3 optimizations (2026-08-10)

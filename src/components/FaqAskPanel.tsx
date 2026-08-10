@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CameraCapture } from "@/components/CameraCapture";
 import { MicTranscribeButton } from "@/components/MicTranscribeButton";
 import {
@@ -62,15 +62,15 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
   const [busy, setBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [hint, setHint] = useState("");
-  const fileId = useId();
-  const [fileAccept, setFileAccept] = useState<string | undefined>(
-    FILE_INPUT_ACCEPT,
-  );
+  const [fileAccept, setFileAccept] = useState<string | undefined>(undefined);
+  const [pickerReady, setPickerReady] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Defer file-input mount until accept is resolved (iOS never sees desktop accept first).
   useEffect(() => {
     setFileAccept(resolveFilePickerAccept(FILE_INPUT_ACCEPT));
+    setPickerReady(true);
   }, []);
 
   useEffect(() => {
@@ -439,25 +439,26 @@ export function FaqAskPanel({ onOpenSuggest }: Props) {
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <input
-            id={fileId}
-            type="file"
-            accept={fileAccept}
-            multiple
-            className="sr-only"
-            disabled={busy || atLimit}
-            onChange={(e) => {
-              void addFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
           <label
-            htmlFor={fileId}
             aria-disabled={busy || atLimit}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)] ${
+            className={`relative inline-flex cursor-pointer items-center gap-1 overflow-hidden rounded-full border border-[var(--line)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)] ${
               busy || atLimit ? "pointer-events-none opacity-40" : ""
             }`}
           >
+            {pickerReady ? (
+              <input
+                type="file"
+                multiple
+                {...(fileAccept ? { accept: fileAccept } : {})}
+                className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                disabled={busy || atLimit}
+                aria-label="Upload file"
+                onChange={(e) => {
+                  void addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            ) : null}
             Upload
           </label>
           <button

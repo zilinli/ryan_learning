@@ -128,6 +128,9 @@ export function isAppleTouchDevice(
 /**
  * Desktop: keep accept= filter. iOS: omit accept — WebKit grays out uncommon
  * extensions like `.md` when accept lists MIME/ext tokens.
+ *
+ * Callers must mount `<input type="file">` only AFTER this resolves, and must
+ * never first paint with a desktop accept then clear it (WebKit keeps the first filter).
  */
 export function resolveFilePickerAccept(
   desktopAccept: string,
