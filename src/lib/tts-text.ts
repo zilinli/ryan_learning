@@ -38,6 +38,15 @@ function isEncodedJunk(text: string): boolean {
   if (/data:image\/svg\+xml/i.test(t)) return true;
   if (/%3C\s*\/?\s*svg/i.test(t)) return true;
   if (/xmlns%3D|viewBox%3D|stroke-width%3D|font-family%3D/i.test(t)) return true;
+  // Mid-SVG CSS leftovers after a bad soft-break (no <svg wrapper left)
+  if (/font-family\s*:/i.test(t)) return true;
+  if (/@keyframes\b/i.test(t)) return true;
+  if (/stroke-dasharray|fill-opacity|text-anchor/i.test(t)) return true;
+  if (/\{[^}]{0,80}(?:fill|stroke|transform)\s*:/i.test(t)) return true;
+  // Mostly CSS / markup punctuation with little prose
+  const prose = (t.match(/[\u4e00-\u9fffA-Za-z]/g) || []).length;
+  const cssy = (t.match(/[{};:#]/g) || []).length;
+  if (cssy >= 6 && cssy >= prose) return true;
   return false;
 }
 
@@ -57,10 +66,14 @@ export function cleanTutorSpeechText(text: string): string {
   t = t.replace(/<svg\b[\s\S]*$/gi, " ");
   t = t.replace(/```(?:svg|xml|mermaid)?\s*[\s\S]*$/gi, " ");
   t = t.replace(/data:image\/svg\+xml,[^\s)]*/gi, " ");
+  // Mid-diagram CSS leftovers (soft-break tore the fence open)
+  t = t.replace(/<style\b[\s\S]*?<\/style>/gi, " ");
+  t = t.replace(/@keyframes\b[^{]*\{[\s\S]*?\}\s*\}/gi, " ");
+  t = t.replace(/[.#][a-zA-Z_][\w-]*\s*\{[^}]*\}/g, " ");
   // Percent-encoded SVG leftovers from mid-URI soft-breaks
   t = t.replace(/(?:%[0-9A-Fa-f]{2}){4,}/g, " ");
   t = t.replace(
-    /\b(?:xmlns|viewBox|polygon|polyline|stroke-width|font-size|text-anchor|dominant-baseline|aria-label|fill-opacity)\b[^\s]*/gi,
+    /\b(?:xmlns|viewBox|polygon|polyline|stroke-width|font-size|text-anchor|dominant-baseline|aria-label|fill-opacity|font-family)\b[^\s]*/gi,
     " ",
   );
 
@@ -193,15 +206,19 @@ export function chunkForNeuralTts(text: string, maxLen = 280): string[] {
 
 /**
  * Soft-break only at positions that are real in `raw` (not blanked diagram masks).
- * `masked` must be same length as `raw`.
+ * `masked` must be same length as `raw`. Diagrams are masked with DIAGRAM_MASK
+ * (not spaces) so whitespace inside SVG/CSS cannot look like a real soft-break.
  */
+const DIAGRAM_MASK = "\uE000";
+
 function findSoftBreak(
   raw: string,
   masked: string,
   minIdx: number,
   maxIdx: number,
 ): number {
-  const real = (i: number) => masked[i] === raw[i];
+  const real = (i: number) =>
+    masked[i] === raw[i] && masked[i] !== DIAGRAM_MASK;
   const strong = "。！？.!?;；";
   const medium = "，、,";
   for (let i = maxIdx - 1; i >= minIdx; i -= 1) {
@@ -225,7 +242,7 @@ function findSoftBreak(
 /** Same-length mask so speech split indices stay aligned with the raw buffer. */
 function maskCompleteDiagrams(text: string): string {
   let t = text;
-  const blank = (m: string) => " ".repeat(m.length);
+  const blank = (m: string) => DIAGRAM_MASK.repeat(m.length);
   t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*?\)/gi, blank);
   t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, blank);
   t = t.replace(/\bsvg\s*<svg\b[\s\S]*?<\/svg>/gi, blank);
@@ -346,7 +363,12 @@ export function pullSpeakableFromBuffer(
     if (!mm || mm.index === undefined) break;
     // Reject matches that only exist because we blanked a diagram (should not happen for 。.!?)
     const end = mm.index + mm[0].length;
-    if (liveMask[mm.index] !== buf[mm.index]) break;
+    if (
+      liveMask[mm.index] !== buf[mm.index] ||
+      liveMask[mm.index] === DIAGRAM_MASK
+    ) {
+      break;
+    }
     if (
       cleanTutorSpeechText(buf.slice(0, end)).length < Math.min(10, minChars) &&
       !opts.force
@@ -375,6 +397,9 @@ export function pullSpeakableFromBuffer(
         /!\[[^\]]*\]\(data:image\/|<svg\b|```(?:svg|xml|mermaid)\b/i,
       );
       if (beforeDiag >= minChars) {
+        take(beforeDiag);
+      } else if (beforeDiag > 0) {
+        // Short prefix (e.g. closing 「…」) — speak it, never enter the diagram
         take(beforeDiag);
       }
       // else: wait — do not soft-break into diagram soup

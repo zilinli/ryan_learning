@@ -1,5 +1,6 @@
 import {
   chunkForNeuralTts,
+  cleanTutorSpeechText,
   joinSpeechParts,
   pullSpeakableFromBuffer,
 } from "./tts-text";
@@ -218,7 +219,8 @@ export class NeuralSpeechEngine {
   }
 
   private enqueueChunk(text: string) {
-    const cleaned = text.trim();
+    // Defense in depth: never queue raw SVG/CSS even if upstream missed a strip
+    const cleaned = cleanTutorSpeechText(text);
     if (cleaned.length < 2) return;
     const last = this.queue[this.queue.length - 1];
     const dialect = isDialectHandlers(this.activeHandlers);
