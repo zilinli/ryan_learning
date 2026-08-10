@@ -26,6 +26,7 @@ const GTX_CODES: Record<DictLang, string> = {
   yue: "zh-TW", // closest free MT proxy; prefer local Cantonese when available
   teo: "zh-CN", // no Hokkien engine on Google — closest is simplified Chinese
   hak: "zh-CN", // no Hakka engine on Google — closest is simplified Chinese
+  ms: "ms", // Google Translate supports Malay natively
 };
 
 /** Extract a short English gloss from a seed-style definition. */

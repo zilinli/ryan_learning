@@ -182,4 +182,22 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(hak).toMatch(/仰般|样般/);
     expect(hak).toMatch(/讲分|講分/);
   });
+
+  it("maps Malay voices and returns edge TTS provider", () => {
+    expect(getTutorVoice("osman").lang).toBe("ms");
+    expect(getTutorVoice("yasmin").lang).toBe("ms");
+    expect(getTutorVoice("osman").label).toMatch(/Bahasa Melayu/);
+    expect(getTutorVoice("osman").edgeVoice).toBe("ms-MY-OsmanNeural");
+    expect(getTutorVoice("yasmin").edgeVoice).toBe("ms-MY-YasminNeural");
+    expect(replyLangFromVoice("osman")).toBe("ms");
+    expect(replyLangFromVoice("yasmin")).toBe("ms");
+    expect(resolveReplyLanguage("osman", "hello")).toBe("ms");
+  });
+
+  it("emits Malay instruction block", () => {
+    const ms = replyLanguageInstructions("ms").join("\n");
+    expect(ms).toMatch(/Bahasa Melayu/);
+    expect(ms).toMatch(/REQUIRED/);
+    expect(ms).toMatch(/Malaysia|Melayu/);
+  });
 });

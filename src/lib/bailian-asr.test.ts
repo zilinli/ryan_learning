@@ -12,6 +12,10 @@ describe("bailianAsrLanguageHint", () => {
     expect(bailianAsrLanguageHint("en")).toBe("en");
     expect(bailianAsrLanguageHint("auto")).toBeUndefined();
   });
+
+  it("returns ms for Malay", () => {
+    expect(bailianAsrLanguageHint("ms")).toBe("ms");
+  });
 });
 
 describe("extractBailianAsrText", () => {

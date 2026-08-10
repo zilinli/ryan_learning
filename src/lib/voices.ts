@@ -7,12 +7,14 @@ export type TutorVoiceId =
   | "alvaro"
   | "jorge"
   | "henri"
+  | "osman"
+  | "yasmin"
   | "teochew"
   | "hakka";
 
 import { FLAT_KEYS, nsKey, readFlatKey, RYAN_ACCOUNT } from "./tenant-storage";
 
-export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
+export type SpeechLang = "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak";
 
 export type TutorVoice = {
   id: TutorVoiceId;
@@ -92,6 +94,20 @@ export const TUTOR_VOICES: TutorVoice[] = [
     lang: "fr",
   },
   {
+    id: "osman",
+    label: "Osman (Bahasa Melayu)",
+    edgeVoice: "ms-MY-OsmanNeural",
+    preview: "Hai, saya Spark. Saya akan membaca jawapan dalam Bahasa Melayu.",
+    lang: "ms",
+  },
+  {
+    id: "yasmin",
+    label: "Yasmin (Bahasa Melayu)",
+    edgeVoice: "ms-MY-YasminNeural",
+    preview: "Hai, saya Spark. Saya akan membaca jawapan dalam Bahasa Melayu.",
+    lang: "ms",
+  },
+  {
     id: "teochew",
     label: "Hokkien (闽南话 · 百炼 TTS)",
     // 方言不走 edge（禁止粤语/普通话顶替）；实际 /api/tts?lang=teo
@@ -126,6 +142,8 @@ export const ALLOWED_EDGE_VOICES = [
   "es-US-PalomaNeural",
   "fr-FR-HenriNeural",
   "fr-FR-DeniseNeural",
+  "ms-MY-OsmanNeural",
+  "ms-MY-YasminNeural",
 ] as const;
 
 const VOICE_IDS = new Set<string>(TUTOR_VOICES.map((v) => v.id));
@@ -211,6 +229,7 @@ export function edgeVoiceForLang(lang: SpeechLang): string {
   if (lang === "zh") return "zh-CN-YunxiNeural";
   if (lang === "es") return "es-ES-AlvaroNeural";
   if (lang === "fr") return "fr-FR-HenriNeural";
+  if (lang === "ms") return "ms-MY-OsmanNeural";
   // English defaults to British (Ryan) — American (Ava) is the explicit choice.
   return "en-GB-RyanNeural";
 }
@@ -296,7 +315,7 @@ export function saveSpeakEnabled(enabled: boolean, accountId: string = RYAN_ACCO
 }
 
 /** Reply language locked by the voice picker (Auto = follow the student). */
-export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
+export type ReplyLangMode = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak";
 
 export function replyLangFromVoice(
   voiceId: TutorVoiceId | string | null | undefined,
@@ -314,6 +333,9 @@ export function replyLangFromVoice(
       return "es";
     case "henri":
       return "fr";
+    case "osman":
+    case "yasmin":
+      return "ms";
     case "teochew":
       return "teo";
     case "hakka":
@@ -479,6 +501,17 @@ export function replyLanguageInstructions(mode: ReplyLangMode): string[] {
       "老师：莫驚。你先看下呢隻題，題目講分你知麼个？",
       "学生：講愛算面積。",
       "老师：好。你記得面積公式無？慢慢想，想出來講分涯知。",
+    ];
+  }
+  if (mode === "ms") {
+    return [
+      "",
+      "[Reply language — Bahasa Melayu — REQUIRED]",
+      "- Balas hampir sepenuhnya dalam Bahasa Melayu yang semula jadi dan jelas (keutamaan mutlak).",
+      "- Jangan terangkan dalam bahasa Inggeris kecuali untuk memetik teks asal latihan.",
+      "- Petikan dari foto/PDF mesti kekal dalam bahasa asal.",
+      "- Soalan dan petunjuk juga dalam Bahasa Melayu, cth.: «Cuba lihat ayat ni — apa maksudnya?»",
+      "- Formula matematik boleh dikekalkan dalam LaTeX; penerangan dalam Bahasa Melayu.",
     ];
   }
   // es

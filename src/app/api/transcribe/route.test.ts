@@ -57,6 +57,12 @@ describe("normalizeTranscribeLang", () => {
     expect(normalizeTranscribeLang("hakka")).toBe("hak");
   });
 
+  it("maps Malay aliases to ms", () => {
+    expect(normalizeTranscribeLang("ms")).toBe("ms");
+    expect(normalizeTranscribeLang("malay")).toBe("ms");
+    expect(normalizeTranscribeLang("ms-my")).toBe("ms");
+  });
+
   it("falls back to auto for unknown languages", () => {
     expect(normalizeTranscribeLang("klingon")).toBe("auto");
   });

@@ -1,6 +1,6 @@
 /** Shared types for the multilingual dictionary system. */
 
-export type DictLang = "en" | "es" | "fr" | "zh" | "yue" | "teo" | "hak";
+export type DictLang = "en" | "es" | "fr" | "zh" | "yue" | "ms" | "teo" | "hak";
 
 export const DICT_LANG_LABELS: Record<DictLang, string> = {
   en: "English",
@@ -8,6 +8,7 @@ export const DICT_LANG_LABELS: Record<DictLang, string> = {
   fr: "Français",
   zh: "中文",
   yue: "粵語",
+  ms: "Bahasa Melayu",
   teo: "閩南話",
   hak: "客家話",
 };

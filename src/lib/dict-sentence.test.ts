@@ -47,6 +47,14 @@ describe("buildSentenceTranslatePrompt", () => {
       hasImages: false,
     });
     expect(hak).toMatch(/Hakka/);
+
+    const ms = buildSentenceTranslatePrompt({
+      text: "hello",
+      from: "en",
+      to: "ms",
+      hasImages: false,
+    });
+    expect(ms).toMatch(/Bahasa Melayu/);
   });
 });
 

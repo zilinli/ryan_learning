@@ -22,14 +22,14 @@ Most chatbots spoil homework. Spark is tuned for **thinking first**:
 | Medium computation (e.g. `256÷8`) | One scaffold first, then check |
 | Conceptual / homework | Hint ladder L0→L3 with **explain-your-reasoning**, second chances, analogies |
 
-Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish and French TTS/STT, and experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
+Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish, French, Malay, and TTS/STT, and experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
 
 ---
 
 ## Features
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
-- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)** via LLM prompting with Cantonese TTS fallback. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md).
+- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)** via LLM prompting. See [design doc](docs/subsystems/dialect-support-teochew-hakka.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid
 - **Voice** — neural TTS (read aloud) and STT (speak to type); Auto language switching
@@ -45,7 +45,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 Word lookup **and** AI sentence/photo translation in one page:
 
 **Word (dictionary)**
-- **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese) · 閩南話 (Hokkien) · 客家話 (Hakka)
+- **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese) · Bahasa Melayu · 閩南話 (Hokkien) · 客家話 (Hakka)
 - **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY), plus local Hokkien & Hakka seed lexicons
 - **Voice input** — Hold/tap mic (same 16 kHz WAV + `/api/transcribe` pipeline as the main tutor; language follows the selected dict pill)
 - **Text-to-speech** — 🔊 beside each headword (edge-tts)
@@ -54,7 +54,7 @@ Word lookup **and** AI sentence/photo translation in one page:
 **Sentence (AI translation)**
 - Full sentences / paragraphs via Cursor Agent (LLM)
 - **Photo upload & camera** — OCR + translate worksheets, signs, screenshots (up to 3 images)
-- From / To language pickers (including Auto-detect → EN/ES/FR/中文/粵語/閩南話/客家話)
+- From / To language pickers (including Auto-detect → EN/ES/FR/MS/中文/粵語/閩南話/客家話)
 - Learner-friendly notes + speak the translation aloud
 
 Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.

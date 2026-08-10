@@ -114,6 +114,9 @@ function audienceLine(mode: ReplyLangMode): string {
   if (mode === "fr") {
     return "Audience: student who wants tutoring mainly in French.";
   }
+  if (mode === "ms") {
+    return "Audience: student who wants tutoring mainly in Bahasa Melayu (Malay).";
+  }
   if (mode === "en") {
     return "Audience: international-school student; reply in English.";
   }
@@ -133,6 +136,9 @@ function styleLine(mode: ReplyLangMode): string {
   if (mode === "fr") {
     return "Style: professeur patient en français — socratique et interactif ; l'élève réfléchit d'abord ; court, adapté au téléphone et à la voix.";
   }
+  if (mode === "ms") {
+    return "Style: guru yang sabar dan mesra — bersifat Sokratik dan interaktif; pelajar berfikir dahulu; ringkas, sesuai untuk telefon dan suara.";
+  }
   return "Style: warm AI teacher — Socratic and interactive; student thinks first; short enough for phone + TTS.";
 }
 
@@ -141,6 +147,7 @@ function findThisCue(mode: ReplyLangMode): string {
   if (mode === "yue") return "**睇呢度**";
   if (mode === "es") return "**Mira aquí**";
   if (mode === "fr") return "**Regarde ici**";
+  if (mode === "ms") return "**Lihat sini**";
   return "**Find this**";
 }
 
@@ -150,12 +157,14 @@ function defaultStudentLine(mode: ReplyLangMode, hasHomework: boolean): string {
     if (mode === "yue") return "请帮吓我。";
     if (mode === "es") return "Ayúdame por favor.";
     if (mode === "fr") return "Aide-moi s'il te plaît.";
+    if (mode === "ms") return "Tolong bantu saya.";
     return "Please help me.";
   }
   if (mode === "zh") return "请看我的作业，一步一步教我。";
   if (mode === "yue") return "请睇吓我嘅功课，一步一步教我。";
   if (mode === "es") return "Por favor mira mi tarea y ayúdame paso a paso.";
   if (mode === "fr") return "S'il te plaît, regarde mon devoir et aide-moi étape par étape.";
+  if (mode === "ms") return "Tolong lihat kerja rumah saya dan bantu saya langkah demi langkah.";
   return "Please look at my homework and help me understand it step by step.";
 }
 

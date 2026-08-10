@@ -16,8 +16,9 @@ const SAMPLE_WORDS: Record<DictLang, string[]> = {
   fr: ["bonjour", "merci", "eau", "maison", "livre", "amour"],
   zh: ["你好", "谢谢", "水", "学习", "字典", "美丽"],
   yue: ["我", "你", "係", "好靚", "食飯", "唔該"],
-  teo: ["我", "食饭", "汝好", "唔是", "㩼谢", "睇"],
+  teo: ["我", "食饭", "汝好", "莫惊", "啥物", "多谢"],
   hak: ["涯", "食饭", "你好", "毋係", "多謝", "麼个"],
+  ms: ["saya", "kamu", "makan", "air", "terima kasih", "sekolah"],
 };
 
 const SOURCE_BADGE: Record<DictEntry["source"], string> = {

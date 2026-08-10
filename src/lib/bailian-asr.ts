@@ -27,6 +27,18 @@ export function loadBailianAsrConfig(): {
   };
 }
 
+/** Only Malay may need a model override — env-gated, see docs/subsystems/malay-language-support.md §4.3. */
+export function bailianAsrModelFor(
+  lang: string,
+  config: ReturnType<typeof loadBailianAsrConfig>,
+): string {
+  if (!config) throw new Error("no bailian config");
+  if (lang === "ms" && process.env.ALIYUN_ASR_MTL_MODEL) {
+    return process.env.ALIYUN_ASR_MTL_MODEL;
+  }
+  return config.model;
+}
+
 /** Map Spark STT lang → asr_options.language when supported. */
 export function bailianAsrLanguageHint(
   lang: string,
@@ -44,6 +56,8 @@ export function bailianAsrLanguageHint(
       return "es";
     case "fr":
       return "fr";
+    case "ms":
+      return "ms";
     default:
       return undefined;
   }
