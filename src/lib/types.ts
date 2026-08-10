@@ -143,6 +143,23 @@ export interface ChatRequestBody {
     totalSolves?: number;
     badges?: string[];
   };
+  /** Active student account profile — name/grade/school for tutor personalization */
+  studentProfile?: {
+    name?: string;
+    age?: number;
+    grade?: number;
+    gradeBand?: string;
+    school?: string;
+    curriculum?: {
+      label?: string;
+      grade?: number;
+      subjects?: string[];
+      textbookHints?: string;
+    } | null;
+    preferredChinese?: "zh" | "yue";
+    stronger?: string[];
+    focusAreas?: string[];
+  };
   /** @deprecated legacy single image */
   image?: {
     data: string;

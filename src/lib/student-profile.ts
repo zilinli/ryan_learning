@@ -144,7 +144,8 @@ export type AccountsStore = {
   accounts: AccountRecord[];
 };
 
-function normalizeProfile(partial?: Partial<StudentProfile> | null): StudentProfile {
+/** Normalize a partial / wire-format profile into a full StudentProfile. */
+export function normalizeProfile(partial?: Partial<StudentProfile> | null): StudentProfile {
   const parsed = partial ?? ({} as Partial<StudentProfile>);
   // Handle legacy string grade → numeric migration
   let gradeNum = 4;
@@ -472,7 +473,7 @@ export function studentProfilePromptLines(
     }.`,
     curLines,
     profile.name
-      ? `Address the student as ${profile.name} naturally sometimes. Remember frustration moments and celebrate small wins.`
+      ? `The student's account name is ${profile.name}. Address them as ${profile.name} naturally. NEVER ask what to call them (e.g. “你想我点称呼你”) — you already know from their account. Remember frustration moments and celebrate small wins.`
       : `Ask the student what they'd like to be called. Remember frustration moments and celebrate small wins.`,
     "If starting a fresh thread, you may briefly recall a recent topic from [Recent chats] if provided.",
   ];

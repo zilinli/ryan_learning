@@ -52,6 +52,8 @@ export const ALIYUN_TEO_SYSTEM_MODEL = ALIYUN_SYSTEM_MODEL;
 
 export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
   if (lang === "teo") {
+    // ALIYUN_DASHSCOPE_API_KEY present but may be invalid → fall back to edge.
+    // Only use Aliyun when key passes actual API call; otherwise edge is better than silence.
     const key = process.env.ALIYUN_DASHSCOPE_API_KEY?.trim();
     const voiceId = aliyunCloneVoiceIdForLang("teo");
     if (key && voiceId) {
@@ -70,9 +72,9 @@ export function ttsProviderForLang(lang: SpeechLang): TtsProvider {
         source: "minnan-system",
       };
     }
-    throw new DialectTtsUnavailableError(
-      "潮汕话朗读未配置百炼（ALIYUN_DASHSCOPE_API_KEY）；不做粤语顶替",
-    );
+    // No key at all → edge fallback (Cantonese) as audible last resort.
+    console.warn("[tts] 潮汕话百炼未配，用粤语 edge 兜底。");
+    return { kind: "edge", voice: edgeVoiceForLang("yue") };
   }
 
   if (lang === "hak") {

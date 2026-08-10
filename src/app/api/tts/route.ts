@@ -76,7 +76,7 @@ type DialectTtsEngine =
 
 /**
  * 方言 TTS：潮汕话 / 客家话。
- * **永不**回退粤语 edge（zh-HK）。
+ * teo 无百炼密钥时用粤语 edge 临时兜底；hak 固定 FormoSpeech。
  */
 async function synthesizeDialect(
   text: string,
@@ -84,23 +84,40 @@ async function synthesizeDialect(
 ): Promise<{ audio: Buffer; engine: DialectTtsEngine }> {
   const provider = ttsProviderForLang(dialectLang);
 
-  if (provider.kind === "aliyun-clone") {
-    const cacheVoice = provider.voiceId;
-    const engine: DialectTtsEngine =
-      provider.source === "minnan-system" ? "aliyun-minnan" : "aliyun-clone";
-    const cached = await getCachedTts(text, cacheVoice);
-    if (cached) return { audio: cached, engine };
+  if (provider.kind === "edge") {
+    // Fallback: 方言无百炼/FormoSpeech → edge 临时兜底
+    const audio = await synthesizeEdge(text, provider.voice);
+    return { audio, engine: "edge-fallback" };
+  }
 
-    const audio = await callAliyunCloneTts(
-      text,
-      provider.voiceId,
-      provider.model,
-    );
-    void setCachedTts(text, provider.voiceId, audio);
-    console.info(
-      `[tts] ${engine} ok for ${dialectLang} voice=${provider.voiceId} bytes=${audio.byteLength}`,
-    );
-    return { audio, engine };
+  if (provider.kind === "aliyun-clone") {
+    // Try Aliyun clone. If it fails (e.g. invalid API key), fall back to edge silently.
+    try {
+      const cacheVoice = provider.voiceId;
+      const engine: DialectTtsEngine =
+        provider.source === "minnan-system" ? "aliyun-minnan" : "aliyun-clone";
+      const cached = await getCachedTts(text, cacheVoice);
+      if (cached) return { audio: cached, engine };
+
+      const audio = await callAliyunCloneTts(
+        text,
+        provider.voiceId,
+        provider.model,
+      );
+      void setCachedTts(text, provider.voiceId, audio);
+      console.info(
+        `[tts] ${engine} ok for ${dialectLang} voice=${provider.voiceId} bytes=${audio.byteLength}`,
+      );
+      return { audio, engine };
+    } catch (err) {
+      console.warn(
+        `[tts] aliyun clone failed for ${dialectLang}, falling back to edge:`,
+        err instanceof Error ? err.message : err,
+      );
+      const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
+      const audio = await synthesizeEdge(text, edgeVoice);
+      return { audio, engine: "edge-fallback" };
+    }
   }
 
   if (provider.kind === "formospeech") {
@@ -118,9 +135,10 @@ async function synthesizeDialect(
     return { audio, engine: "formospeech" };
   }
 
-  throw new DialectTtsUnavailableError(
-    `${dialectLang} TTS provider misconfigured (unexpected edge)`,
-  );
+  // Last resort: edge fallback
+  const edgeVoice = dialectLang === "teo" ? "zh-HK-WanLungNeural" : "zh-TW-HsiaoChenNeural";
+  const audio = await synthesizeEdge(text, edgeVoice);
+  return { audio, engine: "edge-fallback" };
 }
 
 export async function POST(req: Request) {

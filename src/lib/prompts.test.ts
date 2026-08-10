@@ -174,6 +174,28 @@ describe("buildTutorPrompt", () => {
     ).toContain("Mira aquí");
   });
 
+  it("uses the active account name instead of asking what to call the student", () => {
+    const p = buildTutorPrompt({
+      userText: "hi",
+      imageCount: 0,
+      voiceId: "auto",
+      studentProfile: {
+        name: "Ching",
+        age: 10,
+        grade: 5,
+        gradeBand: "elementary",
+        school: "",
+        curriculum: null,
+        preferredChinese: "yue",
+        stronger: [],
+        focusAreas: [],
+      },
+    });
+    expect(p).toContain("account name is Ching");
+    expect(p).toMatch(/NEVER ask what to call them/);
+    expect(p).not.toMatch(/Ask the student what they'd like to be called/);
+  });
+
   it("D1 checkMode suspends Socratic anti-spoiler ladder", () => {
     const off = buildTutorPrompt({
       userText: "show the answer",

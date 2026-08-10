@@ -515,8 +515,8 @@ export function VoiceControls({
           window.localStorage.setItem("spark-dialect-notice-v9", "1");
           setDialectNotice(
             picked.lang === "teo"
-              ? "潮汕话：识别走百炼 Fun-ASR；朗读走百炼（复刻/闽南话），不用粤语顶替。识别结果请确认后再发送。"
-              : "客家话：识别走百炼 Fun-ASR；朗读走 FormoSpeech 真客语（繁体用字；不用粤语顶替）。识别结果请确认后再发送。",
+              ? "潮汕话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走百炼复刻，无密钥时用粤语 edge 临时兜底。"
+              : "客家话：识别走本地 SenseVoice + 百炼（如有密钥）；朗读走 FormoSpeech 真客语（繁体用字）。",
           );
         }
       } catch {

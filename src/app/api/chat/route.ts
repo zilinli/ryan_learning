@@ -2,7 +2,7 @@ import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachme
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
 import { buildTutorPrompt } from "@/lib/prompts";
-import { DEFAULT_STUDENT_PROFILE } from "@/lib/student-profile";
+import { normalizeProfile } from "@/lib/student-profile";
 import { filterTutorDelta, preferCompleteTutorText, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
 import { statusLabelForTool } from "@/lib/tutor-harness";
 import {
@@ -140,6 +140,9 @@ export async function POST(req: Request) {
         }
       : null;
 
+  // Always normalize: missing body → DEFAULT_STUDENT_PROFILE; named accounts keep their name.
+  const studentProfile = normalizeProfile(body.studentProfile);
+
   const prompt = buildTutorPrompt({
     userText: message ?? "",
     imageCount: imageAttachments.length || historyImages.length,
@@ -147,7 +150,7 @@ export async function POST(req: Request) {
     history,
     historyImageCount: historyImages.length,
     recentTitles,
-    studentProfile: DEFAULT_STUDENT_PROFILE,
+    studentProfile,
     learningMemory,
     engagement,
     voiceId: typeof body.voiceId === "string" ? body.voiceId : undefined,

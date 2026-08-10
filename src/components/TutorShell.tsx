@@ -1051,6 +1051,7 @@ export function TutorShell() {
           reset: needReset,
           history: needReset ? undefined : history,
           recentTitles,
+          studentProfile: profile,
           learningMemory: serializeLearningMemoryForChat(mem),
           engagement: engagementForPrompt(eng),
           voiceId: voiceIdRef.current,

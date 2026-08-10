@@ -89,12 +89,25 @@ describe("student profile", () => {
     expect(lines).toContain("BASIS");
     expect(lines).toContain("Grade 4");
     expect(lines).toMatch(/粤语|Cantonese/);
+    expect(lines).toMatch(/NEVER ask what to call them/);
+    expect(lines).not.toMatch(/Ask the student what they'd like to be called/);
   });
 
   it("renders prompt lines with blank name for new student", () => {
     const lines = studentProfilePromptLines(DEFAULT_STUDENT_PROFILE).join("\n");
     expect(lines).toContain("(new student)");
     expect(lines).toContain("(no school set)");
+    expect(lines).toMatch(/Ask the student what they'd like to be called/);
+  });
+
+  it("uses account name in prompt so tutor does not re-ask (e.g. Ching)", () => {
+    const lines = studentProfilePromptLines({
+      ...DEFAULT_STUDENT_PROFILE,
+      name: "Ching",
+    }).join("\n");
+    expect(lines).toContain("account name is Ching");
+    expect(lines).toMatch(/NEVER ask what to call them/);
+    expect(lines).not.toMatch(/Ask the student what they'd like to be called/);
   });
 
   it("curriculumPromptLines for Ryan returns BASIS refs", () => {
