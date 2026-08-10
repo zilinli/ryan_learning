@@ -18,6 +18,7 @@ import {
   getTutorVoice,
   loadSpeakEnabled,
   loadVoiceId,
+  normalizeVoiceId,
   saveSpeakEnabled,
   saveVoiceId,
   TUTOR_VOICES,
@@ -42,8 +43,8 @@ export type SpeakStreamApi = {
   begin: () => void;
   push: (delta: string) => void;
   finish: (fullText: string) => void;
-  /** Replay a finished message (history / one-click speak). */
-  speakOnce: (text: string) => Promise<void>;
+  /** Replay a finished message with the given (or current) voice. */
+  speakOnce: (text: string, voiceId?: string) => Promise<void>;
   stop: () => void;
   unlocked: () => boolean;
 };
@@ -184,14 +185,18 @@ export function VoiceControls({
     return () => window.removeEventListener("click", handler);
   }, [voiceMenuOpen]);
 
-  const makeHandlers = useCallback(() => {
+  const makeHandlers = useCallback((opts?: { replay?: boolean }) => {
     const token = speakTokenRef.current;
     const voice = getTutorVoice(voiceIdRef.current);
+    const replay = opts?.replay === true;
     return {
       voiceId: voice.id,
       voice: voice.edgeVoice,
+      // History Listen must not depend on the Speak-on toggle; Stop still
+      // bumps speakTokenRef so shouldContinue flips false.
       shouldContinue: () =>
-        token === speakTokenRef.current && wantSpeakRef.current,
+        token === speakTokenRef.current &&
+        (replay || wantSpeakRef.current),
       onStatus: (s: string) => {
         if (token !== speakTokenRef.current) return;
         setStatus(s);
@@ -217,21 +222,28 @@ export function VoiceControls({
   }, []);
 
   const runSpeak = useCallback(
-    async (text: string) => {
+    async (text: string, opts?: { replay?: boolean; voiceId?: string }) => {
       if (!text.trim()) return;
       speakTokenRef.current += 1;
-      const handlers = makeHandlers();
+      if (opts?.voiceId) {
+        const id = normalizeVoiceId(opts.voiceId);
+        voiceIdRef.current = id;
+        setVoiceId(id);
+      }
+      const handlers = makeHandlers({ replay: opts?.replay === true });
       setSpeaking(true);
       setSpeakError(false);
       setHint("");
-      const result = await getSharedSpeechEngine().speak(text, handlers);
-      if (handlers.shouldContinue?.() === false) return;
-      if (result === "played") {
-        setHint("");
-        setStatus("");
-        setSpeakError(false);
+      try {
+        const result = await getSharedSpeechEngine().speak(text, handlers);
+        if (result === "played" && handlers.shouldContinue?.() !== false) {
+          setHint("");
+          setStatus("");
+          setSpeakError(false);
+        }
+      } finally {
+        setSpeaking(false);
       }
-      setSpeaking(false);
     },
     [makeHandlers],
   );
@@ -277,9 +289,9 @@ export function VoiceControls({
         }, 200);
         window.setTimeout(() => window.clearInterval(watch), 180_000);
       },
-      speakOnce: async (text: string) => {
-        // History replay works even if auto-speak is off
-        await runSpeak(text);
+      speakOnce: async (text: string, voiceId?: string) => {
+        // History replay: use selected voice, ignore Speak-on toggle
+        await runSpeak(text, { replay: true, voiceId });
       },
       stop: () => stopSpeaking(),
       unlocked: () => getSharedSpeechEngine().isUnlocked(),

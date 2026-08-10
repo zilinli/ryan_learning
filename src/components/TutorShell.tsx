@@ -608,7 +608,7 @@ export function TutorShell() {
   }, []);
 
   const stopSpeakAll = useCallback(() => {
-    stopSpeakAll();
+    speakApiRef.current?.stop();
     setSpeakingMessageId(null);
   }, []);
 
@@ -1414,7 +1414,7 @@ export function TutorShell() {
             onSpeakMessage={(messageId, text) => {
               setSpeakingMessageId(messageId);
               void speakApiRef.current
-                ?.speakOnce(text)
+                ?.speakOnce(text, voiceIdRef.current)
                 .finally(() => {
                   setSpeakingMessageId((cur) =>
                     cur === messageId ? null : cur,
