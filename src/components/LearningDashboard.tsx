@@ -18,7 +18,12 @@ import {
 } from "@/lib/account-export";
 import { stashPracticeKickoff } from "@/lib/idle-nudge";
 import { buildParentWeeklyDigest } from "@/lib/parent-digest";
-import { hasParentPin, PinGate } from "./PinGate";
+import {
+  hasParentPin,
+  isParentSessionUnlocked,
+  unlockParentSession,
+} from "@/lib/adult-gate";
+import { PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 
 export function LearningDashboard() {
@@ -32,6 +37,9 @@ export function LearningDashboard() {
     setAccountId(id);
     setMemory(loadLearningMemory(id));
     void hydrateLearningMemoryFromServer(id).then(setMemory);
+    if (hasParentPin() && isParentSessionUnlocked()) {
+      setParentUnlocked(true);
+    }
   }, []);
 
   const model = useMemo(() => buildDashboardModel(memory), [memory]);
@@ -275,16 +283,25 @@ export function LearningDashboard() {
               Parent view
             </h2>
             {!pinSet ? (
-              <p className="mt-2 text-[13px] text-[var(--ink-muted)]">
-                Set a parent PIN (Learning panel → Parent, or Code Agent) to unlock the weekly digest here.
-              </p>
+              <div className="mt-2 space-y-2">
+                <p className="text-[13px] text-[var(--ink-muted)]">
+                  Set a parent PIN from the tutor sidebar → <strong>Parents</strong>, or here:
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPin(true)}
+                  className="min-h-11 rounded-xl bg-[var(--teal)] px-4 text-[13px] font-semibold text-white"
+                >
+                  Set parent PIN
+                </button>
+              </div>
             ) : !parentUnlocked ? (
               <button
                 type="button"
                 onClick={() => setShowPin(true)}
                 className="mt-2 min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px]"
               >
-                Unlock weekly digest
+                Unlock with PIN
               </button>
             ) : (
               <div className="mt-2 space-y-3">
@@ -328,7 +345,9 @@ export function LearningDashboard() {
 
       {showPin ? (
         <PinGate
+          forceCreate={!pinSet}
           onUnlock={() => {
+            unlockParentSession();
             setParentUnlocked(true);
             setShowPin(false);
           }}

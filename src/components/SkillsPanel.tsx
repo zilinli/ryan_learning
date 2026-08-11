@@ -8,16 +8,12 @@ import {
   skillWeaknesses,
   zpdWarmUpSkills,
 } from "@/lib/learning-memory";
-import { buildParentDailyDigest, buildParentWeeklyDigest } from "@/lib/parent-digest";
-import { hasParentPin, PinGate } from "./PinGate";
 import type { SkillMastery } from "@/lib/learning-memory";
 
 const STORAGE_KEY = "spark.skillsPanelOpen";
 
 type Props = {
   memory: LearningMemory | null;
-  checkMode?: boolean;
-  onCheckModeChange?: (on: boolean) => void;
 };
 
 function daysAgo(ts: number): string {
@@ -45,19 +41,11 @@ function SkillRow({ skill, color }: { skill: SkillMastery; color: string }) {
   );
 }
 
-export function SkillsPanel({
-  memory,
-  checkMode = false,
-  onCheckModeChange,
-}: Props) {
+/** Student-facing learning snapshot — parent tools live in Parents sheet. */
+export function SkillsPanel({ memory }: Props) {
   const [open, setOpen] = useState(false);
-  const [parentUnlocked, setParentUnlocked] = useState(false);
-  const [showPin, setShowPin] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // Load persisted open state post-hydration; deferred so no setState runs
-    // synchronously in the effect.
     const t = setTimeout(() => {
       try {
         if (sessionStorage.getItem(STORAGE_KEY) === "1") setOpen(true);
@@ -85,10 +73,6 @@ export function SkillsPanel({
     () => (mem?.skills.length ? zpdWarmUpSkills(mem, 1)[0] ?? null : null),
     [mem],
   );
-  const pinSet = useMemo(() => hasParentPin(), [showPin, parentUnlocked]);
-  const digest = useMemo(() => buildParentDailyDigest(mem), [mem]);
-  const weekly = useMemo(() => buildParentWeeklyDigest(mem), [mem]);
-  const [digestTab, setDigestTab] = useState<"today" | "week">("week");
 
   if (!mem?.skills.length) return null;
 
@@ -102,12 +86,6 @@ export function SkillsPanel({
       }
       return next;
     });
-  };
-
-  const lockParent = () => {
-    setParentUnlocked(false);
-    setShowPin(false);
-    onCheckModeChange?.(false);
   };
 
   const zpdHint = zpdSingle?.label
@@ -153,7 +131,7 @@ export function SkillsPanel({
       {open ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--line)]/50 px-3 pb-2.5 pt-1.5">
           <p className="text-[10px] text-[var(--ink-muted)]">
-            BKT + SM-2 · updates each chat
+            BKT + SM-2 · parent tools → sidebar <strong>Parents</strong>
           </p>
 
           {zpdSingle ? (
@@ -163,9 +141,6 @@ export function SkillsPanel({
               </p>
               <p className="mt-0.5 text-[12px] font-medium text-[var(--ink)]">
                 Try: {zpdSingle.label}
-              </p>
-              <p className="text-[10px] text-[var(--ink-muted)]">
-                You&apos;re in the zone — ZPD target
               </p>
             </div>
           ) : null}
@@ -210,158 +185,7 @@ export function SkillsPanel({
                 ))}
             </ul>
           ) : null}
-
-          <div className="mt-2 border-t border-[var(--line)]/60 pt-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-              Parent
-            </p>
-            {!pinSet ? (
-              <div className="mt-1 space-y-1">
-                <p className="text-[10px] text-[var(--ink-muted)]">
-                  Set parent PIN
-                  <span className="text-[var(--teal)]">
-                    {" "}
-                    — first time creates a 4-digit PIN
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowPin(true)}
-                  className="min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-                >
-                  Set parent PIN
-                </button>
-              </div>
-            ) : !parentUnlocked ? (
-              <button
-                type="button"
-                onClick={() => setShowPin(true)}
-                className="mt-1 min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-              >
-                Unlock parent view
-              </button>
-            ) : (
-              <div className="mt-1.5 space-y-2">
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setDigestTab("week")}
-                    className={`min-h-9 rounded-lg px-2 text-[11px] ${
-                      digestTab === "week"
-                        ? "bg-[var(--teal)]/15 font-semibold text-[var(--teal)]"
-                        : "text-[var(--ink-muted)]"
-                    }`}
-                  >
-                    This week
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDigestTab("today")}
-                    className={`min-h-9 rounded-lg px-2 text-[11px] ${
-                      digestTab === "today"
-                        ? "bg-[var(--teal)]/15 font-semibold text-[var(--teal)]"
-                        : "text-[var(--ink-muted)]"
-                    }`}
-                  >
-                    Today
-                  </button>
-                </div>
-                {digestTab === "week" ? (
-                  <div className="space-y-1.5 text-[12px] leading-snug text-[var(--ink)]">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-                      Week of {weekly.weekOf}
-                    </p>
-                    {weekly.practiced.length ? (
-                      <p>
-                        Practiced:{" "}
-                        {weekly.practiced
-                          .slice(0, 4)
-                          .map((p) => `${p.label} (~${p.mastery}%)`)
-                          .join("; ")}
-                      </p>
-                    ) : (
-                      <p className="text-[var(--ink-muted)]">
-                        No chats in the last 7 days.
-                      </p>
-                    )}
-                    {weekly.masteryDown.length ? (
-                      <p>
-                        Watch:{" "}
-                        {weekly.masteryDown.map((s) => s.label).join(", ")}
-                      </p>
-                    ) : null}
-                    {weekly.topMisconceptions.length ? (
-                      <p>
-                        Patterns:{" "}
-                        {weekly.topMisconceptions
-                          .map((m) => `${m.label}×${m.count}`)
-                          .join("; ")}
-                      </p>
-                    ) : null}
-                    {weekly.reviewDue.length ? (
-                      <p>
-                        SM-2 due:{" "}
-                        {weekly.reviewDue.map((s) => s.label).join(", ")}
-                      </p>
-                    ) : null}
-                    {weekly.nextWeekFocus.length ? (
-                      <p>
-                        Next week:{" "}
-                        {weekly.nextWeekFocus.map((s) => s.label).join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-[12px] leading-snug text-[var(--ink)]">
-                    {digest}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const text =
-                        digestTab === "week" ? weekly.text : digest;
-                      void navigator.clipboard?.writeText(text).then(() => {
-                        setCopied(true);
-                        window.setTimeout(() => setCopied(false), 1500);
-                      });
-                    }}
-                    className="min-h-11 rounded-lg border border-[var(--line)] px-3 text-[12px] text-[var(--ink)]"
-                  >
-                    {copied ? "Copied" : "Copy"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={lockParent}
-                    className="min-h-11 rounded-lg px-3 text-[12px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
-                  >
-                    Done
-                  </button>
-                </div>
-                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[12px] text-[var(--ink)]">
-                  <input
-                    type="checkbox"
-                    checked={checkMode}
-                    onChange={(e) => onCheckModeChange?.(e.target.checked)}
-                    className="h-4 w-4 accent-[var(--teal)]"
-                  />
-                  Check answers (parent)
-                </label>
-              </div>
-            )}
-          </div>
         </div>
-      ) : null}
-
-      {showPin ? (
-        <PinGate
-          onUnlock={() => {
-            setParentUnlocked(true);
-            setShowPin(false);
-          }}
-          onCancel={() => setShowPin(false)}
-        />
       ) : null}
     </div>
   );
