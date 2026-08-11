@@ -48,16 +48,17 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 ## 🎧 ENT-TED-LISTEN — TED Challenge prompt Listen / English TTS (2026-08-11)
 
 > **Design:** [subsystems/ted-challenge-prompt-listen.md](subsystems/ted-challenge-prompt-listen.md)  
-> **Goal:** Challenge **questions** auto-read in English (homepage **Listen**, not Speak / not Speak-answer mic). Default on; toggle off; Listen/Stop.
+> **Goal:** Challenge **questions** auto-read in English (homepage **Listen**, not Speak / not Speak-answer mic). Default on; Auto Listen toggle; Listen/Stop; **Ryan `en-GB-RyanNeural` hard-lock**.
 
 - [x] **ENT-TED-L.1** — `load/saveTedPromptListenEnabled` + `challengePromptSpeechText` + unit TL1–TL3 / TS1–TS2
 - [x] **ENT-TED-L.2** — TedLab: auto-speak prompt on question change; Listen/Stop + Auto Listen toggle
 - [x] **ENT-TED-L.3** — Mic barge-in stops prompt TTS (`onRecordingStart`)
 - [x] **ENT-TED-L.4** — Docs (design + DESIGN map + this checklist) + `run_tests`
-- [ ] **ENT-TED-L.5** — apply_changes → publish_develop → deploy_live
-- [ ] **ENT-TED-L.6** — Manual TM-L1–TM-L4 on live Challenge UI
+- [x] **ENT-TED-L.5** — Fix Speak→Listen labels; hard-lock Ryan voice (speech-player `voice` wins); TR1 unit test
+- [ ] **ENT-TED-L.6** — apply_changes → publish_develop → deploy_live
+- [ ] **ENT-TED-L.7** — Manual TM-L1–TM-L4 on live Challenge UI
 
-~~## 🔊 ENT-TED-SPEAK~~ — **superseded** by ENT-TED-LISTEN (user clarified: homepage **Listen**, not Speak). See [ted-challenge-prompt-speak.md](subsystems/ted-challenge-prompt-speak.md) (cancelled).
+~~## 🔊 ENT-TED-SPEAK~~ — **superseded** by ENT-TED-LISTEN (user: homepage **Listen** + Ryan British). See [ted-challenge-prompt-speak.md](subsystems/ted-challenge-prompt-speak.md) (cancelled).
 
 ## 🎤 ENT-TED-VOICE — TED Challenge voice input (2026-08-11)
 

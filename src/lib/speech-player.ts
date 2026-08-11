@@ -358,8 +358,10 @@ export class NeuralSpeechEngine {
   }
 
   private resolveVoice(text: string, h: SpeakHandlers): string {
+    // Explicit edge ShortName wins (e.g. TED prompts must stay en-GB-RyanNeural
+    // even when transcript hints contain Chinese).
+    if (h.voice) return h.voice;
     if (h.voiceId) return resolveEdgeVoice(h.voiceId, text);
-    if (h.voice) return resolveEdgeVoice(mapEdgeToId(h.voice), text);
     return resolveEdgeVoice("auto", text);
   }
 
@@ -553,16 +555,6 @@ export class NeuralSpeechEngine {
     handlers.onStatus?.("");
     return this.playedInStream ? "played" : "error";
   }
-}
-
-function mapEdgeToId(edge: string): TutorVoiceId {
-  if (edge.startsWith("zh-HK")) return "wanLung";
-  if (edge.startsWith("zh-")) return "yunxi";
-  if (edge.startsWith("es-MX")) return "jorge";
-  if (edge.startsWith("es-")) return "alvaro";
-  if (edge.startsWith("fr-")) return "henri";
-  if (edge.includes("Ryan") || edge.includes("en-GB")) return "ryan";
-  return "ava";
 }
 
 let shared: NeuralSpeechEngine | null = null;

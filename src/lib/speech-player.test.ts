@@ -85,6 +85,31 @@ describe("NeuralSpeechEngine.stop (LVS)", () => {
     ).toBeNull();
   });
 
+  it("TR1: explicit voice ShortName wins over lang detect (Ryan hard-lock)", () => {
+    const engine = new NeuralSpeechEngine();
+    const resolveVoice = (
+      engine as unknown as {
+        resolveVoice: (
+          text: string,
+          h: { voiceId?: string; voice?: string },
+        ) => string;
+      }
+    ).resolveVoice.bind(engine);
+    // Chinese in text would normally switch ryan → Cantonese via resolveEdgeVoice
+    expect(
+      resolveVoice("What is the main idea? 你好世界 hint.", {
+        voiceId: "ryan",
+        voice: "en-GB-RyanNeural",
+      }),
+    ).toBe("en-GB-RyanNeural");
+    // Without hard-lock, CJK triggers non-English edge voice
+    expect(
+      resolveVoice("What is the main idea? 你好世界 hint.", {
+        voiceId: "ryan",
+      }),
+    ).not.toBe("en-GB-RyanNeural");
+  });
+
   it("fetchTts dialect failure does not ReferenceError on retry gate", async () => {
     const engine = new NeuralSpeechEngine();
     vi.stubGlobal(

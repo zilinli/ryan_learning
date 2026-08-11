@@ -94,7 +94,7 @@ export function TedLab() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  /** Auto Speak for English challenge prompts (homepage Speak on/off). */
+  /** Auto Listen for English challenge prompts (homepage Listen, not Speak). */
   const [promptListenAuto, setPromptListenAuto] = useState(true);
   const [promptListening, setPromptListening] = useState(false);
   const promptListenTokenRef = useRef(0);
@@ -148,6 +148,8 @@ export function TedLab() {
       if (token !== promptListenTokenRef.current) return;
       await getSharedSpeechEngine().speak(text, {
         voiceId: "ryan",
+        // Hard-lock British Ryan — do not let resolveEdgeVoice switch on CJK hints
+        voice: "en-GB-RyanNeural",
         shouldContinue: () => token === promptListenTokenRef.current,
         onStatus: (s) => {
           if (token !== promptListenTokenRef.current) return;
@@ -623,8 +625,8 @@ export function TedLab() {
                       ? "bg-[#6db8a8]/25 text-[#6db8a8]"
                       : "border border-white/20 text-[#a89f92] hover:border-[#6db8a8] hover:text-[#e8e2d8]"
                   }`}
-                  aria-label={promptListening ? "Stop reading" : "Replay prompt"}
-                  title={promptListening ? "Stop reading" : "Replay prompt"}
+                  aria-label={promptListening ? "Stop reading" : "Listen to prompt"}
+                  title={promptListening ? "Stop reading" : "Listen to prompt (Ryan British)"}
                 >
                   {promptListening ? (
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
@@ -650,7 +652,7 @@ export function TedLab() {
                       />
                     </svg>
                   )}
-                  {promptListening ? "Stop" : "Replay"}
+                  {promptListening ? "Stop" : "Listen"}
                 </button>
                 <button
                   type="button"
@@ -661,14 +663,14 @@ export function TedLab() {
                       : "border-white/20 text-[#a89f92] hover:border-[#6db8a8]/50"
                   }`}
                   aria-pressed={promptListenAuto}
-                  aria-label={promptListenAuto ? "Speak on" : "Speak off"}
+                  aria-label={promptListenAuto ? "Auto Listen on" : "Auto Listen off"}
                   title={
                     promptListenAuto
-                      ? "Speak on — tap to mute prompt reading"
-                      : "Speak off — tap to auto-read English prompts"
+                      ? "Auto Listen on — tap to mute prompt reading"
+                      : "Auto Listen off — tap to auto-read English prompts"
                   }
                 >
-                  {promptListenAuto ? "Speak on" : "Speak off"}
+                  {promptListenAuto ? "Auto Listen on" : "Auto Listen off"}
                 </button>
               </div>
               {item.choices && item.choices.length > 0 ? (
