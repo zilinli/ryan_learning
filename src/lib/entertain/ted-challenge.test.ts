@@ -2,6 +2,8 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   appendVoiceTranscript,
   buildFallbackChallenge,
+  buildChoiceSoftFeedback,
+  buildEssaySoftFeedback,
   buildHybridSoftFeedback,
   challengePromptSpeechText,
   challengeSystemPrompt,
@@ -340,5 +342,47 @@ describe("hybrid MCQ + essay (TMH1–TMH6)", () => {
       "developing",
     );
     expect(fb).toMatch(/lines up with the talk/i);
+  });
+
+  it("TMH7: buildChoiceSoftFeedback independent of essay", () => {
+    const item = enrichChallengeItem(
+      {
+        kind: "literal",
+        prompt: "Main idea",
+        choiceMode: "single",
+        choices: ["Idea", "Joke", "List", "Game"],
+        correctChoices: [0],
+      },
+      0,
+    );
+    const exact = buildChoiceSoftFeedback(item, [0]);
+    const miss = buildChoiceSoftFeedback(item, [1]);
+    const empty = buildChoiceSoftFeedback(item, []);
+    expect(exact).toMatch(/lines up with the talk/i);
+    expect(miss).toMatch(/may miss the talk/i);
+    expect(empty).toMatch(/Pick at least one option/i);
+    expect(exact).not.toMatch(/write-up|essay|retell/i);
+  });
+
+  it("TMH8: buildEssaySoftFeedback independent of selection", () => {
+    const item = enrichChallengeItem(
+      {
+        kind: "literal",
+        prompt: "Main idea",
+        choiceMode: "single",
+        choices: ["Idea", "Joke", "List", "Game"],
+        correctChoices: [0],
+      },
+      0,
+    );
+    const short = buildEssaySoftFeedback(item, "ok", "developing");
+    const solid = buildEssaySoftFeedback(
+      item,
+      "The talk is about kindness because the speaker shares a clear idea.",
+      "developing",
+    );
+    expect(short).toMatch(/more evidence|clearer claim/i);
+    expect(solid).toMatch(/Solid draft|Rubric nudge/i);
+    expect(solid).not.toMatch(/selection|Pick at least/i);
   });
 });

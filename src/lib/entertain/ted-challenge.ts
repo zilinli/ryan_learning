@@ -222,39 +222,56 @@ export function softFeedbackThresholds(level: EnglishLevel): {
   return { short: 10, retell: 45 };
 }
 
-/** Soft MCQ + essay feedback (Socratic — no answer-key dump). */
-export function buildHybridSoftFeedback(
+/** Soft MCQ-only feedback (independent of essay). */
+export function buildChoiceSoftFeedback(
   item: ChallengeItem,
   selected: number[],
+): string {
+  const score = scoreChoiceSelection(item, selected);
+  if (score === "exact") {
+    return "Your selection lines up with the talk's focus — nice.";
+  }
+  if (score === "partial") {
+    return "You caught some of the right ideas — check whether you over- or under-selected.";
+  }
+  if (score === "empty") {
+    return "Pick at least one option before locking in your selection.";
+  }
+  return "Your selection may miss the talk's main focus — re-listen for the claim, then try again.";
+}
+
+/** Soft essay-only feedback (independent of MCQ selection). */
+export function buildEssaySoftFeedback(
+  item: ChallengeItem,
   essay: string,
   level: EnglishLevel = "developing",
 ): string {
-  const score = scoreChoiceSelection(item, selected);
-  const mcq =
-    score === "exact"
-      ? "Your selection lines up with the talk's focus — nice."
-      : score === "partial"
-        ? "You caught some of the right ideas — check whether you over- or under-selected."
-        : score === "empty"
-          ? "Pick at least one option before locking in your thinking."
-          : "Your selection may miss the talk's main focus — re-listen for the claim, then tighten the essay.";
-
   const n = essay.trim().split(/\s+/).filter(Boolean).length;
   const th = softFeedbackThresholds(level);
   if (n < th.short) {
-    return `${mcq} Short answers can be sharp — but this write-up needs more evidence or a clearer claim. Try one more sentence.`;
+    return "Short answers can be sharp — but this write-up needs more evidence or a clearer claim. Try one more sentence.";
   }
   if (
     item.kind === "critique" &&
     level !== "emerging" &&
     !/because|however|although|but|yet|why/i.test(essay)
   ) {
-    return `${mcq} Nice start on the essay. Push the critique: name the tension (because / however) so the objection lands.`;
+    return "Nice start on the essay. Push the critique: name the tension (because / however) so the objection lands.";
   }
   if (item.kind === "retell" && n < th.retell) {
-    return `${mcq} Retell should carry the arc. Add one beat from the middle or end of the talk.`;
+    return "Retell should carry the arc. Add one beat from the middle or end of the talk.";
   }
-  return `${mcq} Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
+  return `Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
+}
+
+/** Combined soft feedback (legacy / notes). Prefer split checks in UI. */
+export function buildHybridSoftFeedback(
+  item: ChallengeItem,
+  selected: number[],
+  essay: string,
+  level: EnglishLevel = "developing",
+): string {
+  return `${buildChoiceSoftFeedback(item, selected)} ${buildEssaySoftFeedback(item, essay, level)}`;
 }
 
 /** Append STT text into a Challenge answer without wiping typed draft. */

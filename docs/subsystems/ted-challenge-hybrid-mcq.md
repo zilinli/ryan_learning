@@ -1,21 +1,24 @@
 # TED Challenge · Hybrid MCQ + Essay (per item)
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **shipped** · 2026-08-11  
+> Status: **in progress** · 2026-08-11 (independent checks)  
 > Related: [entertainments.md](entertainments.md) §6.2 · [ted-challenge-adaptive-difficulty.md](ted-challenge-adaptive-difficulty.md) · [ted-challenge-voice-input.md](ted-challenge-voice-input.md)
 
 ---
 
 ## Problem
 
-TED Challenge items were mostly **open-response only**. Optional `choices` existed only for emerging Q1, and tapping a choice **overwrote** the essay textarea — so students could not practice **reading-comprehension-style MCQ + written reasoning** on the same prompt.
+TED Challenge items need both **objective selection** and **essay / 论述** on the same prompt. An earlier hybrid pass still had two UX bugs:
 
-Parents/teachers want **every** challenge question to exercise both:
+1. Choice taps wrote into the essay field (`setAnswer(choiceText)`), wiping typed text and never updating `selected[]`.
+2. One shared **Check thinking** required selection **and** essay together — so students could not get MCQ feedback without finishing the essay (and vice versa).
 
-1. **Objective selection** — ~4 options, single-select or multi-select  
-2. **Essay / 论述** — short written (or spoken) justification
+Parents/teachers want **every** challenge question to exercise both skills **independently**:
 
-Pedagogy refs (Yale Poorvu / UW Teaching): mix MCQ (understand/apply) with short essay (analyze/evaluate) for holistic assessment; keep stems clear; options similar in length.
+1. **Objective selection** — ~4 options, single-select or multi-select → **Check selection**
+2. **Essay / 论述** — short written (or spoken) justification → **Check essay**
+
+Pedagogy: formative “pulse checks” (Edutopia / McTighe) work best as separate, ungraded feedback loops — MCQ for understand/apply, short essay for analyze/evaluate — not one fused gate.
 
 ## Approach
 
@@ -36,24 +39,33 @@ type ChallengeItem = {
 ```
 
 - **Fallback + LLM** both emit hybrid fields on **every** item.
-- `parseChallengeJson` + `enrichChallengeItem` normalize thin LLM output (pad to 4 choices, default mode/corrects) so the UI never loses the MCQ row.
-- Soft feedback stays Socratic: score selection as exact / partial / miss **without** dumping the answer key into the first line of feedback.
+- `parseChallengeJson` + `enrichChallengeItem` normalize thin LLM output.
+- Soft feedback is **split**:
+  - `buildChoiceSoftFeedback(item, selected)` — exact / partial / miss / empty
+  - `buildEssaySoftFeedback(item, essay, level)` — length / critique / retell cues
+  - `buildHybridSoftFeedback` remains as a join for legacy / combined notes
 
 ### UX (TedLab Challenge)
 
 ```mermaid
 flowchart TD
   Prompt[Prompt + Listen] --> MCQ[Select A–D single or multi]
-  MCQ --> Essay[Write or speak essay]
-  Essay --> Check[Check thinking]
-  Check --> FB[Soft feedback: MCQ + essay]
-  FB --> Next[Next question]
+  Prompt --> Essay[Write or speak essay]
+  MCQ --> CheckMCQ[Check selection]
+  Essay --> CheckEssay[Check essay]
+  CheckMCQ --> FBm[MCQ soft feedback]
+  CheckEssay --> FBe[Essay soft feedback]
+  FBm --> Next[Next — after both checked]
+  FBe --> Next
 ```
 
 1. Label: **Choose one** vs **Select all that apply**
-2. Options A–D; selection state is **separate** from the essay textarea (fix overwrite bug)
-3. Submit requires ≥1 selected option **and** essay meeting band word threshold
-4. Save / learning notes record both: `Choices: A, C` + essay text
+2. Options A–D update **`selected[]` only** — never the essay textarea
+3. **Check selection** enabled when ≥1 option selected; does **not** require essay
+4. **Check essay** enabled when essay meets min length (≥3 chars); does **not** require selection
+5. Each part locks after its own check; feedback panels are separate
+6. **Next** unlocks only after **both** parts have been checked (any order)
+7. Save / learning notes still record both: `Choices: A, C` + essay text
 
 ### Generation rules
 
@@ -67,9 +79,9 @@ flowchart TD
 
 | File | Role |
 |------|------|
-| `src/lib/entertain/ted-challenge.ts` | Types, enrich, score, fallbacks, system prompt |
-| `src/components/TedLab.tsx` | Hybrid UI + submit/save serialization |
-| `src/lib/entertain/ted-challenge.test.ts` | Unit TMH1–TMH6 |
+| `src/lib/entertain/ted-challenge.ts` | Types, enrich, score, split soft feedback, fallbacks, system prompt |
+| `src/components/TedLab.tsx` | Hybrid UI + independent Check selection / Check essay |
+| `src/lib/entertain/ted-challenge.test.ts` | Unit TMH1–TMH8 |
 | `src/lib/entertain/studio-contract.test.ts` | Expect hybrid choices on all items |
 
 ## Risks
@@ -78,7 +90,8 @@ flowchart TD
 |------|------------|
 | LLM omits choices / correctKeys | `enrichChallengeItem` pads + defaults; API still has banded fallback |
 | Revealing answers too early | Soft labels only; no “correct is B” in first feedback |
-| Multi-select empty submit | Disable Check until selection + essay |
+| Choice overwrites essay | Selection state is `selected[]`; essay is `answer` only |
+| Fused Check gate | Independent buttons + separate feedback state |
 | Long TTS of 4 choices | Keep `challengePromptSpeechText` numbered Choices suffix |
 | Old saved creations | Notes format additive; no schema migration |
 
@@ -94,6 +107,8 @@ flowchart TD
 | TMH4 | `parseChallengeJson` keeps hybrid fields |
 | TMH5 | System prompt requires 4 choices + single\|multi on every item |
 | TMH6 | `formatHybridAnswerNotes` serializes choices + essay |
+| TMH7 | `buildChoiceSoftFeedback` works with empty essay (independent) |
+| TMH8 | `buildEssaySoftFeedback` works with empty selection (independent) |
 
 ### Integration / manual
 
@@ -102,8 +117,8 @@ flowchart TD
 | TM-H1 | Live Challenge: each Q shows 4 options + essay |
 | TM-H2 | Single-select toggles one; multi allows several |
 | TM-H3 | Selecting option does **not** wipe typed essay |
-| TM-H4 | Check blocked until both selection and essay |
-| TM-H5 | Save to Creations includes Choices + essay |
+| TM-H4 | Check selection works without essay; Check essay works without selection |
+| TM-H5 | Next only after both checks; Save includes Choices + essay |
 
 ```bash
 npm test -- src/lib/entertain/ted-challenge.test.ts src/lib/entertain/studio-contract.test.ts

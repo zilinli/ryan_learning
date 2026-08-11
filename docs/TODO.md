@@ -24,12 +24,12 @@
 ## 📝 ENT-TED-HYBRID — TED Challenge MCQ + essay per item (2026-08-11)
 
 > **Design:** [subsystems/ted-challenge-hybrid-mcq.md](subsystems/ted-challenge-hybrid-mcq.md)  
-> **Goal:** Every Challenge question has ~4 reading-comprehension options (single or multi-select), then a written/spoken essay — both skill types on one prompt.
+> **Goal:** Every Challenge question has ~4 reading-comprehension options (single or multi-select), then a written/spoken essay — both skill types on one prompt. **Checks are independent.**
 
 - [x] **ENT-TED-H.1** — Extend `ChallengeItem` (`choices` / `choiceMode` / `correctChoices`) + enrich/score/format helpers
 - [x] **ENT-TED-H.2** — Banded fallbacks + LLM system prompt require hybrid on every item
-- [x] **ENT-TED-H.3** — TedLab UI: separate selection vs essay; submit/save both; fix choice overwrite
-- [x] **ENT-TED-H.4** — Unit TMH1–TMH6 + update studio-contract; `run_tests`
+- [x] **ENT-TED-H.3** — TedLab UI: `selected[]` for MCQ (no essay overwrite); **Check selection** + **Check essay** independent; Next after both
+- [x] **ENT-TED-H.4** — Split soft feedback helpers + unit TMH7–TMH8; `run_tests`
 - [ ] **ENT-TED-H.5** — apply_changes → publish_develop → deploy_live
 - [ ] **ENT-TED-H.6** — Manual TM-H1–TM-H5 on live Challenge
 
