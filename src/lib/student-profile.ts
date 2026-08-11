@@ -11,12 +11,59 @@ export type ChineseDialectPref = "zh" | "yue";
 /** Grade band grouping shared pedagogical characteristics. */
 export type GradeBand = "early" | "elementary" | "middle" | "high";
 
+/**
+ * Parent/tutor judgment of English listening/speaking readiness.
+ * Used by TED Challenge (and future ESL-aware surfaces).
+ */
+export type EnglishLevel =
+  | "emerging"
+  | "developing"
+  | "confident"
+  | "advanced";
+
+const ENGLISH_LEVELS: EnglishLevel[] = [
+  "emerging",
+  "developing",
+  "confident",
+  "advanced",
+];
+
 /** Derive grade band from a numeric grade (1–12). */
 export function gradeBandForGrade(g: number): GradeBand {
   if (g <= 2) return "early";
   if (g <= 5) return "elementary";
   if (g <= 8) return "middle";
   return "high";
+}
+
+/**
+ * Default English level from **numeric grade** (G4 grain).
+ * G3 ≠ G4 ≠ G6 — do not collapse to gradeBand alone.
+ * G4 = developing baseline (Ryan).
+ */
+export function englishLevelForGrade(grade: number): EnglishLevel {
+  const g = Number.isFinite(grade)
+    ? Math.max(1, Math.min(12, Math.round(grade)))
+    : 4;
+  if (g <= 3) return "emerging";
+  if (g <= 5) return "developing"; // G4 baseline; G5 same band, harder prompt cue
+  if (g <= 8) return "confident";
+  return "advanced";
+}
+
+/** @deprecated Prefer englishLevelForGrade — band collapses G3–G5. */
+export function englishLevelForGradeBand(band: GradeBand): EnglishLevel {
+  if (band === "early") return "emerging";
+  if (band === "elementary") return "developing";
+  if (band === "middle") return "confident";
+  return "advanced";
+}
+
+export function parseEnglishLevel(raw: unknown): EnglishLevel | null {
+  if (typeof raw !== "string") return null;
+  return ENGLISH_LEVELS.includes(raw as EnglishLevel)
+    ? (raw as EnglishLevel)
+    : null;
 }
 
 /** School curriculum context — null means auto-detect from grade. */
@@ -39,6 +86,11 @@ export type StudentProfile = {
   curriculum: Curriculum | null;
   /** Auto Chinese: default 粤语 / Cantonese (use 云希 for 普通话) */
   preferredChinese: ChineseDialectPref;
+  /**
+   * Parent/tutor English readiness. If omitted on wire, filled from
+   * englishLevelForGrade(grade) in normalizeProfile (G4 → developing).
+   */
+  englishLevel: EnglishLevel;
   stronger: string[];
   focusAreas: string[];
 };
@@ -52,6 +104,7 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   school: "",
   curriculum: null,
   preferredChinese: "yue",
+  englishLevel: "developing",
   stronger: [],
   focusAreas: [],
 };
@@ -70,6 +123,7 @@ export const RYAN_PROFILE: StudentProfile = {
     textbookHints: "BASIS G5 Envision Mathematics (Savvas, ISBN 978-1-4188-4685-5)",
   },
   preferredChinese: "yue",
+  englishLevel: "developing",
   stronger: ["science curiosity", "trying again after a short break"],
   focusAreas: [
     "multi-step fraction word problems",
@@ -179,6 +233,9 @@ export function normalizeProfile(partial?: Partial<StudentProfile> | null): Stud
     school: typeof parsed.school === "string" ? parsed.school : DEFAULT_STUDENT_PROFILE.school,
     curriculum,
     preferredChinese: (parsed as Record<string, unknown>).preferredChinese === "zh" ? "zh" : "yue",
+    englishLevel:
+      parseEnglishLevel((parsed as Record<string, unknown>).englishLevel) ??
+      englishLevelForGrade(gradeNum),
     stronger: Array.isArray(parsed.stronger)
       ? parsed.stronger.filter((s): s is string => typeof s === "string")
       : DEFAULT_STUDENT_PROFILE.stronger,
@@ -466,6 +523,7 @@ export function studentProfilePromptLines(
     `Name: ${profile.name || "(new student)"} (${profile.age} years old).`,
     `School: ${schoolText}, ${gradeLabel}.`,
     `Grade band: ${profile.gradeBand} (controls difficulty, vocabulary, and skill scope).`,
+    `English level (listening/speaking judgment): ${profile.englishLevel}.`,
     `Stronger / likes: ${profile.stronger.join("; ") || "—"}.`,
     `Watch / support: ${profile.focusAreas.join("; ") || "—"}.`,
     `Chinese preference for Auto mode: ${

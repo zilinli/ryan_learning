@@ -11,9 +11,11 @@ import {
 } from "@/lib/entertain/ted-catalog";
 import {
   appendVoiceTranscript,
+  softFeedbackThresholds,
   type TedChallenge,
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
+import type { EnglishLevel } from "@/lib/student-profile";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
@@ -30,22 +32,38 @@ const TOPICS: Array<TedTopic | "all"> = [
   "technology",
 ];
 
-function softFeedback(item: ChallengeItem, answer: string): string {
+function softFeedback(
+  item: ChallengeItem,
+  answer: string,
+  level: EnglishLevel = "developing",
+): string {
   const n = answer.trim().split(/\s+/).filter(Boolean).length;
-  if (n < 8) {
+  const th = softFeedbackThresholds(level);
+  if (n < th.short) {
     return "Short answers can be sharp — but this one needs more evidence or a clearer claim. Try one more sentence.";
   }
-  if (item.kind === "critique" && !/because|however|although|but|yet/i.test(answer)) {
+  if (
+    item.kind === "critique" &&
+    level !== "emerging" &&
+    !/because|however|although|but|yet|why|because/i.test(answer)
+  ) {
     return "Nice start. Push the critique: name the tension (because / however) so the objection lands.";
   }
-  if (item.kind === "retell" && n < 40) {
+  if (item.kind === "retell" && n < th.retell) {
     return "Retell should carry the arc. Add one beat from the middle or end of the talk.";
   }
   return `Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
 }
 
 export function TedLab() {
-  const { accountId, name: accountName } = useActiveStudioAccount();
+  const {
+    accountId,
+    name: accountName,
+    age,
+    grade,
+    gradeBand,
+    englishLevel,
+  } = useActiveStudioAccount();
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState<TedTopic | "all">("all");
   const [paste, setPaste] = useState("");
@@ -105,7 +123,10 @@ export function TedLab() {
       const res = await fetch("/api/ted/challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: talk.slug }),
+        body: JSON.stringify({
+          slug: talk.slug,
+          learner: { age, grade, gradeBand, englishLevel },
+        }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -125,13 +146,14 @@ export function TedLab() {
     } finally {
       setLoadingChallenge(false);
     }
-  }, [talk]);
+  }, [talk, age, grade, gradeBand, englishLevel]);
 
   const submitAnswer = useCallback(() => {
     if (!challenge || !talk) return;
     const item = challenge.items[qi];
     if (!item) return;
-    const fb = softFeedback(item, answer);
+    const level = challenge.level || englishLevel || "developing";
+    const fb = softFeedback(item, answer, level);
     setFeedback(fb);
     setAnswers((prev) => ({ ...prev, [item.id]: answer.trim() }));
     void recordStudioLearningTurn({
@@ -142,7 +164,7 @@ export function TedLab() {
       assistantText: fb,
       tedTopics: talk.topics,
     });
-  }, [challenge, qi, answer, talk, accountId]);
+  }, [challenge, qi, answer, talk, accountId, englishLevel]);
 
   const nextQuestion = useCallback(() => {
     setFeedback(null);
@@ -330,6 +352,25 @@ export function TedLab() {
               <h3 className="text-lg font-medium leading-snug md:text-xl">
                 {item.prompt}
               </h3>
+              {item.choices && item.choices.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {item.choices.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      disabled={Boolean(feedback)}
+                      onClick={() => setAnswer(ch)}
+                      className={`min-h-11 rounded-xl border px-4 py-2.5 text-left text-sm transition ${
+                        answer === ch
+                          ? "border-[#6db8a8] bg-[#6db8a8]/15 text-[#e8e2d8]"
+                          : "border-white/15 bg-black/30 text-[#c4b8a8] hover:border-[#6db8a8]/50"
+                      } disabled:opacity-50`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <textarea
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
@@ -395,8 +436,8 @@ export function TedLab() {
           Watch a talk. Then argue with it.
         </h2>
         <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
-          Official TED player only. Challenges probe claim, structure, and critique —
-          not baby quizzes.
+          Official TED player only. Challenge difficulty follows your grade
+          (G4 grain), English level, and age — not one-size quizzes.
         </p>
         <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
           Tracking for {accountName} · answers update subject skills on Dashboard

@@ -92,6 +92,7 @@ flowchart TB
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)** | TED Challenge voice → text via MicTranscribeButton |
+| **[subsystems/ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive-difficulty.md)** | TED Challenge difficulty from **grade number (G4 grain)** + English level |
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |

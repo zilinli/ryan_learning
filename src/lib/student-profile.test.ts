@@ -5,9 +5,12 @@ import {
   createAccount,
   DEFAULT_STUDENT_PROFILE,
   curriculumPromptLines,
+  englishLevelForGrade,
+  englishLevelForGradeBand,
   getActiveAccount,
   gradeBandForGrade,
   loadAccounts,
+  normalizeProfile,
   RYAN_ACCOUNT_ID,
   saveRyanAccount,
   studentProfilePromptLines,
@@ -62,6 +65,34 @@ describe("gradeBandForGrade", () => {
     expect(gradeBandForGrade(9)).toBe("high");
     expect(gradeBandForGrade(10)).toBe("high");
     expect(gradeBandForGrade(12)).toBe("high");
+  });
+});
+
+describe("englishLevelForGrade", () => {
+  it("uses G4 grain — G3 emerging, G4/G5 developing", () => {
+    expect(englishLevelForGrade(1)).toBe("emerging");
+    expect(englishLevelForGrade(3)).toBe("emerging");
+    expect(englishLevelForGrade(4)).toBe("developing");
+    expect(englishLevelForGrade(5)).toBe("developing");
+    expect(englishLevelForGrade(7)).toBe("confident");
+    expect(englishLevelForGrade(11)).toBe("advanced");
+  });
+
+  it("normalizeProfile fills englishLevel from grade when missing", () => {
+    const p = normalizeProfile({ name: "Sam", grade: 7 } as never);
+    expect(p.gradeBand).toBe("middle");
+    expect(p.englishLevel).toBe("confident");
+    const g3 = normalizeProfile({ name: "Kid", grade: 3 } as never);
+    expect(g3.englishLevel).toBe("emerging");
+  });
+});
+
+describe("englishLevelForGradeBand", () => {
+  it("maps bands to English levels (legacy)", () => {
+    expect(englishLevelForGradeBand("early")).toBe("emerging");
+    expect(englishLevelForGradeBand("elementary")).toBe("developing");
+    expect(englishLevelForGradeBand("middle")).toBe("confident");
+    expect(englishLevelForGradeBand("high")).toBe("advanced");
   });
 });
 

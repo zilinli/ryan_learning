@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   appendVoiceTranscript,
   buildFallbackChallenge,
+  challengeSystemPrompt,
   parseChallengeJson,
+  resolveTedChallengeLevel,
 } from "./ted-challenge";
 import type { TedTalk } from "./ted-catalog";
 
@@ -15,23 +17,104 @@ const talk: TedTalk = {
   blurb: "A short blurb about ideas.",
 };
 
-describe("ted-challenge", () => {
-  it("buildFallbackChallenge mixes kinds", () => {
-    const tx =
-      "Hook sentence that is long enough for parsing into a challenge cue. ".repeat(
-        8,
-      ) +
-      "Middle evidence appears here with enough length to matter. ".repeat(4) +
-      "Closing implication wraps the arc for listeners.";
-    const c = buildFallbackChallenge(talk, tx);
+const richTx =
+  "Hook sentence that is long enough for parsing into a challenge cue. ".repeat(
+    8,
+  ) +
+  "Middle evidence appears here with enough length to matter. ".repeat(4) +
+  "Closing implication wraps the arc for listeners.";
+
+describe("resolveTedChallengeLevel (G4 grain)", () => {
+  it("TD1: grade 4 + unset english → developing", () => {
+    expect(resolveTedChallengeLevel({ grade: 4 })).toBe("developing");
+  });
+
+  it("TD1b: grade 3 → emerging; grade 5 → developing", () => {
+    expect(resolveTedChallengeLevel({ grade: 3 })).toBe("emerging");
+    expect(resolveTedChallengeLevel({ grade: 5 })).toBe("developing");
+  });
+
+  it("TD2: englishLevel advanced overrides grade 3", () => {
+    expect(
+      resolveTedChallengeLevel({ grade: 3, englishLevel: "advanced" }),
+    ).toBe("advanced");
+  });
+
+  it("TD3: young age vs high grade softens one step", () => {
+    // grade 10 → advanced; age much younger than typical (~15) softens
+    expect(
+      resolveTedChallengeLevel({ grade: 10, age: 11, englishLevel: "advanced" }),
+    ).toBe("confident");
+  });
+
+  it("defaults missing learner to G4 developing", () => {
+    expect(resolveTedChallengeLevel(null)).toBe("developing");
+    expect(resolveTedChallengeLevel({})).toBe("developing");
+  });
+});
+
+describe("banded + grade-cued fallbacks", () => {
+  it("TD4: emerging fallback has no steelman / rhetoric jargon", () => {
+    const c = buildFallbackChallenge(talk, richTx, { grade: 3 });
+    expect(c.level).toBe("emerging");
+    const blob = c.items.map((i) => i.prompt + i.rubricHint).join("\n");
+    expect(blob.toLowerCase()).not.toMatch(/steelman|rhetoric/);
+  });
+
+  it("TD5: advanced fallback still includes critique + retell", () => {
+    const c = buildFallbackChallenge(talk, richTx, {
+      grade: 10,
+      englishLevel: "advanced",
+    });
+    const kinds = new Set(c.items.map((i) => i.kind));
+    expect(kinds.has("critique")).toBe(true);
+    expect(kinds.has("retell")).toBe(true);
+    expect(c.items.some((i) => /steelman/i.test(i.prompt))).toBe(true);
+  });
+
+  it("TD7: G4 fallback friendlier than advanced / G10", () => {
+    const g4 = buildFallbackChallenge(talk, richTx, { grade: 4 });
+    const g10 = buildFallbackChallenge(talk, richTx, {
+      grade: 10,
+      englishLevel: "advanced",
+    });
+    expect(g4.level).toBe("developing");
+    expect(g4.items.some((i) => /steelman/i.test(i.prompt))).toBe(false);
+    expect(g10.items.some((i) => /steelman/i.test(i.prompt))).toBe(true);
+  });
+
+  it("G4 vs G5 developing cues differ", () => {
+    const g4 = buildFallbackChallenge(talk, richTx, { grade: 4 });
+    const g5 = buildFallbackChallenge(talk, richTx, { grade: 5 });
+    expect(g4.level).toBe("developing");
+    expect(g5.level).toBe("developing");
+    const g4Retell = g4.items.find((i) => i.kind === "retell")!.prompt;
+    const g5Retell = g5.items.find((i) => i.kind === "retell")!.prompt;
+    expect(g4Retell).toMatch(/about 3 sentences/);
+    expect(g5Retell).toMatch(/about 4 sentences/);
+  });
+
+  it("buildFallbackChallenge mixes kinds (legacy)", () => {
+    const c = buildFallbackChallenge(talk, richTx, { grade: 4 });
     expect(c.items.length).toBeGreaterThanOrEqual(4);
     const kinds = new Set(c.items.map((i) => i.kind));
     expect(kinds.has("literal")).toBe(true);
-    expect(kinds.has("critique")).toBe(true);
     expect(kinds.has("retell")).toBe(true);
     expect(c.generatedFromTranscript).toBe(true);
+    expect(c.grade).toBe(4);
   });
+});
 
+describe("challengeSystemPrompt", () => {
+  it("TD6: mentions resolved band and Grade N", () => {
+    const p = challengeSystemPrompt(talk, { grade: 4 });
+    expect(p).toMatch(/developing/i);
+    expect(p).toMatch(/Grade 4/);
+    expect(p).toMatch(/G4 grain/);
+  });
+});
+
+describe("parse + voice", () => {
   it("parseChallengeJson accepts LLM JSON", () => {
     const raw = `Here you go
 {"items":[
@@ -39,9 +122,11 @@ describe("ted-challenge", () => {
   {"kind":"structure","prompt":"Sketch the arc","rubricHint":"3 bullets"},
   {"kind":"critique","prompt":"Steelman an objection","rubricHint":"Trade-offs"}
 ]}`;
-    const parsed = parseChallengeJson(raw, talk);
+    const parsed = parseChallengeJson(raw, talk, "advanced", 10);
     expect(parsed?.items).toHaveLength(3);
     expect(parsed?.items[0].kind).toBe("literal");
+    expect(parsed?.level).toBe("advanced");
+    expect(parsed?.grade).toBe(10);
   });
 
   it("parseChallengeJson rejects thin payloads", () => {

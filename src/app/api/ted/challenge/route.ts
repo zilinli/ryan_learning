@@ -1,7 +1,7 @@
 /**
  * POST /api/ted/challenge
- * Body: { slug }
- * Builds advanced listening challenge from transcript (+ optional LLM polish).
+ * Body: { slug, learner?: { age, grade, gradeBand, englishLevel } }
+ * Builds listening challenge matched to learner difficulty (+ optional LLM polish).
  */
 
 import path from "node:path";
@@ -15,6 +15,9 @@ import {
   buildFallbackChallenge,
   challengeSystemPrompt,
   parseChallengeJson,
+  normalizeLearnerGrade,
+  resolveTedChallengeLevel,
+  type TedChallengeLearner,
 } from "@/lib/entertain/ted-challenge";
 
 export const runtime = "nodejs";
@@ -45,9 +48,12 @@ export async function POST(req: Request) {
   const limited = checkApiRateLimit(req, "ted-challenge", RATE_PRESETS.agent);
   if (limited) return limited;
 
-  let body: { slug?: string } = {};
+  let body: { slug?: string; learner?: TedChallengeLearner } = {};
   try {
-    body = (await req.json()) as { slug?: string };
+    body = (await req.json()) as {
+      slug?: string;
+      learner?: TedChallengeLearner;
+    };
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
@@ -57,9 +63,11 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Invalid slug" }, { status: 400 });
   }
 
+  const learner = body.learner || null;
+  const level = resolveTedChallengeLevel(learner);
   const talk = talkOrStub(slug);
   const { text } = await fetchTedTranscript(slug);
-  let challenge = buildFallbackChallenge(talk, text);
+  let challenge = buildFallbackChallenge(talk, text, learner);
 
   const forceFallback =
     process.env.TED_CHALLENGE_FORCE_FALLBACK === "1" ||
@@ -80,7 +88,7 @@ export async function POST(req: Request) {
 
       let full = "";
       const prompt = [
-        challengeSystemPrompt(talk),
+        challengeSystemPrompt(talk, learner),
         "",
         "Transcript excerpt (for crafting questions — do not quote huge blocks):",
         text.slice(0, 6000),
@@ -110,7 +118,7 @@ export async function POST(req: Request) {
         }
       }
 
-      const parsed = parseChallengeJson(full, talk);
+      const parsed = parseChallengeJson(full, talk, level, normalizeLearnerGrade(learner?.grade));
       if (parsed) challenge = parsed;
     } catch (err) {
       if (err instanceof CursorAgentError) {

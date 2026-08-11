@@ -282,9 +282,9 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files.
 - **Catalog:** curated JSON in `ted-catalog.ts` (~40 talks); client search/filter; paste `ted.com/talks/{slug}` URL.
 - **Transcript:** `GET /api/ted/transcript?slug=` — server fetch + `data/ted-cache/`; used for challenge generation only (no transcript browser UI).
-- **Challenge:** `POST /api/ted/challenge` — advanced listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`.
+- **Challenge:** `POST /api/ted/challenge` — listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`. Body may include `learner: { age, grade, gradeBand, englishLevel }` so difficulty matches the active profile at **grade-number grain** (G4 baseline; see [ted-challenge-adaptive-difficulty.md](./ted-challenge-adaptive-difficulty.md)).
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
-- **Pedagogy:** BASIS / international-school tone — claim–evidence–implication, steelman, retell; not babyish MC.
+- **Pedagogy:** Defaults from **numeric grade** (not only gradeBand) + optional English level + age nudge. G4 = developing baseline; G3 softer; G5 same band but harder cue. Advanced keeps steelman; emerging never does.
 
 ### 6.3 Writing Studio Stage + deAPI text2X
 

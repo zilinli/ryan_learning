@@ -5,6 +5,7 @@ import Link from "next/link";
 import AccountAvatar from "./AccountAvatar";
 import {
   createAccount,
+  englishLevelForGrade,
   getActiveAccount,
   gradeBandForGrade,
   hydrateAccountsFromServer,
@@ -14,11 +15,19 @@ import {
   saveAccounts,
   switchAccount,
   type AccountsStore,
+  type EnglishLevel,
 } from "@/lib/student-profile";
 import { TenantStorage } from "@/lib/tenant-storage";
 
 const MAX_ACCOUNTS = 6;
 const SUBJECTS = ["math", "science", "reading", "writing", "general"] as const;
+
+const ENGLISH_LEVEL_OPTIONS: Array<{ value: EnglishLevel; label: string }> = [
+  { value: "emerging", label: "Emerging — short sentences, basic listening" },
+  { value: "developing", label: "Developing — everyday school English (A2-ish)" },
+  { value: "confident", label: "Confident — clear arguments, middle-school" },
+  { value: "advanced", label: "Advanced — rigorous critique / debate" },
+];
 
 /** "new" = creating a brand-new account; otherwise an existing account id. */
 type EditTarget = string | "new";
@@ -29,7 +38,11 @@ export function AccountHome() {
   const initialActive = getActiveAccount(initialStore);
   const [editingId, setEditingId] = useState<EditTarget>(initialActive.id);
   const [name, setName] = useState(initialActive.profile.name);
+  const [age, setAge] = useState(initialActive.profile.age);
   const [grade, setGrade] = useState(initialActive.profile.grade);
+  const [englishLevel, setEnglishLevel] = useState<EnglishLevel>(
+    initialActive.profile.englishLevel,
+  );
   const [school, setSchool] = useState(initialActive.profile.school || "");
   const [subjects, setSubjects] = useState<string[]>(
     initialActive.profile.curriculum?.subjects?.length
@@ -74,7 +87,9 @@ export function AccountHome() {
 
   const applyProfile = (p: typeof initialActive.profile) => {
     setName(p.name);
+    setAge(p.age);
     setGrade(p.grade);
+    setEnglishLevel(p.englishLevel);
     setSchool(p.school || "");
     setSubjects(
       p.curriculum?.subjects?.length ? [...p.curriculum.subjects] : ["math"],
@@ -95,6 +110,8 @@ export function AccountHome() {
     setSchool("");
     setSubjects(["math"]);
     setGrade(4);
+    setAge(9);
+    setEnglishLevel("developing");
     setNotice("");
   };
 
@@ -118,7 +135,9 @@ export function AccountHome() {
     const next = createAccount(
       trimmed,
       {
+        age,
         grade,
+        englishLevel,
         school: school.trim(),
         curriculum: {
           label: school.trim() ? `${school.trim()} G${grade}` : `Grade ${grade}`,
@@ -151,8 +170,10 @@ export function AccountHome() {
               profile: {
                 ...a.profile,
                 name: trimmed,
+                age,
                 grade,
                 gradeBand: gradeBandForGrade(grade),
+                englishLevel,
                 school: school.trim(),
                 curriculum: {
                   label: school.trim() ? `${school.trim()} G${grade}` : `Grade ${grade}`,
@@ -382,12 +403,53 @@ export function AccountHome() {
             Grade (1–12)
             <select
               value={grade}
-              onChange={(e) => setGrade(Number(e.target.value))}
+              onChange={(e) => {
+                const g = Number(e.target.value);
+                setGrade(g);
+                // Keep English level aligned with grade band unless parent already
+                // picked a non-default; still offer explicit override below.
+                setEnglishLevel(englishLevelForGrade(g));
+                setNotice("");
+              }}
               className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
                 <option key={g} value={g}>
                   Grade {g}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-sm text-[var(--ink-muted)]">
+            Age (years)
+            <input
+              type="number"
+              min={4}
+              max={18}
+              value={age}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setAge(Number.isFinite(n) ? Math.max(4, Math.min(18, Math.round(n))) : 9);
+                setNotice("");
+              }}
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+            />
+          </label>
+
+          <label className="block text-sm text-[var(--ink-muted)]">
+            English level (TED & listening)
+            <select
+              value={englishLevel}
+              onChange={(e) => {
+                setEnglishLevel(e.target.value as EnglishLevel);
+                setNotice("");
+              }}
+              className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[var(--ink)] outline-none focus:border-[var(--teal)]"
+            >
+              {ENGLISH_LEVEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>

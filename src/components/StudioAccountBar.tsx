@@ -7,6 +7,8 @@ import {
   hydrateAccountsFromServer,
   loadAccounts,
   type AccountRecord,
+  type EnglishLevel,
+  type GradeBand,
 } from "@/lib/student-profile";
 
 type Props = {
@@ -131,12 +133,18 @@ export function StudioAccountBar({
 export function useActiveStudioAccount(): {
   accountId: string;
   name: string;
+  age?: number;
   grade?: number;
+  gradeBand?: GradeBand;
+  englishLevel?: EnglishLevel;
 } {
   const [state, setState] = useState({
     accountId: "acct_ryan",
     name: "Student",
+    age: undefined as number | undefined,
     grade: undefined as number | undefined,
+    gradeBand: undefined as GradeBand | undefined,
+    englishLevel: undefined as EnglishLevel | undefined,
   });
 
   useEffect(() => {
@@ -144,7 +152,10 @@ export function useActiveStudioAccount(): {
       setState({
         accountId: a.id,
         name: a.profile.name,
+        age: a.profile.age,
         grade: a.profile.grade,
+        gradeBand: a.profile.gradeBand,
+        englishLevel: a.profile.englishLevel,
       });
     };
     apply(getActiveAccount(loadAccounts()));
