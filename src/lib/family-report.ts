@@ -51,6 +51,8 @@ export type FamilyReport = {
     watch: number;
     reviewDue: number;
     idleDays: number | null;
+    /** Σ skill.attempts — light effort signal (not token usage). */
+    effortAttempts: number;
   };
   radar: RadarPoint[];
   trend30: TrendPoint[];
@@ -196,6 +198,7 @@ export function buildFamilyReport(
         watch: 0,
         reviewDue: 0,
         idleDays: null,
+        effortAttempts: 0,
       },
       radar: [],
       trend30: [],
@@ -222,6 +225,7 @@ export function buildFamilyReport(
       watch: weekly.masteryDown.length,
       reviewDue: weekly.reviewDue.length,
       idleDays: weekly.idleDays,
+      effortAttempts: m.skills.reduce((n, s) => n + (s.attempts || 0), 0),
     },
     radar,
     trend30,

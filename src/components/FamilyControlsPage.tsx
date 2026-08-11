@@ -11,6 +11,10 @@ import {
   downloadAccountLearningExport,
 } from "@/lib/account-export";
 import {
+  buildLearningPortfolioHtml,
+  openLearningPortfolioPrint,
+} from "@/lib/learning-portfolio";
+import {
   buildFamilyReport,
   radarPolygonPoints,
   SUBJECT_LABELS,
@@ -217,7 +221,7 @@ export function FamilyControlsPage() {
           </section>
 
           {/* KPIs */}
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
             {[
               { label: "Skills tracked", value: report.kpis.skillsTracked },
               {
@@ -227,6 +231,7 @@ export function FamilyControlsPage() {
               { label: "Gains", value: report.kpis.gains },
               { label: "Watch", value: report.kpis.watch },
               { label: "SM-2 due", value: report.kpis.reviewDue },
+              { label: "Effort", value: report.kpis.effortAttempts },
               {
                 label: "Idle days",
                 value:
@@ -467,6 +472,16 @@ export function FamilyControlsPage() {
                 className="min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px]"
               >
                 Download learning JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const html = buildLearningPortfolioHtml(report);
+                  openLearningPortfolioPrint(html);
+                }}
+                className="min-h-11 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-4 text-[13px] font-medium text-[var(--teal)]"
+              >
+                Print learning portfolio
               </button>
               <a
                 href="/dashboard"

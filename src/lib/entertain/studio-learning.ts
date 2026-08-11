@@ -11,6 +11,7 @@ import {
   recordLearningTurnMemory,
   saveLearningMemory,
   type LearningMemory,
+  type TurnOutcome,
 } from "@/lib/learning-memory";
 import type { TedTopic } from "@/lib/entertain/ted-catalog";
 
@@ -30,6 +31,25 @@ export function tedTopicsToSkillSeed(topics: TedTopic[] | undefined): string {
   return topics.map((t) => TOPIC_SEED[t] || t).join(" ");
 }
 
+/**
+ * Map TED Lab soft-feedback copy → BKT outcome so Studio closes the loop
+ * (v4 report: Studio answers must move P(known), not only log practice).
+ */
+export function studioOutcomeFromSoftFeedback(feedback: string): TurnOutcome {
+  const t = feedback.trim();
+  if (!t) return "practice";
+  if (/^Short answers/i.test(t) || /^Retell should/i.test(t)) {
+    return "incorrect";
+  }
+  if (/^Nice start/i.test(t) || /^Push the critique/i.test(t)) {
+    return "practice";
+  }
+  if (/^Solid draft/i.test(t)) {
+    return "correct";
+  }
+  return "practice";
+}
+
 export type StudioLearningSource = "ted" | "writing";
 
 /**
@@ -43,6 +63,7 @@ export async function recordStudioLearningTurn(opts: {
   userText: string;
   assistantText?: string;
   tedTopics?: TedTopic[];
+  outcome?: TurnOutcome;
 }): Promise<LearningMemory | null> {
   if (typeof window === "undefined") return null;
   const accountId = opts.accountId?.trim() || "acct_ryan";
@@ -73,6 +94,7 @@ export async function recordStudioLearningTurn(opts: {
       opts.source === "ted"
         ? `TED · ${opts.title}`.slice(0, 80)
         : `Writing · ${opts.title}`.slice(0, 80),
+    outcome: opts.outcome,
   });
   saveLearningMemory(next, accountId);
   void pushLearningMemoryToServer(next, accountId);

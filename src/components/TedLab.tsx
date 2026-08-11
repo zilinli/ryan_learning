@@ -18,7 +18,10 @@ import {
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
 import type { EnglishLevel } from "@/lib/student-profile";
-import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import {
+  recordStudioLearningTurn,
+  studioOutcomeFromSoftFeedback,
+} from "@/lib/entertain/studio-learning";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -338,6 +341,7 @@ export function TedLab() {
       userText: `Prompt (${item.kind}): ${item.prompt}\nStudent: ${answer.trim()}`,
       assistantText: fb,
       tedTopics: talk.topics,
+      outcome: studioOutcomeFromSoftFeedback(fb),
     });
   }, [challenge, qi, answer, talk, accountId, englishLevel]);
 

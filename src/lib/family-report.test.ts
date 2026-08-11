@@ -54,6 +54,7 @@ describe("family-report", () => {
     const r = buildFamilyReport(mem(), { accountLabel: "Ryan" });
     expect(r.accountLabel).toBe("Ryan");
     expect(r.kpis.skillsTracked).toBe(2);
+    expect(r.kpis.effortAttempts).toBe(12);
     expect(r.narrative).toMatch(/Fraction|sticky|pizza|week/i);
     expect(r.radar.some((x) => x.subject === "math")).toBe(true);
     expect(r.patterns[0]?.id).toBe("frac-add-denom");

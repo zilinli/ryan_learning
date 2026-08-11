@@ -734,6 +734,8 @@ export function recordLearningTurnMemory(
     userText: string;
     assistantText?: string;
     chatTitle?: string;
+    /** When set (e.g. Studio soft-feedback), skip text heuristics. */
+    outcome?: TurnOutcome;
   },
 ): LearningMemory {
   const now = Date.now();
@@ -748,10 +750,9 @@ export function recordLearningTurnMemory(
   // Apply SM-2 decay before updating, so stale pKnown is current
   const base = applyMemoryDecay(normalizeMemory(prev));
   const skills = [...base.skills];
-  const outcome = classifyTurnOutcome(
-    params.userText,
-    params.assistantText || "",
-  );
+  const outcome =
+    params.outcome ??
+    classifyTurnOutcome(params.userText, params.assistantText || "");
   const confidence = parseConfidence(params.userText);
 
   const touch = (id: string, label: string, topicId: string) => {
