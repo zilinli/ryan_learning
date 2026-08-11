@@ -74,7 +74,7 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 **Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Structure** is modality-aware (`target: music|image|video`): music → `[Verse]`/`[Chorus]` lyrics; image/video → visual / cinematic prompts (lyric tags rejected). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach** (debounced auto tips).
 
-**TED Lab** watch UI keeps a **compact player** (capped height) with a **sticky “Ready for challenge”** bar so the CTA stays visible on phones.
+**TED Lab** searches the **live TED catalog** (`GET /api/ted/search` → TED InstantSearch), with **Refresh batch** for newest talks, plus links to open official TED pages. Watch UI keeps a **compact player** with a **sticky “Ready for challenge”** bar on phones.
 
 **Media generation** (no local GPU):
 

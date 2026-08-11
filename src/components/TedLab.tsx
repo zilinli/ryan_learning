@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  searchTedCatalog,
+  findTedTalk,
   tedEmbedUrl,
   tedTalkUrl,
   parseTedSlug,
+  searchTedCatalog,
   type TedTalk,
   type TedTopic,
 } from "@/lib/entertain/ted-catalog";
@@ -21,6 +22,7 @@ import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
 type Phase = "browse" | "watch" | "challenge";
+type ListSource = "ted-live" | "curated-fallback" | "loading";
 
 const TOPICS: Array<TedTopic | "all"> = [
   "all",
@@ -55,6 +57,11 @@ function softFeedback(
   return `Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
 }
 
+function formatDuration(sec: number): string {
+  if (!sec || sec <= 0) return "";
+  return ` · ${Math.round(sec / 60)} min`;
+}
+
 export function TedLab() {
   const {
     accountId,
@@ -79,10 +86,26 @@ export function TedLab() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const results = useMemo(
-    () => searchTedCatalog(query, topic),
-    [query, topic],
+  const [results, setResults] = useState<TedTalk[]>(() =>
+    searchTedCatalog("", "all").slice(0, 18),
   );
+  const [listSource, setListSource] = useState<ListSource>("loading");
+  const [listBusy, setListBusy] = useState(false);
+  const [page, setPage] = useState(0);
+  const [nbPages, setNbPages] = useState(1);
+  const [nbHits, setNbHits] = useState(0);
+  const [endCursor, setEndCursor] = useState<string | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [officialSearchUrl, setOfficialSearchUrl] = useState(
+    "https://www.ted.com/talks?sort=newest",
+  );
+  const [officialBrowseUrl, setOfficialBrowseUrl] = useState(
+    "https://www.ted.com/talks?sort=newest",
+  );
+
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchGenRef = useRef(0);
+  const skipDebouncedSearchRef = useRef(false);
 
   const openTalk = useCallback((t: TedTalk) => {
     setTalk(t);
@@ -98,22 +121,165 @@ export function TedLab() {
     window.setTimeout(() => setChallengeReady(true), 45_000);
   }, []);
 
+  const runSearch = useCallback(
+    async (opts?: { page?: number; append?: boolean }) => {
+      const nextPage = opts?.page ?? 0;
+      const append = opts?.append === true;
+      searchAbortRef.current?.abort();
+      const ac = new AbortController();
+      searchAbortRef.current = ac;
+      const gen = ++searchGenRef.current;
+      setListBusy(true);
+      if (!append) setListSource("loading");
+      try {
+        const params = new URLSearchParams({
+          mode: "search",
+          q: query.trim(),
+          topic,
+          page: String(nextPage),
+          pageSize: "18",
+        });
+        const res = await fetch(`/api/ted/search?${params}`, {
+          signal: ac.signal,
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          talks?: TedTalk[];
+          page?: number;
+          nbPages?: number;
+          nbHits?: number;
+          source?: ListSource;
+          officialSearchUrl?: string;
+          officialBrowseUrl?: string;
+          error?: string;
+        };
+        if (gen !== searchGenRef.current) return;
+        if (!res.ok || !data.ok || !data.talks) {
+          throw new Error(data.error || "Search failed");
+        }
+        setResults((prev) => (append ? [...prev, ...data.talks!] : data.talks!));
+        setPage(data.page ?? nextPage);
+        setNbPages(Math.max(1, data.nbPages ?? 1));
+        setNbHits(data.nbHits ?? data.talks.length);
+        setListSource(
+          data.source === "curated-fallback" ? "curated-fallback" : "ted-live",
+        );
+        if (data.officialSearchUrl) setOfficialSearchUrl(data.officialSearchUrl);
+        if (data.officialBrowseUrl) setOfficialBrowseUrl(data.officialBrowseUrl);
+        setHasNextPage((data.page ?? nextPage) + 1 < (data.nbPages ?? 1));
+        setEndCursor(null);
+        setError(null);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        if (gen !== searchGenRef.current) return;
+        const local = searchTedCatalog(query, topic);
+        setResults(local.slice(0, 18));
+        setPage(0);
+        setNbPages(Math.max(1, Math.ceil(local.length / 18)));
+        setNbHits(local.length);
+        setListSource("curated-fallback");
+        setHasNextPage(local.length > 18);
+        setError(
+          e instanceof Error
+            ? `${e.message} — showing curated picks`
+            : "Search unavailable — curated picks",
+        );
+      } finally {
+        if (gen === searchGenRef.current) setListBusy(false);
+      }
+    },
+    [query, topic],
+  );
+
+  const refreshBatch = useCallback(async () => {
+    searchAbortRef.current?.abort();
+    const ac = new AbortController();
+    searchAbortRef.current = ac;
+    const gen = ++searchGenRef.current;
+    setListBusy(true);
+    setListSource("loading");
+    if (query.trim()) {
+      skipDebouncedSearchRef.current = true;
+      setQuery("");
+    }
+    try {
+      const params = new URLSearchParams({
+        mode: "refresh",
+        pageSize: "18",
+      });
+      // Chain GraphQL pages while browsing newest
+      if (endCursor) params.set("after", endCursor);
+      const res = await fetch(`/api/ted/search?${params}`, { signal: ac.signal });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        talks?: TedTalk[];
+        endCursor?: string | null;
+        hasNextPage?: boolean;
+        source?: ListSource;
+        officialBrowseUrl?: string;
+        officialSearchUrl?: string;
+        error?: string;
+      };
+      if (gen !== searchGenRef.current) return;
+      if (!res.ok || !data.ok || !data.talks?.length) {
+        throw new Error(data.error || "Refresh failed");
+      }
+      setResults(data.talks);
+      setPage(0);
+      setNbPages(data.hasNextPage ? 2 : 1);
+      setNbHits(data.talks.length);
+      setEndCursor(data.endCursor ?? null);
+      setHasNextPage(Boolean(data.hasNextPage));
+      setListSource(
+        data.source === "curated-fallback" ? "curated-fallback" : "ted-live",
+      );
+      if (data.officialBrowseUrl) {
+        setOfficialBrowseUrl(data.officialBrowseUrl);
+        setOfficialSearchUrl(data.officialBrowseUrl);
+      }
+      setError(null);
+    } catch (e) {
+      if (ac.signal.aborted) return;
+      setError(e instanceof Error ? e.message : "Refresh failed");
+      setListSource("curated-fallback");
+    } finally {
+      if (gen === searchGenRef.current) setListBusy(false);
+    }
+  }, [endCursor, query]);
+
+  // Debounced live search whenever query/topic change
+  useEffect(() => {
+    if (skipDebouncedSearchRef.current) {
+      skipDebouncedSearchRef.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void runSearch({ page: 0, append: false });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [query, topic, runSearch]);
+
+  useEffect(() => {
+    return () => searchAbortRef.current?.abort();
+  }, []);
+
   const openFromPaste = useCallback(() => {
     const slug = parseTedSlug(paste);
     if (!slug) {
       setError("Paste a ted.com/talks/… URL or a talk slug.");
       return;
     }
-    const found = searchTedCatalog(slug)[0] || {
-      slug,
-      title: slug.replace(/_/g, " "),
-      speaker: "TED speaker",
-      durationSec: 0,
-      topics: ["ideas"] as TedTopic[],
-      blurb: "Opened from URL",
-    };
+    const found = findTedTalk(slug) ||
+      results.find((t) => t.slug === slug) || {
+        slug,
+        title: slug.replace(/_/g, " "),
+        speaker: "TED speaker",
+        durationSec: 0,
+        topics: ["ideas"] as TedTopic[],
+        blurb: "Opened from TED URL",
+      };
     openTalk(found);
-  }, [paste, openTalk]);
+  }, [paste, openTalk, results]);
 
   const startChallenge = useCallback(async () => {
     if (!talk) return;
@@ -436,21 +602,39 @@ export function TedLab() {
           Watch a talk. Then argue with it.
         </h2>
         <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
-          Official TED player only. Challenge difficulty follows your grade
-          (G4 grain), English level, and age — not one-size quizzes.
+          Search the full TED catalog live. Challenge difficulty follows your
+          grade (G4 grain), English level, and age.
         </p>
         <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
           Tracking for {accountName} · answers update subject skills on Dashboard
         </p>
+        <div className="mx-auto mt-4 flex max-w-md flex-wrap items-center justify-center gap-2">
+          <a
+            href={officialBrowseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-10 rounded-xl border border-[#6db8a8]/50 bg-[#6db8a8]/10 px-4 text-sm font-medium text-[#6db8a8] hover:bg-[#6db8a8]/20"
+          >
+            Browse TED.com →
+          </a>
+          <a
+            href={officialSearchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-10 rounded-xl border border-white/20 px-4 text-sm text-[#c4b8a8] hover:border-[#6db8a8]/50"
+          >
+            Open this search on TED
+          </a>
+        </div>
       </div>
       <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-auto px-4 py-6">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search title, speaker, topic…"
+          placeholder="Search all TED talks — title, speaker, idea…"
           className="min-h-11 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm outline-none focus:border-[#6db8a8]"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {TOPICS.map((t) => (
             <button
               key={t}
@@ -465,7 +649,22 @@ export function TedLab() {
               {t}
             </button>
           ))}
+          <button
+            type="button"
+            disabled={listBusy}
+            onClick={() => void refreshBatch()}
+            className="min-h-9 rounded-lg border border-[#a85f42]/60 px-3 text-xs font-medium text-[#e09a7a] hover:bg-[#a85f42]/15 disabled:opacity-40"
+          >
+            {listBusy ? "Loading…" : "Refresh batch"}
+          </button>
         </div>
+        <p className="text-[11px] text-[#a89f92]">
+          {listSource === "loading"
+            ? "Searching TED…"
+            : listSource === "ted-live"
+              ? `TED live · ${nbHits.toLocaleString()} talks · page ${page + 1}/${nbPages}`
+              : `Curated backup · ${nbHits} talks`}
+        </p>
         <div className="flex gap-2">
           <input
             value={paste}
@@ -482,28 +681,47 @@ export function TedLab() {
           </button>
         </div>
         {error && <p className="text-sm text-[#e09a7a]">{error}</p>}
-        <ul className="space-y-2 pb-8">
+        <ul className="space-y-2">
           {results.map((t) => (
             <li key={t.slug}>
-              <button
-                type="button"
-                onClick={() => openTalk(t)}
-                className="w-full rounded-xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-[#6db8a8]/50"
-              >
-                <div className="text-sm font-semibold">{t.title}</div>
-                <div className="mt-0.5 text-xs text-[#a89f92]">
-                  {t.speaker}
-                  {t.durationSec
-                    ? ` · ${Math.round(t.durationSec / 60)} min`
-                    : ""}
-                </div>
-                <p className="mt-2 text-[12px] leading-snug text-[#c4b8a8]">
-                  {t.blurb}
-                </p>
-              </button>
+              <div className="rounded-xl border border-white/10 bg-black/25 p-4 transition hover:border-[#6db8a8]/50">
+                <button
+                  type="button"
+                  onClick={() => openTalk(t)}
+                  className="w-full text-left"
+                >
+                  <div className="text-sm font-semibold">{t.title}</div>
+                  <div className="mt-0.5 text-xs text-[#a89f92]">
+                    {t.speaker}
+                    {formatDuration(t.durationSec)}
+                  </div>
+                  <p className="mt-2 text-[12px] leading-snug text-[#c4b8a8]">
+                    {t.blurb}
+                  </p>
+                </button>
+                <a
+                  href={tedTalkUrl(t.slug)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-[11px] text-[#6db8a8] underline-offset-2 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Official TED page ↗
+                </a>
+              </div>
             </li>
           ))}
         </ul>
+        {(hasNextPage || page + 1 < nbPages) && (
+          <button
+            type="button"
+            disabled={listBusy}
+            onClick={() => void runSearch({ page: page + 1, append: true })}
+            className="mb-8 min-h-11 w-full rounded-xl border border-white/20 text-sm text-[#c4b8a8] hover:border-[#6db8a8] disabled:opacity-40"
+          >
+            {listBusy ? "Loading…" : "Load more from TED"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -279,8 +279,10 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
 ### 6.2 TED Lab
 
-- **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files.
-- **Catalog:** curated JSON in `ted-catalog.ts` (~40 talks); client search/filter; paste `ted.com/talks/{slug}` URL.
+- **Live catalog:** `GET /api/ted/search` → TED.com InstantSearch proxy (`/api/search`) — full catalog (~7k+), topic facets, pagination. Curated `ted-catalog.ts` is offline fallback only.
+- **Refresh batch:** `mode=refresh` uses TED GraphQL `videos` cursor for a rotating newest pool.
+- **Official TED entries:** “Browse TED.com”, “Open this search on TED”, per-row “Official TED page”, watch “Open on TED.com”.
+- **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files. Paste `ted.com/talks/{slug}` URL also works.
 - **Transcript:** `GET /api/ted/transcript?slug=` — server fetch + `data/ted-cache/`; used for challenge generation only (no transcript browser UI).
 - **Challenge:** `POST /api/ted/challenge` — listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`. Body may include `learner: { age, grade, gradeBand, englishLevel }` so difficulty matches the active profile at **grade-number grain** (G4 baseline; see [ted-challenge-adaptive-difficulty.md](./ted-challenge-adaptive-difficulty.md)).
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
