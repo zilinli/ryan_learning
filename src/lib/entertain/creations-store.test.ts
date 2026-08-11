@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   addCreation,
   deleteCreation,
+  listCreationMediaIds,
   loadCreations,
 } from "./creations-store";
 
@@ -57,5 +58,37 @@ describe("creations-store", () => {
     expect(await deleteCreation(TEST_ACCT, row.id)).toBe(false);
     const store = await loadCreations(TEST_ACCT);
     expect(store.items).toHaveLength(0);
+  });
+
+  it("lists media ids for prune keep-set", async () => {
+    await addCreation(TEST_ACCT, {
+      type: "song",
+      title: "A",
+      audioMediaId: "song_abc",
+    });
+    await addCreation(TEST_ACCT, {
+      type: "video",
+      title: "B",
+      mediaId: "video_xyz",
+    });
+    const ids = await listCreationMediaIds(TEST_ACCT);
+    expect(ids.has("song_abc")).toBe(true);
+    expect(ids.has("video_xyz")).toBe(true);
+  });
+
+  it("assigns a stable share token", async () => {
+    const { ensureCreationShareToken, findCreationByShareToken } =
+      await import("./creations-store");
+    const row = await addCreation(TEST_ACCT, {
+      type: "song",
+      title: "Share me",
+      audioMediaId: "song_share_1",
+    });
+    const a = await ensureCreationShareToken(TEST_ACCT, row.id);
+    const b = await ensureCreationShareToken(TEST_ACCT, row.id);
+    expect(a?.shareToken).toBeTruthy();
+    expect(a?.shareToken).toBe(b?.shareToken);
+    const found = await findCreationByShareToken(a!.shareToken!);
+    expect(found?.id).toBe(row.id);
   });
 });

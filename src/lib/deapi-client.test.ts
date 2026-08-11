@@ -4,6 +4,8 @@ import {
   deapiGenerateMusic,
   deapiGenerateVideo,
   deapiListModels,
+  estimateMusicDurationSec,
+  estimateVideoDurationSec,
   isDeapiConfigured,
 } from "./deapi-client";
 
@@ -87,6 +89,87 @@ describe("deapi-client", () => {
     expect(r.status).toBe("done");
     expect(r.resultUrl).toContain("results.deapi.ai");
     expect(r.model).toBe("AceStep_1_5_Turbo");
+    expect(r.durationSec).toBe(15);
+  });
+
+  it("estimates longer music duration from rich lyrics", async () => {
+    vi.stubEnv("DEAPI_API_KEY", "test-key");
+    let postedDuration: number | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/v2/models")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                name: "AceStep Turbo",
+                slug: "AceStep_1_5_Turbo",
+                info: {
+                  limits: {
+                    min_duration: 10,
+                    max_duration: 300,
+                    min_steps: 8,
+                    max_steps: 8,
+                    min_guidance: 1,
+                    max_guidance: 1,
+                    max_caption: 300,
+                    output_formats: ["mp3"],
+                  },
+                },
+              },
+            ],
+            meta: { current_page: 1, last_page: 1 },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/api/v2/audio/music") && init?.method === "POST") {
+        const form = init.body as FormData;
+        postedDuration = Number(form.get("duration"));
+        return new Response(
+          JSON.stringify({ data: { request_id: "music_long" } }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/jobs/music_long")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              status: "done",
+              result_url: "https://results.deapi.ai/long.mp3",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("{}", { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const lyrics = [
+      "[Verse]",
+      "Rain taps the cracked phone screen on the bus seat twice",
+      "The diesel smell sticks to my hoodie after school today",
+      "[Chorus]",
+      "I pocket the silence and walk home alone in the cold",
+      "One laugh from the back row lands at the wrong time again",
+      "[Verse]",
+      "Neon puddles mirror every step I try not to take",
+      "My backpack straps dig in like reminders of the day",
+      "[Chorus]",
+      "I pocket the silence and walk home alone in the cold",
+      "One laugh from the back row lands at the wrong time again",
+    ].join("\n");
+    const expected = estimateMusicDurationSec(lyrics);
+    expect(expected).toBeGreaterThan(30);
+
+    const r = await deapiGenerateMusic({
+      lyrics,
+      caption: "indie ballad",
+    });
+    expect(r.status).toBe("done");
+    expect(postedDuration).toBe(expected);
+    expect(r.durationSec).toBe(expected);
   });
 
   it("generates image with JSON body", async () => {
@@ -211,5 +294,91 @@ describe("deapi-client", () => {
     const r = await deapiGenerateVideo({ prompt: "leaves falling gently" });
     expect(r.status).toBe("done");
     expect(r.mimeType).toBe("video/mp4");
+  });
+
+  it("scales video frames from prompt content instead of fixed default", async () => {
+    vi.stubEnv("DEAPI_API_KEY", "test-key");
+    let posted: { frames?: number; fps?: number } = {};
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/v2/models")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                name: "LTX",
+                slug: "Ltxv_13B_0_9_8_Distilled_FP8",
+                info: {
+                  limits: {
+                    min_width: 256,
+                    max_width: 768,
+                    min_height: 256,
+                    max_height: 768,
+                    min_frames: 30,
+                    max_frames: 120,
+                    min_fps: 30,
+                    max_fps: 30,
+                    min_steps: 1,
+                    max_steps: 1,
+                  },
+                  defaults: {
+                    width: 512,
+                    height: 512,
+                    frames: 30,
+                    fps: 30,
+                    steps: 1,
+                  },
+                },
+              },
+            ],
+            meta: { current_page: 1, last_page: 1 },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/videos/generations") && init?.method === "POST") {
+        posted = JSON.parse(String(init.body || "{}")) as typeof posted;
+        return new Response(
+          JSON.stringify({ data: { request_id: "vid_scale" } }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/jobs/vid_scale")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              status: "done",
+              result_url: "https://results.deapi.ai/scaled.mp4",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("{}", { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rich =
+      "A girl opens the bus window. Then the camera pans to rain on the cracked phone. After that, push-in on her hoodie. Next, tracking shot as she walks home alone.";
+    const want = estimateVideoDurationSec(rich);
+    expect(want).toBeGreaterThan(3);
+
+    const r = await deapiGenerateVideo({ prompt: rich });
+    expect(r.status).toBe("done");
+    expect(posted.fps).toBe(30);
+    expect(posted.frames).toBe(Math.min(120, Math.max(30, Math.round(want * 30))));
+    expect(r.durationSec).toBeCloseTo((posted.frames || 0) / 30, 1);
+  });
+
+  it("estimateMusicDurationSec grows with lyric length", () => {
+    const short = estimateMusicDurationSec("[Verse]\nhello world");
+    const long = estimateMusicDurationSec(
+      "[Verse]\n" +
+        "line one with many words about the bus ride home\n".repeat(8) +
+        "[Chorus]\n" +
+        "hook line that repeats with feeling and detail\n".repeat(4),
+    );
+    expect(long).toBeGreaterThan(short);
+    expect(long).toBeGreaterThan(30);
   });
 });

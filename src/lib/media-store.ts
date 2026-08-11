@@ -3,7 +3,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { ChatAttachment, ChatMessage, ConversationRecord } from "./types";
 
-const MEDIA_DIR = path.join(process.cwd(), "data", "media");
+const MEDIA_DIR_FALLBACK = path.join(process.cwd(), "data", "media");
+
+function mediaDir(): string {
+  if (process.env.SPARK_DATA_DIR) {
+    return path.join(path.resolve(process.env.SPARK_DATA_DIR), "media");
+  }
+  return MEDIA_DIR_FALLBACK;
+}
 
 export type StoredMediaMeta = {
   mediaId: string;
@@ -52,15 +59,27 @@ export function buildMediaId(
 }
 
 function binPath(mediaId: string): string {
-  return path.join(MEDIA_DIR, `${safeSegment(mediaId, 80)}.bin`);
+  return path.join(mediaDir(), `${safeSegment(mediaId, 80)}.bin`);
 }
 
 function metaPath(mediaId: string): string {
-  return path.join(MEDIA_DIR, `${safeSegment(mediaId, 80)}.json`);
+  return path.join(mediaDir(), `${safeSegment(mediaId, 80)}.json`);
 }
 
 async function ensureMediaDir(): Promise<void> {
-  await fs.mkdir(MEDIA_DIR, { recursive: true });
+  await fs.mkdir(mediaDir(), { recursive: true });
+}
+
+/** True when the media blob file exists on disk. */
+export async function mediaExists(mediaId: string): Promise<boolean> {
+  const id = safeSegment(mediaId, 80);
+  if (!id || id === "x") return false;
+  try {
+    await fs.access(binPath(id));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function stripDataUrl(dataUrl: string): { mime: string; buf: Buffer } | null {
@@ -187,13 +206,14 @@ export async function deleteMediaForSession(
   // Never wipe Studio library media via a chat-session delete path.
   if (isStudioMediaSession(sessionId)) return 0;
   await ensureMediaDir();
-  const names = await fs.readdir(MEDIA_DIR);
+  const dir = mediaDir();
+  const names = await fs.readdir(dir);
   let removed = 0;
   for (const name of names) {
     if (!name.endsWith(".json")) continue;
     try {
       const meta = JSON.parse(
-        await fs.readFile(path.join(MEDIA_DIR, name), "utf8"),
+        await fs.readFile(path.join(dir, name), "utf8"),
       ) as StoredMediaMeta;
       if (meta.sessionId !== sessionId) continue;
       // Account-scoped deletion: when the caller knows the owning account,
@@ -245,7 +265,8 @@ export async function pruneOrphanMedia(
   keepMediaIds?: Set<string>,
 ): Promise<number> {
   await ensureMediaDir();
-  const names = await fs.readdir(MEDIA_DIR);
+  const dir = mediaDir();
+  const names = await fs.readdir(dir);
   let removed = 0;
   const seenBins = new Set<string>();
   const GRACE_MS = 2 * 60 * 1000;
@@ -255,7 +276,7 @@ export async function pruneOrphanMedia(
     if (!name.endsWith(".json")) continue;
     const base = name.slice(0, -".json".length);
     seenBins.add(`${base}.bin`);
-    const jsonFull = path.join(MEDIA_DIR, name);
+    const jsonFull = path.join(dir, name);
     try {
       const meta = JSON.parse(
         await fs.readFile(jsonFull, "utf8"),
@@ -265,6 +286,8 @@ export async function pruneOrphanMedia(
       // is treated as legacy — its owner is unknowable, so it is never pruned by
       // a per-account retention pass (a stale delete here breaks history imgs).
       if (!meta.accountId || meta.accountId !== accountId) continue;
+      // Explicit keep set (chat attachments + My Creations mediaIds)
+      if (keepMediaIds?.has(meta.mediaId)) continue;
       // Studio songs/images/videos live under reserved sessionIds and are
       // referenced from creations.json — not chat history. Never orphan-prune.
       if (isStudioMediaSession(meta.sessionId)) continue;
@@ -295,7 +318,7 @@ export async function pruneOrphanMedia(
       // Corrupt meta — remove pair
       await Promise.allSettled([
         fs.unlink(jsonFull),
-        fs.unlink(path.join(MEDIA_DIR, `${base}.bin`)),
+        fs.unlink(path.join(dir, `${base}.bin`)),
       ]);
       removed += 1;
     }
@@ -307,7 +330,7 @@ export async function pruneOrphanMedia(
     if (seenBins.has(name)) continue;
     const jsonSibling = name.slice(0, -".bin".length) + ".json";
     if (names.includes(jsonSibling)) continue;
-    const binFull = path.join(MEDIA_DIR, name);
+    const binFull = path.join(dir, name);
     try {
       const st = await fs.stat(binFull);
       if (now - st.mtimeMs < GRACE_MS) continue;

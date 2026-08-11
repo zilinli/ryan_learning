@@ -8,10 +8,11 @@ import {
   addCreation,
   deleteCreation,
   loadCreations,
+  type CreationItem,
   type CreationType,
 } from "@/lib/entertain/creations-store";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
-import { deleteMedia } from "@/lib/media-store";
+import { deleteMedia, mediaExists } from "@/lib/media-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,13 +22,29 @@ function safeAccount(id: string | null | undefined): string {
   return s || "acct_ryan";
 }
 
+async function withMediaStatus(items: CreationItem[]): Promise<CreationItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      const next = { ...item };
+      if (item.audioMediaId) {
+        next.audioMissing = !(await mediaExists(item.audioMediaId));
+      }
+      if (item.mediaId) {
+        next.mediaMissing = !(await mediaExists(item.mediaId));
+      }
+      return next;
+    }),
+  );
+}
+
 export async function GET(req: Request) {
   const limited = checkApiRateLimit(req, "creations-get", RATE_PRESETS.entertain);
   if (limited) return limited;
   const url = new URL(req.url);
   const accountId = safeAccount(url.searchParams.get("accountId"));
   const store = await loadCreations(accountId);
-  return Response.json({ ok: true, items: store.items });
+  const items = await withMediaStatus(store.items);
+  return Response.json({ ok: true, items });
 }
 
 export async function POST(req: Request) {

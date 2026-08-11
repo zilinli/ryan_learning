@@ -40,6 +40,8 @@ export type DeapiGenerateResult = {
   resultUrl?: string;
   mimeType?: string;
   model?: string;
+  /** Requested / estimated length when known (music seconds; video = frames/fps) */
+  durationSec?: number;
   error?: string;
   raw?: unknown;
 };
@@ -86,6 +88,55 @@ function pickNum(
 ): number {
   const v = limits?.[key];
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function countWords(text: string): number {
+  return (text.match(/[\p{L}\p{N}']+/gu) || []).length;
+}
+
+/**
+ * Estimate song length from lyrics (not a fixed 30s).
+ * Rough sung pace + structure pads; callers still clamp to model min/max.
+ */
+export function estimateMusicDurationSec(lyrics: string): number {
+  const lines = lyrics
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const structureTags = lines.filter((l) => /^\[[^\]]+\]$/i.test(l));
+  const lyricLines = lines.filter((l) => !/^\[[^\]]+\]$/i.test(l));
+  const words = countWords(lyricLines.join(" "));
+  const byLines = lyricLines.length * 2.8;
+  const byWords = words * 0.45;
+  const sectionBonus = Math.max(0, structureTags.length) * 5;
+  const pad = lyricLines.length <= 2 ? 6 : 10;
+  const raw = Math.max(byLines, byWords, 12) + sectionBonus + pad;
+  // Nearest 5s keeps AceStep happier than odd values
+  return Math.max(10, Math.round(raw / 5) * 5);
+}
+
+/**
+ * Estimate target video length (seconds) from prompt richness.
+ * Actual length is still limited by model frames/fps.
+ */
+export function estimateVideoDurationSec(prompt: string): number {
+  const words = countWords(prompt);
+  const beats = prompt
+    .split(/[.!?。！？;；\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 6);
+  const moves =
+    (
+      prompt.match(
+        /\b(pan|push(?:-in)?|track(?:ing)?|dolly|zoom|cut|then|after|next|follow|镜头|推进|拉远|然后|接着|切换)\b/gi,
+      ) || []
+    ).length;
+  const raw =
+    2.5 +
+    beats.length * 0.9 +
+    moves * 1.1 +
+    Math.min(words / 35, 5);
+  return Math.round(clamp(raw, 2, 30) * 10) / 10;
 }
 
 async function readJson(
@@ -327,15 +378,15 @@ export async function deapiGenerateMusic(
   const caption = input.caption.trim().slice(0, maxCaption) || "pop ballad";
   const lyrics =
     input.lyrics.trim().slice(0, 8000) || "[Instrumental]";
-  const duration = clamp(
-    Math.round(input.durationSec ?? Math.max(minDur, 30)),
-    minDur,
-    maxDur,
-  );
+  const estimated =
+    typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
+      ? input.durationSec
+      : estimateMusicDurationSec(lyrics);
+  const duration = clamp(Math.round(estimated), minDur, maxDur);
   const steps = clamp(minSteps, minSteps, maxSteps);
   const guidance = clamp(minGuide, minGuide, maxGuide);
 
-  return submitAndWait(
+  const result = await submitAndWait(
     async () => {
       const form = new FormData();
       form.set("caption", caption);
@@ -378,6 +429,7 @@ export async function deapiGenerateMusic(
     modelInfo.slug,
     360_000,
   );
+  return { ...result, durationSec: duration };
 }
 
 export type DeapiImageInput = {
@@ -498,6 +550,8 @@ export type DeapiVideoInput = {
   negativePrompt?: string;
   width?: number;
   height?: number;
+  /** Preferred length in seconds — converted to frames via fps and clamped */
+  durationSec?: number;
   frames?: number;
   fps?: number;
   steps?: number;
@@ -541,8 +595,6 @@ export async function deapiGenerateVideo(
 
   const defW = typeof defaults.width === "number" ? defaults.width : 512;
   const defH = typeof defaults.height === "number" ? defaults.height : 512;
-  const defFrames =
-    typeof defaults.frames === "number" ? defaults.frames : minFrames;
   const defFps = typeof defaults.fps === "number" ? defaults.fps : minFps;
   const defSteps =
     typeof defaults.steps === "number" ? defaults.steps : minSteps;
@@ -552,13 +604,27 @@ export async function deapiGenerateVideo(
     return { ok: false, status: "error", error: "Prompt too short" };
   }
 
+  const fps = clamp(Math.round(input.fps ?? defFps), minFps, maxFps);
+  let frames: number;
+  if (typeof input.frames === "number" && Number.isFinite(input.frames)) {
+    frames = clamp(Math.round(input.frames), minFrames, maxFrames);
+  } else {
+    const wantSec =
+      typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
+        ? input.durationSec
+        : estimateVideoDurationSec(prompt);
+    // Prefer content-based length; never sit on a fixed short default
+    frames = clamp(Math.round(wantSec * fps), minFrames, maxFrames);
+  }
+  const durationSec = Math.round((frames / fps) * 10) / 10;
+
   const payload: Record<string, unknown> = {
     prompt,
     model: modelInfo.slug,
     width: clamp(Math.round(input.width ?? defW), minW, maxW),
     height: clamp(Math.round(input.height ?? defH), minH, maxH),
-    frames: clamp(Math.round(input.frames ?? defFrames), minFrames, maxFrames),
-    fps: clamp(Math.round(input.fps ?? defFps), minFps, maxFps),
+    frames,
+    fps,
     seed: input.seed ?? -1,
   };
   // Ltx2 reports supports_steps false but still requires steps ≥ 8 — send when limits exist
@@ -579,7 +645,7 @@ export async function deapiGenerateVideo(
     payload.negative_prompt = input.negativePrompt.slice(0, 1000);
   }
 
-  return submitAndWait(
+  const result = await submitAndWait(
     async () => {
       try {
         const res = await fetch(
@@ -613,4 +679,5 @@ export async function deapiGenerateVideo(
     modelInfo.slug,
     600_000,
   );
+  return { ...result, durationSec };
 }

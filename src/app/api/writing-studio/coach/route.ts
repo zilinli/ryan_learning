@@ -1,11 +1,12 @@
 /**
  * POST /api/writing-studio/coach
  * Body: {
- *   action: "coach" | "structure" | "extract",
+ *   action: "coach" | "mentor" | "structure" | "extract",
  *   draft?, genre?,
  *   target?: "music" | "image" | "video",
  *   images?: { name?, mimeType, data }[],
- *   fileText?: string
+ *   fileText?: string,
+ *   studentReply?, history?, focusIds?, craftTip?  (mentor)
  * }
  */
 
@@ -24,8 +25,13 @@ import {
   basisCoachAgentPrompt,
   buildBasisCoachLocal,
   mergeBasisCoachFromLlm,
-  type BasisCoachReport,
+  type BasisDimensionId,
 } from "@/lib/entertain/basis-writing";
+import {
+  localMentorReply,
+  mentorTurnAgentPrompt,
+  type MentorChatTurn,
+} from "@/lib/entertain/basis-mentor-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +141,10 @@ export async function POST(req: Request) {
     target?: string;
     images?: Array<{ name?: string; mimeType?: string; data?: string }>;
     fileText?: string;
+    studentReply?: string;
+    craftTip?: string;
+    focusIds?: string[];
+    history?: Array<{ role?: string; text?: string }>;
   } = {};
   try {
     body = (await req.json()) as typeof body;
@@ -147,7 +157,9 @@ export async function POST(req: Request) {
       ? "structure"
       : body.action === "extract"
         ? "extract"
-        : "coach";
+        : body.action === "mentor"
+          ? "mentor"
+          : "coach";
   const target = parseTarget(body.target);
   const draft = String(body.draft || "").trim().slice(0, 6000);
   const fileText = String(body.fileText || "").trim().slice(0, 8000);
@@ -256,6 +268,94 @@ export async function POST(req: Request) {
 
   if (!draft) {
     return Response.json({ ok: false, error: "Draft is empty" }, { status: 400 });
+  }
+
+  if (action === "mentor") {
+    const studentReply = String(body.studentReply || "").trim().slice(0, 1200);
+    if (!studentReply) {
+      return Response.json(
+        { ok: false, error: "Reply is empty" },
+        { status: 400 },
+      );
+    }
+    const ORDER: BasisDimensionId[] = ["topic", "detail", "vocab", "grammar"];
+    const focusIds = Array.isArray(body.focusIds)
+      ? body.focusIds
+          .map((x) => String(x) as BasisDimensionId)
+          .filter((id) => ORDER.includes(id))
+          .slice(0, 2)
+      : [];
+    const history: MentorChatTurn[] = Array.isArray(body.history)
+      ? body.history
+          .map((t) => ({
+            role: t.role === "you" ? ("you" as const) : ("coach" as const),
+            text: String(t.text || "").trim().slice(0, 800),
+          }))
+          .filter((t) => t.text)
+          .slice(-10)
+      : [];
+    const craftTip = String(body.craftTip || "").trim().slice(0, 320);
+    const localReport = buildBasisCoachLocal(draft);
+    let reply = localMentorReply(studentReply, localReport, draft);
+    let agent: SDKAgent | null = null;
+    try {
+      agent = await Agent.create({
+        apiKey: apiKey(),
+        model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
+        name: "Writing Mentor",
+        local: {
+          cwd: path.join(process.cwd(), "tutor-workspace"),
+          settingSources: [],
+        },
+      });
+      let full = "";
+      const run = await agent.send(
+        {
+          text: mentorTurnAgentPrompt({
+            draft,
+            genre,
+            target,
+            focusIds: focusIds.length ? focusIds : localReport.focusIds,
+            history,
+            studentReply,
+            craftTip: craftTip || localReport.craftTip,
+          }),
+        },
+        {
+          onDelta: ({ update }) => {
+            if (update.type === "text-delta" && update.text) full += update.text;
+          },
+        },
+      );
+      for await (const ev of run.stream()) {
+        if (req.signal.aborted) break;
+        if (ev.type === "assistant") {
+          for (const block of ev.message.content) {
+            if (
+              block.type === "text" &&
+              block.text &&
+              block.text.length > full.length
+            ) {
+              full = block.text;
+            }
+          }
+        }
+      }
+      const cleaned = full
+        .replace(/^```[\w]*\n?|\n?```$/g, "")
+        .trim()
+        .slice(0, 900);
+      if (cleaned.length > 12) reply = cleaned;
+    } catch {
+      /* local mentor */
+    } finally {
+      try {
+        agent?.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    return Response.json({ ok: true, reply, target });
   }
 
   if (action === "structure") {
@@ -439,10 +539,12 @@ export async function POST(req: Request) {
         ? "Student is drafting toward a still image prompt."
         : "Student is drafting toward a short video prompt.";
     const prompt = [
-      "You are a witty writing coach for an international-school student.",
+      "You are Spark — a calm writing tutor for an international-school student.",
       modeHint,
-      "Socratic: ask 1–2 sharp questions and give 1 concrete craft tip.",
-      "Never rewrite the whole draft. Never be babyish. Max 120 words.",
+      "Think-first: (1) praise ONE specific choice in their words,",
+      "(2) ask ONE sharp question,",
+      "(3) at most one tiny craft nudge — never rewrite their sentences.",
+      "Stop and wait. Max 90 words. Never be babyish.",
       `Genre vibe: ${genre}.`,
       "",
       "Draft:",

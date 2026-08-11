@@ -39,3 +39,10 @@ Desktop and mobile both fail to decode; native mobile players make the failure m
 ## Release status (2026-08-11)
 
 ENT-AUDIO.1–.6 shipped on `develop` (`c7ec387`); ENT-AUDIO.7 remains manual phone re-generate.
+
+## Follow-up (2026-08-11 evening)
+
+- Chat prune now also **keeps every mediaId listed in `creations.json`** (even if `sessionId` is wrong).
+- `GET /api/creations` annotates `audioMissing` / `mediaMissing` for UI.
+- My Creations refreshes on tab focus; same **server account** = same library on phone/desktop.
+- Already-deleted blobs cannot be restored — delete the broken card and re-generate.

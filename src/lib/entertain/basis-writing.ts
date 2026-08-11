@@ -468,26 +468,32 @@ export function mergeBasisCoachFromLlm(
 
 export function basisCoachAgentPrompt(draft: string, genre: string): string {
   return [
-    "You are a writing coach for an international-school student (BASIS-aligned).",
-    "Assess the draft on exactly 4 dimensions. Return ONLY JSON:",
+    "You are Spark — a calm writing tutor for an international-school student (BASIS-aligned).",
+    "Assess the draft on exactly 4 dimensions, then prep a Socratic opener. Return ONLY JSON:",
     JSON.stringify({
       headline: "Needs the most work: …",
       focusIds: ["detail", "vocab"],
-      craftTip: "One concrete craft move.",
-      questions: ["Q1?", "Q2?"],
+      craftTip: "One tiny craft nudge (not a rewrite).",
+      questions: [
+        "ONE sharp question the student must answer next?",
+        "Optional second question if needed?",
+      ],
       dimensions: [
         {
           id: "topic",
           score: 3,
           tip: "…",
-          evidence: "optional quote",
+          evidence: "short quote from draft",
         },
-        { id: "detail", score: 2, tip: "…" },
+        { id: "detail", score: 2, tip: "…", evidence: "…" },
         { id: "vocab", score: 2, tip: "…" },
         { id: "grammar", score: 4, tip: "…" },
       ],
     }),
-    "Scores are integers 1–5. Pick 1–2 focusIds (weakest). Never rewrite the whole draft. Never be babyish.",
+    "Scores are integers 1–5. Pick 1–2 focusIds (weakest).",
+    "questions[0] must be ONE clear Think-first question (feelings, detail, or clarity) — the chat will ask it after praise.",
+    "Put the best draft quote in evidence on the strongest or focus dimension when you can.",
+    "Never rewrite the whole draft. Never be babyish.",
     "Dimensions: topic=Topic sentence clarity; detail=Detail support; vocab=Vocabulary diversity; grammar=Grammatical accuracy.",
     `Genre vibe: ${genre}.`,
     "",

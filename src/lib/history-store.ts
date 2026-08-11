@@ -166,7 +166,15 @@ export async function enforceServerRetention(accountId: string = "default"): Pro
 
   // Drop media for deleted chats AND for messages trimmed out of kept chats.
   // Pruning is account-scoped — only this account's media may be removed.
-  await pruneOrphanMedia(accountId, keepIds, collectReferencedMediaIds(kept));
+  // Also keep My Creations blobs (belt-and-suspenders with studio sessionIds).
+  const keepMedia = collectReferencedMediaIds(kept);
+  try {
+    const { listCreationMediaIds } = await import("./entertain/creations-store");
+    for (const id of await listCreationMediaIds(accountId)) keepMedia.add(id);
+  } catch {
+    /* creations store optional for older tests */
+  }
+  await pruneOrphanMedia(accountId, keepIds, keepMedia);
 
   return {
     conversations: kept.length,

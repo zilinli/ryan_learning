@@ -22,6 +22,7 @@ import {
   recordStudioLearningTurn,
   studioOutcomeFromSoftFeedback,
 } from "@/lib/entertain/studio-learning";
+import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -370,6 +371,7 @@ export function TedLab() {
         }),
       });
       setSaved(true);
+      notifyCreationsChanged(accountId);
       void recordStudioLearningTurn({
         accountId,
         source: "ted",

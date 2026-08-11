@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type {
   BasisCoachReport,
   BasisDimensionId,
@@ -11,6 +12,8 @@ type Props = {
   report: BasisCoachReport;
   /** Plain coach text fallback when report missing dimensions */
   fallbackText?: string | null;
+  /** Ask student to answer in the Spark coach chat */
+  onTalk?: () => void;
 };
 
 function levelColor(level: BasisLevel): string {
@@ -31,7 +34,9 @@ function scoreLabel(score: number): string {
   return "OK";
 }
 
-export function WritingCoachPanel({ report, fallbackText }: Props) {
+export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
+  const [dimsOpen, setDimsOpen] = useState(false);
+
   if (!report?.dimensions?.length) {
     if (!fallbackText) return null;
     return (
@@ -43,19 +48,19 @@ export function WritingCoachPanel({ report, fallbackText }: Props) {
 
   const focusSet = new Set<BasisDimensionId>(report.focusIds);
   const pct = Math.round((report.overall / 5) * 100);
+  const firstQ = report.questions[0];
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-      {/* Header — Grammarly-like score glance */}
-      <div className="flex items-stretch gap-3 border-b border-[var(--line)] bg-[var(--surface-muted)]/80 px-3 py-3 sm:px-4">
+      <div className="flex items-stretch gap-3 border-b border-[var(--line)] px-3 py-3 sm:px-4">
         <div
-          className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:h-14 sm:w-14"
           style={{
             background: `conic-gradient(var(--teal) ${pct}%, rgba(0,0,0,0.08) 0)`,
           }}
           aria-label={`Overall writing score ${report.overall} of 5`}
         >
-          <div className="flex h-11 w-11 flex-col items-center justify-center rounded-full bg-[var(--surface)] text-[var(--ink)]">
+          <div className="flex h-9 w-9 flex-col items-center justify-center rounded-full bg-[var(--surface)] text-[var(--ink)] sm:h-11 sm:w-11">
             <span className="text-sm font-semibold leading-none">
               {report.overall.toFixed(1)}
             </span>
@@ -64,106 +69,117 @@ export function WritingCoachPanel({ report, fallbackText }: Props) {
             </span>
           </div>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 self-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--teal)]">
-            BASIS writing check
+            Writing glance
           </p>
           <p className="mt-0.5 text-sm font-semibold leading-snug text-[var(--ink)]">
             {report.headline}
           </p>
-          <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
-            {report.stats.words} words · {report.stats.sentences} sentences ·{" "}
-            {Math.round(report.stats.uniqueRatio * 100)}% unique vocab
+          <p className="mt-1 text-[11px] tabular-nums text-[var(--ink-muted)]">
+            {report.stats.words} words · {report.stats.sentences} sent. ·{" "}
+            {Math.round(report.stats.uniqueRatio * 100)}% unique
           </p>
         </div>
       </div>
 
-      {/* Dimension rows — Hemingway-style color cue bars */}
-      <ul className="divide-y divide-[var(--line)]">
-        {report.dimensions.map((d) => {
-          const focused = focusSet.has(d.id);
-          const help = BASIS_DIMENSION_META[d.id].help;
-          const fill = (d.score / 5) * 100;
-          return (
-            <li
-              key={d.id}
-              className={`px-3 py-2.5 sm:px-4 ${focused ? "bg-[var(--surface-muted)]/60" : ""}`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="inline-flex min-h-6 items-center rounded-md px-1.5 text-[10px] font-semibold uppercase tracking-wide"
-                    style={{
-                      color: levelColor(d.level),
-                      background: levelBg(d.level),
-                    }}
-                  >
-                    {d.shortLabel}
-                  </span>
-                  <span className="truncate text-xs font-medium text-[var(--ink)] sm:text-sm">
-                    {d.label}
-                  </span>
-                  {focused && (
-                    <span className="hidden shrink-0 rounded-full border border-[var(--coral)]/40 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--coral)] sm:inline">
-                      Focus
-                    </span>
-                  )}
-                </div>
-                <span
-                  className="shrink-0 text-[11px] font-semibold"
-                  style={{ color: levelColor(d.level) }}
-                >
-                  {d.score}/5 · {scoreLabel(d.score)}
-                </span>
-              </div>
-              <div
-                className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
-                title={help}
-              >
-                <div
-                  className="h-full rounded-full transition-[width] duration-500"
-                  style={{
-                    width: `${fill}%`,
-                    background: levelColor(d.level),
-                  }}
-                />
-              </div>
-              <p className="mt-1.5 text-[12px] leading-snug text-[var(--ink-muted)]">
-                {d.tip}
-                {d.evidence ? (
-                  <span className="mt-0.5 block font-mono text-[11px] text-[var(--ink)]/70">
-                    “{d.evidence}”
-                  </span>
-                ) : null}
-              </p>
-            </li>
-          );
-        })}
-      </ul>
-
-      {/* Craft tip + questions */}
-      <div className="space-y-2 border-t border-[var(--line)] bg-[var(--teal)]/5 px-3 py-3 sm:px-4">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--teal)]">
-            Craft tip
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-[var(--ink)]">
+      {/* Mentor CTA — questions live in chat, not a static dump */}
+      <div className="space-y-2 border-b border-[var(--line)] bg-[var(--teal)]/5 px-3 py-3 sm:px-4">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--teal)]">
+          Think with Spark
+        </p>
+        {firstQ ? (
+          <p className="text-sm leading-snug text-[var(--ink)]">{firstQ}</p>
+        ) : (
+          <p className="text-sm leading-snug text-[var(--ink)]">
             {report.craftTip}
           </p>
-        </div>
-        {report.questions.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-              Try answering
-            </p>
-            <ol className="mt-1 list-decimal space-y-1 pl-4 text-[13px] leading-snug text-[var(--ink)]">
-              {report.questions.map((q) => (
-                <li key={q}>{q}</li>
-              ))}
-            </ol>
-          </div>
+        )}
+        {onTalk && (
+          <button
+            type="button"
+            onClick={onTalk}
+            className="mt-1 min-h-10 w-full rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white sm:w-auto"
+          >
+            Answer in coach chat
+          </button>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setDimsOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-[12px] font-medium text-[var(--ink-muted)] hover:bg-black/[0.03] sm:px-4"
+      >
+        <span>{dimsOpen ? "Hide dimension tips" : "Show dimension tips"}</span>
+        <span className="tabular-nums text-[11px]">
+          {report.dimensions.map((d) => `${d.shortLabel[0]}${d.score}`).join(" · ")}
+        </span>
+      </button>
+
+      {dimsOpen && (
+        <ul className="divide-y divide-[var(--line)] border-t border-[var(--line)]">
+          {report.dimensions.map((d) => {
+            const focused = focusSet.has(d.id);
+            const help = BASIS_DIMENSION_META[d.id].help;
+            const fill = (d.score / 5) * 100;
+            return (
+              <li
+                key={d.id}
+                className={`px-3 py-2.5 sm:px-4 ${focused ? "bg-[var(--surface-muted)]/60" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="inline-flex min-h-6 items-center rounded-md px-1.5 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{
+                        color: levelColor(d.level),
+                        background: levelBg(d.level),
+                      }}
+                    >
+                      {d.shortLabel}
+                    </span>
+                    <span className="truncate text-xs font-medium text-[var(--ink)] sm:text-sm">
+                      {d.label}
+                    </span>
+                    {focused && (
+                      <span className="hidden shrink-0 rounded-full border border-[var(--coral)]/40 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--coral)] sm:inline">
+                        Focus
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className="shrink-0 text-[11px] font-semibold"
+                    style={{ color: levelColor(d.level) }}
+                  >
+                    {d.score}/5 · {scoreLabel(d.score)}
+                  </span>
+                </div>
+                <div
+                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
+                  title={help}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{
+                      width: `${fill}%`,
+                      background: levelColor(d.level),
+                    }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[12px] leading-snug text-[var(--ink-muted)]">
+                  {d.tip}
+                  {d.evidence ? (
+                    <span className="mt-0.5 block font-mono text-[11px] text-[var(--ink)]/70">
+                      “{d.evidence}”
+                    </span>
+                  ) : null}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

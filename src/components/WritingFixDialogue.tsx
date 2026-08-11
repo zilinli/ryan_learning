@@ -144,22 +144,25 @@ export function WritingFixDialogue({
   };
 
   return (
-    <div className="flex h-full min-h-[320px] flex-col border-b border-[var(--line)] bg-[#eef4f1] dark:bg-[#1c2420] md:border-b-0 md:border-r">
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-2.5">
+    <div className="overflow-hidden rounded-2xl border border-[var(--coral)]/30 bg-[var(--surface)] shadow-[0_8px_28px_rgba(20,40,35,0.08)]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--coral)]/8 px-3 py-2.5">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--teal)]">
-            Fix dialogue
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--coral)]">
+            Spot fixes
           </p>
           <p className="truncate text-xs text-[var(--ink-muted)]">{progressLabel}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex min-h-7 min-w-7 items-center justify-center rounded-full bg-[var(--coral)] px-2 text-[11px] font-bold text-white">
+          <span
+            className="inline-flex min-h-7 min-w-7 items-center justify-center rounded-full bg-[var(--coral)] px-2 text-[11px] font-bold text-white"
+            title="Open issues"
+          >
             {remaining}
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-9 rounded-lg px-2 text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            className="min-h-9 rounded-lg px-2 text-xs text-[var(--ink-muted)] hover:bg-black/5 hover:text-[var(--ink)]"
           >
             Close
           </button>
@@ -184,7 +187,7 @@ export function WritingFixDialogue({
 
       <div
         ref={scrollerRef}
-        className="flex-1 space-y-2 overflow-y-auto px-3 py-3"
+        className="max-h-[min(32vh,220px)] space-y-2 overflow-y-auto px-3 py-2.5"
       >
         {turns.map((t) => (
           <div
@@ -192,9 +195,9 @@ export function WritingFixDialogue({
             className={`flex ${t.role === "you" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[92%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${
+              className={`max-w-[94%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${
                 t.role === "coach"
-                  ? "rounded-tl-sm bg-white text-[var(--ink)] shadow-sm dark:bg-[#24302a]"
+                  ? "rounded-tl-sm bg-[var(--surface-muted)] text-[var(--ink)]"
                   : t.role === "you"
                     ? "rounded-tr-sm bg-[var(--teal)] text-white"
                     : "bg-transparent text-[11px] text-[var(--ink-muted)]"
@@ -211,41 +214,41 @@ export function WritingFixDialogue({
         ))}
         {!current && turns.length === 0 && (
           <p className="text-sm text-[var(--ink-muted)]">
-            Run Coach to start a fix dialogue.
+            Run Coach to start spot fixes.
           </p>
         )}
       </div>
 
       {current ? (
-        <div className="border-t border-[var(--line)] bg-[var(--surface)] p-3">
-          <textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            rows={2}
-            placeholder={current.placeholder}
-            className="w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-2.5 text-sm outline-none focus:border-[var(--teal)]"
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
+        <div className="border-t border-[var(--line)] bg-[var(--surface-muted)]/40 p-2.5">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              rows={2}
+              placeholder={current.placeholder}
+              className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[var(--teal)]"
+            />
             <button
               type="button"
               disabled={busy || reply.trim().length < 2}
               onClick={() => applyCurrent("fix")}
-              className="min-h-10 flex-1 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white disabled:opacity-40"
+              className="min-h-11 shrink-0 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white disabled:opacity-40"
             >
-              Apply to pad
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => applyCurrent("skip")}
-              className="min-h-10 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink-muted)]"
-            >
-              Skip
+              Apply
             </button>
           </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => applyCurrent("skip")}
+            className="mt-1.5 text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          >
+            Skip this one
+          </button>
         </div>
       ) : (
-        <div className="border-t border-[var(--line)] p-3">
+        <div className="border-t border-[var(--line)] p-2.5">
           <button
             type="button"
             onClick={onClose}

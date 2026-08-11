@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FILE_INPUT_ACCEPT } from "@/lib/attachments";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import {
   buildVisualPrompt,
   looksLikeLyricStructure,
@@ -22,13 +23,26 @@ import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 import { WritingCoachPanel } from "./WritingCoachPanel";
 import { WritingFixDialogue } from "./WritingFixDialogue";
+import { WritingMentorDialogue } from "./WritingMentorDialogue";
 import { WritingPadHighlights } from "./WritingPadHighlights";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
 
-const STT_LANGS: SttLang[] = ["auto", "en", "zh", "yue", "es", "fr", "ms"];
+const STT_LANG_OPTIONS: Array<{ id: SttLang; label: string }> = [
+  { id: "auto", label: "Auto detect" },
+  { id: "en", label: "English" },
+  { id: "zh", label: "中文 Mandarin" },
+  { id: "yue", label: "粵語 Cantonese" },
+  { id: "es", label: "Español" },
+  { id: "fr", label: "Français" },
+  { id: "ms", label: "Bahasa Melayu" },
+];
+
 const TEXT_FILE_EXT = /\.(txt|md|markdown|csv|json|log)$/i;
+
+const selectClass =
+  "min-h-10 max-w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-xs font-medium text-[var(--ink)] outline-none focus:border-[var(--teal)]";
 
 function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -56,6 +70,9 @@ export function WritingStudio() {
   const [coachReport, setCoachReport] = useState<BasisCoachReport | null>(null);
   const [fixIssues, setFixIssues] = useState<WritingFixIssue[]>([]);
   const [fixOpen, setFixOpen] = useState(false);
+  const [mentorOpen, setMentorOpen] = useState(false);
+  const [mentorSessionKey, setMentorSessionKey] = useState(0);
+  const [mentorUserActive, setMentorUserActive] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
   const [lyrics, setLyrics] = useState("");
   const [caption, setCaption] = useState("");
@@ -76,6 +93,9 @@ export function WritingStudio() {
   const coachAbortRef = useRef<AbortController | null>(null);
   const coachGenRef = useRef(0);
   const lastRecordedCoachRef = useRef<string | null>(null);
+  const lastAutoMentorDraftRef = useRef<string>("");
+  const mentorUserActiveRef = useRef(false);
+  const mentorOpenRef = useRef(false);
   const draftRef = useRef(draft);
   const genreRef = useRef(genre);
   const titleRef = useRef(title);
@@ -97,6 +117,12 @@ export function WritingStudio() {
   useEffect(() => {
     stageKindRef.current = stageKind;
   }, [stageKind]);
+  useEffect(() => {
+    mentorUserActiveRef.current = mentorUserActive;
+  }, [mentorUserActive]);
+  useEffect(() => {
+    mentorOpenRef.current = mentorOpen;
+  }, [mentorOpen]);
 
   const appendToDraft = useCallback((text: string) => {
     const chunk = text.trim();
@@ -109,18 +135,35 @@ export function WritingStudio() {
       coachText: string,
       recordLearning: boolean,
       report?: BasisCoachReport | null,
+      opts?: { openMentor?: boolean; forceNewSession?: boolean },
     ) => {
       setCoach(coachText);
       if (report) {
         setCoachReport(report);
         const queue = buildWritingFixIssues(draftRef.current, report, 8);
         setFixIssues(queue);
-        if (queue.length > 0) {
-          setFixOpen(true);
-          setShowHighlights(true);
-        }
       } else {
         setCoachReport(null);
+        setFixIssues([]);
+      }
+      if (opts?.openMentor) {
+        const draftSnap = draftRef.current.trim();
+        const force = opts.forceNewSession === true;
+        const midChat = mentorUserActiveRef.current && mentorOpenRef.current;
+        if (force || !midChat) {
+          if (
+            force ||
+            !mentorOpenRef.current ||
+            draftSnap !== lastAutoMentorDraftRef.current
+          ) {
+            setMentorSessionKey((k) => k + 1);
+            lastAutoMentorDraftRef.current = draftSnap;
+            setMentorUserActive(false);
+          }
+          setMentorOpen(true);
+          setFixOpen(false);
+          setShowHighlights(false);
+        }
       }
       if (
         recordLearning &&
@@ -141,8 +184,14 @@ export function WritingStudio() {
   );
 
   const runCoach = useCallback(
-    async (opts?: { live?: boolean; signal?: AbortSignal; gen?: number }) => {
+    async (opts?: {
+      live?: boolean;
+      signal?: AbortSignal;
+      gen?: number;
+      manual?: boolean;
+    }) => {
       const live = opts?.live === true;
+      const manual = opts?.manual === true;
       const signal = opts?.signal;
       const gen = opts?.gen;
       if (!live) {
@@ -153,7 +202,7 @@ export function WritingStudio() {
         setPadStatus(null);
       } else {
         setLiveCoachBusy(true);
-        setPadStatus("Live coach…");
+        setPadStatus("Coach ready soon…");
       }
       setError(null);
       try {
@@ -175,7 +224,10 @@ export function WritingStudio() {
           error?: string;
         };
         if (!res.ok || !data.coach) throw new Error(data.error || "Coach failed");
-        applyCoachResult(data.coach, true, data.report ?? null);
+        applyCoachResult(data.coach, true, data.report ?? null, {
+          openMentor: manual || live,
+          forceNewSession: manual,
+        });
         if (live && gen === coachGenRef.current) setPadStatus(null);
       } catch (e) {
         if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
@@ -191,7 +243,7 @@ export function WritingStudio() {
     [applyCoachResult],
   );
 
-  // Live coach: debounce ~1.8s when draft ≥ 40 chars; abort on change
+  // Auto-coach after writing pause (~3.2s, ≥40 chars)
   useEffect(() => {
     const trimmed = draft.trim();
     if (trimmed.length < 40) {
@@ -199,19 +251,23 @@ export function WritingStudio() {
       coachAbortRef.current?.abort();
       coachAbortRef.current = null;
       setLiveCoachBusy(false);
-      setPadStatus((s) => (s === "Live coach…" ? null : s));
+      setPadStatus((s) =>
+        s === "Coach ready soon…" || s === "Live coach…" ? null : s,
+      );
       return;
     }
 
     coachAbortRef.current?.abort();
     setLiveCoachBusy(false);
-    setPadStatus((s) => (s === "Live coach…" ? null : s));
+    setPadStatus((s) =>
+      s === "Coach ready soon…" || s === "Live coach…" ? null : s,
+    );
     const ac = new AbortController();
     coachAbortRef.current = ac;
     const gen = ++coachGenRef.current;
     const timer = window.setTimeout(() => {
       void runCoach({ live: true, signal: ac.signal, gen });
-    }, 1800);
+    }, 3200);
 
     return () => {
       window.clearTimeout(timer);
@@ -444,6 +500,7 @@ export function WritingStudio() {
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
+      notifyCreationsChanged(accountId);
       setStatus(
         stageKind === "music"
           ? "Saved lyrics draft to My Creations."
@@ -526,6 +583,7 @@ export function WritingStudio() {
         audioUrl?: string;
         provider?: string;
         model?: string;
+        durationSec?: number;
       };
       if (res.status === 503 || data.status === "unconfigured") {
         setStatus(
@@ -543,9 +601,12 @@ export function WritingStudio() {
       if (stageKind === "music") setAudioUrl(url);
       if (stageKind === "image") setImageUrl(url);
       if (stageKind === "video") setVideoUrl(url);
+      const durLabel =
+        typeof data.durationSec === "number" ? ` · ~${data.durationSec}s` : "";
       setStatus(
-        `Ready (${data.provider || "deapi"}${data.model ? ` · ${data.model}` : ""}) — also in My Creations.`,
+        `Ready (${data.provider || "deapi"}${data.model ? ` · ${data.model}` : ""}${durLabel}) — also in My Creations.`,
       );
+      notifyCreationsChanged(accountId);
       if (stageKind === "music" || lyrics.trim()) {
         void recordStudioLearningTurn({
           accountId,
@@ -566,9 +627,8 @@ export function WritingStudio() {
   const padLocked = busy !== null;
   const activeFix = nextOpenFix(fixIssues);
   const openFixCount = remainingFixCount(fixIssues);
-  const gridClass = fixOpen
-    ? "mx-auto grid w-full max-w-6xl flex-1 gap-0 lg:grid-cols-[minmax(260px,0.95fr)_minmax(280px,1.1fr)_minmax(280px,1fr)]"
-    : "mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2";
+  const gridClass =
+    "mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2";
 
   return (
     <div className="flex flex-1 flex-col bg-[var(--surface-muted)]">
@@ -580,36 +640,42 @@ export function WritingStudio() {
           Write. Polish. Stage it.
         </h2>
         <p className="mt-2 text-center text-[11px] text-[var(--ink-muted)]">
-          For {accountName} · Coach opens a fix dialogue by severity · writing
-          turns update ELA skills
+          For {accountName} · pauses ~3s to auto-coach · or tap Coach anytime
         </p>
       </div>
 
       <div className={gridClass}>
-        {fixOpen && (
-          <WritingFixDialogue
-            issues={fixIssues}
-            draft={draft}
-            onIssuesChange={setFixIssues}
-            onDraftChange={setDraft}
-            onClose={() => setFixOpen(false)}
-          />
-        )}
-
         <div className="flex flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:border-b-0 md:border-r">
           <div className="flex items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
               Writing pad
             </label>
             <div className="flex items-center gap-2">
+              {(coachReport || coach) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFixOpen(false);
+                    setMentorOpen(true);
+                  }}
+                  className="min-h-9 rounded-full border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-2.5 text-[11px] font-semibold text-[var(--teal)]"
+                  title="Open Spark coach chat"
+                >
+                  Chat
+                </button>
+              )}
               {openFixCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setFixOpen(true)}
+                  onClick={() => {
+                    setMentorOpen(false);
+                    setFixOpen(true);
+                    setShowHighlights(true);
+                  }}
                   className="relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-2.5 text-[11px] font-semibold text-[var(--coral)]"
-                  title="Open fix dialogue"
+                  title="Optional spot fixes"
                 >
-                  Issues
+                  Spots
                   <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--coral)] text-[10px] text-white">
                     {openFixCount}
                   </span>
@@ -652,95 +718,139 @@ export function WritingStudio() {
               className="mt-2 min-h-[220px] flex-1 resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
             />
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {GENRES.map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setGenre(g)}
-                className={`min-h-9 rounded-lg px-3 text-xs ${
-                  genre === g
-                    ? "bg-[var(--coral)] text-white"
-                    : "border border-[var(--line)] text-[var(--ink-muted)]"
-                }`}
+          {/* QuillBot-style compact toolbar: selects + capture, then primary actions */}
+          <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)]/80 p-2.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="sr-only" htmlFor="ws-genre">
+                Mood / genre
+              </label>
+              <select
+                id="ws-genre"
+                value={genre}
+                onChange={(e) =>
+                  setGenre(e.target.value as (typeof GENRES)[number])
+                }
+                className={`${selectClass} min-w-[8.5rem] flex-1 sm:flex-none`}
+                title="Mood for structure & generation"
               >
-                {g}
-              </button>
-            ))}
-          </div>
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
 
-          <div className="mt-2 flex flex-wrap gap-1">
-            {STT_LANGS.map((lang) => (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => setSttLang(lang)}
-                className={`min-h-7 rounded-md px-2 text-[10px] uppercase tracking-wide ${
-                  sttLang === lang
-                    ? "bg-[var(--teal)] text-white"
-                    : "border border-[var(--line)] text-[var(--ink-muted)]"
-                }`}
+              <label className="sr-only" htmlFor="ws-stt-lang">
+                Mic language
+              </label>
+              <select
+                id="ws-stt-lang"
+                value={sttLang}
+                onChange={(e) => setSttLang(e.target.value as SttLang)}
+                className={`${selectClass} min-w-[9.5rem] flex-1 sm:flex-none`}
+                title="Speech-to-text language"
               >
-                {lang}
+                {STT_LANG_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                <MicTranscribeButton
+                  language={sttLang}
+                  disabled={padLocked}
+                  compact
+                  onTranscript={(t) => {
+                    const chunk = t.trim();
+                    if (!chunk) return;
+                    setDraft((prev) =>
+                      prev.trim() ? `${prev}\n${chunk}` : chunk,
+                    );
+                  }}
+                />
+                <FileAttachControl
+                  disabled={padLocked}
+                  desktopAccept={FILE_INPUT_ACCEPT}
+                  title="Attach photo or text"
+                  ariaLabel="Attach photo or text"
+                  className="min-h-10 rounded-lg border border-[var(--line)] px-2.5 text-xs font-medium text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]"
+                  onFiles={(files) => void onFiles(files)}
+                >
+                  File
+                </FileAttachControl>
+                <button
+                  type="button"
+                  disabled={padLocked}
+                  onClick={() => setCameraOpen(true)}
+                  className="min-h-10 rounded-lg border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2.5 text-xs font-semibold text-[var(--teal)] disabled:opacity-40"
+                >
+                  Camera
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2 border-t border-[var(--line)] pt-2">
+              <button
+                type="button"
+                disabled={!draft.trim() || padLocked}
+                onClick={() => void runCoach({ manual: true })}
+                className="min-h-10 flex-1 rounded-lg bg-[var(--teal)] px-4 text-sm font-semibold text-white disabled:opacity-40 sm:flex-none sm:min-w-[7.5rem]"
+              >
+                {busy === "coach" ? "Coaching…" : "Coach"}
               </button>
-            ))}
+              <button
+                type="button"
+                disabled={!draft.trim() || padLocked}
+                onClick={() => void structure()}
+                className="min-h-10 flex-1 rounded-lg border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40 sm:flex-none"
+              >
+                {busy === "structure"
+                  ? "Structuring…"
+                  : stageKind === "music"
+                    ? "Turn into lyrics"
+                    : stageKind === "image"
+                      ? "Structure for image"
+                      : "Structure for video"}
+              </button>
+            </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <MicTranscribeButton
-              language={sttLang}
-              disabled={padLocked}
-              compact
-              onTranscript={(t) => {
-                const chunk = t.trim();
-                if (!chunk) return;
-                setDraft((prev) => (prev.trim() ? `${prev}\n${chunk}` : chunk));
-              }}
-            />
-            <FileAttachControl
-              disabled={padLocked}
-              desktopAccept={FILE_INPUT_ACCEPT}
-              title="Attach photo or text"
-              ariaLabel="Attach photo or text"
-              className="rounded-lg border border-[var(--line)] px-3 text-xs font-medium text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]"
-              onFiles={(files) => void onFiles(files)}
-            >
-              File
-            </FileAttachControl>
-            <button
-              type="button"
-              disabled={padLocked}
-              onClick={() => setCameraOpen(true)}
-              className="min-h-11 rounded-lg border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] disabled:opacity-40"
-            >
-              Camera
-            </button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!draft.trim() || padLocked}
-              onClick={() => void runCoach()}
-              className="min-h-11 rounded-lg bg-[var(--teal)] px-4 text-sm font-medium text-white disabled:opacity-40"
-            >
-              {busy === "coach" ? "Coaching…" : "Coach"}
-            </button>
-            <button
-              type="button"
-              disabled={!draft.trim() || padLocked}
-              onClick={() => void structure()}
-              className="min-h-11 rounded-lg border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40"
-            >
-              {busy === "structure"
-                ? "Structuring…"
-                : stageKind === "music"
-                  ? "Turn into lyrics"
-                  : stageKind === "image"
-                    ? "Structure for image"
-                    : "Structure for video"}
-            </button>
-          </div>
+          {mentorOpen && !fixOpen && (
+            <div className="mt-3">
+              <WritingMentorDialogue
+                report={coachReport}
+                coachText={coach}
+                draft={draft}
+                genre={genre}
+                target={stageKind}
+                sessionKey={mentorSessionKey}
+                onDraftChange={setDraft}
+                onClose={() => setMentorOpen(false)}
+                onUserActiveChange={setMentorUserActive}
+                spotFixCount={openFixCount}
+                onOpenSpotFixes={() => {
+                  setFixOpen(true);
+                  setShowHighlights(true);
+                }}
+              />
+            </div>
+          )}
+          {fixOpen && (
+            <div className="mt-3">
+              <WritingFixDialogue
+                issues={fixIssues}
+                draft={draft}
+                onIssuesChange={setFixIssues}
+                onDraftChange={setDraft}
+                onClose={() => {
+                  setFixOpen(false);
+                  if (coachReport || coach) setMentorOpen(true);
+                }}
+              />
+            </div>
+          )}
 
           {(padStatus || liveCoachBusy || busy === "ingest") && (
             <p className="mt-2 text-[11px] text-[var(--teal)]">
@@ -754,10 +864,24 @@ export function WritingStudio() {
           )}
 
           {coachReport ? (
-            <WritingCoachPanel report={coachReport} fallbackText={coach} />
+            <WritingCoachPanel
+              report={coachReport}
+              fallbackText={coach}
+              onTalk={() => {
+                setFixOpen(false);
+                setMentorOpen(true);
+              }}
+            />
           ) : coach ? (
-            <div className="mt-4 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)] whitespace-pre-wrap">
-              {coach}
+            <div className="mt-4 space-y-2 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
+              <p className="whitespace-pre-wrap">{coach}</p>
+              <button
+                type="button"
+                onClick={() => setMentorOpen(true)}
+                className="min-h-10 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white"
+              >
+                Answer in coach chat
+              </button>
             </div>
           ) : null}
         </div>

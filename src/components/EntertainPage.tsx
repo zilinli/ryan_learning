@@ -294,8 +294,9 @@ function StudioHub({ onSelect }: { onSelect: (id: GameId) => void }) {
         </p>
       </header>
 
-      <div className="relative z-10 flex flex-1 flex-col px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-8 lg:px-8">
-        <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-3 lg:gap-4 lg:min-h-[min(52vh,520px)]">
+      <div className="relative z-10 flex flex-1 flex-col justify-center px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-10 lg:px-8">
+        {/* Fixed-height cards — avoid tall stretched columns on ultrawide / hi-res */}
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           {STUDIO.map((dest, i) => (
             <StudioPanel
               key={dest.id}
@@ -336,7 +337,7 @@ function StudioPanel({
     <button
       type="button"
       onClick={onSelect}
-      className="group relative flex min-h-[9.5rem] flex-col justify-end overflow-hidden rounded-xl border border-white/10 text-left outline-none transition duration-300 hover:border-white/25 focus-visible:ring-2 focus-visible:ring-[#8fb896] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1a16] sm:min-h-[11rem] lg:min-h-0 lg:rounded-2xl"
+      className="group relative flex aspect-[5/4] max-h-[280px] w-full flex-col justify-end overflow-hidden rounded-2xl border border-white/10 text-left outline-none transition duration-300 hover:border-white/25 focus-visible:ring-2 focus-visible:ring-[#8fb896] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1a16] sm:aspect-[4/5] sm:max-h-[320px] sm:min-h-[240px]"
       style={{
         background:
           dest.tone === "cinema"

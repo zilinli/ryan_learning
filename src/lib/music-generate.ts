@@ -7,6 +7,7 @@
 
 import {
   deapiGenerateMusic,
+  estimateMusicDurationSec,
   isDeapiConfigured,
   type DeapiGenerateResult,
 } from "./deapi-client";
@@ -76,6 +77,7 @@ function fromDeapi(
     audioUrl: r.resultUrl,
     mimeType: r.mimeType || "audio/mpeg",
     requestId: r.requestId,
+    durationSec: r.durationSec,
     error: r.error,
     raw: r.raw,
   };
@@ -142,13 +144,17 @@ export async function generateSongWithFallback(
     (gender === "male"
       ? "warm male vocal pop ballad"
       : "warm female vocal pop ballad");
+  const durationSec =
+    typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
+      ? input.durationSec
+      : estimateMusicDurationSec(input.lyrics);
 
   if (isDeapiConfigured()) {
     attempts.push("try:deapi");
     const r = await deapiGenerateMusic({
       lyrics: input.lyrics,
       caption,
-      durationSec: input.durationSec,
+      durationSec,
       vocalLanguage: undefined,
     });
     if (r.status === "done") {
@@ -182,7 +188,7 @@ export async function generateSongWithFallback(
       lyrics: input.lyrics,
       prompt: input.caption,
       gender,
-      durationSec: input.durationSec,
+      durationSec,
     });
     if (Array.isArray(r.attempts)) attempts.push(...r.attempts);
     if (r.status === "done") {

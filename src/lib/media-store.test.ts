@@ -434,4 +434,26 @@ describe("media-store", () => {
     await deleteMedia(mediaId);
     expect(await readMedia(mediaId)).toBeNull();
   });
+
+  it("keeps My Creations mediaIds even if sessionId is not studio-reserved", async () => {
+    const { writeMediaBytes, deleteMedia, mediaExists } = await import(
+      "./media-store"
+    );
+    const acct = `acct_creations_${Date.now()}`;
+    const mediaId = `song_ref_${Date.now()}`;
+    await writeMediaBytes(mediaId, Buffer.from("ID3ref-keep"), "audio/mpeg", {
+      sessionId: "accidental-session",
+      messageId: "generate",
+      attachmentId: mediaId,
+      accountId: acct,
+    });
+    const removed = await pruneOrphanMedia(
+      acct,
+      new Set(["chat_only"]),
+      new Set([mediaId]),
+    );
+    expect(removed).toBe(0);
+    expect(await mediaExists(mediaId)).toBe(true);
+    await deleteMedia(mediaId);
+  });
 });

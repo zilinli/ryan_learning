@@ -193,17 +193,18 @@ export async function POST(req: Request) {
       notes: result.provider ? `provider:${result.provider}` : undefined,
     });
     return Response.json({
-      ok: true,
-      kind: "music",
-      item,
-      mediaId,
-      url: `/api/media/${mediaId}`,
-      audioUrl: `/api/media/${mediaId}`,
-      provider: result.provider,
-      requestId: result.requestId,
-      attempts: result.attempts,
-    });
-  }
+    ok: true,
+    kind: "music",
+    item,
+    mediaId,
+    url: `/api/media/${mediaId}`,
+    audioUrl: `/api/media/${mediaId}`,
+    provider: result.provider,
+    requestId: result.requestId,
+    durationSec: result.durationSec,
+    attempts: result.attempts,
+  });
+}
 
   // image | video — deAPI only; reject lyric-shaped prompts
   if (!isDeapiConfigured()) {
@@ -311,6 +312,7 @@ export async function POST(req: Request) {
     provider: "deapi",
     model: gen.model,
     requestId: gen.requestId,
+    durationSec: gen.durationSec,
     prompt,
   });
 }
