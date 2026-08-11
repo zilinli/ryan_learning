@@ -28,8 +28,9 @@
 - [x] **ENT-TED-V.1** — `appendVoiceTranscript` helper + unit tests TV1–TV3
 - [x] **ENT-TED-V.2** — Wire mic into `TedLab` Challenge textarea (append; disable after Check)
 - [x] **ENT-TED-V.3** — Docs: design note + entertainments §6.2 + DESIGN map + this checklist
-- [ ] **ENT-TED-V.4** — `run_tests` → apply_changes → publish_develop → deploy_live
-- [ ] **ENT-TED-V.5** — Manual TM1–TM3 on live Challenge UI
+- [x] **ENT-TED-V.4** — Visibility fix: `MicTranscribeButton` `tone="onDark"` + full-size Speak row in TedLab
+- [ ] **ENT-TED-V.5** — `run_tests` → apply_changes → publish_develop → deploy_live
+- [ ] **ENT-TED-V.6** — Manual TM1–TM4 on live Challenge UI (incl. dark theme)
 
 ---
 

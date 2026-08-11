@@ -38,6 +38,11 @@ type Props = {
   className?: string;
   /** Smaller control for embedded composers (Help Ask AI, etc.) */
   compact?: boolean;
+  /**
+   * Forced-dark canvases (e.g. TED Lab) ignore page theme tokens — use high-contrast
+   * whites/teals so the mic stays visible under dark theme.
+   */
+  tone?: "default" | "onDark";
 };
 
 export function MicTranscribeButton({
@@ -46,7 +51,9 @@ export function MicTranscribeButton({
   onTranscript,
   className = "",
   compact = false,
+  tone = "default",
 }: Props) {
+  const onDark = tone === "onDark";
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [supported, setSupported] = useState(true);
@@ -224,16 +231,26 @@ export function MicTranscribeButton({
             void stopListening();
           }
         }}
-        className={`relative inline-flex shrink-0 touch-manipulation select-none flex-col items-center justify-center rounded-xl border text-sm font-medium transition active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+        className={`relative inline-flex shrink-0 touch-manipulation select-none flex-col items-center justify-center rounded-xl border text-sm font-medium transition active:scale-95 focus-visible:ring-2 ${
+          onDark
+            ? "focus-visible:ring-[#6db8a8]"
+            : "focus-visible:ring-[var(--teal)]"
+        } ${
           compact
             ? "h-8 w-8 rounded-full"
-            : "h-[3.25rem] w-[3.25rem]"
+            : "h-[3.25rem] w-[3.25rem] min-h-11 min-w-11"
         } ${
           listening
-            ? "border-[var(--coral)] bg-[var(--coral)] text-white animate-pulse-ring"
+            ? onDark
+              ? "animate-pulse-ring border-[#e09a7a] bg-[#e09a7a] text-white"
+              : "border-[var(--coral)] bg-[var(--coral)] text-white animate-pulse-ring"
             : busy
-              ? "border-[var(--teal)] bg-[var(--teal)] text-white"
-              : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] dark:bg-[var(--surface-muted)]"
+              ? onDark
+                ? "border-[#6db8a8] bg-[#6db8a8] text-[#141210]"
+                : "border-[var(--teal)] bg-[var(--teal)] text-white"
+              : onDark
+                ? "border-white/35 bg-white/15 text-[#e8e2d8] hover:border-[#6db8a8] hover:bg-[#6db8a8]/25 hover:text-white"
+                : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)] dark:bg-[var(--surface-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
         title={touchMode ? "Tap to talk · tap again to search" : "Hold to talk"}
         aria-label={
@@ -261,17 +278,27 @@ export function MicTranscribeButton({
         </svg>
       </button>
       {status ? (
-        <p className="text-[11px] text-[var(--teal)]">{status}</p>
+        <p
+          className={`text-[11px] ${onDark ? "text-[#6db8a8]" : "text-[var(--teal)]"}`}
+        >
+          {status}
+        </p>
       ) : null}
       {hint ? (
-        <p className="max-w-[10rem] text-[11px] leading-snug text-[var(--ink-muted)]">
+        <p
+          className={`max-w-[12rem] text-[11px] leading-snug ${
+            onDark ? "text-[#c4b8a8]" : "text-[var(--ink-muted)]"
+          }`}
+        >
           {hint}
         </p>
       ) : null}
       {httpsLink ? (
         <a
           href={httpsLink}
-          className="text-[11px] font-medium text-[var(--teal)] underline underline-offset-2"
+          className={`text-[11px] font-medium underline underline-offset-2 ${
+            onDark ? "text-[#6db8a8]" : "text-[var(--teal)]"
+          }`}
         >
           Open HTTPS
         </a>

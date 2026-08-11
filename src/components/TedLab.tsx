@@ -337,19 +337,21 @@ export function TedLab() {
                 placeholder="Argue carefully — type or speak…"
                 className="w-full rounded-xl border border-white/15 bg-black/40 p-4 text-sm text-[#e8e2d8] outline-none focus:border-[#6db8a8]"
               />
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#6db8a8]/35 bg-black/35 px-3 py-2.5">
                 <MicTranscribeButton
                   language="auto"
-                  compact
+                  tone="onDark"
                   disabled={Boolean(feedback)}
                   onTranscript={(t) => {
                     setAnswer((prev) => appendVoiceTranscript(prev, t));
                   }}
                 />
-                <p className="max-w-[14rem] pt-1 text-[11px] leading-snug text-[#a89f92]">
-                  Hold mic to speak (tap twice on phone). Words append into your
-                  answer.
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[#e8e2d8]">Speak answer</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-[#a89f92]">
+                    Hold mic (tap twice on phone). Words append — typed text stays.
+                  </p>
+                </div>
               </div>
               {feedback && (
                 <p className="rounded-lg border border-[#6db8a8]/30 bg-[#6db8a8]/10 p-3 text-sm leading-relaxed">
