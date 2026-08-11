@@ -73,7 +73,7 @@ describe("POST /api/studio/generate", () => {
     vi.spyOn(mediaStore, "writeMediaBytes").mockResolvedValue({
       mediaId: "song_test",
       mimeType: "audio/mpeg",
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "generate",
       attachmentId: "song_test",
       bytes: 11,
@@ -151,7 +151,7 @@ describe("POST /api/studio/generate", () => {
     vi.spyOn(mediaStore, "writeMediaBytes").mockResolvedValue({
       mediaId: "image_test",
       mimeType: "image/png",
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "image",
       attachmentId: "image_test",
       bytes: 4,
@@ -206,7 +206,7 @@ describe("POST /api/studio/generate", () => {
     vi.spyOn(mediaStore, "writeMediaBytes").mockResolvedValue({
       mediaId: "video_test",
       mimeType: "video/mp4",
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "video",
       attachmentId: "video_test",
       bytes: 4,

@@ -7,7 +7,7 @@ import {
   looksLikeLyricStructure,
 } from "./studio-structure";
 
-const STUDIO_IDS: GameId[] = ["ted-lab", "lyric-studio", "creations"];
+const STUDIO_IDS: GameId[] = ["ted-lab", "writing-studio", "creations"];
 
 describe("Studio product contract", () => {
   it("exposes Studio GameIds", () => {

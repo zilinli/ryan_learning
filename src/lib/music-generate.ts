@@ -1,5 +1,5 @@
 /**
- * Lyric Studio music generation with provider fallback:
+ * Writing Studio music generation with provider fallback:
  *   1) deAPI.ai text2music (DEAPI_API_KEY) — preferred on overseas hosts
  *   2) Bailian Fun-Music (ALIYUN_DASHSCOPE_API_KEY)
  *   3) Volcengine GenSongV4 prepaid → GenSongForTime postpaid

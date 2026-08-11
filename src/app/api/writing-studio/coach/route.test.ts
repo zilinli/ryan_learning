@@ -18,14 +18,14 @@ const DRAFT = [
 ].join("\n");
 
 function coachReq(body: unknown) {
-  return new Request("http://localhost/api/lyric-studio/coach", {
+  return new Request("http://localhost/api/writing-studio/coach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-describe("POST /api/lyric-studio/coach — local fallback", () => {
+describe("POST /api/writing-studio/coach — local fallback", () => {
   beforeEach(() => {
     resetApiRateLimitForTests();
   });
@@ -58,7 +58,7 @@ describe("POST /api/lyric-studio/coach — local fallback", () => {
     expect(data.target).toBe("music");
   });
 
-  it("coach music target includes BASIS writing dimensions", async () => {
+  it("coach music target returns BASIS report with 4 dimensions", async () => {
     const { POST } = await import("./route");
     const longDraft = [
       "The rain falls slow on the window pane.",
@@ -77,9 +77,16 @@ describe("POST /api/lyric-studio/coach — local fallback", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.ok).toBe(true);
-    const coach = String(data.coach).toLowerCase();
-    // Local fallback should detect repeated starts and suggest variety
-    expect(coach).toMatch(/vary|repeated|start|sentence|topic|sensory|vocabulary|detail|grammar/);
+    expect(data.report).toBeTruthy();
+    expect(data.report.dimensions).toHaveLength(4);
+    expect(data.report.dimensions.map((d: { id: string }) => d.id)).toEqual([
+      "topic",
+      "detail",
+      "vocab",
+      "grammar",
+    ]);
+    expect(data.report.overall).toBeGreaterThanOrEqual(1);
+    expect(String(data.coach)).toMatch(/Craft tip:/i);
   });
 
   it("coach image target avoids lyric advice defaults", async () => {

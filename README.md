@@ -72,7 +72,7 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 **Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
 
-**Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Structure** is modality-aware (`target: music|image|video`): music → `[Verse]`/`[Chorus]` lyrics; image/video → visual / cinematic prompts (lyric tags rejected). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach** (debounced auto tips).
+**Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Coach** returns a **BASIS writing check** (topic / detail / vocab / grammar scores + craft tip) in a visual panel — not a wall of text. **Structure** is modality-aware (`target: music|image|video`). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach**.
 
 **TED Lab** searches the **live TED catalog** (`GET /api/ted/search` → TED InstantSearch), with **Refresh batch** for newest talks, plus links to open official TED pages. Watch UI keeps a **compact player** with a **sticky “Ready for challenge”** bar on phones.
 
@@ -274,11 +274,11 @@ List models available to your key: `GET /api/models`.
 │   │       ├── tts/                # Text-to-speech
 │   │       ├── media/              # Photo vault / homework images / song audio
 │   │       ├── ted/                # TED transcript + challenge
-│   │       ├── lyric-studio/       # Coach + legacy song generate
+│   │       ├── writing-studio/       # Coach + legacy song generate
 │   │       ├── studio/             # Stage text2X (music / image / video via deAPI)
 │   │       ├── creations/          # Studio library CRUD
 │   │       └── history/            # Chat history
-│   ├── components/                 # TutorShell, EntertainPage, TedLab, LyricStudio, CodeAgentPanel, …
+│   ├── components/                 # TutorShell, EntertainPage, TedLab, WritingStudio, CodeAgentPanel, …
 │   └── lib/                        # prompts, entertain/*, deapi-client, fun-music, volc-gensong, media-store, …
 ├── agent-chat/                     # Standalone Agent Chat Console (Next.js, port 3001)
 │   ├── public/index.html           # Vanilla JS SPA frontend

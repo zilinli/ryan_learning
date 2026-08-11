@@ -64,7 +64,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 > **Design:** [subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)  
 > **Goal:** Fix phone playback on `/entertain?hub=studio&game=creations` — studio MP3s were pruned by chat retention; also add Range + mobile player hardening.
 
-- [x] **ENT-AUDIO.1** — Protect `lyric-studio` media in `pruneOrphanMedia` / `deleteMediaForSession`
+  - [x] **ENT-AUDIO.1** — Protect `writing-studio` media in `pruneOrphanMedia` / `deleteMediaForSession`
 - [x] **ENT-AUDIO.2** — HTTP Range (206) on `/api/media` for audio/video
 - [x] **ENT-AUDIO.3** — Delete creation → delete linked media blobs
 - [x] **ENT-AUDIO.4** — CreationsLibrary: playsInline + 404 load hint
@@ -74,7 +74,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 
 ---
 
-## 🎬 ENT-TED / ENT-LYRIC — Studio: TED Lab + Lyric Studio (2026-08-11)
+## 🎬 ENT-TED / ENT-WRITING — Studio: TED Lab + Writing Studio (2026-08-11)
 
 > **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §6  
 > **Goal:** `/entertain` Studio — official TED embed + transcript-driven advanced listening challenges; writing → structured lyrics → **Bailian Fun-Music** song → My Creations.
@@ -86,6 +86,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 - [x] **ENT-LYRIC.1** — `LyricStudio` draft + coach + structure lyrics
 - [x] **ENT-LYRIC.2** — Creations store + `CreationsLibrary` list/delete
 - [x] **ENT-LYRIC.3** — `fun-music-client` (百炼) + Volc GenSong prepaid/postpaid fallback + generate API + media persist
+- [x] **ENT-WRITING.1** — Writing Studio rename + BASIS coach panel (topic / detail / vocab / grammar scores)
 - [ ] **ENT-TED.5** — Manual: watch one talk → Start challenge within ~30s; answer + save
 - [ ] **ENT-LYRIC.4** — Manual: lyrics save; generate via Bailian or Volc GenSong → playable in My Creations
 - [ ] **ENT-LYRIC.5** — Apply fun-music-v1 invite in 百炼模型广场 (北京) if not already approved; ensure 火山 AI 音乐服务已开通

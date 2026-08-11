@@ -94,7 +94,7 @@ describe("/api/creations", () => {
     const { writeMediaBytes, readMedia } = await import("@/lib/media-store");
     const mediaId = `song_del_${Date.now()}`;
     await writeMediaBytes(mediaId, Buffer.from("ID3del"), "audio/mpeg", {
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "generate",
       attachmentId: mediaId,
       name: "bye.mp3",

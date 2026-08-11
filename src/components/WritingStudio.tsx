@@ -9,10 +9,12 @@ import {
 } from "@/lib/entertain/studio-structure";
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
+import type { BasisCoachReport } from "@/lib/entertain/basis-writing";
 import { CameraCapture } from "./CameraCapture";
 import { FileAttachControl } from "./FileAttachControl";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
+import { WritingCoachPanel } from "./WritingCoachPanel";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
@@ -38,11 +40,12 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-export function LyricStudio() {
+export function WritingStudio() {
   const { accountId, name: accountName } = useActiveStudioAccount();
   const [draft, setDraft] = useState("");
   const [genre, setGenre] = useState<(typeof GENRES)[number]>("Indie");
   const [coach, setCoach] = useState<string | null>(null);
+  const [coachReport, setCoachReport] = useState<BasisCoachReport | null>(null);
   const [lyrics, setLyrics] = useState("");
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
@@ -91,8 +94,14 @@ export function LyricStudio() {
   }, []);
 
   const applyCoachResult = useCallback(
-    (coachText: string, recordLearning: boolean) => {
+    (
+      coachText: string,
+      recordLearning: boolean,
+      report?: BasisCoachReport | null,
+    ) => {
       setCoach(coachText);
+      if (report) setCoachReport(report);
+      else setCoachReport(null);
       if (
         recordLearning &&
         coachText &&
@@ -104,7 +113,7 @@ export function LyricStudio() {
           source: "writing",
           title: titleRef.current.trim() || "Writing pad",
           userText: draftRef.current,
-          assistantText: coachText,
+          assistantText: report?.summary || coachText,
         });
       }
     },
@@ -128,7 +137,7 @@ export function LyricStudio() {
       }
       setError(null);
       try {
-        const res = await fetch("/api/lyric-studio/coach", {
+        const res = await fetch("/api/writing-studio/coach", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -142,10 +151,11 @@ export function LyricStudio() {
         const data = (await res.json()) as {
           ok?: boolean;
           coach?: string;
+          report?: BasisCoachReport;
           error?: string;
         };
         if (!res.ok || !data.coach) throw new Error(data.error || "Coach failed");
-        applyCoachResult(data.coach, true);
+        applyCoachResult(data.coach, true, data.report ?? null);
         if (live && gen === coachGenRef.current) setPadStatus(null);
       } catch (e) {
         if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
@@ -200,7 +210,7 @@ export function LyricStudio() {
       fileText?: string;
       images?: Array<{ name: string; mimeType: string; data: string }>;
     }) => {
-      const res = await fetch("/api/lyric-studio/coach", {
+      const res = await fetch("/api/writing-studio/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "extract", ...body }),
@@ -310,7 +320,7 @@ export function LyricStudio() {
     setBusy("structure");
     setError(null);
     try {
-      const res = await fetch("/api/lyric-studio/coach", {
+      const res = await fetch("/api/writing-studio/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -377,7 +387,7 @@ export function LyricStudio() {
     }
   }, [draft, genre, title, accountId, stageKind]);
 
-  const saveLyricsOnly = useCallback(async () => {
+  const saveDraftOnly = useCallback(async () => {
     if (!lyrics.trim()) {
       setError(
         stageKind === "music"
@@ -662,11 +672,13 @@ export function LyricStudio() {
             <p className="mt-2 text-sm text-[var(--coral)] md:hidden">{error}</p>
           )}
 
-          {coach && (
-            <div className="mt-4 rounded-lg border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
+          {coachReport ? (
+            <WritingCoachPanel report={coachReport} fallbackText={coach} />
+          ) : coach ? (
+            <div className="mt-4 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)] whitespace-pre-wrap">
               {coach}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex flex-col bg-[#1a2228] p-4 text-[#e8e2d8]">
@@ -798,7 +810,7 @@ export function LyricStudio() {
             <button
               type="button"
               disabled={!lyrics.trim() || busy !== null}
-              onClick={() => void saveLyricsOnly()}
+              onClick={() => void saveDraftOnly()}
               className="min-h-11 rounded-lg border border-white/25 px-4 text-sm disabled:opacity-40"
             >
               {busy === "save"

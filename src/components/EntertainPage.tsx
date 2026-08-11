@@ -13,7 +13,7 @@ import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
 import { TedLab } from "./TedLab";
-import { LyricStudio } from "./LyricStudio";
+import { WritingStudio } from "./WritingStudio";
 import { CreationsLibrary } from "./CreationsLibrary";
 import { StudioAccountBar } from "./StudioAccountBar";
 
@@ -57,7 +57,7 @@ const STUDIO: StudioDest[] = [
     tone: "cinema",
   },
   {
-    id: "lyric-studio",
+    id: "writing-studio",
     title: "Writing Studio",
     kicker: "Create",
     desc: "Draft, coach, then stage song · image · video.",
@@ -86,7 +86,7 @@ const TITLES: Record<GameId, string> = {
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
   "ted-lab": "TED Lab",
-  "lyric-studio": "Writing Studio",
+  "writing-studio": "Writing Studio",
   creations: "My Creations",
 };
 
@@ -170,7 +170,7 @@ export function EntertainPage() {
         {activeGame === "sokoban" && <SokobanGame />}
         {activeGame === "klotski" && <KlotskiGame />}
         {activeGame === "ted-lab" && <TedLab />}
-        {activeGame === "lyric-studio" && <LyricStudio />}
+        {activeGame === "writing-studio" && <WritingStudio />}
         {activeGame === "creations" && <CreationsLibrary />}
       </div>
     );

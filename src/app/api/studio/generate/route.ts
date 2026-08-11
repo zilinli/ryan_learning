@@ -170,7 +170,7 @@ export async function POST(req: Request) {
       audio.buf,
       result.mimeType || audio.mime,
       {
-        sessionId: "lyric-studio",
+        sessionId: "writing-studio",
         messageId: "generate",
         attachmentId: mediaId,
         name: `${title}.mp3`,
@@ -281,7 +281,7 @@ export async function POST(req: Request) {
   const ext = kind === "image" ? "png" : "mp4";
   const mediaId = `${kind}_${Date.now()}_${randomBytes(4).toString("hex")}`;
   const meta = await writeMediaBytes(mediaId, file.buf, file.mime, {
-    sessionId: "lyric-studio",
+    sessionId: "writing-studio",
     messageId: kind,
     attachmentId: mediaId,
     name: `${title}.${ext}`,

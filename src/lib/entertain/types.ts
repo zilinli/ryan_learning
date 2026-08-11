@@ -10,7 +10,7 @@ export type GameId =
   | "sokoban"
   | "klotski"
   | "ted-lab"
-  | "lyric-studio"
+  | "writing-studio"
   | "creations";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";

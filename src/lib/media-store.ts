@@ -28,7 +28,7 @@ export type StoredMediaMeta = {
  * never treat these as orphan chat sessions — otherwise My Creations audio
  * disappears a few minutes after generate.
  */
-export const STUDIO_MEDIA_SESSION_IDS = new Set(["lyric-studio"]);
+export const STUDIO_MEDIA_SESSION_IDS = new Set(["writing-studio"]);
 
 export function isStudioMediaSession(sessionId: string | undefined): boolean {
   return Boolean(sessionId && STUDIO_MEDIA_SESSION_IDS.has(sessionId));

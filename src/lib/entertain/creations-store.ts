@@ -1,5 +1,5 @@
 /**
- * Account-scoped creations for TED Lab challenges + Lyric Studio songs.
+ * Account-scoped creations for TED Lab challenges + Writing Studio songs.
  */
 
 import { promises as fs } from "node:fs";

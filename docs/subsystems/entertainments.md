@@ -270,7 +270,7 @@ npm test -- src/lib/entertain
 | Card | Id | One-liner |
 |------|-----|-----------|
 | TED Lab | `ted-lab` | Watch a talk. Then argue with it. |
-| Writing Studio | `lyric-studio` | Write. Polish. Stage → song · image · video. |
+| Writing Studio | `writing-studio` | Write. Polish. Stage → song · image · video. |
 | My Creations | `creations` | Songs, images, videos & TED challenges. |
 
 Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
@@ -290,11 +290,12 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
 ### 6.3 Writing Studio Stage + deAPI text2X
 
-- Writing pad → Coach (`POST /api/lyric-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
+- Writing pad → Coach (`POST /api/writing-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
+  - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions) — not a wall of text.
   - `target: music` (default) → `[Verse]` / `[Chorus]` lyrics + style caption
   - `target: image|video` → visual / cinematic prompts (never lyric section tags)
   - Generate rejects lyric-shaped prompts for image/video (`assertVisualPromptOk`)
-- Local fallback: `src/lib/entertain/studio-structure.ts`
+- Local fallback: `src/lib/entertain/studio-structure.ts` + `basis-writing.ts`
 - **Primary (overseas):** [deAPI.ai](https://docs.deapi.ai) via `DEAPI_API_KEY`:
   - `POST /api/v2/audio/music` (txt2music)
   - `POST /api/v2/images/generations` (txt2img)
@@ -302,7 +303,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
   - Jobs polled at `GET /api/v2/jobs/{request_id}` (send a normal User-Agent; Cloudflare blocks bare script UAs).
 - **Unified route:** `POST /api/studio/generate` with `{ kind: "music"|"image"|"video", ... }`.
 - **Song fallback:** Bailian Fun-Music → Volc GenSong (prepaid/postpaid). Volc often returns `ServerIpLimit` on non-CN egress.
-- Legacy: `POST /api/lyric-studio/generate` still works for music-only.
+- Legacy: `POST /api/writing-studio/generate` still works for music-only.
 - Unconfigured: lyrics-only drafts still save; generate returns 503.
 
 ### 6.4 My Creations
@@ -310,7 +311,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - Account JSON: `data/accounts/{id}/creations.json`
 - Types: `ted_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
 - APIs: `GET/POST/DELETE /api/creations`
-- **Audio retention:** studio blobs use `sessionId: "lyric-studio"` and must **not** be pruned by chat `pruneOrphanMedia`. See [studio-creations-audio-mobile.md](./studio-creations-audio-mobile.md).
+- **Audio retention:** studio blobs use `sessionId: "writing-studio"` and must **not** be pruned by chat `pruneOrphanMedia`. See [studio-creations-audio-mobile.md](./studio-creations-audio-mobile.md).
 
 ### 6.5 Explicit non-goals
 
@@ -322,7 +323,7 @@ Scrape/download TED video; local music inference on spark-tutor host; streaks/le
 # Unit tests (mocked providers)
 npm test -- src/lib/deapi-client.test.ts src/lib/music-generate.test.ts \
   src/lib/entertain src/lib/fun-music-client.test.ts src/lib/media-store.song.test.ts \
-  src/app/api/creations src/app/api/lyric-studio src/app/api/ted \
+  src/app/api/creations src/app/api/writing-studio src/app/api/ted \
   'src/app/api/media/[mediaId]/route.audio.test.ts'
 
 # Live probe (needs DEAPI_API_KEY in .env.local)

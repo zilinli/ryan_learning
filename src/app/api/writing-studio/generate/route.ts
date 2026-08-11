@@ -1,5 +1,5 @@
 /**
- * POST /api/lyric-studio/generate
+ * POST /api/writing-studio/generate
  * Body: { lyrics, caption|prompt, title?, accountId?, gender? }
  * deAPI text2music → Bailian Fun-Music → Volc GenSong (prepaid/postpaid).
  */
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     audio.buf,
     result.mimeType || audio.mime,
     {
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "generate",
       attachmentId: mediaId,
       name: `${title}.mp3`,

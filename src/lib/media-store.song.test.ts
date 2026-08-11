@@ -8,7 +8,7 @@ describe("writeMediaBytes (song audio)", () => {
     const mediaId = `song_test_${Date.now()}`;
     const buf = Buffer.from("ID3fake-audio-bytes");
     const meta = await writeMediaBytes(mediaId, buf, "audio/mpeg", {
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "generate",
       attachmentId: mediaId,
       name: "demo.mp3",

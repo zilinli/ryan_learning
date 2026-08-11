@@ -11,7 +11,7 @@ export type FunMusicGender = "male" | "female";
 export type FunMusicGenerateInput = {
   /** Style / mood caption — used only when lyrics omitted (API ignores prompt if lyrics set). */
   prompt?: string;
-  /** Structured lyrics ([Verse]/[Chorus]). Preferred for Lyric Studio. */
+  /** Structured lyrics ([Verse]/[Chorus]). Preferred for Writing Studio. */
   lyrics?: string;
   gender?: FunMusicGender;
   isInstrumental?: boolean;
@@ -107,7 +107,7 @@ export async function funMusicGenerate(
     format: input.format || "mp3",
     is_instrumental: Boolean(input.isInstrumental),
   };
-  // Prefer lyrics for Lyric Studio; API drops prompt when lyrics present.
+  // Prefer lyrics for Writing Studio; API drops prompt when lyrics present.
   if (lyrics) {
     bodyInput.lyrics = lyrics;
   } else {

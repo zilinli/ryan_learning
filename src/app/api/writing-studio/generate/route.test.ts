@@ -8,7 +8,7 @@ import { resetApiRateLimitForTests } from "@/lib/api-rate-limit";
 const OLD_ENV = { ...process.env };
 
 function req(body: unknown) {
-  return new Request("http://localhost/api/lyric-studio/generate", {
+  return new Request("http://localhost/api/writing-studio/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -34,7 +34,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("POST /api/lyric-studio/generate", () => {
+describe("POST /api/writing-studio/generate", () => {
   it("returns 503 when no provider configured", async () => {
     vi.spyOn(music, "isMusicGenerateConfigured").mockReturnValue(false);
     const res = await POST(req({ lyrics: LONG_LYRICS, caption: "Indie" }));
@@ -60,7 +60,7 @@ describe("POST /api/lyric-studio/generate", () => {
     vi.spyOn(mediaStore, "writeMediaBytes").mockResolvedValue({
       mediaId: "song_test",
       mimeType: "audio/mpeg",
-      sessionId: "lyric-studio",
+      sessionId: "writing-studio",
       messageId: "generate",
       attachmentId: "song_test",
       bytes: 11,
