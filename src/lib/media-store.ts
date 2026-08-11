@@ -23,6 +23,17 @@ export type StoredMediaMeta = {
   accountId?: string;
 };
 
+/**
+ * Reserved sessionIds for Studio (Writing / TED) blobs. Chat retention must
+ * never treat these as orphan chat sessions — otherwise My Creations audio
+ * disappears a few minutes after generate.
+ */
+export const STUDIO_MEDIA_SESSION_IDS = new Set(["lyric-studio"]);
+
+export function isStudioMediaSession(sessionId: string | undefined): boolean {
+  return Boolean(sessionId && STUDIO_MEDIA_SESSION_IDS.has(sessionId));
+}
+
 function safeSegment(s: string, max = 48): string {
   return (s || "x")
     .replace(/[^A-Za-z0-9_-]/g, "_")
@@ -173,6 +184,8 @@ export async function deleteMediaForSession(
   sessionId: string,
   accountId?: string,
 ): Promise<number> {
+  // Never wipe Studio library media via a chat-session delete path.
+  if (isStudioMediaSession(sessionId)) return 0;
   await ensureMediaDir();
   const names = await fs.readdir(MEDIA_DIR);
   let removed = 0;
@@ -252,6 +265,9 @@ export async function pruneOrphanMedia(
       // is treated as legacy — its owner is unknowable, so it is never pruned by
       // a per-account retention pass (a stale delete here breaks history imgs).
       if (!meta.accountId || meta.accountId !== accountId) continue;
+      // Studio songs/images/videos live under reserved sessionIds and are
+      // referenced from creations.json — not chat history. Never orphan-prune.
+      if (isStudioMediaSession(meta.sessionId)) continue;
       const sessionKept = keepSessionIds.has(meta.sessionId);
       const unreferenced =
         Boolean(keepMediaIds) &&

@@ -402,4 +402,36 @@ describe("media-store", () => {
     await deleteMediaForSession(legacySession);
     expect(await readMedia(legacyId)).toBeNull();
   });
+
+  it("keeps Studio lyric-studio audio through chat orphan prune", async () => {
+    const { writeMediaBytes, deleteMedia } = await import("./media-store");
+    const acct = `acct_studio_${Date.now()}`;
+    const mediaId = `song_keep_${Date.now()}`;
+    const meta = await writeMediaBytes(
+      mediaId,
+      Buffer.from("ID3studio-keep"),
+      "audio/mpeg",
+      {
+        sessionId: "lyric-studio",
+        messageId: "generate",
+        attachmentId: mediaId,
+        name: "keep.mp3",
+        kind: "file",
+        accountId: acct,
+      },
+    );
+    expect(meta).not.toBeNull();
+
+    // Simulate chat retention: no lyric-studio in keep set, empty refs
+    const removed = await pruneOrphanMedia(acct, new Set(["some_chat_sess"]), new Set());
+    expect(removed).toBe(0);
+    expect(await readMedia(mediaId)).not.toBeNull();
+
+    // Session delete path must also refuse to wipe studio library
+    expect(await deleteMediaForSession("lyric-studio", acct)).toBe(0);
+    expect(await readMedia(mediaId)).not.toBeNull();
+
+    await deleteMedia(mediaId);
+    expect(await readMedia(mediaId)).toBeNull();
+  });
 });

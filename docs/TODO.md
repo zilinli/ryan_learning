@@ -20,6 +20,21 @@
 
 ---
 
+## 🎵 ENT-AUDIO — My Creations mobile play (2026-08-11)
+
+> **Design:** [subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)  
+> **Goal:** Fix phone playback on `/entertain?hub=studio&game=creations` — studio MP3s were pruned by chat retention; also add Range + mobile player hardening.
+
+- [x] **ENT-AUDIO.1** — Protect `lyric-studio` media in `pruneOrphanMedia` / `deleteMediaForSession`
+- [x] **ENT-AUDIO.2** — HTTP Range (206) on `/api/media` for audio/video
+- [x] **ENT-AUDIO.3** — Delete creation → delete linked media blobs
+- [x] **ENT-AUDIO.4** — CreationsLibrary: playsInline + 404 load hint
+- [x] **ENT-AUDIO.5** — Unit tests (prune keep, Range 206, delete frees media) + run_tests
+- [ ] **ENT-AUDIO.6** — apply_changes → publish_develop → deploy_live
+- [ ] **ENT-AUDIO.7** — Manual: re-generate song → play on phone after chat sync
+
+---
+
 ## 🎬 ENT-TED / ENT-LYRIC — Studio: TED Lab + Lyric Studio (2026-08-11)
 
 > **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §6  

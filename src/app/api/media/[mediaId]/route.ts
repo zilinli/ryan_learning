@@ -8,6 +8,8 @@ type Ctx = { params: Promise<{ mediaId: string }> };
 function fallbackDownloadName(mimeType: string): string {
   if (mimeType.includes("pdf")) return "homework.pdf";
   if (mimeType.startsWith("image/")) return "photo.jpg";
+  if (mimeType.startsWith("audio/")) return "audio.mp3";
+  if (mimeType.startsWith("video/")) return "video.mp4";
   if (mimeType.startsWith("text/")) return "notes.txt";
   return "attachment.bin";
 }
@@ -40,6 +42,36 @@ export function buildContentDisposition(
   return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
+/** Parse a single Range bytes request. Returns null if absent or unsatisfiable. */
+export function parseBytesRange(
+  header: string | null,
+  size: number,
+): { start: number; end: number } | null {
+  if (!header || size <= 0) return null;
+  const m = /^bytes=(\d*)-(\d*)$/i.exec(header.trim());
+  if (!m) return null;
+  const startRaw = m[1];
+  const endRaw = m[2];
+  let start: number;
+  let end: number;
+  if (startRaw === "" && endRaw === "") return null;
+  if (startRaw === "") {
+    // bytes=-N → last N bytes
+    const suffix = Number(endRaw);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(startRaw);
+    end = endRaw === "" ? size - 1 : Number(endRaw);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    if (start < 0 || start >= size) return null;
+    end = Math.min(end, size - 1);
+    if (end < start) return null;
+  }
+  return { start, end };
+}
+
 /** GET /api/media/:mediaId — homework photo/file for history chats */
 export async function GET(req: Request, ctx: Ctx) {
   const { mediaId: raw } = await ctx.params;
@@ -58,14 +90,23 @@ export async function GET(req: Request, ctx: Ctx) {
   const mime = hit.mimeType || "application/octet-stream";
   const isImage = mime.startsWith("image/");
   const isAudio = mime.startsWith("audio/");
-  // Inline <img>/<audio> skip Content-Disposition (ByteString crashes on
+  const isVideo = mime.startsWith("video/");
+  const streamable = isAudio || isVideo;
+  const total = hit.buf.length;
+  const range = streamable
+    ? parseBytesRange(req.headers.get("range"), total)
+    : null;
+
+  // Inline <img>/<audio>/<video> skip Content-Disposition (ByteString crashes on
   // Chinese names; attachment also breaks <audio> playback).
   const headers: Record<string, string> = {
     "Content-Type": mime,
     "Cache-Control": "private, max-age=86400",
-    "Content-Length": String(hit.buf.length),
   };
-  if (forceDownload || (!isImage && !isAudio)) {
+  if (streamable) {
+    headers["Accept-Ranges"] = "bytes";
+  }
+  if (forceDownload || (!isImage && !isAudio && !isVideo)) {
     headers["Content-Disposition"] = buildContentDisposition(
       hit.name,
       mime,
@@ -73,6 +114,18 @@ export async function GET(req: Request, ctx: Ctx) {
     );
   }
 
+  if (range) {
+    const { start, end } = range;
+    const slice = hit.buf.subarray(start, end + 1);
+    headers["Content-Range"] = `bytes ${start}-${end}/${total}`;
+    headers["Content-Length"] = String(slice.length);
+    return new Response(new Uint8Array(slice), {
+      status: 206,
+      headers,
+    });
+  }
+
+  headers["Content-Length"] = String(total);
   return new Response(new Uint8Array(hit.buf), {
     status: 200,
     headers,

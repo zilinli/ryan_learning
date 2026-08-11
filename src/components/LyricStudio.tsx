@@ -775,7 +775,13 @@ export function LyricStudio() {
             </div>
           )}
           {stageKind === "music" && audioUrl && (
-            <audio controls src={audioUrl} className="mt-3 w-full" />
+            <audio
+              controls
+              playsInline
+              preload="metadata"
+              src={audioUrl}
+              className="mt-3 w-full"
+            />
           )}
           {stageKind === "image" && imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element

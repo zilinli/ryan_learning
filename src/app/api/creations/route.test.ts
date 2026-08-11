@@ -90,6 +90,46 @@ describe("/api/creations", () => {
     expect(empty.items).toHaveLength(0);
   });
 
+  it("DELETE frees linked audioMediaId blob", async () => {
+    const { writeMediaBytes, readMedia } = await import("@/lib/media-store");
+    const mediaId = `song_del_${Date.now()}`;
+    await writeMediaBytes(mediaId, Buffer.from("ID3del"), "audio/mpeg", {
+      sessionId: "lyric-studio",
+      messageId: "generate",
+      attachmentId: mediaId,
+      name: "bye.mp3",
+      kind: "file",
+      accountId: ACCT,
+    });
+    expect(await readMedia(mediaId)).not.toBeNull();
+
+    const post = await POST(
+      new Request("http://localhost/api/creations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: ACCT,
+          type: "song",
+          title: "With audio",
+          lyrics: "[Verse]\nhello world enough",
+          audioMediaId: mediaId,
+        }),
+      }),
+    );
+    const created = await post.json();
+    expect(created.item.audioMediaId).toBe(mediaId);
+
+    const del = await DELETE(
+      new Request("http://localhost/api/creations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: ACCT, id: created.item.id }),
+      }),
+    );
+    expect((await del.json()).ok).toBe(true);
+    expect(await readMedia(mediaId)).toBeNull();
+  });
+
   it("POST rejects invalid type", async () => {
     const res = await POST(
       new Request("http://localhost/api/creations", {

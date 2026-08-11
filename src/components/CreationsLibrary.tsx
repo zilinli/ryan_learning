@@ -17,6 +17,27 @@ function formatDate(ts: number): string {
   }
 }
 
+function CreationAudio({ mediaId }: { mediaId: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <p className="mt-2 text-[11px] text-[var(--coral)]">
+        Audio file missing — generate the song again in Writing Studio.
+      </p>
+    );
+  }
+  return (
+    <audio
+      controls
+      playsInline
+      preload="metadata"
+      className="mt-3 w-full"
+      src={`/api/media/${encodeURIComponent(mediaId)}`}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function CreationsLibrary() {
   const { accountId, name: accountName } = useActiveStudioAccount();
   const [items, setItems] = useState<CreationItem[]>([]);
@@ -131,11 +152,7 @@ export function CreationsLibrary() {
                     ))}
                   </div>
                   {item.audioMediaId ? (
-                    <audio
-                      controls
-                      className="mt-3 w-full"
-                      src={`/api/media/${item.audioMediaId}`}
-                    />
+                    <CreationAudio mediaId={item.audioMediaId} />
                   ) : (
                     <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
                       Lyrics only (no audio yet)
@@ -151,7 +168,7 @@ export function CreationsLibrary() {
               {item.type === "image" && item.mediaId && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/media/${item.mediaId}`}
+                  src={`/api/media/${encodeURIComponent(item.mediaId)}`}
                   alt={item.title}
                   className="mt-3 max-h-48 w-full rounded-lg object-cover"
                 />
@@ -159,8 +176,10 @@ export function CreationsLibrary() {
               {item.type === "video" && item.mediaId && (
                 <video
                   controls
+                  playsInline
+                  preload="metadata"
                   className="mt-3 w-full rounded-lg"
-                  src={`/api/media/${item.mediaId}`}
+                  src={`/api/media/${encodeURIComponent(item.mediaId)}`}
                 />
               )}
               {item.type === "ted_challenge" && item.challengeScore && (

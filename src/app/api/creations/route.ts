@@ -11,6 +11,7 @@ import {
   type CreationType,
 } from "@/lib/entertain/creations-store";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
+import { deleteMedia } from "@/lib/media-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +82,15 @@ export async function DELETE(req: Request) {
   if (!id) {
     return Response.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
+  const before = await loadCreations(accountId);
+  const doomed = before.items.find((i) => i.id === id);
   const ok = await deleteCreation(accountId, id);
+  if (ok && doomed) {
+    // Free studio blobs — chat prune must not own these, so delete is the GC path.
+    await Promise.allSettled([
+      doomed.audioMediaId ? deleteMedia(doomed.audioMediaId) : Promise.resolve(),
+      doomed.mediaId ? deleteMedia(doomed.mediaId) : Promise.resolve(),
+    ]);
+  }
   return Response.json({ ok });
 }

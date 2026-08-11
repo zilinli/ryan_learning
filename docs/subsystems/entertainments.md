@@ -307,6 +307,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - Account JSON: `data/accounts/{id}/creations.json`
 - Types: `ted_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
 - APIs: `GET/POST/DELETE /api/creations`
+- **Audio retention:** studio blobs use `sessionId: "lyric-studio"` and must **not** be pruned by chat `pruneOrphanMedia`. See [studio-creations-audio-mobile.md](./studio-creations-audio-mobile.md).
 
 ### 6.5 Explicit non-goals
 
