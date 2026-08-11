@@ -1,11 +1,38 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FILE_INPUT_ACCEPT } from "@/lib/attachments";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import { compressImageDataUrl } from "@/lib/image-process";
+import type { SttLang } from "@/lib/stt-lang";
+import { CameraCapture } from "./CameraCapture";
+import { FileAttachControl } from "./FileAttachControl";
+import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
+
+const STT_LANGS: SttLang[] = ["auto", "en", "zh", "yue", "es", "fr", "ms"];
+const TEXT_FILE_EXT = /\.(txt|md|markdown|csv|json|log)$/i;
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
 
 export function LyricStudio() {
   const { accountId, name: accountName } = useActiveStudioAccount();
@@ -20,39 +47,255 @@ export function LyricStudio() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [padStatus, setPadStatus] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [sttLang, setSttLang] = useState<SttLang>("auto");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [liveCoachBusy, setLiveCoachBusy] = useState(false);
 
-  const runCoach = useCallback(async () => {
-    setBusy("coach");
-    setError(null);
-    try {
+  const coachAbortRef = useRef<AbortController | null>(null);
+  const coachGenRef = useRef(0);
+  const lastRecordedCoachRef = useRef<string | null>(null);
+  const draftRef = useRef(draft);
+  const genreRef = useRef(genre);
+  const titleRef = useRef(title);
+  const accountIdRef = useRef(accountId);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  useEffect(() => {
+    genreRef.current = genre;
+  }, [genre]);
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+  useEffect(() => {
+    accountIdRef.current = accountId;
+  }, [accountId]);
+
+  const appendToDraft = useCallback((text: string) => {
+    const chunk = text.trim();
+    if (!chunk) return;
+    setDraft((prev) => (prev.trim() ? `${prev.trimEnd()}\n${chunk}` : chunk));
+  }, []);
+
+  const applyCoachResult = useCallback(
+    (coachText: string, recordLearning: boolean) => {
+      setCoach(coachText);
+      if (
+        recordLearning &&
+        coachText &&
+        coachText !== lastRecordedCoachRef.current
+      ) {
+        lastRecordedCoachRef.current = coachText;
+        void recordStudioLearningTurn({
+          accountId: accountIdRef.current,
+          source: "writing",
+          title: titleRef.current.trim() || "Writing pad",
+          userText: draftRef.current,
+          assistantText: coachText,
+        });
+      }
+    },
+    [],
+  );
+
+  const runCoach = useCallback(
+    async (opts?: { live?: boolean; signal?: AbortSignal; gen?: number }) => {
+      const live = opts?.live === true;
+      const signal = opts?.signal;
+      const gen = opts?.gen;
+      if (!live) {
+        coachGenRef.current += 1;
+        coachAbortRef.current?.abort();
+        setLiveCoachBusy(false);
+        setBusy("coach");
+        setPadStatus(null);
+      } else {
+        setLiveCoachBusy(true);
+        setPadStatus("Live coach…");
+      }
+      setError(null);
+      try {
+        const res = await fetch("/api/lyric-studio/coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "coach",
+            draft: draftRef.current,
+            genre: genreRef.current,
+          }),
+          signal,
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          coach?: string;
+          error?: string;
+        };
+        if (!res.ok || !data.coach) throw new Error(data.error || "Coach failed");
+        applyCoachResult(data.coach, true);
+        if (live && gen === coachGenRef.current) setPadStatus(null);
+      } catch (e) {
+        if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Coach failed");
+        if (live && gen === coachGenRef.current) setPadStatus(null);
+      } finally {
+        if (!live) setBusy(null);
+        else if (gen === coachGenRef.current) setLiveCoachBusy(false);
+      }
+    },
+    [applyCoachResult],
+  );
+
+  // Live coach: debounce ~1.8s when draft ≥ 40 chars; abort on change
+  useEffect(() => {
+    const trimmed = draft.trim();
+    if (trimmed.length < 40) {
+      coachGenRef.current += 1;
+      coachAbortRef.current?.abort();
+      coachAbortRef.current = null;
+      setLiveCoachBusy(false);
+      setPadStatus((s) => (s === "Live coach…" ? null : s));
+      return;
+    }
+
+    coachAbortRef.current?.abort();
+    setLiveCoachBusy(false);
+    setPadStatus((s) => (s === "Live coach…" ? null : s));
+    const ac = new AbortController();
+    coachAbortRef.current = ac;
+    const gen = ++coachGenRef.current;
+    const timer = window.setTimeout(() => {
+      void runCoach({ live: true, signal: ac.signal, gen });
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [draft, genre, runCoach]);
+
+  useEffect(() => {
+    return () => {
+      coachAbortRef.current?.abort();
+    };
+  }, []);
+
+  const extractText = useCallback(
+    async (body: {
+      fileText?: string;
+      images?: Array<{ name: string; mimeType: string; data: string }>;
+    }) => {
       const res = await fetch("/api/lyric-studio/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "coach", draft, genre }),
+        body: JSON.stringify({ action: "extract", ...body }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
-        coach?: string;
+        text?: string;
         error?: string;
       };
-      if (!res.ok || !data.coach) throw new Error(data.error || "Coach failed");
-      setCoach(data.coach);
-      void recordStudioLearningTurn({
-        accountId,
-        source: "writing",
-        title: title.trim() || "Writing pad",
-        userText: draft,
-        assistantText: data.coach,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Coach failed");
-    } finally {
-      setBusy(null);
-    }
-  }, [draft, genre, accountId, title]);
+      if (!res.ok || !data.text) {
+        throw new Error(data.error || "Could not extract text");
+      }
+      return data.text;
+    },
+    [],
+  );
+
+  const ingestImagePayload = useCallback(
+    async (payload: { name: string; mimeType: string; data: string }) => {
+      setBusy("ingest");
+      setError(null);
+      setPadStatus("Reading image…");
+      try {
+        const text = await extractText({
+          images: [
+            {
+              name: payload.name,
+              mimeType: payload.mimeType,
+              data: payload.data,
+            },
+          ],
+        });
+        appendToDraft(text);
+        setPadStatus("Added text from image.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ingest failed");
+        setPadStatus(null);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [appendToDraft, extractText],
+  );
+
+  const onFiles = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return;
+      setBusy("ingest");
+      setError(null);
+      setPadStatus("Reading files…");
+      try {
+        for (const file of files) {
+          const name = file.name || "upload";
+          const isImage =
+            file.type.startsWith("image/") ||
+            /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(name);
+          const isText =
+            TEXT_FILE_EXT.test(name) ||
+            (file.type.startsWith("text/") && !file.type.includes("html"));
+
+          if (isImage) {
+            setPadStatus(`Reading ${name}…`);
+            const dataUrl = await readFileAsDataUrl(file);
+            const compressed = await compressImageDataUrl(
+              dataUrl,
+              file.type || "image/jpeg",
+            );
+            const text = await extractText({
+              images: [
+                {
+                  name: name.replace(/\.(heic|heif)$/i, ".jpg") || "photo.jpg",
+                  mimeType: compressed.mimeType,
+                  data: compressed.data,
+                },
+              ],
+            });
+            appendToDraft(text);
+            continue;
+          }
+
+          if (isText) {
+            setPadStatus(`Reading ${name}…`);
+            const fileText = (await readFileAsText(file)).trim();
+            if (!fileText) continue;
+            // extract echoes fileText; keeps path consistent with API
+            const text = await extractText({ fileText });
+            appendToDraft(text);
+            continue;
+          }
+
+          throw new Error(
+            `Use a photo or text file (.txt, .md, .csv, .json, .log) — got ${name}`,
+          );
+        }
+        setPadStatus("Added to writing pad.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Ingest failed");
+        setPadStatus(null);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [appendToDraft, extractText],
+  );
 
   const structure = useCallback(async () => {
     setBusy("structure");
@@ -213,6 +456,8 @@ export function LyricStudio() {
     }
   }, [lyrics, caption, title, gender, stageKind, accountId]);
 
+  const padLocked = busy !== null;
+
   return (
     <div className="flex flex-1 flex-col bg-[var(--surface-muted)]">
       <div className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-5">
@@ -236,7 +481,7 @@ export function LyricStudio() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={12}
-            placeholder="A scene, a feeling, a line you can't shake…"
+            placeholder="A scene, a feeling, a line you can't shake… or speak / attach / snap"
             className="mt-2 min-h-[220px] flex-1 resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
           />
           <div className="mt-3 flex flex-wrap gap-2">
@@ -255,10 +500,59 @@ export function LyricStudio() {
               </button>
             ))}
           </div>
+
+          <div className="mt-2 flex flex-wrap gap-1">
+            {STT_LANGS.map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setSttLang(lang)}
+                className={`min-h-7 rounded-md px-2 text-[10px] uppercase tracking-wide ${
+                  sttLang === lang
+                    ? "bg-[var(--teal)] text-white"
+                    : "border border-[var(--line)] text-[var(--ink-muted)]"
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <MicTranscribeButton
+              language={sttLang}
+              disabled={padLocked}
+              compact
+              onTranscript={(t) => {
+                const chunk = t.trim();
+                if (!chunk) return;
+                setDraft((prev) => (prev.trim() ? `${prev}\n${chunk}` : chunk));
+              }}
+            />
+            <FileAttachControl
+              disabled={padLocked}
+              desktopAccept={FILE_INPUT_ACCEPT}
+              title="Attach photo or text"
+              ariaLabel="Attach photo or text"
+              className="rounded-lg border border-[var(--line)] px-3 text-xs font-medium text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]"
+              onFiles={(files) => void onFiles(files)}
+            >
+              File
+            </FileAttachControl>
+            <button
+              type="button"
+              disabled={padLocked}
+              onClick={() => setCameraOpen(true)}
+              className="min-h-11 rounded-lg border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] disabled:opacity-40"
+            >
+              Camera
+            </button>
+          </div>
+
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!draft.trim() || busy !== null}
+              disabled={!draft.trim() || padLocked}
               onClick={() => void runCoach()}
               className="min-h-11 rounded-lg bg-[var(--teal)] px-4 text-sm font-medium text-white disabled:opacity-40"
             >
@@ -266,13 +560,25 @@ export function LyricStudio() {
             </button>
             <button
               type="button"
-              disabled={!draft.trim() || busy !== null}
+              disabled={!draft.trim() || padLocked}
               onClick={() => void structure()}
               className="min-h-11 rounded-lg border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40"
             >
               {busy === "structure" ? "Structuring…" : "Turn into lyrics"}
             </button>
           </div>
+
+          {(padStatus || liveCoachBusy || busy === "ingest") && (
+            <p className="mt-2 text-[11px] text-[var(--teal)]">
+              {busy === "ingest" && !padStatus
+                ? "Reading…"
+                : padStatus || (liveCoachBusy ? "Live coach…" : null)}
+            </p>
+          )}
+          {error && (
+            <p className="mt-2 text-sm text-[var(--coral)] md:hidden">{error}</p>
+          )}
+
           {coach && (
             <div className="mt-4 rounded-lg border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
               {coach}
@@ -414,6 +720,19 @@ export function LyricStudio() {
           {error && <p className="mt-2 text-sm text-[#e09a7a]">{error}</p>}
         </div>
       </div>
+
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(payload) => {
+          setCameraOpen(false);
+          void ingestImagePayload({
+            name: `pad-photo-${Date.now()}.jpg`,
+            mimeType: payload.mimeType,
+            data: payload.data,
+          });
+        }}
+      />
     </div>
   );
 }

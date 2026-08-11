@@ -75,4 +75,21 @@ describe("POST /api/lyric-studio/coach — local fallback", () => {
     expect(data.lyrics).toMatch(/\[Chorus\]/);
     expect(data.caption).toMatch(/Ballad/i);
   });
+
+  it("extract returns fileText without agent", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/lyric-studio/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "extract",
+          fileText: "Rain on the glass.\nI wait for the bus.",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.text).toMatch(/Rain on the glass/);
+  });
 });

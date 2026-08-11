@@ -72,7 +72,9 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 **Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
 
-**Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`).
+**Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach** (debounced auto tips).
+
+**TED Lab** watch UI keeps a **compact player** (capped height) with a **sticky “Ready for challenge”** bar so the CTA stays visible on phones.
 
 **Media generation** (no local GPU):
 

@@ -180,61 +180,93 @@ export function TedLab() {
   if (phase === "watch" && talk) {
     return (
       <div className="flex flex-1 flex-col bg-[#141210] text-[#e8e2d8]">
-        <div className="border-b border-teal-800/40 px-4 py-4">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-[#6db8a8]">
-            TED Lab · Cinema seminar
+        {/* Compact title — listening first */}
+        <div className="shrink-0 border-b border-teal-800/40 px-3 py-2.5 sm:px-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[#6db8a8]">
+                TED Lab · listen
+              </p>
+              <h2 className="mt-0.5 truncate font-[family-name:var(--font-display,Georgia,serif)] text-base font-semibold sm:text-lg">
+                {talk.title}
+              </h2>
+              <p className="truncate text-xs text-[#a89f92]">{talk.speaker}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPhase("browse")}
+              className="shrink-0 min-h-9 rounded-lg px-2 text-xs text-[#a89f92] hover:text-white"
+            >
+              Catalog
+            </button>
+          </div>
+        </div>
+
+        {/* Player capped so challenge CTA stays on-screen (esp. mobile) */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="relative mx-auto w-full max-w-2xl shrink-0 overflow-hidden bg-black">
+            <div
+              className="relative w-full"
+              style={{ height: "min(36vh, 240px)" }}
+            >
+              <iframe
+                title={talk.title}
+                src={tedEmbedUrl(talk.slug)}
+                className="absolute inset-0 h-full w-full border-0"
+                allow="fullscreen; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+          <p className="px-3 py-2 text-center text-[11px] text-[#a89f92] sm:text-xs">
+            Listen on TED — then take the challenge. Video stays compact so the next step stays visible.
           </p>
-          <h2 className="mt-1 font-[family-name:var(--font-display,Georgia,serif)] text-xl font-semibold md:text-2xl">
-            {talk.title}
-          </h2>
-          <p className="mt-1 text-sm text-[#a89f92]">{talk.speaker}</p>
         </div>
-        <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>
-          <iframe
-            title={talk.title}
-            src={tedEmbedUrl(talk.slug)}
-            className="absolute inset-0 h-full w-full border-0"
-            allow="fullscreen; picture-in-picture"
-            allowFullScreen
-          />
+
+        {/* Sticky challenge actions — always visible */}
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              disabled={!challengeReady || loadingChallenge}
+              onClick={() => void startChallenge()}
+              className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${
+                challengeReady
+                  ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]"
+                  : "cursor-not-allowed bg-white/10 text-white/45"
+              }`}
+            >
+              {loadingChallenge
+                ? "Building challenge…"
+                : challengeReady
+                  ? "Ready for challenge"
+                  : "Ready for challenge (soon)"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setChallengeReady(true)}
+              className="min-h-11 w-full rounded-xl border border-white/20 px-4 text-sm transition hover:border-[#6db8a8] sm:w-auto"
+            >
+              I&apos;ve watched enough — unlock now
+            </button>
+            <a
+              href={tedTalkUrl(talk.slug)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-center text-sm text-[#6db8a8] underline-offset-2 hover:underline sm:ml-auto"
+            >
+              Open on TED.com
+            </a>
+          </div>
+          {!challengeReady && (
+            <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[#a89f92]">
+              Challenge unlocks after ~45s of listening, or tap unlock now.
+            </p>
+          )}
+          {error && (
+            <p className="mx-auto mt-2 max-w-3xl text-sm text-[#e09a7a]">{error}</p>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-4">
-          <a
-            href={tedTalkUrl(talk.slug)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[#6db8a8] underline-offset-2 hover:underline"
-          >
-            Watch on TED.com
-          </a>
-          <button
-            type="button"
-            onClick={() => setChallengeReady(true)}
-            className="min-h-11 rounded-lg border border-white/20 px-4 text-sm transition hover:border-[#6db8a8]"
-          >
-            I&apos;ve watched enough — unlock challenge
-          </button>
-          <button
-            type="button"
-            disabled={!challengeReady || loadingChallenge}
-            onClick={() => void startChallenge()}
-            className={`min-h-11 rounded-lg px-5 text-sm font-medium transition ${
-              challengeReady
-                ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]"
-                : "cursor-not-allowed bg-white/10 text-white/40"
-            }`}
-          >
-            {loadingChallenge ? "Building challenge…" : "Ready for challenge"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPhase("browse")}
-            className="min-h-11 text-sm text-[#a89f92] hover:text-white"
-          >
-            ← Catalog
-          </button>
-        </div>
-        {error && <p className="px-4 pb-4 text-sm text-[#e09a7a]">{error}</p>}
       </div>
     );
   }
