@@ -9,11 +9,16 @@ import {
 } from "./learning-memory";
 import { pickRecurringGapSkill } from "./knowledge-gaps";
 import { kvGet, kvSet } from "./browser-kv";
+import {
+  daysSinceLastActivity,
+  isSoftIdle,
+  softReturnOpenerLine,
+} from "./idle-nudge";
 
 export type SessionOpener = {
   skillId: string;
   label: string;
-  kind: "review" | "zpd" | "recurring";
+  kind: "review" | "zpd" | "recurring" | "return" | "practice";
   line: string;
 };
 
@@ -56,6 +61,19 @@ export function buildSessionOpener(
   const zpd = zpdWarmUpSkills(mem, 1)[0];
   const skill = recurring ?? review ?? zpd;
   if (!skill) return null;
+
+  const idleDays = daysSinceLastActivity(mem, now.getTime());
+  const softIdle = isSoftIdle(mem, now.getTime());
+
+  // AUD.6a — idle soft return overrides copy (still once/day; no streak UI)
+  if (softIdle && idleDays != null) {
+    return {
+      skillId: skill.id,
+      label: skill.label,
+      kind: "return",
+      line: softReturnOpenerLine(skill.label, idleDays),
+    };
+  }
 
   const kind: SessionOpener["kind"] = recurring
     ? "recurring"

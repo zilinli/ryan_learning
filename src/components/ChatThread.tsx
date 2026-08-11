@@ -318,6 +318,10 @@ export function ChatThread({
           Snap a photo, type a question, or use the mic. I&apos;ll guide you step by
           step — no spoilers.
         </p>
+        <p className="max-w-md text-xs leading-relaxed text-[var(--ink-muted)]">
+          Voice tutoring in 粤语 / Cantonese, 客家话, 闽南话, 上海话, and more — pick
+          a voice in the sidebar.
+        </p>
         <button
           type="button"
           onClick={onSnapHomework}

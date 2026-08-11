@@ -30,7 +30,7 @@ Accept the **intent** (remember → track → show progress) when it maps to exi
 |--------|----------------|----------|---------------------|
 | §5.1 | 错题本 + 薄弱点 + 同类题 | **Reject as product** · **Accept spirit** | Separate `/mistakes` error-book = non-goal. Already: misconception hits, dashboard “Mistake patterns”, `knowledge-gaps` A3, A2 ZPD drills, BKT weaknesses. Deepen via **C2** + practice loop, not a new nav app. |
 | §5.2 | `/parent` Dashboard | **Partial — already shipped** | `/dashboard` + PIN weekly digest (`parent-digest`) = R1/R6. Prefer **D2 one-liner** over new mega `/parent`. No email digests. |
-| §5.3 | Active reminders + streak | **Reject streak** · **Defer soft nudge** | Streaks are explicit anti-pattern (v2). Optional once/day in-app opener already (B1); push/cron reminders → P3 if parents ask. |
+| §5.3 | Active reminders + streak | **Reject streak** · **Partial soft nudge (AUD.6a)** | Streaks remain anti-pattern. Idle ≥3d softens B1 opener copy + parent digest idle note; no push/cron, no flame counters. |
 | §5.4 | Dialect productization | **Accept (light)** | Tech is strong; packaging weak. Ship metadata/empty-state copy + FAQ; no 30s marketing video / blog required for private deploy. Jyutping stays in **dict**, not forced tutoring overlay. |
 | §5.5 | Code Agent for parents | **Defer** | Keep PIN. Optional NL templates later; do not lower friction or move Agent into child chrome. |
 | §5.6 | `/writing` closed loop | **Defer** | Use `narrative-writing` skill + Socratic prompts; no new primary nav page unless demand. |
@@ -65,7 +65,22 @@ Accept the **intent** (remember → track → show progress) when it maps to exi
 | **AUD.3** | `/privacy` static page (EN, short) | P0 |
 | **AUD.4** | PIN-gated account learning export (JSON download on `/dashboard`) | P0 |
 | **AUD.5** | `scripts/backup-data.sh` (local tar of `data/`, exclude secrets) | P1 ops |
-| **AUD.6** | Soft in-app reminder / portfolio PDF / usage admin / multi-model | Backlog only |
+| **AUD.6** | Soft in-app reminder / portfolio PDF / usage admin / multi-model | Backlog (split) |
+| **AUD.6a** | Soft idle return (opener + digest + dashboard→chat practice) | **This slice** |
+| **AUD.6b** | Portfolio PDF / usage admin / multi-model | Still deferred |
+
+### AUD.6a — Soft idle return (no streaks)
+
+**Problem:** Audit §5.3 wants reminders; §5.1 wants mistake→practice. Streaks and `/mistakes` are rejected.
+
+**Approach:**
+1. `daysSinceLastActivity(mem)` from max skill `lastSeen`.
+2. If idle ≥3 calendar days, B1 opener line becomes a calm “welcome back + optional warm-up” (still once/day; homework still yields).
+3. Parent daily/weekly digests append an idle note (“Past N days unused”) — for parents, not a child badge.
+4. Dashboard “Mistake patterns” / Focus rows offer **Practice in chat** → stash kickoff → `/` empty chat opener.
+5. Empty-chat subtitle mentions dialect support (light §5.4 packaging).
+
+**Non-goals:** push notifications, streak UI, `/mistakes` route, email digests.
 
 ---
 
@@ -76,9 +91,10 @@ Accept the **intent** (remember → track → show progress) when it maps to exi
 | Design | this doc, `competitive-product-plan-v2.md`, `report-v3-feasibility.md` |
 | Parent / mastery | `src/lib/parent-digest.ts`, `src/lib/dashboard-stats.ts`, `src/components/LearningDashboard.tsx` |
 | Gaps / misconceptions | `src/lib/knowledge-gaps.ts`, `src/lib/misconceptions.ts` |
-| Export | `src/lib/account-export.ts` (new), dashboard UI |
-| Privacy | `src/app/privacy/page.tsx` (new) |
-| Backup | `scripts/backup-data.sh` (new) |
+| Idle / practice kickoff | `src/lib/idle-nudge.ts`, `src/lib/session-opener.ts` |
+| Export | `src/lib/account-export.ts`, dashboard UI |
+| Privacy | `src/app/privacy/page.tsx` |
+| Backup | `scripts/backup-data.sh` |
 
 ---
 
@@ -99,11 +115,14 @@ Accept the **intent** (remember → track → show progress) when it maps to exi
 
 - `account-export.ts`: stable JSON shape; strips unrelated accounts; includes skills + digest text snapshot; omits secrets.
 - Existing `parent-digest` / `dashboard-stats` regressions stay green.
+- **AUD.6a** `idle-nudge.ts`: idle day math; soft return copy has no streak/flame language; stash/consume practice kickoff once.
+- **AUD.6a** `session-opener` / `parent-digest`: idle ≥3 changes opener line + digest idle note.
 
 ### Integration
 
 - Manual: unlock PIN on `/dashboard` → Export → file opens with expected `accountId` and `skills[]`.
 - Manual: `/privacy` loads on mobile width; link from Help if present.
+- Manual: idle account → empty chat shows welcome-back opener; dashboard Practice → lands on `/` with Try chip.
 
 ### Manual / ops
 

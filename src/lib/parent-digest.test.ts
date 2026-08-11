@@ -63,4 +63,36 @@ describe("parent-digest (D2)", () => {
     expect(w.text).toMatch(/Frequent patterns|Adding across/i);
     expect(w.text).toMatch(/Next week focus/);
   });
+
+  it("AUD.6a: idle ≥3d appears in daily + weekly digests", () => {
+    const now = Date.now();
+    const idleMem = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.3,
+          mastery: 30,
+          attempts: 5,
+          correct: 1,
+          incorrect: 4,
+          lastSeen: now - 4 * 86_400_000,
+          sm2State: {
+            ef: 2.2,
+            interval: 3,
+            reps: 1,
+            prevReview: now - 10 * 86_400_000,
+          },
+          eloState: { rating: 1200, n: 5, lastUpdate: now },
+        },
+      ],
+      updatedAt: now,
+    });
+    const daily = buildParentDailyDigest(idleMem, now);
+    expect(daily).toMatch(/Past 4 days unused/);
+    const weekly = buildParentWeeklyDigest(idleMem, now);
+    expect(weekly.idleDays).toBe(4);
+    expect(weekly.text).toMatch(/Past 4 days unused/);
+  });
 });

@@ -43,6 +43,7 @@ export type HeatCell = {
   id: string;
   label: string;
   count: number;
+  skillId?: string;
   skillLabel?: string;
 };
 
@@ -128,6 +129,7 @@ export function buildMisconceptionHeat(mem: LearningMemory, max = 8): HeatCell[]
           id: h.id,
           label: tag?.label || h.id,
           count: h.count,
+          skillId: s.id,
           skillLabel: s.label,
         });
       }

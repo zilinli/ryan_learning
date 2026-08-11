@@ -109,6 +109,10 @@ import {
   markOpenerShown,
   type SessionOpener,
 } from "@/lib/session-opener";
+import {
+  buildPracticeKickoffOpener,
+  consumePracticeKickoff,
+} from "@/lib/idle-nudge";
 
 function messageId() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -784,7 +788,12 @@ export function TutorShell() {
     setPracticeOffer(offer);
     if (!offer) {
       const mem = learningMemory || loadLearningMemory(accountId);
-      setSessionOpener(buildSessionOpener(mem, accountId));
+      const kick = consumePracticeKickoff();
+      setSessionOpener(
+        kick
+          ? buildPracticeKickoffOpener(kick)
+          : buildSessionOpener(mem, accountId),
+      );
     } else {
       setSessionOpener(null);
     }

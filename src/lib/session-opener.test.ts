@@ -80,7 +80,15 @@ describe("session-opener (CA-3)", () => {
   it("SO5b: A3 recurring gap preferred with last-few-days copy", () => {
     const day = new Date("2026-08-10T10:00:00");
     const mem = {
-      ...baseMem(),
+      ...baseMem({
+        lastSeen: day.getTime(), // not idle — keep recurring copy
+        sm2State: {
+          ef: 2.3,
+          interval: 2,
+          reps: 2,
+          prevReview: day.getTime() - 10 * 86_400_000,
+        },
+      }),
       gapHistory: [
         {
           skillId: "fractions-concepts",
@@ -93,6 +101,23 @@ describe("session-opener (CA-3)", () => {
     const opener = buildSessionOpener(mem, "acct_a", day)!;
     expect(opener.kind).toBe("recurring");
     expect(opener.line).toMatch(/last few days/i);
+  });
+
+  it("AUD.6a: idle ≥3d uses soft return copy (no streak)", () => {
+    const day = new Date("2026-08-10T10:00:00");
+    const mem = baseMem({
+      lastSeen: day.getTime() - 5 * 86_400_000,
+      sm2State: {
+        ef: 2.3,
+        interval: 2,
+        reps: 2,
+        prevReview: day.getTime() - 10 * 86_400_000,
+      },
+    });
+    const opener = buildSessionOpener(mem, "acct_a", day)!;
+    expect(opener.kind).toBe("return");
+    expect(opener.line).toMatch(/Welcome back/i);
+    expect(opener.line.toLowerCase()).not.toMatch(/streak|flame/);
   });
 
   it("SO5: copy mentions homework alternative", () => {

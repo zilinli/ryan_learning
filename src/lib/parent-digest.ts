@@ -5,6 +5,10 @@
 
 import { getMisconception } from "./misconceptions";
 import {
+  daysSinceLastActivity,
+  parentIdleNote,
+} from "./idle-nudge";
+import {
   needsReviewSkills,
   skillWeaknesses,
   zpdWarmUpSkills,
@@ -16,6 +20,7 @@ const WEEK_MS = 7 * 86_400_000;
 
 export function buildParentDailyDigest(
   mem: LearningMemory | null | undefined,
+  now = Date.now(),
 ): string {
   if (!mem?.skills?.length) {
     return "Today: no skill activity logged yet.";
@@ -25,6 +30,8 @@ export function buildParentDailyDigest(
   const zpd = zpdWarmUpSkills(mem, 1);
   const focus = weak[0] ?? review[0] ?? zpd[0];
   const parts: string[] = [];
+  const idle = parentIdleNote(daysSinceLastActivity(mem, now));
+  if (idle) parts.push(idle);
   if (focus) {
     parts.push(`Today: ${focus.label}`);
     if (focus.mastery <= 50) {
@@ -39,7 +46,7 @@ export function buildParentDailyDigest(
     parts.push(`also watch ${weak[1]!.label}`);
   }
   const recent = [...mem.skills].sort((a, b) => b.lastSeen - a.lastSeen)[0];
-  if (recent && (!focus || recent.id !== focus.id)) {
+  if (recent && (!focus || recent.id !== focus.id) && !idle) {
     parts.push(`last chat touched ${recent.label}`);
   }
   return parts.join(" · ").slice(0, 280);
@@ -60,6 +67,8 @@ export type ParentWeeklyDigest = {
   topMisconceptions: WeeklyMisconceptionRow[];
   reviewDue: SkillMastery[];
   nextWeekFocus: SkillMastery[];
+  /** AUD.6a — whole days since last skill activity; null if unknown */
+  idleDays: number | null;
   text: string;
 };
 
@@ -95,6 +104,7 @@ export function buildParentWeeklyDigest(
       topMisconceptions: [],
       reviewDue: [],
       nextWeekFocus: [],
+      idleDays: null,
       text: `Week of ${weekOf}: no skill activity logged yet.`,
     };
   }
@@ -147,7 +157,13 @@ export function buildParentWeeklyDigest(
     .filter((s, i, arr) => arr.findIndex((x) => x.id === s.id) === i)
     .slice(0, 3);
 
+  const idleDays = daysSinceLastActivity(mem, now);
+  const idleNote = parentIdleNote(idleDays);
+
   const lines: string[] = [`Week of ${weekOf}`];
+  if (idleNote) {
+    lines.push(idleNote);
+  }
   if (practiced.length) {
     lines.push(
       `Practiced: ${practiced.map((p) => `${p.label} (~${p.mastery}% ${p.deltaHint})`).join("; ")}`,
@@ -181,6 +197,7 @@ export function buildParentWeeklyDigest(
     topMisconceptions,
     reviewDue,
     nextWeekFocus,
+    idleDays,
     text: lines.join("\n"),
   };
 }

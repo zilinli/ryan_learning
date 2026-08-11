@@ -16,6 +16,7 @@ import {
   buildAccountLearningExport,
   downloadAccountLearningExport,
 } from "@/lib/account-export";
+import { stashPracticeKickoff } from "@/lib/idle-nudge";
 import { buildParentWeeklyDigest } from "@/lib/parent-digest";
 import { hasParentPin, PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
@@ -152,10 +153,25 @@ export function LearningDashboard() {
               </h2>
               <ul className="mt-2 space-y-1 text-[13px]">
                 {(model.weak.length ? model.weak : model.reviewDue).map((s) => (
-                  <li key={s.id} className="flex justify-between gap-2">
+                  <li key={s.id} className="flex items-center justify-between gap-2">
                     <span className="truncate">{s.label}</span>
-                    <span className="tabular-nums text-[var(--coral)]">
-                      {s.mastery}%
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="tabular-nums text-[var(--coral)]">
+                        {s.mastery}%
+                      </span>
+                      <a
+                        href="/"
+                        onClick={() =>
+                          stashPracticeKickoff({
+                            skillId: s.id,
+                            label: s.label,
+                            source: "dashboard-weak",
+                          })
+                        }
+                        className="text-[11px] font-medium text-[var(--teal)] underline-offset-2 hover:underline"
+                      >
+                        Practice
+                      </a>
                     </span>
                   </li>
                 ))}
@@ -207,10 +223,27 @@ export function LearningDashboard() {
                   const w = Math.max(8, Math.round((h.count / max) * 100));
                   return (
                     <li key={h.id}>
-                      <div className="flex justify-between text-[12px]">
-                        <span>{h.label}</span>
-                        <span className="tabular-nums text-[var(--ink-muted)]">
-                          ×{h.count}
+                      <div className="flex items-center justify-between gap-2 text-[12px]">
+                        <span className="min-w-0 truncate">{h.label}</span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="tabular-nums text-[var(--ink-muted)]">
+                            ×{h.count}
+                          </span>
+                          {h.skillId && h.skillLabel ? (
+                            <a
+                              href="/"
+                              onClick={() =>
+                                stashPracticeKickoff({
+                                  skillId: h.skillId!,
+                                  label: h.skillLabel!,
+                                  source: "dashboard-misconception",
+                                })
+                              }
+                              className="text-[11px] font-medium text-[var(--teal)] underline-offset-2 hover:underline"
+                            >
+                              Practice
+                            </a>
+                          ) : null}
                         </span>
                       </div>
                       <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
@@ -252,6 +285,12 @@ export function LearningDashboard() {
                 <pre className="whitespace-pre-wrap rounded-xl bg-[var(--mist)] p-3 text-[12px] leading-relaxed text-[var(--ink)]">
                   {weekly.text}
                 </pre>
+                {weekly.idleDays != null && weekly.idleDays >= 3 ? (
+                  <p className="text-[12px] text-[var(--coral)]">
+                    Soft note: no skill activity for {weekly.idleDays} days — a
+                    short warm-up helps more than catching up in one sitting.
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
