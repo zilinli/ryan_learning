@@ -84,4 +84,36 @@ describe("NeuralSpeechEngine.stop (LVS)", () => {
       (engine as unknown as { fetchAbort: unknown }).fetchAbort,
     ).toBeNull();
   });
+
+  it("fetchTts dialect failure does not ReferenceError on retry gate", async () => {
+    const engine = new NeuralSpeechEngine();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: "dialect TTS unavailable" }),
+      }),
+    );
+    const fetchTts = (
+      engine as unknown as {
+        fetchTts: (
+          text: string,
+          h: { voiceId: string },
+        ) => Promise<ArrayBuffer>;
+      }
+    ).fetchTts.bind(engine);
+    await expect(fetchTts("你好", { voiceId: "teochew" })).rejects.toThrow(
+      /dialect TTS unavailable|TTS HTTP|TTS failed/,
+    );
+    // Non-dialect still retries once (2 fetch calls)
+    vi.mocked(fetch).mockClear();
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "edge down" }),
+    });
+    await expect(fetchTts("hello", { voiceId: "ava" })).rejects.toThrow(/edge down|TTS/);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });

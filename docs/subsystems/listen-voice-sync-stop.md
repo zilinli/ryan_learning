@@ -1,7 +1,7 @@
 # Listen voice sync + Stop reliability
 
 > **Subsystem** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **in progress** · 2026-08-10  
+> Status: **shipped** · 2026-08-10 (fix: dialect retry ReferenceError 2026-08-11)  
 > Related: [voice-tts-stt.md](voice-tts-stt.md) · [bailian-stt-tts.md](bailian-stt-tts.md) · [multi-tenant-isolation.md](multi-tenant-isolation.md)
 
 ---

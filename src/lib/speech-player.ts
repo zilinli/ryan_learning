@@ -415,7 +415,7 @@ export class NeuralSpeechEngine {
       return await attempt();
     } catch (err) {
       // Dialect：失败不重试第二次长等待（否则像卡死）；非方言仍快速重试一次
-      if (dialect) {
+      if (dialectTts) {
         throw err instanceof Error ? err : new Error("TTS failed");
       }
       if (err instanceof Error && /cancel/i.test(err.message)) {

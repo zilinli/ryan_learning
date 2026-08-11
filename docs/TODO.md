@@ -96,11 +96,12 @@
 > **Design:** [subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md) · [voice-tts-stt.md](subsystems/voice-tts-stt.md)
 > **Bug:** `acct_ching` 选闽南话但 Listen 播粤语；Stop 停不了。
 
-- [ ] **LVS.1** — Pass `accountId` TutorShell → Composer → VoiceControls; scoped load/save voice
-- [ ] **LVS.2** — teo TTS: remove Cantonese edge silent fallback (503 / throw)
-- [ ] **LVS.3** — `speech-player.stop()`: abort fetch + clear `audio.src`
-- [ ] **LVS.4** — Unit tests (provider + voice isolation + stop generation)
-- [ ] **LVS.5** — run_tests → apply_changes → publish_develop → deploy_live
+- [x] **LVS.1** — Pass `accountId` TutorShell → Composer → VoiceControls; scoped load/save voice
+- [x] **LVS.2** — teo TTS: remove Cantonese edge silent fallback (503 / throw)
+- [x] **LVS.3** — `speech-player.stop()`: abort fetch + clear `audio.src`
+- [x] **LVS.4** — Unit tests (provider + voice isolation + stop generation)
+- [x] **LVS.5** — run_tests → apply_changes → publish_develop → deploy_live
+- [x] **LVS.6** — Fix `fetchTts` catch using undefined `dialect` → `dialectTts` (2026-08-11)
 
 ---
 
