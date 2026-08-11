@@ -76,6 +76,14 @@ PDF library, attendance calendars, WeChat parent network, dual-agent latency, ch
 ### Manual ops
 - None beyond deploy_live after src changes
 
+## Release status (2026-08-11)
+
+| ID | Status |
+|----|--------|
+| RPT4.1–RPT4.4 | Shipped on `develop` (`03c8071`) |
+| RPT4.5 | `publish_develop` + `deploy_live` (this session) |
+| RPT4.6 | Manual parent/TED acceptance — still open |
+
 ---
 
 *Selective landing from v4 audit themes + AUD.6b — not a mandate to implement the full external wishlist.*

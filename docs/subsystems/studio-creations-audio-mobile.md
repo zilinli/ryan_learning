@@ -35,3 +35,7 @@ Desktop and mobile both fail to decode; native mobile players make the failure m
 | Unit | media GET honors `Range: bytes=0-1` → 206 + Content-Range |
 | Unit | DELETE creation removes associated media files |
 | Manual | Generate song → wait >2 min + sync a chat → audio still plays on phone |
+
+## Release status (2026-08-11)
+
+ENT-AUDIO.1–.6 shipped on `develop` (`c7ec387`); ENT-AUDIO.7 remains manual phone re-generate.

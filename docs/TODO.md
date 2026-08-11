@@ -30,7 +30,7 @@
 - [x] **RPT4.2** — `learning-portfolio.ts` printable HTML + Family Tools button
 - [x] **RPT4.3** — Family KPI Effort = Σ skill attempts
 - [x] **RPT4.4** — Unit tests + run_tests
-- [ ] **RPT4.5** — apply_changes → publish_develop → deploy_live
+- [x] **RPT4.5** — apply_changes → publish_develop → deploy_live (`03c8071` + live health ok 2026-08-11)
 - [ ] **RPT4.6** — Manual: short TED answer moves BKT; Print portfolio behind PIN
 
 ---
@@ -54,7 +54,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 - [x] **ENT-TED-V.2** — Wire mic into `TedLab` Challenge textarea (append; disable after Check)
 - [x] **ENT-TED-V.3** — Docs: design note + entertainments §6.2 + DESIGN map + this checklist
 - [x] **ENT-TED-V.4** — Visibility fix: `MicTranscribeButton` `tone="onDark"` + full-size Speak row in TedLab
-- [ ] **ENT-TED-V.5** — `run_tests` → apply_changes → publish_develop → deploy_live
+- [x] **ENT-TED-V.5** — `run_tests` → apply_changes → publish_develop → deploy_live (`9d44e14` / `6cce103` + live health ok 2026-08-11)
 - [ ] **ENT-TED-V.6** — Manual TM1–TM4 on live Challenge UI (incl. dark theme)
 
 ---
@@ -69,7 +69,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 - [x] **ENT-AUDIO.3** — Delete creation → delete linked media blobs
 - [x] **ENT-AUDIO.4** — CreationsLibrary: playsInline + 404 load hint
 - [x] **ENT-AUDIO.5** — Unit tests (prune keep, Range 206, delete frees media) + run_tests
-- [ ] **ENT-AUDIO.6** — apply_changes → publish_develop → deploy_live
+- [x] **ENT-AUDIO.6** — apply_changes → publish_develop → deploy_live (`c7ec387` + live health ok 2026-08-11)
 - [ ] **ENT-AUDIO.7** — Manual: re-generate song → play on phone after chat sync
 
 ---

@@ -1,7 +1,7 @@
 # TED Challenge · Voice Input
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **shipping** · 2026-08-11 (visibility fix)  
+> Status: **shipped** · 2026-08-11 (visibility fix + release closed)  
 > Related: [entertainments.md](entertainments.md) §6.2 · [voice-tts-stt.md](voice-tts-stt.md)
 
 ---
