@@ -87,6 +87,7 @@ type Props = {
 
 type RecorderSession = {
   stop: () => Promise<Blob>;
+  stream?: MediaStream;
 };
 
 export function VoiceControls({
@@ -105,6 +106,8 @@ export function VoiceControls({
 }: Props) {
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [listenSecs, setListenSecs] = useState(0);
+  const [level, setLevel] = useState(0);
   const [confirm, setConfirm] = useState<{
     transcript: string;
     pair: ConfusablePair;
@@ -122,6 +125,7 @@ export function VoiceControls({
 
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
+  const levelCleanupRef = useRef<(() => void) | null>(null);
   const wantSpeakRef = useRef(voiceEnabled);
   const speakTokenRef = useRef(0);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
@@ -453,13 +457,63 @@ export function VoiceControls({
       // ignore
     }
     setHint("");
-    setStatus("Listening… speak now");
+    setListenSecs(0);
+    setLevel(0);
+    setStatus("Listening… 0:00");
     try {
       // Always prefer 16 kHz WAV (ScriptProcessor) for STT accuracy.
       // MediaRecorder WebM often fails ffmpeg EBML parse on short clips.
       const session = await startWavRecorder();
       recorderRef.current = session;
       setListening(true);
+
+      const started = Date.now();
+      const tick = window.setInterval(() => {
+        const s = Math.floor((Date.now() - started) / 1000);
+        setListenSecs(s);
+        const mm = Math.floor(s / 60);
+        const ss = String(s % 60).padStart(2, "0");
+        setStatus(`Listening… ${mm}:${ss}`);
+      }, 250);
+
+      let raf = 0;
+      let audioCtx: AudioContext | null = null;
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (
+            window as unknown as {
+              webkitAudioContext: typeof AudioContext;
+            }
+          ).webkitAudioContext;
+        audioCtx = new AudioCtx();
+        const src = audioCtx.createMediaStreamSource(session.stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const loop = () => {
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i]! - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          setLevel(Math.min(1, rms * 4));
+          raf = requestAnimationFrame(loop);
+        };
+        raf = requestAnimationFrame(loop);
+      } catch {
+        // level meter optional
+      }
+
+      levelCleanupRef.current = () => {
+        window.clearInterval(tick);
+        if (raf) cancelAnimationFrame(raf);
+        void audioCtx?.close();
+        setLevel(0);
+      };
     } catch {
       recorderRef.current = null;
       setListening(false);
@@ -471,6 +525,8 @@ export function VoiceControls({
   const stopListening = useCallback(async () => {
     const session = recorderRef.current;
     recorderRef.current = null;
+    levelCleanupRef.current?.();
+    levelCleanupRef.current = null;
     if (!session) {
       setListening(false);
       return;
@@ -600,6 +656,16 @@ export function VoiceControls({
                 ? "bg-[var(--teal)]/15 text-[var(--teal)] ring-2 ring-[var(--teal)]/50 animate-pulse"
                 : "bg-[var(--mist)] text-[var(--ink)] hover:bg-[var(--mist)] hover:text-[var(--ink)] sm:bg-transparent sm:text-[var(--ink-muted)]"
         } disabled:cursor-not-allowed disabled:opacity-40`}
+        style={
+          listening
+            ? {
+                boxShadow: `0 0 0 ${Math.max(2, Math.round(level * 10))}px color-mix(in srgb, var(--coral) ${30 + Math.round(level * 50)}%, transparent)`,
+              }
+            : undefined
+        }
+        aria-valuetext={
+          listening ? `Recording ${listenSecs} seconds` : undefined
+        }
         title={
           speaking
             ? interruptHint(true)

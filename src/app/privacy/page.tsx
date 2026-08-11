@@ -91,6 +91,37 @@ export default function PrivacyPage() {
         </ul>
       </section>
 
+      <section className="mt-8 space-y-3 rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/5 p-4">
+        <h2 className="text-[15px] font-semibold text-[var(--ink)]">
+          For kids (simple version)
+        </h2>
+        <ul className="list-disc space-y-2 pl-5 text-[14px] leading-relaxed text-[var(--ink-muted)]">
+          <li>
+            Your chats and photos stay on{" "}
+            <strong className="font-semibold text-[var(--ink)]">this family computer</strong>
+            , not a big public website.
+          </li>
+          <li>
+            Spark helps you think — it does not sell your homework or share it with
+            classmates.
+          </li>
+          <li>
+            A parent can turn on a PIN, download your learning notes, or delete an
+            account if you ask.
+          </li>
+          <li>
+            If something feels weird, tell a parent — they can open{" "}
+            <Link
+              href="/family"
+              className="font-medium text-[var(--teal)] underline-offset-2 hover:underline"
+            >
+              Family controls
+            </Link>
+            .
+          </li>
+        </ul>
+      </section>
+
       <section className="mt-8 space-y-3">
         <h2 className="text-[15px] font-semibold text-[var(--ink)]">
           Disclaimer

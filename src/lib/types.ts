@@ -168,6 +168,8 @@ export interface ChatRequestBody {
   reset?: boolean;
   /** D1 — parent PIN check mode: full worked steps (exit forces Socratic) */
   checkMode?: boolean;
+  /** UX-RPT.10 — soft win/struggle coach note from client session streak */
+  coachNote?: string;
 }
 
 export interface DiffBlock { filepath: string; hunks: string; added: number; removed: number; }

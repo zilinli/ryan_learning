@@ -16,14 +16,15 @@
 > Listen sync + Stop: **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)**
 > AI FAQ (Ask AI): **[subsystems/ai-faq.md](subsystems/ai-faq.md)**
 > Claude report 2026-08: **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** (RPT2 public harden + Socratic integrity)
-> UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips)
+> UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips + Slice A–D)
 
 ---
 
 ## ✨ UX-RPT — Competitor UX report slice (2026-08-11)
 
 > **Design:** [subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)  
-> **Goal:** Absorb high-feasibility UX from 竞品调研 (latency perception + step follow-ups + soft persona). Defer Ello dual-agent / child ASR / streaks.
+> **Goal:** Absorb high-feasibility UX from 竞品调研 (latency perception + step follow-ups + soft persona). Defer Ello dual-agent / child ASR / streaks.  
+> **Family:** Keep `/family` narrative hub; **reject** mega parent admin console / dedicated `/mistakes` app.
 
 - [x] **UX-RPT.1** — Phased wait status (photo-aware labels + “Taking a bit longer…”) in TutorShell
 - [x] **UX-RPT.2** — StepReveal Got it / Simpler chips → `spark:quick-reply` → Composer draft
@@ -31,6 +32,11 @@
 - [x] **UX-RPT.4** — Unit tests (`tutor-wait-status`) + run_tests
 - [x] **UX-RPT.5** — apply_changes → publish_develop → deploy_live (`8e9d874` + live `.next` has wait/chips; health ok 2026-08-11)
 - [ ] **UX-RPT.6** — Manual: photo wait phases; step chips fill composer
+- [x] **UX-RPT.7** — Slice A: stream audit note + `local-recall` arithmetic fast-path + tests
+- [x] **UX-RPT.8** — Slice B: mic timer + level pulse; transcript stays editable; Listen highlight kept
+- [x] **UX-RPT.9** — Slice C: Core idea + `~~~answer` fold; opener Continue / Something else
+- [x] **UX-RPT.10** — Slice D: emotion rhythm + daily blurb + kid `/privacy` + soft error guides
+- [ ] **UX-RPT.11** — Manual: `7×8` local reply; mic timer; Show answer; daily blurb dismiss; privacy kid section
 
 ---
 
@@ -1183,7 +1189,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 - [x] Empty-chat dialect one-liner
 - [x] `run_tests` → apply_changes → publish_develop → deploy_live
 
-**Rejected as product (do not build):** dedicated `/mistakes` 错题本, `/parent` mega-dashboard, streaks, exposed knowledge-map UI, lowering Code Agent PIN.
+**Rejected as product (do not build):** dedicated `/mistakes` 错题本, `/parent` mega-dashboard (keep `/family` narrative hub), streaks, exposed knowledge-map UI, lowering Code Agent PIN.
 
 ---
 

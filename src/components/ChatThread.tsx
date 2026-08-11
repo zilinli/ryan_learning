@@ -46,6 +46,12 @@ type Props = {
   onOpenerTry?: () => void;
   /** Snap homework — dismiss opener + open camera */
   onSnapHomework?: () => void;
+  /** UX-RPT.10 — dismissible kid daily one-liner */
+  dailyBlurb?: string | null;
+  onDismissDailyBlurb?: () => void;
+  /** Soft emotion line after a turn */
+  emotionLine?: string | null;
+  onDismissEmotionLine?: () => void;
   /** One-click replay for a finished message */
   onSpeakMessage?: (messageId: string, text: string) => void;
   /** Stop current replay / TTS */
@@ -125,6 +131,10 @@ export function ChatThread({
   onPracticeDismiss,
   onOpenerTry,
   onSnapHomework,
+  dailyBlurb,
+  onDismissDailyBlurb,
+  emotionLine,
+  onDismissEmotionLine,
   onSpeakMessage,
   onStopSpeak,
   speakingMessageId,
@@ -355,6 +365,22 @@ export function ChatThread({
           Snap homework
         </button>
 
+        {dailyBlurb ? (
+          <div className="mt-2 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              Today
+            </p>
+            <p className="mt-1 text-sm text-[var(--ink)]">{dailyBlurb}</p>
+            <button
+              type="button"
+              onClick={onDismissDailyBlurb}
+              className="mt-2 min-h-10 text-[12px] font-medium text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         {practiceOffer && practiceOffer.targets.length > 0 ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--teal)]/50 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
@@ -412,16 +438,19 @@ export function ChatThread({
                 onClick={onOpenerTry}
                 className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
               >
-                Try {sessionOpener.label}
+                Continue
               </button>
               <button
                 type="button"
                 onClick={onSnapHomework}
                 className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
               >
-                Snap homework
+                Something else
               </button>
             </div>
+            <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
+              Continue opens “{sessionOpener.label}”. Something else → snap homework.
+            </p>
           </div>
         ) : null}
       </div>
@@ -437,6 +466,18 @@ export function ChatThread({
 
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+      {emotionLine ? (
+        <div className="flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/25 bg-[var(--teal)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
+          <p>{emotionLine}</p>
+          <button
+            type="button"
+            onClick={onDismissEmotionLine}
+            className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+          >
+            OK
+          </button>
+        </div>
+      ) : null}
       {showPlanChip && worksheetPlan ? (
         <div
           className="sticky top-0 z-[5] -mx-1 mb-1 flex justify-center"

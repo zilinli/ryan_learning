@@ -161,6 +161,10 @@ export async function POST(req: Request) {
     replyLanguage:
       typeof body.replyLanguage === "string" ? body.replyLanguage : undefined,
     checkMode: body.checkMode === true,
+    coachNote:
+      typeof body.coachNote === "string" && body.coachNote.trim()
+        ? body.coachNote.trim().slice(0, 600)
+        : undefined,
   });
 
   const images: SDKImage[] | undefined =

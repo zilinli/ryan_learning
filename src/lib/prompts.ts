@@ -256,6 +256,7 @@ function subjectCoachingLines(band?: GradeBand): string {
     "Progressive disclosure: when showing step-by-step work, wrap EACH step in its own",
     "`~~~step` fence (Step 1 / Step 2…). The UI reveals only one step until the student taps Next — never dump a long list of open steps.",
     "Prefer `~~~step` whenever you would otherwise list 2+ reasoning steps in one reply (豆包-style confirm-before-next). After each reveal the UI offers Got it / Simpler — you still end non-fence turns with ONE question.",
+    "Layered reply (AITutor): open with one Core idea line (≤120 Latin chars / ≤40 CJK), then `~~~step` blocks. Put the closed final answer only in a `~~~answer` fence — the UI hides it until Show answer. Never spoil the answer before steps.",
     "",
   ].join("\n");
 }
@@ -336,6 +337,8 @@ export function buildTutorPrompt(params: {
   voiceId?: string;
   /** D1 — parent check mode: show full steps / answers */
   checkMode?: boolean;
+  /** UX-RPT.10 — optional emotion-rhythm coach note */
+  coachNote?: string;
 }): string {
   const { userText, imageCount, fileSummaries = [], history } = params;
   const hasHomework = imageCount > 0 || fileSummaries.length > 0;
@@ -514,6 +517,9 @@ export function buildTutorPrompt(params: {
     audienceLine(mode),
     styleLine(mode),
     ...personaLines(mode),
+    ...(params.coachNote?.trim()
+      ? ["", params.coachNote.trim()]
+      : []),
     `[Language style — ${profile.gradeBand} band] Confirm: "${lang.confirm}". Encourage: "${lang.encourage}". When stuck: "${lang.stuck}". On error: "${lang.error}". Prefer "${lang.thinkAloud}" before giving answers.`,
     ...studentProfilePromptLines(profile),
     ...curriculumPromptLines(profile),

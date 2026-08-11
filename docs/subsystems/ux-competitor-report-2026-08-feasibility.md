@@ -2,8 +2,8 @@
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
 > Source: *Spark AI Tutor UX 竞品调研报告* (2026-08-11)  
-> Status: **accepted** · maps report → backlog  
-> Related: [competitive-feature-analysis.md](competitive-feature-analysis.md) · [ui-architecture.md](ui-architecture.md) · [ca-p0-system-design.md](ca-p0-system-design.md)
+> Status: **accepted** · calibrated backlog (UX-RPT.1–3 shipped; Slice A–D next)  
+> Related: [competitive-feature-analysis.md](competitive-feature-analysis.md) · [ui-architecture.md](ui-architecture.md) · [ca-p0-system-design.md](ca-p0-system-design.md) · [parent-gate.md](parent-gate.md)
 
 ---
 
@@ -18,115 +18,162 @@ The 2026-08-11 UX competitor report rates Spark’s core chat as solid (Physical
 5. **Voice latency / kid ASR**  
 6. **Thin tutor persona / emotional rhythm**
 
-Many report items **already exist** in Spark (CA-P0 opener, barge-in, `~~~step`, worksheet planner). This doc separates **absorb now**, **backlog**, and **reject / defer** so we do not re-invent shipped work or chase Ello-class infra on a 4GB home host.
+Many report items **already exist** in Spark (CA-P0 opener, barge-in, `~~~step`, worksheet planner, `/family`). This doc separates **shipped**, **Slice A–D**, **backlog**, and **reject / defer**.
 
 ---
 
-## 2. Feasibility matrix (report → Spark)
+## 2. Calibration (report vs codebase)
+
+| Report claim | Actual |
+|--------------|--------|
+| 分步确认 ❌ | **Shipped** — `~~~step` + StepReveal Next + Got it / Simpler |
+| Passive wait only | **Partial** — session opener / idle nudge / practice kickoff |
+| No parent console / “不做家长控制台” | **Keep `/family`** (narrative KPI + mistake coaching); **reject mega admin** |
+| Only blank Thinking… | **Shipped** — phased wait status (UX-RPT.1) |
+| Soft persona missing | **Shipped** — prompt persona (UX-RPT.3) |
+
+---
+
+## 3. Feasibility matrix (report → Spark)
 
 | Report recommendation | Feasibility | Verdict | Notes |
 |----------------------|-------------|---------|-------|
-| Phased wait status (识别→分析→讲解) | **High** | **Ship now (UX-RPT.1)** | Context-aware labels + timed phases; no fake progress bar |
-| “Taking longer…” after long wait | **High** | **Ship now (UX-RPT.1)** | Already in ui-architecture §7.3; wire client timer |
-| 豆包-style step confirm / Next | **Done** | Keep | `~~~step` + StepReveal (R3) |
-| Per-step follow-up chips (“更简单 / 懂了”) | **High** | **Ship now (UX-RPT.2)** | AITutor pattern #3; chips → composer quick-fill |
-| Stronger `~~~step` prompt use | **High** | **Ship now (UX-RPT.3)** | Soft persona + when to use fences |
-| Soft tutor persona (not Duolingo character) | **High** | **Ship now (UX-RPT.3)** | Prompt-only; Physical Tutor Test |
-| Proactive opener / homework yield | **Done (CA-3)** | Harden later | B1 shipped |
-| Worksheet multi-Q planner | **Done (CA-1)** | Harden cuts | A1 |
-| Post-session 3 drills | **Done (CA-2)** | — | A2 |
-| TTS barge-in | **Done (CA-4)** | Then B2b | B2a |
-| Dual-agent / sub-1s Ello architecture | **Low** | **Defer P3+** | Cursor SDK sync loop; host cost |
-| Predictive branch answers | **Low–Med** | **Defer** | Fits A2 MC later; not this sprint |
-| Proprietary child ASR | **Low** | **Defer** | Keep Bailian/Whisper + dialect path |
-| Full-duplex voice | **Low** | **Defer (B2b)** | After barge-in hardening |
-| Animated tutor mascot | **Med** | **Reject for now** | Noise vs Physical Tutor Test |
-| Duolingo streaks / leaderboards | — | **Reject** | Explicit non-goal |
-| Interactive Desmos / dynamic board | **Med** | **P1–P2 backlog** | CA-8 / CA-9 |
-| Rule-engine scaffolding (vs ad-hoc prompt) | **Med** | **Backlog** | pedagogy-loop exists; full rule engine later |
-| Parent digest narrative polish | **Med** | **P2 backlog** | D2 / R6 exist; IA polish separate |
-| Automatic error book UI | **Med** | **Absorb via A2/A3** | Chat-first, not new app |
+| Phased wait status | **High** | **Done (UX-RPT.1)** | `tutor-wait-status.ts` |
+| “Taking longer…” | **High** | **Done (UX-RPT.1)** | Timed phases |
+| 豆包-style step confirm / Next | **High** | **Done (R3)** | `~~~step` + StepReveal |
+| Per-step follow-up chips | **High** | **Done (UX-RPT.2)** | Got it / Simpler |
+| Soft persona + step discipline | **High** | **Done (UX-RPT.3)** | Prompt-only |
+| Local recall fast-path (arithmetic) | **Med** | **Slice A (UX-RPT.7)** | Narrow whitelist only |
+| Stream Markdown audit | **High** | **Slice A (UX-RPT.7)** | Document gaps; no rewrite |
+| Whisper hot-load 180s | **Low–Med** | **Defer** | Cloud STT is primary |
+| Core Idea layered reply | **Med–High** | **Slice C (UX-RPT.9)** | Prompt + optional answer fold |
+| Voice status UI (timer / level) | **Med–High** | **Slice B (UX-RPT.8)** | No full-duplex |
+| Opener Continue / Something else | **High** | **Slice C (UX-RPT.9)** | Harden existing chips |
+| Named mascot chrome | **Med** | **Reject** | Soft persona only |
+| Win/struggle emotion rhythm | **Med** | **Slice D (UX-RPT.10)** | Prompt + light counters |
+| Kid daily blurb card | **Med** | **Slice D (UX-RPT.10)** | Reuse digest; dismissible |
+| Kid privacy copy | **High** | **Slice D (UX-RPT.10)** | `/privacy` |
+| Error guide templates | **High** | **Slice D (UX-RPT.10)** | Static + prompt |
+| Dual-agent / sub-1s Ello | **Low** | **Defer P3+** | Cursor SDK + 4GB host |
+| Predictive branches | **Low–Med** | **Defer** | Later A2 MC |
+| Child ASR fine-tune | **Low** | **Defer** | Bailian / dialect path |
+| Full-duplex voice | **Low** | **Defer (B2b)** | After barge-in |
+| Animated tutor | **Med** | **Reject** | Physical Tutor Test |
+| Streaks / leaderboards | — | **Reject** | Non-goal |
+| Desmos / dynamic board | **Med** | **Backlog CA-9** | Geometry milestone |
+| Rule-engine scaffolding | **Med** | **Backlog** | `pedagogy-loop` partial |
+| Dedicated `/mistakes` app | **Med** | **Reject route** | Chat + `/family` patterns |
+| Parent mega console | — | **Reject** | Keep `/family` only |
 
 ---
 
-## 3. Approach (this slice)
+## 4. Shipped slice (UX-RPT.1–3)
 
-### UX-RPT.1 — Wait-phase status (latency *perception*)
+### UX-RPT.1 — Wait-phase status
 
-We cannot cut Cursor agent TTFB to Ello’s &lt;1s on current stack. We **can** match 豆包’s honesty: tell the child *what stage* we are in.
+Client-owned phases (no fake progress bars). Tool/SSE labels win over timed phases.
 
-**Client-owned phases** (do not invent fake tool progress):
-
-| Condition | Phase sequence (advance by wall clock until tool/delta status) |
-|-----------|------------------------------------------------------------------|
+| Condition | Phase sequence |
+|-----------|----------------|
 | Has photo/file | Looking at your photo… → Figuring it out… → Taking a bit longer… → Still working — hang tight… |
 | Text only | Thinking… → Working on it… → Taking a bit longer… → Still working — hang tight… |
 
-**Server** still emits real tool labels (`Drawing a diagram…`, `Searching the web…`). Client prefers **tool status** over timed phase when both exist. Clear status on first delta / done / error.
-
-**Anti-pattern:** Fake determinate progress bars (Mavik Labs 2026 — breaks trust).
-
 ### UX-RPT.2 — Step follow-up chips
 
-After a `~~~step` row is revealed, show two ≥44px chips:
+After a revealed `~~~step`: **Got it** / **Simpler** → `spark:quick-reply` → Composer draft (never auto-send).
 
-- **Got it** → fills composer with a short affirm (language-neutral English chrome; message can be “Got it — what’s next?”)
-- **Simpler** → “Can you explain that step more simply?”
+### UX-RPT.3 — Prompt persona + step discipline
 
-Chips dispatch `spark:quick-reply` CustomEvent; Composer listens and sets draft text (does not auto-send — child decides).
-
-### UX-RPT.3 — Prompt: persona + step discipline
-
-- One short **persona** line: calm, warm coach (9–12yo), encourage → challenge rhythm; not a cartoon mascot.  
-- Reinforce: multi-step worked reasoning → `~~~step`; after each revealed step the UI offers chips — agent should still end with one question when not using fences.
+Calm coach for 9–12yo; multi-step reasoning → `~~~step`.
 
 ---
 
-## 4. Key files
+## 5. Next slices (A–D)
+
+### Slice A — Latency perception finish (UX-RPT.7)
+
+1. **Stream audit** — confirm photo/text paths paint first token via existing delta filter; note gaps in TODO only.  
+2. **`local-recall.ts`** — whitelist simple two-operand arithmetic; instant user+assistant bubbles in `TutorShell.handleSend`; else Agent.  
+3. Manual UX-RPT.6 remains for photo wait + chips.
+
+### Slice B — Voice status UX (UX-RPT.8)
+
+1. Mic: recording timer + simple level pulse (RMS from recorder if available).  
+2. Transcript already editable in Composer — keep visible.  
+3. TTS: keep Listen button highlight (`speakingMessageId`); no karaoke text.
+
+### Slice C — Layered reply IA (UX-RPT.9)
+
+1. Prompt: Core idea ≤120 chars, then `~~~step`; no early final answer dump.  
+2. UI: optional **Show answer** fold for `~~~answer` fences (default hidden).  
+3. Opener chips: **Continue** / **Something else** wording on empty-state card.
+
+### Slice D — Emotion + docs (UX-RPT.10)
+
+1. Struggle/win short encouragement via prompt + turn outcome.  
+2. Dismissible kid daily blurb from `buildParentDailyDigest` / idle line.  
+3. Kid-friendly `/privacy` copy.  
+4. Static error-guide templates for soft fails.
+
+### Explicit non-goals (prototype)
+
+Streaks, multi-tab learning hub, dedicated mistakes route, parent mega-admin, paywall, forced login, mascot avatar, Ello dual-agent, child ASR fine-tune, full-duplex voice.
+
+---
+
+## 6. Key files
 
 | File | Role |
 |------|------|
-| `src/lib/tutor-wait-status.ts` | Phase labels + timing helpers |
-| `src/components/TutorShell.tsx` | Start phase timer on send; merge with SSE status |
-| `src/components/MarkdownMessage.tsx` | StepReveal chips + event |
-| `src/components/Composer.tsx` | Listen `spark:quick-reply` → draft |
-| `src/lib/prompts.ts` | Persona + step reinforcement |
-| `src/lib/tutor-wait-status.test.ts` | Unit tests |
+| `src/lib/tutor-wait-status.ts` | Wait phases |
+| `src/lib/local-recall.ts` | Narrow arithmetic fast-path |
+| `src/lib/emotion-rhythm.ts` | Win/struggle copy helpers |
+| `src/lib/error-guides.ts` | Soft error templates |
+| `src/components/TutorShell.tsx` | Send / wait / local-recall / daily blurb |
+| `src/components/VoiceControls.tsx` | Mic timer + level |
+| `src/components/MarkdownMessage.tsx` | Step chips + answer fold |
+| `src/components/ChatThread.tsx` | Opener Continue chips |
+| `src/lib/prompts.ts` | Persona, core idea, emotion |
+| `src/app/privacy/page.tsx` | Kid + parent privacy copy |
 
 ---
 
-## 5. Risks
+## 7. Risks
 
 | Risk | Mitigation |
 |------|------------|
-| Status flicker (phase vs tool) | Prefer tool/SSE label; only advance phases when status still looks “thinking/working” |
-| Quick-reply auto-send | Never auto-send; fill draft only |
-| Prompt bloat | ≤6 new lines in prompts.ts |
-| Child ignores chips | Optional; Next already works |
+| Status flicker | Prefer tool/SSE; only advance generic wait labels |
+| Local recall wrong answer | Tiny whitelist + unit tests |
+| Persona → cartoon chrome | Prompt only; no nameplate |
+| Daily blurb vs Family | Reuse digest; dismissible; no new dashboard |
+| Quick-reply auto-send | Draft only |
 
 ---
 
-## 6. Test design
+## 8. Success metrics (pragmatic)
 
-### Unit
-- `nextWaitPhase` / `initialWaitStatus` transitions and photo vs text labels  
-- Phase index clamps; “taking longer” appears after configured ms  
+| Metric | Target |
+|--------|--------|
+| Long waits understandable | Phased copy (shipped) |
+| Step chips | Click fills draft |
+| Voice path | Timer + editable transcript + Listen highlight |
+| Real TTFB | **No** full-stack 3–5s promise; local recall only for whitelist |
 
-### Integration / component (light)
-- StepReveal fires `spark:quick-reply` detail on chip click (jsdom)  
+### Stream audit (UX-RPT.7)
 
-### Manual
-- [ ] Photo homework: status shows “Looking at your photo…” then updates / tool labels  
-- [ ] Wait &gt;12s without tokens: “Taking a bit longer…”  
-- [ ] Multi-step `~~~step`: Next → Got it / Simpler fills composer  
-- [ ] Physical Tutor Test: no new chrome in empty chat beyond status line  
+Existing path paints first token: `filterTutorDelta` → SSE `delta` → `TutorShell` rAF-batched `onDelta` → ChatThread streaming caret. Tool/SSE `status` preferred over timed wait phases. No rewrite — gaps only if a future path skips `consumeChatStream`.
 
----
+### Manual checklist
 
-## 7. Out of scope (this slice)
-
-Ello dual-agent, child ASR fine-tune, full-duplex, mascot avatar, streaks, Desmos embed, rule-engine rewrite, parent dashboard redesign.
+- Photo wait phases; step chips fill composer (UX-RPT.6)
+- `7×8` local recall; mic timer; Show answer; daily blurb; `/privacy` kid section (UX-RPT.11)
 
 ---
 
-*Feasibility accepted 2026-08-11 — implement UX-RPT.1–3 then backlog remainder via competitive CA IDs.*
+## 9. Out of scope (still)
+
+Ello dual-agent, child ASR fine-tune, full-duplex, mascot, streaks, Desmos embed, full rule-engine rewrite, parent mega-dashboard.
+
+---
+
+*Feasibility accepted 2026-08-11 · calibrated Slice A–D 2026-08-11.*

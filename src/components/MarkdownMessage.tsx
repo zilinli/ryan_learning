@@ -46,6 +46,46 @@ export function isStepLanguage(lang: string): boolean {
   return lang === "step" || lang === "steps";
 }
 
+export function isAnswerLanguage(lang: string): boolean {
+  return lang === "answer" || lang === "final";
+}
+
+function AnswerFold({
+  body,
+  variant,
+}: {
+  body: string;
+  variant: "assistant" | "user";
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className={`my-2 rounded-xl border p-3 ${
+        variant === "user"
+          ? "border-[var(--surface)] bg-[var(--surface-muted)]"
+          : "border-[var(--line)] bg-[var(--mist)]"
+      }`}
+    >
+      {!open ? (
+        <button
+          type="button"
+          className="min-h-11 w-full rounded-xl border border-[var(--teal)]/40 bg-[var(--surface)] px-3 text-[13px] font-semibold text-[var(--teal)]"
+          onClick={() => setOpen(true)}
+        >
+          Show answer
+        </button>
+      ) : (
+        <div className="text-[14px] leading-6 text-[var(--ink)] whitespace-pre-wrap">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Answer
+          </p>
+          {body}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function parseSteps(body: string): { label: string; content: string }[] {
   const lines = body.split("\n");
   const steps: { label: string; content: string }[] = [];
@@ -284,6 +324,9 @@ export const MarkdownMessage = memo(function MarkdownMessage({
       const text = nodeText(children).replace(/\n$/, "");
       if (isStepLanguage(lang)) {
         return <StepReveal steps={parseSteps(text)} variant="assistant" />;
+      }
+      if (isAnswerLanguage(lang)) {
+        return <AnswerFold body={text} variant={user ? "user" : "assistant"} />;
       }
       if (isDiagramLanguage(lang) || looksLikeSvg(text)) {
         return (
