@@ -12,6 +12,9 @@ import { SnakeGame } from "./SnakeGame";
 import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
+import { TedLab } from "./TedLab";
+import { LyricStudio } from "./LyricStudio";
+import { CreationsLibrary } from "./CreationsLibrary";
 
 interface GameInfo {
   id: GameId;
@@ -34,6 +37,30 @@ const GAMES: GameInfo[] = [
   { id: "klotski", title: "Klotski", desc: "华容道 — free Cao Cao", icon: "曹", category: "Logic Puzzles" },
 ];
 
+const STUDIO: GameInfo[] = [
+  {
+    id: "ted-lab",
+    title: "TED Lab",
+    desc: "Watch a talk. Then argue with it.",
+    icon: "🎬",
+    category: "Studio",
+  },
+  {
+    id: "lyric-studio",
+    title: "Lyric Studio",
+    desc: "Write. Polish. Hear it sung.",
+    icon: "♪",
+    category: "Studio",
+  },
+  {
+    id: "creations",
+    title: "My Creations",
+    desc: "Songs & TED challenges you kept.",
+    icon: "◆",
+    category: "Studio",
+  },
+];
+
 const TITLES: Record<GameId, string> = {
   chess: "Chess",
   xiangqi: "Chinese Chess · 象棋",
@@ -45,6 +72,9 @@ const TITLES: Record<GameId, string> = {
   sudoku: "Sudoku",
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
+  "ted-lab": "TED Lab",
+  "lyric-studio": "Lyric Studio",
+  creations: "My Creations",
 };
 
 export function EntertainPage() {
@@ -65,6 +95,9 @@ export function EntertainPage() {
         {activeGame === "sudoku" && <SudokuGame />}
         {activeGame === "sokoban" && <SokobanGame />}
         {activeGame === "klotski" && <KlotskiGame />}
+        {activeGame === "ted-lab" && <TedLab />}
+        {activeGame === "lyric-studio" && <LyricStudio />}
+        {activeGame === "creations" && <CreationsLibrary />}
       </div>
     );
   }
@@ -80,12 +113,30 @@ export function EntertainPage() {
           Entertainments
         </h1>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
-          Board games, arcade, and puzzles — local AI, no waiting
+          Studio listening & songwriting · board games · arcade · puzzles
         </p>
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-8">
+          <section>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+              Studio
+            </h2>
+            <p className="mb-4 text-xs text-[var(--ink-muted)]">
+              Cinema seminar and notebook → stage — different from the chess grid.
+            </p>
+            <div className="grid grid-cols-1 gap-4">
+              {STUDIO.map((game) => (
+                <StudioCard
+                  key={game.id}
+                  game={game}
+                  onSelect={() => setActiveGame(game.id)}
+                />
+              ))}
+            </div>
+          </section>
+
           <section>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
               Board Games
@@ -139,6 +190,39 @@ function TopBar({ title, onBack }: { title: string; onBack: () => void }) {
       </button>
       <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
     </header>
+  );
+}
+
+function StudioCard({ game, onSelect }: { game: GameInfo; onSelect: () => void }) {
+  const thumb =
+    game.id === "ted-lab"
+      ? "linear-gradient(135deg, #141210 0%, #2a3d38 55%, #4f7356 100%)"
+      : game.id === "lyric-studio"
+        ? "linear-gradient(135deg, #f3efe6 0%, #c4a484 45%, #1a2228 100%)"
+        : "linear-gradient(135deg, #3d2b1f 0%, #a85f42 50%, #4f7356 100%)";
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group relative overflow-hidden rounded-2xl border border-[var(--line)] text-left transition hover:border-[var(--teal)]/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+    >
+      <div
+        className="h-28 w-full transition group-hover:scale-[1.02]"
+        style={{ background: thumb }}
+        aria-hidden
+      />
+      <div className="bg-[var(--surface)] px-5 py-4">
+        <div className="flex items-center gap-2">
+          <span className="text-lg" aria-hidden>
+            {game.icon}
+          </span>
+          <span className="text-base font-semibold text-[var(--ink)]">
+            {game.title}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">{game.desc}</p>
+      </div>
+    </button>
   );
 }
 

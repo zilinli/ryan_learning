@@ -55,18 +55,20 @@ export async function GET(req: Request, ctx: Ctx) {
 
   const url = new URL(req.url);
   const forceDownload = url.searchParams.get("download") === "1";
-  const isImage = (hit.mimeType || "").startsWith("image/");
-  // Inline <img> does not need Content-Disposition. Skipping it avoids
-  // ByteString crashes on Chinese homework filenames (history imgs 500).
+  const mime = hit.mimeType || "application/octet-stream";
+  const isImage = mime.startsWith("image/");
+  const isAudio = mime.startsWith("audio/");
+  // Inline <img>/<audio> skip Content-Disposition (ByteString crashes on
+  // Chinese names; attachment also breaks <audio> playback).
   const headers: Record<string, string> = {
-    "Content-Type": hit.mimeType || "application/octet-stream",
+    "Content-Type": mime,
     "Cache-Control": "private, max-age=86400",
     "Content-Length": String(hit.buf.length),
   };
-  if (forceDownload || !isImage) {
+  if (forceDownload || (!isImage && !isAudio)) {
     headers["Content-Disposition"] = buildContentDisposition(
       hit.name,
-      hit.mimeType,
+      mime,
       { download: forceDownload, inlineImage: isImage },
     );
   }

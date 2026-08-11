@@ -102,6 +102,39 @@ export async function writeMediaFromDataUrl(
   return meta;
 }
 
+/** Persist raw bytes (e.g. Fun-Music mp3) under data/media. */
+export async function writeMediaBytes(
+  mediaId: string,
+  buf: Buffer,
+  mimeType: string,
+  refs: {
+    sessionId: string;
+    messageId: string;
+    attachmentId: string;
+    name?: string;
+    kind?: "image" | "file";
+    accountId?: string;
+  },
+): Promise<StoredMediaMeta | null> {
+  if (!buf?.length) return null;
+  await ensureMediaDir();
+  const id = safeSegment(mediaId, 80);
+  await fs.writeFile(binPath(id), buf);
+  const meta: StoredMediaMeta = {
+    mediaId: id,
+    mimeType: mimeType || "application/octet-stream",
+    sessionId: refs.sessionId,
+    messageId: refs.messageId,
+    attachmentId: refs.attachmentId,
+    bytes: buf.length,
+    ...(refs.name ? { name: refs.name.slice(0, 120) } : {}),
+    ...(refs.kind ? { kind: refs.kind } : {}),
+    ...(refs.accountId ? { accountId: refs.accountId } : {}),
+  };
+  await fs.writeFile(metaPath(id), JSON.stringify(meta), "utf8");
+  return meta;
+}
+
 export async function readMedia(
   mediaId: string,
 ): Promise<{ buf: Buffer; mimeType: string; name?: string; kind?: string } | null> {

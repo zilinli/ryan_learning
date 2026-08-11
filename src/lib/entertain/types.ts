@@ -8,9 +8,12 @@ export type GameId =
   | "snake"
   | "sudoku"
   | "sokoban"
-  | "klotski";
+  | "klotski"
+  | "ted-lab"
+  | "lyric-studio"
+  | "creations";
 
-export type GameCategory = "board" | "arcade" | "puzzle";
+export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 
 export interface GameMeta {
   id: GameId;

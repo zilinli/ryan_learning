@@ -20,6 +20,24 @@
 
 ---
 
+## 🎬 ENT-TED / ENT-LYRIC — Studio: TED Lab + Lyric Studio (2026-08-11)
+
+> **Design:** [subsystems/entertainments.md](subsystems/entertainments.md) §6  
+> **Goal:** `/entertain` Studio — official TED embed + transcript-driven advanced listening challenges; writing → structured lyrics → **Bailian Fun-Music** song → My Creations.
+
+- [x] **ENT-TED.1** — Curated `ted-catalog` + search/filter + paste TED URL
+- [x] **ENT-TED.2** — `TedLab` official iframe embed + attribution footer
+- [x] **ENT-TED.3** — `GET /api/ted/transcript` (cache) + `POST /api/ted/challenge` (fallback + LLM)
+- [x] **ENT-TED.4** — Challenge UI (one question at a time) + save to creations
+- [x] **ENT-LYRIC.1** — `LyricStudio` draft + coach + structure lyrics
+- [x] **ENT-LYRIC.2** — Creations store + `CreationsLibrary` list/delete
+- [x] **ENT-LYRIC.3** — `fun-music-client` (百炼) + Volc GenSong prepaid/postpaid fallback + generate API + media persist
+- [ ] **ENT-TED.5** — Manual: watch one talk → Start challenge within ~30s; answer + save
+- [ ] **ENT-LYRIC.4** — Manual: lyrics save; generate via Bailian or Volc GenSong → playable in My Creations
+- [ ] **ENT-LYRIC.5** — Apply fun-music-v1 invite in 百炼模型广场 (北京) if not already approved; ensure 火山 AI 音乐服务已开通
+
+---
+
 ## ✨ UX-RPT — Competitor UX report slice (2026-08-11)
 
 > **Design:** [subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)  
