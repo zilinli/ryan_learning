@@ -5,7 +5,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type CreationType = "ted_challenge" | "song";
+export type CreationType = "ted_challenge" | "song" | "image" | "video";
 
 export type CreationItem = {
   id: string;
@@ -21,6 +21,8 @@ export type CreationItem = {
   caption?: string;
   /** media-store id for audio blob */
   audioMediaId?: string;
+  /** media-store id for image/video blobs from Stage text2X */
+  mediaId?: string;
   /** Optional challenge summary */
   challengeScore?: string;
 };

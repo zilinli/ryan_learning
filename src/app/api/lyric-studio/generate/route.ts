@@ -1,7 +1,7 @@
 /**
  * POST /api/lyric-studio/generate
  * Body: { lyrics, caption|prompt, title?, accountId?, gender? }
- * Bailian Fun-Music → Volc GenSongV4 (prepaid) → GenSongForTime (postpaid).
+ * deAPI text2music → Bailian Fun-Music → Volc GenSong (prepaid/postpaid).
  */
 
 import { randomBytes } from "node:crypto";
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         ok: false,
         status: "unconfigured",
         error:
-          "未配置音乐服务。可设 ALIYUN_DASHSCOPE_API_KEY（百炼 Fun-Music）和/或 VOLC_ACCESS_KEY_ID + VOLC_SECRET_ACCESS_KEY（火山 GenSong）。歌词草稿仍可保存。",
+          "未配置音乐服务。请设 DEAPI_API_KEY（推荐），或百炼 Fun-Music / 火山 GenSong。歌词草稿仍可保存。",
       },
       { status: 503 },
     );

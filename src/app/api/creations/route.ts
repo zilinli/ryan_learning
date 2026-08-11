@@ -40,7 +40,12 @@ export async function POST(req: Request) {
   }
   const accountId = safeAccount(String(body.accountId || ""));
   const type = body.type as CreationType;
-  if (type !== "ted_challenge" && type !== "song") {
+  if (
+    type !== "ted_challenge" &&
+    type !== "song" &&
+    type !== "image" &&
+    type !== "video"
+  ) {
     return Response.json({ ok: false, error: "Invalid type" }, { status: 400 });
   }
   const title = String(body.title || "Untitled").slice(0, 160);
@@ -54,6 +59,7 @@ export async function POST(req: Request) {
     audioMediaId: body.audioMediaId
       ? String(body.audioMediaId).slice(0, 80)
       : undefined,
+    mediaId: body.mediaId ? String(body.mediaId).slice(0, 80) : undefined,
     challengeScore: body.challengeScore
       ? String(body.challengeScore).slice(0, 500)
       : undefined,

@@ -69,7 +69,7 @@ export function CreationsLibrary() {
           My Creations
         </h2>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
-          Songs and TED challenges you kept — private to this account.
+          Songs, images, videos, and TED challenges — private to this account.
         </p>
       </div>
 
@@ -80,7 +80,7 @@ export function CreationsLibrary() {
         {error && <p className="text-sm text-[var(--coral)]">{error}</p>}
         {!loading && items.length === 0 && (
           <p className="text-center text-sm text-[var(--ink-muted)]">
-            Nothing saved yet. Finish a TED challenge or Lyric Studio draft.
+            Nothing saved yet. Finish a TED challenge or Writing Studio draft.
           </p>
         )}
         <ul className="grid gap-4 sm:grid-cols-2">
@@ -92,7 +92,13 @@ export function CreationsLibrary() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-[var(--ink-muted)]">
-                    {item.type === "song" ? "Song" : "TED challenge"}
+                    {item.type === "song"
+                      ? "Song"
+                      : item.type === "image"
+                        ? "Image"
+                        : item.type === "video"
+                          ? "Video"
+                          : "TED challenge"}
                   </p>
                   <h3 className="mt-1 text-sm font-semibold text-[var(--ink)]">
                     {item.title}
@@ -140,6 +146,21 @@ export function CreationsLibrary() {
                     </pre>
                   )}
                 </>
+              )}
+              {item.type === "image" && item.mediaId && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/media/${item.mediaId}`}
+                  alt={item.title}
+                  className="mt-3 max-h-48 w-full rounded-lg object-cover"
+                />
+              )}
+              {item.type === "video" && item.mediaId && (
+                <video
+                  controls
+                  className="mt-3 w-full rounded-lg"
+                  src={`/api/media/${item.mediaId}`}
+                />
               )}
               {item.type === "ted_challenge" && item.challengeScore && (
                 <p className="mt-2 text-xs text-[var(--teal)]">

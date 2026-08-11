@@ -1,9 +1,15 @@
 /**
  * Lyric Studio music generation with provider fallback:
- *   1) Bailian Fun-Music (ALIYUN_DASHSCOPE_API_KEY)
- *   2) Volcengine GenSongV4 prepaid → GenSongForTime postpaid
+ *   1) deAPI.ai text2music (DEAPI_API_KEY) — preferred on overseas hosts
+ *   2) Bailian Fun-Music (ALIYUN_DASHSCOPE_API_KEY)
+ *   3) Volcengine GenSongV4 prepaid → GenSongForTime postpaid
  */
 
+import {
+  deapiGenerateMusic,
+  isDeapiConfigured,
+  type DeapiGenerateResult,
+} from "./deapi-client";
 import {
   funMusicGenerate,
   isFunMusicConfigured,
@@ -17,13 +23,14 @@ import {
 } from "./volc-gensong-client";
 
 export type MusicProviderId =
+  | "deapi"
   | "bailian-fun-music"
   | "volc-prepaid"
   | "volc-postpaid";
 
 export type MusicGenerateInput = {
   lyrics: string;
-  /** Style notes — used by Volc when helpful; Bailian ignores when lyrics set */
+  /** Style notes — used by deAPI/Volc; Bailian ignores when lyrics set */
   caption?: string;
   gender?: "male" | "female";
   durationSec?: number;
@@ -47,7 +54,31 @@ export type MusicGenerateResult = {
 };
 
 export function isMusicGenerateConfigured(): boolean {
-  return isFunMusicConfigured() || isVolcMusicConfigured();
+  return (
+    isDeapiConfigured() ||
+    isFunMusicConfigured() ||
+    isVolcMusicConfigured()
+  );
+}
+
+function fromDeapi(
+  r: DeapiGenerateResult,
+): Omit<MusicGenerateResult, "attempts"> {
+  return {
+    ok: r.ok,
+    status:
+      r.status === "done"
+        ? "done"
+        : r.status === "unconfigured"
+          ? "unconfigured"
+          : "error",
+    provider: "deapi",
+    audioUrl: r.resultUrl,
+    mimeType: r.mimeType || "audio/mpeg",
+    requestId: r.requestId,
+    error: r.error,
+    raw: r.raw,
+  };
 }
 
 function fromFun(
@@ -99,13 +130,35 @@ function fromVolc(
 }
 
 /**
- * Prefer Bailian; on failure / unconfigured / access denied → Volc prepaid then postpaid.
+ * Prefer deAPI (works from overseas); then Bailian; then Volc.
  */
 export async function generateSongWithFallback(
   input: MusicGenerateInput,
 ): Promise<MusicGenerateResult> {
   const attempts: string[] = [];
   const gender = input.gender === "male" ? "male" : "female";
+  const caption =
+    input.caption?.trim() ||
+    (gender === "male"
+      ? "warm male vocal pop ballad"
+      : "warm female vocal pop ballad");
+
+  if (isDeapiConfigured()) {
+    attempts.push("try:deapi");
+    const r = await deapiGenerateMusic({
+      lyrics: input.lyrics,
+      caption,
+      durationSec: input.durationSec,
+      vocalLanguage: undefined,
+    });
+    if (r.status === "done") {
+      attempts.push("ok:deapi");
+      return { ...fromDeapi(r), attempts };
+    }
+    attempts.push(`fail:deapi:${r.error || r.status}`);
+  } else {
+    attempts.push("skip:deapi:unconfigured");
+  }
 
   if (isFunMusicConfigured()) {
     attempts.push("try:bailian-fun-music");
@@ -149,7 +202,7 @@ export async function generateSongWithFallback(
     ok: false,
     status: "unconfigured",
     error:
-      "No music provider configured. Set ALIYUN_DASHSCOPE_API_KEY (Fun-Music) and/or VOLC_ACCESS_KEY_ID + VOLC_SECRET_ACCESS_KEY (GenSong).",
+      "No music provider configured. Set DEAPI_API_KEY (preferred), and/or ALIYUN_DASHSCOPE_API_KEY (Fun-Music), and/or VOLC_ACCESS_KEY_ID + VOLC_SECRET_ACCESS_KEY (GenSong).",
     attempts,
   };
 }

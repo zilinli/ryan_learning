@@ -1,7 +1,7 @@
 # Entertainments · Engine Design & Test Plan
 
-> Version 0.7 · 2026-08-11  
-> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski + **Studio** (TED Lab / Lyric Studio / My Creations)
+> Version 0.8 · 2026-08-11  
+> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski; **Studio · learning** (`?hub=studio`) — TED Lab / Writing Studio / My Creations
 
 ---
 
@@ -261,17 +261,19 @@ npm test -- src/lib/entertain
 
 ---
 
-## 6. Studio — TED Lab + Lyric Studio (v0.7)
+## 6. Studio — TED Lab + Writing Studio (v0.8)
 
 ### 6.1 Product shape
 
-Hub category **Studio** (alongside Board / Arcade / Logic):
+**Studio · learning** is a separate hub (`/entertain?hub=studio`), not nested under Entertainments games:
 
 | Card | Id | One-liner |
 |------|-----|-----------|
 | TED Lab | `ted-lab` | Watch a talk. Then argue with it. |
-| Lyric Studio | `lyric-studio` | Write. Polish. Hear it sung. |
-| My Creations | `creations` | Songs & TED challenges you kept. |
+| Writing Studio | `lyric-studio` | Write. Polish. Stage → song · image · video. |
+| My Creations | `creations` | Songs, images, videos & TED challenges. |
+
+Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
 ### 6.2 TED Lab
 
@@ -281,23 +283,23 @@ Hub category **Studio** (alongside Board / Arcade / Logic):
 - **Challenge:** `POST /api/ted/challenge` — advanced listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`.
 - **Pedagogy:** BASIS / international-school tone — claim–evidence–implication, steelman, retell; not babyish MC.
 
-### 6.3 Lyric Studio + Bailian Fun-Music + Volc GenSong fallback
+### 6.3 Writing Studio Stage + deAPI text2X
 
-- Writing pad → Coach (`POST /api/lyric-studio/coach`) → structure lyrics (`action: structure`) → optional song generate.
-- **Primary:** Bailian Fun-Music (`fun-music-v1`) via `ALIYUN_DASHSCOPE_API_KEY` (+ optional `ALIYUN_WORKSPACE_ID`). Invite-only（北京）.
-- **Fallback:** Volcengine AI Music OpenAPI ([生成人声歌曲](https://www.volcengine.com/docs/84992/2091679)):
-  - **预付费** `Action=GenSongV4`
-  - **后付费** `Action=GenSongForTime`
-  - Query: `Action=QuerySong` · Service `imagination` · Region `cn-beijing`
-  - Env: `VOLC_ACCESS_KEY_ID` + `VOLC_SECRET_ACCESS_KEY` (AccessKey，不是控制台 API Key); order via `VOLC_MUSIC_BILLING_ORDER=prepaid,postpaid`
-- **IP 白名单:** 若返回 `ServerIpLimit`，在火山控制台为 AI 音乐服务添加服务器公网 IP 后重试。
-- `POST /api/lyric-studio/generate` → `generateSongWithFallback` → persist mp3 → creations store.
-- Unconfigured (no Bailian and no Volc): UI still saves lyrics-only drafts; generate returns 503.
+- Writing pad → Coach (`POST /api/lyric-studio/coach`) → structure lyrics → Stage tabs: **Song / Image / Video**.
+- **Primary (overseas):** [deAPI.ai](https://docs.deapi.ai) via `DEAPI_API_KEY`:
+  - `POST /api/v2/audio/music` (txt2music)
+  - `POST /api/v2/images/generations` (txt2img)
+  - `POST /api/v2/videos/generations` (txt2video)
+  - Jobs polled at `GET /api/v2/jobs/{request_id}` (send a normal User-Agent; Cloudflare blocks bare script UAs).
+- **Unified route:** `POST /api/studio/generate` with `{ kind: "music"|"image"|"video", ... }`.
+- **Song fallback:** Bailian Fun-Music → Volc GenSong (prepaid/postpaid). Volc often returns `ServerIpLimit` on non-CN egress.
+- Legacy: `POST /api/lyric-studio/generate` still works for music-only.
+- Unconfigured: lyrics-only drafts still save; generate returns 503.
 
 ### 6.4 My Creations
 
 - Account JSON: `data/accounts/{id}/creations.json`
-- Types: `ted_challenge` | `song`; audio via `/api/media/{mediaId}`
+- Types: `ted_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
 - APIs: `GET/POST/DELETE /api/creations`
 
 ### 6.5 Explicit non-goals
@@ -307,11 +309,12 @@ Scrape/download TED video; local music inference on spark-tutor host; streaks/le
 ### 6.6 Studio self-verify
 
 ```bash
-# Unit + API route tests (no live LLM / no paid Fun-Music required)
-npm test -- src/lib/entertain src/lib/fun-music-client.test.ts src/lib/media-store.song.test.ts \
+# Unit tests (mocked providers)
+npm test -- src/lib/deapi-client.test.ts src/lib/music-generate.test.ts \
+  src/lib/entertain src/lib/fun-music-client.test.ts src/lib/media-store.song.test.ts \
   src/app/api/creations src/app/api/lyric-studio src/app/api/ted \
   'src/app/api/media/[mediaId]/route.audio.test.ts'
 
-# Live probe (uses ALIYUN_DASHSCOPE_API_KEY; Access denied until fun-music-v1 invite approved)
-npx tsx scripts/smoke-studio.ts
+# Live probe (needs DEAPI_API_KEY in .env.local)
+npx tsx scripts/smoke-deapi.ts
 ```

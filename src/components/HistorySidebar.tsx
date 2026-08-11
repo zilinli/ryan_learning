@@ -220,53 +220,49 @@ export function HistorySidebar({
       <SkillsPanel memory={learningMemory ?? null} />
 
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
-        <a
-          href="/family"
-          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-        >
-          Family controls
-        </a>
-        <a
-          href="/dashboard"
-          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-        >
-          Learning dashboard
-        </a>
+        {/* Row: Family + Learning */}
+        <div className="mb-2 grid grid-cols-2 gap-1.5">
+          <a
+            href="/family"
+            className="flex min-h-10 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Family controls"
+          >
+            <span className="truncate sm:hidden">Family</span>
+            <span className="hidden truncate sm:inline">Family controls</span>
+          </a>
+          <a
+            href="/dashboard"
+            className="flex min-h-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Learning dashboard"
+          >
+            <span className="truncate sm:hidden">Dashboard</span>
+            <span className="hidden truncate sm:inline">Learning dashboard</span>
+          </a>
+        </div>
         <a
           href="/dict"
           className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          title="Dictionary / Translation"
         >
-          Dictionary / Translation
+          <span className="truncate sm:hidden">Dict / Translate</span>
+          <span className="hidden truncate sm:inline">
+            Dictionary / Translation
+          </span>
         </a>
-        {onOpenCodeAgent ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              onOpenCodeAgent();
-              onClose();
-            }}
-            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+        {/* Row: Studio · learning + Entertainments */}
+        <div className="mb-2 grid grid-cols-2 gap-1.5">
+          <a
+            href="/entertain?hub=studio"
+            className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Studio · learning"
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              aria-hidden
-            >
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-            Code Agent
-          </button>
-        ) : null}
-        <a
+            <span className="truncate sm:hidden">Studio</span>
+            <span className="hidden truncate sm:inline">Studio · learning</span>
+          </a>
+          <a
             href="/entertain"
-            className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Entertainments"
           >
             <svg
               width="12"
@@ -275,6 +271,7 @@ export function HistorySidebar({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
+              className="shrink-0"
               aria-hidden
             >
               <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -282,9 +279,11 @@ export function HistorySidebar({
               <rect x="3" y="14" width="7" height="7" rx="1" />
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
-            Entertainments
+            <span className="truncate sm:hidden">Games</span>
+            <span className="hidden truncate sm:inline">Entertainments</span>
           </a>
-        <div className="mt-1 grid grid-cols-2 gap-1.5">
+        </div>
+        <div className="mb-2 grid grid-cols-2 gap-1.5">
           <a
             href={SPARK_GITHUB_URL}
             target="_blank"
@@ -320,6 +319,33 @@ export function HistorySidebar({
             <span className="truncate">{SPARK_FEEDBACK_LABEL}</span>
           </button>
         </div>
+        {/* Bottom row: Code Agent */}
+        {onOpenCodeAgent ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              onOpenCodeAgent();
+              onClose();
+            }}
+            className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            Code Agent
+          </button>
+        ) : null}
       </div>
     </aside>
   );

@@ -40,7 +40,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Entertainments** — board / arcade / logic games on `/entertain`, plus **Studio**: TED Lab, Lyric Studio, and My Creations. See [entertainments.md](docs/subsystems/entertainments.md).
+- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/entertain?hub=studio` (TED Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
 
 ### Dictionary / Translation (`/dict`)
 
@@ -61,25 +61,25 @@ Word lookup **and** AI sentence/photo translation in one page:
 
 Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.
 
-### Entertainments / Studio (`/entertain`)
+### Entertainments / Studio
 
-Hub categories: **Board · Arcade · Logic · Studio**. Studio is for advanced listening and creative writing:
+Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainments** on the next; **Code Agent** on the bottom row (mobile uses shorter labels).
 
-| Card | What it does |
-|------|----------------|
-| **TED Lab** | Curated TED catalog + paste `ted.com/talks/{slug}`; watch via official `embed.ted.com` iframe only; then a claim–evidence–critique challenge from a server-side transcript (cached under `data/ted-cache/`, not shown as a full transcript browser). |
-| **Lyric Studio** | Draft → Socratic coach → structured lyrics → optional song generation. |
-| **My Creations** | Per-account songs and saved TED challenges (`data/accounts/{id}/creations.json`); audio via `/api/media/{mediaId}`. |
+| Route | Content |
+|-------|---------|
+| `/entertain?hub=studio` | **Studio · learning** — TED Lab, Writing Studio, My Creations |
+| `/entertain` | **Entertainments** — board / arcade / logic games only |
 
-**Song generation** (no local GPU music inference):
+**Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`).
 
-1. **Primary** — Alibaba Bailian **Fun-Music** (`fun-music-v1`), reuses `ALIYUN_DASHSCOPE_API_KEY` (+ optional `ALIYUN_WORKSPACE_ID`). Model is invite-only in Bailian Model Studio.
-2. **Fallback** — Volcengine AI Music **GenSong** OpenAPI: prepaid `GenSongV4` then postpaid `GenSongForTime` (order via `VOLC_MUSIC_BILLING_ORDER`). Use AccessKey `VOLC_ACCESS_KEY_ID` / `VOLC_SECRET_ACCESS_KEY`. If the API returns `ServerIpLimit`, whitelist this host’s public IP in the Volc AI Music console.
+**Media generation** (no local GPU):
 
-Without Bailian or Volc credentials, Lyric Studio still saves lyrics-only drafts; generate returns 503.
+1. **Primary** — [deAPI.ai](https://docs.deapi.ai) (`DEAPI_API_KEY`): `txt2music` / `txt2img` / `txt2video`. Works from overseas hosts (Volc often returns `ServerIpLimit`).
+2. **Song fallback** — Alibaba Bailian **Fun-Music** (`ALIYUN_DASHSCOPE_API_KEY`), then Volcengine **GenSong** (`VOLC_ACCESS_KEY_ID` / `VOLC_SECRET_ACCESS_KEY`).
 
-Open from the sidebar **Entertainments**, or go to `/entertain`.
+Without credentials, lyrics-only drafts still save; generate returns 503.
 
+Open **Studio · learning** or **Entertainments** from the sidebar.
 ---
 
 ## Code Agent
@@ -245,10 +245,12 @@ See [`.env.local.example`](./.env.local.example):
 | `CURSOR_API_KEY` | yes | Cursor agent / models |
 | `CURSOR_MODEL` | no | Override model id (`auto` by default) |
 | `GOOGLE_API_KEY` / `GOOGLE_CSE_ID` | no | Extra web search via Google CSE |
-| `ALIYUN_DASHSCOPE_API_KEY` | no | DashScope / Bailian (TTS + Fun-Music primary for Lyric Studio) |
+| `DEAPI_API_KEY` | no | Stage text2X primary (music / image / video via deAPI.ai) |
+| `DEAPI_MUSIC_MODEL` / `DEAPI_IMAGE_MODEL` / `DEAPI_VIDEO_MODEL` | no | Override deAPI model slugs |
+| `ALIYUN_DASHSCOPE_API_KEY` | no | DashScope / Bailian (TTS + Fun-Music song fallback) |
 | `ALIYUN_WORKSPACE_ID` | no | Bailian workspace id when Fun-Music uses Workspace MaaS |
 | `FUN_MUSIC_MODEL` / `FUN_MUSIC_BASE_URL` | no | Override Fun-Music model / endpoint |
-| `VOLC_ACCESS_KEY_ID` / `VOLC_SECRET_ACCESS_KEY` | no | Volc GenSong fallback (AccessKey; optional `VOLC_API_KEY_*` aliases) |
+| `VOLC_ACCESS_KEY_ID` / `VOLC_SECRET_ACCESS_KEY` | no | Volc GenSong song fallback (AccessKey; optional `VOLC_API_KEY_*` aliases) |
 | `VOLC_MUSIC_BILLING_ORDER` | no | `prepaid,postpaid` (default) or reverse |
 | `SPARK_USE_SYSTEMD` | no | Use systemd service management (1=enabled, 0=direct) |
 
@@ -268,11 +270,12 @@ List models available to your key: `GET /api/models`.
 │   │       ├── tts/                # Text-to-speech
 │   │       ├── media/              # Photo vault / homework images / song audio
 │   │       ├── ted/                # TED transcript + challenge
-│   │       ├── lyric-studio/       # Coach + song generate
+│   │       ├── lyric-studio/       # Coach + legacy song generate
+│   │       ├── studio/             # Stage text2X (music / image / video via deAPI)
 │   │       ├── creations/          # Studio library CRUD
 │   │       └── history/            # Chat history
 │   ├── components/                 # TutorShell, EntertainPage, TedLab, LyricStudio, CodeAgentPanel, …
-│   └── lib/                        # prompts, entertain/*, fun-music, volc-gensong, media-store, …
+│   └── lib/                        # prompts, entertain/*, deapi-client, fun-music, volc-gensong, media-store, …
 ├── agent-chat/                     # Standalone Agent Chat Console (Next.js, port 3001)
 │   ├── public/index.html           # Vanilla JS SPA frontend
 │   └── src/
