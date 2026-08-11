@@ -17,6 +17,7 @@ import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { stripDataUrlPrefix } from "@/lib/attachments";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 import {
+  isNearVerbatimStructure,
   looksLikeLyricStructure,
   structureDraftLocal,
   type StudioStructureTarget,
@@ -99,10 +100,12 @@ function structureAgentPrompt(
     return [
       "Turn the student's writing into a TEXT-TO-IMAGE prompt.",
       "Return ONLY JSON: {\"body\":\"...\",\"caption\":\"...\",\"prompt\":\"...\"}",
+      "CREATIVELY ADAPT: extract subject, setting, mood, and concrete images — do NOT paste essay paragraphs.",
       "body = concise visual scene (subject, setting, mood). NO [Verse]/[Chorus] tags.",
       "caption = style notes (medium, lighting, composition).",
       "prompt = body + caption fused for an image model (Flux-ready).",
       "Never output song lyrics or karaoke structure.",
+      "Match the draft's language for any wording that must stay (names); scene prose may be English for the model.",
       `Genre vibe: ${genre}.`,
       "",
       "Draft:",
@@ -113,6 +116,7 @@ function structureAgentPrompt(
     return [
       "Turn the student's writing into a TEXT-TO-VIDEO prompt.",
       "Return ONLY JSON: {\"body\":\"...\",\"caption\":\"...\",\"prompt\":\"...\"}",
+      "CREATIVELY ADAPT: invent continuous action + camera move from the student's ideas — do NOT paste the essay.",
       "body = cinematic scene with continuous action + camera move. NO lyric section tags.",
       "caption = style / fps feel / lighting notes.",
       "prompt = body + caption fused for a video model.",
@@ -123,8 +127,10 @@ function structureAgentPrompt(
     ].join("\n");
   }
   return [
-    "You format student writing into song lyrics for music generation.",
-    "Never ghostwrite a wholly new song — reshape THEIR words.",
+    "You turn student writing into song lyrics for music generation.",
+    "CREATIVELY ADAPT the language: write singable lyric lines inspired by their themes, emotions, and images.",
+    "Do NOT copy paragraphs or paste the draft under [Verse]/[Chorus]. Transform into lyric diction (refrain, imagery, rhythm).",
+    "Keep the student's core meaning and key concrete nouns; match the draft language (EN/ZH/etc.).",
     'Return ONLY JSON: {"lyrics":"...","caption":"..."}',
     "lyrics must use [Verse] / [Chorus] / optional [Bridge] section tags.",
     `Genre/mood for caption: ${genre}. Caption = short English style prompt (instruments, tempo, mood).`,
@@ -413,7 +419,10 @@ export async function POST(req: Request) {
         };
         if (target === "music") {
           const lyrics = String(parsed.lyrics || parsed.body || "");
-          if (lyrics.includes("[")) {
+          if (
+            lyrics.includes("[") &&
+            !isNearVerbatimStructure(draft, lyrics)
+          ) {
             return Response.json({
               ok: true,
               target,
@@ -433,7 +442,8 @@ export async function POST(req: Request) {
           if (
             bodyText.length >= 12 &&
             !looksLikeLyricStructure(bodyText) &&
-            !looksLikeLyricStructure(prompt)
+            !looksLikeLyricStructure(prompt) &&
+            !isNearVerbatimStructure(draft, bodyText)
           ) {
             return Response.json({
               ok: true,

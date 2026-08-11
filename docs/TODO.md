@@ -21,6 +21,20 @@
 
 ---
 
+
+## 🎧 ENT-TED-INLINE — TED discuss stays on Lab + Writing structure adapt (2026-08-11)
+
+> **Design:** [subsystems/ted-challenge-inline-discuss.md](subsystems/ted-challenge-inline-discuss.md) · [subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)  
+> **Goal:** (1) Submit & discuss opens inline chat under the TED item — no homepage hop. (2) Writing Pad → music/image/video adapts language (lyrics/scene), does not copy draft verbatim.
+
+- [x] **ENT-INLINE.1** — `ted-discuss.ts` + `POST /api/ted/discuss` (opener/reply + local fallback)
+- [x] **ENT-INLINE.2** — `TedDiscussDialogue` + TedLab submit stays on page; Next advances qi
+- [x] **ENT-INLINE.3** — `studio-structure` + coach `structureAgentPrompt` creative adapt
+- [x] **ENT-INLINE.4** — Unit tests (TD* / SA*) + `run_tests`
+- [ ] **ENT-INLINE.5** — `apply_changes` → `publish_develop` → `deploy_live`
+
+---
+
 ## ✍️ WS-PAD-P0 — Writing Pad: grammar + Feedback/Stage layout (2026-08-12)
 
 > **Design:** [subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)  

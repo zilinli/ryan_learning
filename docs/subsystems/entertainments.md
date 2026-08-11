@@ -285,7 +285,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files. Paste `ted.com/talks/{slug}` URL also works.
 - **Transcript:** `GET /api/ted/transcript?slug=` — server fetch + `data/ted-cache/`; used for challenge generation only (no transcript browser UI).
 - **Challenge:** `POST /api/ted/challenge` — listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`. Body may include `learner: { age, grade, gradeBand, englishLevel }` so difficulty matches the active profile at **grade-number grain** (G4 baseline; see [ted-challenge-adaptive-difficulty.md](./ted-challenge-adaptive-difficulty.md)).
-- **Hybrid MCQ + essay → tutor Q&A:** Every item has ~4 options + required essay. Selection optional (multi OK; “none of these” allowed). **Submit & discuss** handoffs to homepage tutor for Socratic follow-up; student can Next or keep chatting — see [ted-challenge-hybrid-mcq.md](./ted-challenge-hybrid-mcq.md).
+- **Hybrid MCQ + essay → inline discuss:** Every item has ~4 options + required essay. Selection optional (multi OK; “none of these” allowed). **Submit & discuss** opens Socratic chat **under the item** (prompt/choices/essay stay visible) — see [ted-challenge-inline-discuss.md](./ted-challenge-inline-discuss.md) · [ted-challenge-hybrid-mcq.md](./ted-challenge-hybrid-mcq.md).
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
 - **Pedagogy:** Defaults from **numeric grade** (G1–G12) + optional English level + age nudge. UI shows the resolved label (e.g. **G10 · advanced**). G4 is only the fallback when grade is unknown. G3 softer; G5 same developing band but harder cue; G9–G12 advanced with grade grain inside the band.
 
@@ -294,7 +294,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - Writing pad → Coach (`POST /api/writing-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
   - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions).
   - **Fix dialogue** (`WritingFixDialogue`): after Coach, a left-side chat walks issues by severity; student replies → **Apply to pad** rewrites the highlighted span in the Writing Pad. Marks via `WritingPadHighlights`.
-  - `target: music` (default) → `[Verse]` / `[Chorus]` lyrics + style caption
+  - `target: music` (default) → adapted `[Verse]` / `[Chorus]` lyrics (not draft paste) + style caption — see [writing-studio-structure-adapt.md](./writing-studio-structure-adapt.md)
   - `target: image|video` → visual / cinematic prompts (never lyric section tags)
   - Generate rejects lyric-shaped prompts for image/video (`assertVisualPromptOk`)
 - Local fallback: `src/lib/entertain/studio-structure.ts` + `basis-writing.ts`

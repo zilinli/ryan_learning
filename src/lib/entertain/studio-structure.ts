@@ -1,6 +1,6 @@
 /**
  * Modality-aware draft → Stage structure for Writing Studio.
- * Music → [Verse]/[Chorus] lyrics + style caption.
+ * Music → adapted [Verse]/[Chorus] lyrics + style caption (not a verbatim paste).
  * Image / video → visual / cinematic prompts (never lyric section tags).
  */
 
@@ -37,18 +37,81 @@ function joinSentences(parts: string[], max = 600): string {
   return s.length <= max ? s : `${s.slice(0, max - 1).trim()}…`;
 }
 
-/** Local music structure (same spirit as coach route fallback). */
+function hasCjk(text: string): boolean {
+  return /[\u3400-\u9fff]/.test(text);
+}
+
+/** Pull short content words for local adaptation (not full-sentence paste). */
+export function extractDraftMotifs(draft: string): string[] {
+  const lines = cleanLines(draft);
+  const bag: string[] = [];
+  for (const line of lines) {
+    if (hasCjk(line)) {
+      const chunks = line
+        .replace(/[，。！？、；：""''（）\s]+/g, " ")
+        .split(/\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 2);
+      bag.push(...chunks.slice(0, 4));
+    } else {
+      const words = line
+        .toLowerCase()
+        .replace(/[^a-z0-9\s'-]/g, " ")
+        .split(/\s+/)
+        .filter(
+          (w) =>
+            w.length > 2 &&
+            !["the", "and", "for", "that", "with", "this", "from", "have", "was", "are", "were", "but"].includes(
+              w,
+            ),
+        );
+      bag.push(...words.slice(0, 5));
+    }
+  }
+  return [...new Set(bag)].slice(0, 12);
+}
+
+function lyricLineFromMotifs(
+  motifs: string[],
+  fallback: string,
+  cjk: boolean,
+  kind: "verse" | "chorus",
+): string {
+  const a = motifs[0] || (cjk ? "今天" : "today");
+  const b = motifs[1] || (cjk ? "光" : "light");
+  const c = motifs[2] || (cjk ? "心" : "heart");
+  const d = motifs[3] || (cjk ? "路" : "road");
+  if (cjk) {
+    if (kind === "chorus") {
+      return `${b}还在，${c}还在\n我把${a}唱成歌`;
+    }
+    return `${a}轻轻落下\n${b}里藏着${c}\n${d}向前，不回头`;
+  }
+  if (kind === "chorus") {
+    return `Hold the ${b}, hold the ${c}\nSing ${a} one more time`;
+  }
+  return `In the ${b} of ${a}\nI trace a quieter ${d}\n${c} learns a softer name`;
+  // fallback unused when motifs exist; keep for empty drafts
+  void fallback;
+}
+
+/** Local music structure — adapt ideas into singable lines (not paste). */
 export function structureMusicLocal(
   draft: string,
   genre: string,
 ): StudioStructureResult {
-  const lines = cleanLines(draft);
-  const half = Math.max(2, Math.ceil(lines.length / 2));
-  const v1 = lines.slice(0, half).join("\n") || "Something I noticed today…";
-  const chorus =
-    lines.slice(half, half + 2).join("\n") || "Hold the feeling — say it twice.";
-  const v2 =
-    lines.slice(half + 2).join("\n") || "Then the world shifted slightly…";
+  const raw = draft.trim();
+  const motifs = extractDraftMotifs(raw);
+  const cjk = hasCjk(raw);
+  const v1 = lyricLineFromMotifs(motifs, "a quiet morning", cjk, "verse");
+  const chorus = lyricLineFromMotifs(
+    motifs.slice(1),
+    "hold the feeling",
+    cjk,
+    "chorus",
+  );
+  const v2Motifs = motifs.length > 3 ? motifs.slice(2) : motifs;
+  const v2 = lyricLineFromMotifs(v2Motifs, "the day turns", cjk, "verse");
   const body = `[Verse]\n${v1}\n\n[Chorus]\n${chorus}\n\n[Verse]\n${v2}\n\n[Chorus]\n${chorus}`;
   const caption = `${genre} mood, clear vocal, mid tempo, sincere storytelling, studio demo`;
   return {
@@ -62,18 +125,21 @@ export function structureMusicLocal(
 
 /**
  * Image prompt: subject + setting + mood + medium/lighting.
- * Never emit [Verse]/[Chorus].
+ * Never emit [Verse]/[Chorus]. Adapt — don't paste essay prose.
  */
 export function structureImageLocal(
   draft: string,
   genre: string,
 ): StudioStructureResult {
   const lines = cleanLines(draft);
-  const subject =
-    lines[0] || "a thoughtful student at a sunlit desk with an open notebook";
-  const detail =
-    lines.slice(1, 4).join("; ") ||
-    "quiet focus, soft natural light, lived-in study space";
+  const motifs = extractDraftMotifs(draft);
+  const cjk = hasCjk(draft);
+  const subject = cjk
+    ? `一个沉静的场景，围绕「${motifs[0] || "书桌"}」与「${motifs[1] || "光"}」`
+    : `a contemplative scene built around ${motifs[0] || "a sunlit desk"} and ${motifs[1] || "soft light"}`;
+  const detail = cjk
+    ? `氛围来自写作意象：${motifs.slice(0, 5).join("、") || "安静、专注"}；不要出现大段原文`
+    : `mood drawn from motifs: ${motifs.slice(0, 6).join(", ") || "quiet focus"}; no pasted essay text`;
   const moodMap: Record<string, string> = {
     Indie: "intimate indie still, warm muted palette",
     Orchestral: "cinematic grandeur, rich contrast, film-still mood",
@@ -82,6 +148,8 @@ export function structureImageLocal(
   };
   const style =
     moodMap[genre] || "clean editorial illustration, soft depth of field";
+  // Prefer adapted subject over raw first line paste
+  void lines;
   const body = joinSentences([
     subject.replace(/\.$/, ""),
     detail,
@@ -101,18 +169,20 @@ export function structureImageLocal(
 
 /**
  * Video prompt: subject + action + camera move + lighting.
- * Never emit lyric section tags.
+ * Never emit lyric section tags. Adapt — don't paste essay prose.
  */
 export function structureVideoLocal(
   draft: string,
   genre: string,
 ): StudioStructureResult {
-  const lines = cleanLines(draft);
-  const subject =
-    lines[0] || "a quiet desk by a window with a notebook and pencil";
-  const action =
-    lines.slice(1, 3).join("; ") ||
-    "pages stir gently; dust motes drift in the light";
+  const motifs = extractDraftMotifs(draft);
+  const cjk = hasCjk(draft);
+  const subject = cjk
+    ? `镜头里，「${motifs[0] || "窗边"}」与「${motifs[1] || "笔记本"}」缓缓入画`
+    : `on screen, ${motifs[0] || "a quiet desk by a window"} and ${motifs[1] || "an open notebook"} ease into frame`;
+  const action = cjk
+    ? `动作来自意象 ${motifs.slice(2, 5).join("、") || "微风、尘埃"}：轻轻移动，连续不跳切`
+    : `action from motifs ${motifs.slice(2, 6).join(", ") || "pages stir, dust motes"}: continuous motion, no jump cuts`;
   const camMap: Record<string, string> = {
     Indie: "slow handheld push-in, intimate framing",
     Orchestral: "smooth crane rise revealing the room",
@@ -166,4 +236,20 @@ export function assertVisualPromptOk(prompt: string): string | null {
     return "Prompt still looks like song lyrics — restructure for Image/Video first";
   }
   return null;
+}
+
+/** True if structured body looks like a near-verbatim dump of the draft. */
+export function isNearVerbatimStructure(draft: string, body: string): boolean {
+  const d = draft.replace(LYRIC_TAG_GLOBAL_RE, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const b = body.replace(LYRIC_TAG_GLOBAL_RE, "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (d.length < 20 || b.length < 20) return false;
+  if (b.includes(d) || d.includes(b)) return true;
+  // High overlap of consecutive 8-char windows from draft appearing in body
+  let hits = 0;
+  let total = 0;
+  for (let i = 0; i + 8 <= d.length; i += 8) {
+    total += 1;
+    if (b.includes(d.slice(i, i + 8))) hits += 1;
+  }
+  return total > 0 && hits / total >= 0.7;
 }

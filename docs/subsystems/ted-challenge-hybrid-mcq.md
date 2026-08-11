@@ -1,8 +1,8 @@
 # TED Challenge · Hybrid MCQ + Essay → Tutor Q&A
 
 > **Subsystem document** — part of [Spark Design Docs](../DESIGN.md)  
-> Status: **active** · 2026-08-11 (v2 — optional MCQ + required essay → main tutor)  
-> Related: [entertainments.md](entertainments.md) §6.2 · [ted-challenge-adaptive-difficulty.md](ted-challenge-adaptive-difficulty.md) · [idle-nudge / practice kickoff](../TODO.md)
+> Status: **active** · 2026-08-11 (v3 — optional MCQ + required essay → **inline** Lab discuss)  
+> Related: [ted-challenge-inline-discuss.md](ted-challenge-inline-discuss.md) · [entertainments.md](entertainments.md) §6.2 · [ted-challenge-adaptive-difficulty.md](ted-challenge-adaptive-difficulty.md)
 
 ---
 
@@ -15,11 +15,11 @@ Product rules (parent clarified 2026-08-11):
 1. **MCQ + 论述 on one prompt** — student argues from their choice(s).
 2. **Selection optional** — if the viewpoint is not in A–D, skip selection and explain in the essay.
 3. **Multi-select OK** — when several options fit, select them and spell out the logic in the essay.
-4. **After Submit** → leave Studio and enter **homepage Q&A** so the AI teacher guides reflection.
-5. Student may **continue chatting** or take the **next TED question**.
+4. **After Submit** → stay on TED Lab; open an **inline discuss panel below** the frozen prompt/options/essay (do **not** jump to homepage).
+5. Student may **continue chatting** or take the **next TED question** in Lab.
 6. When the student’s logic is **self-consistent**, surface a **completion signal** suggesting the next question.
 
-Earlier hybrid UX (independent Check selection / Check essay → Next only after both) conflicts with (2) and (4).
+See [ted-challenge-inline-discuss.md](ted-challenge-inline-discuss.md). Homepage TutorShell kickoff is **legacy** only.
 
 ## Approach
 
@@ -46,11 +46,11 @@ flowchart TD
   MCQ --> None[None of these — explain in essay]
   None --> Essay
   Essay --> Submit[Submit & discuss]
-  Submit --> Handoff[sessionStorage kickoff + challenge resume]
-  Handoff --> Tutor["/ main tutor auto-send"]
-  Tutor --> Stay[Keep chatting]
-  Tutor --> Next[Next TED question → resume Lab]
-  Tutor --> DoneSignal[Coherence signal → suggest Next]
+  Submit --> Freeze[Keep prompt + choices + essay visible]
+  Freeze --> Panel[Inline TedDiscussDialogue]
+  Panel --> Stay[Keep chatting]
+  Panel --> Next[Next TED question in Lab]
+  Panel --> DoneSignal[Coherence signal → suggest Next]
 ```
 
 1. Options always **multi-capable**; copy: “Select any that apply (optional)”.
@@ -58,28 +58,24 @@ flowchart TD
 3. Selection taps update **`selected[]` only** — never wipe the essay.
 4. **Submit & discuss** requires essay ≥3 chars; selection **not** required.
 5. Soft local feedback is optional/brief; **primary feedback is tutor dialogue**.
-6. On submit: record learning turn + stash handoff → `window.location.href = "/"`.
+6. On submit: record learning turn → open inline discuss (no homepage navigation).
 
-### Handoff (sessionStorage)
+### Inline discuss (primary)
 
-| Key | Role |
-|-----|------|
-| `spark.tedChallengeKickoff.v1` | One-shot auto-send payload for TutorShell |
-| `spark.tedChallengeResume.v1` | Challenge snapshot + `qi` so “Next question” restores Lab |
-
-Kickoff message (user turn) includes talk title, prompt, selected letters (or “none — my own view”), essay, and Socratic instructions:
+Context payload (same fields as former kickoff) seeds `TedDiscussDialogue` + `POST /api/ted/discuss`.
 
 - Guide thinking; no spoilers / no “correct is B”.
 - When reasoning is **self-consistent**, say clearly that thinking holds together and suggest the next TED question.
-- Student may stay in chat or return to the Lab.
+- “Next question” advances `qi` in Lab; discuss panel resets.
 
-TutorShell:
+### Legacy handoff (sessionStorage)
 
-1. On ready empty/active chat: `consumeTedChallengeKickoff()` → prefer **new session** → `handleSend`.
-2. Keep a **return banner**: “Next TED question” | “Keep chatting” (dismiss).
-3. `detectTedCoherenceSignal(assistantText)` strengthens banner copy when the model emits the completion cue.
+Helpers remain for older TutorShell paths; Lab no longer redirects on submit.
 
-Resume URL: `/entertain?hub=studio&game=ted-lab` — TedLab consumes resume stash (talk + challenge + `qi`).
+| Key | Role |
+|-----|------|
+| `spark.tedChallengeKickoff.v1` | Legacy one-shot for TutorShell |
+| `spark.tedChallengeResume.v1` | Optional resume if a banner still navigates back |
 
 ### Soft score adjustments
 
@@ -91,9 +87,12 @@ Resume URL: `/entertain?hub=studio&game=ted-lab` — TedLab consumes resume stas
 | File | Role |
 |------|------|
 | `src/lib/entertain/ted-challenge.ts` | Types, enrich, soft feedback, fallbacks |
-| `src/lib/entertain/ted-challenge-handoff.ts` | Stash/consume kickoff + resume; kickoff message; coherence detect |
-| `src/components/TedLab.tsx` | Optional MCQ + required essay + Submit & discuss + resume |
-| `src/components/TutorShell.tsx` | Consume kickoff, auto-send, return banner |
+| `src/lib/entertain/ted-challenge-handoff.ts` | Kickoff message + coherence; legacy stash/consume |
+| `src/lib/entertain/ted-discuss.ts` | Inline discuss prompts + local fallback |
+| `src/components/TedDiscussDialogue.tsx` | Inline Socratic chat under the item |
+| `src/components/TedLab.tsx` | Optional MCQ + required essay + inline discuss |
+| `src/app/api/ted/discuss/route.ts` | Discuss agent API |
+| `src/components/TutorShell.tsx` | Legacy kickoff consume (if any) |
 | `src/lib/entertain/ted-challenge-handoff.test.ts` | Unit TH1–TH6 |
 
 ## Risks
@@ -124,10 +123,10 @@ Resume URL: `/entertain?hub=studio&game=ted-lab` — TedLab consumes resume stas
 
 | ID | Case |
 |----|------|
-| TM-H6 | Skip selection + essay → Submit lands on `/` and auto-starts tutor turn |
-| TM-H7 | Multi-select + essay → kickoff lists letters; tutor responds Socratically |
-| TM-H8 | Banner “Next TED question” restores Lab at `qi+1` |
-| TM-H9 | When tutor signals coherence, banner copy suggests Next |
+| TM-H6 | Skip selection + essay → Submit stays on Lab; discuss panel opens below |
+| TM-H7 | Multi-select + essay → discuss context lists letters; tutor responds Socratically |
+| TM-H8 | “Next TED question” in panel advances Lab to `qi+1` |
+| TM-H9 | When tutor signals coherence, panel CTA suggests Next |
 
 ```bash
 npm test -- src/lib/entertain/ted-challenge.test.ts src/lib/entertain/ted-challenge-handoff.test.ts

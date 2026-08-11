@@ -25,9 +25,9 @@ import {
   canSubmitHybrid,
   consumeTedChallengeResume,
   prepareTedChallengeHandoff,
-  stashTedChallengeKickoff,
-  stashTedChallengeResume,
+  type TedChallengeKickoff,
 } from "@/lib/entertain/ted-challenge-handoff";
+import { TedDiscussDialogue } from "./TedDiscussDialogue";
 import {
   recordStudioLearningTurn,
 } from "@/lib/entertain/studio-learning";
@@ -84,6 +84,8 @@ export function TedLab() {
   const [selected, setSelected] = useState<number[]>([]);
   const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
   const [submittingDiscuss, setSubmittingDiscuss] = useState(false);
+  const [discussKickoff, setDiscussKickoff] = useState<TedChallengeKickoff | null>(null);
+  const [discussSessionKey, setDiscussSessionKey] = useState(0);
   const resumeConsumedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -429,9 +431,9 @@ export function TedLab() {
     }
   }, [talk, age, grade, gradeBand, englishLevel]);
 
-  /** Optional MCQ + required essay → homepage tutor Q&A. */
+  /** Optional MCQ + required essay → inline discuss panel (stay on Lab). */
   const submitAndDiscuss = useCallback(() => {
-    if (!challenge || !talk || submittingDiscuss) return;
+    if (!challenge || !talk || submittingDiscuss || discussKickoff) return;
     const item = challenge.items[qi];
     if (!item) return;
     const essay = answer.trim();
@@ -447,7 +449,7 @@ export function TedLab() {
       [item.id]: { selected: [...selected], essay },
     };
     setAnswers(nextAnswers);
-    const { kickoff, resume } = prepareTedChallengeHandoff({
+    const { kickoff } = prepareTedChallengeHandoff({
       talkSlug: talk.slug,
       talkTitle: talk.title,
       speaker: talk.speaker,
@@ -459,8 +461,6 @@ export function TedLab() {
       answers: nextAnswers,
       accountId,
     });
-    stashTedChallengeKickoff(kickoff);
-    stashTedChallengeResume(resume);
     const choiceNote =
       selected.length > 0
         ? selected.map(choiceLetter).join(", ")
@@ -470,22 +470,44 @@ export function TedLab() {
       source: "ted",
       title: talk.title,
       userText: `Prompt (${item.kind}): ${item.prompt}\nChoices: ${choiceNote}\nEssay: ${essay}`,
-      assistantText: "Submitted for tutor Q&A on the homepage.",
+      assistantText: "Opened inline TED discuss on Lab (prompt kept visible).",
       tedTopics: talk.topics,
       outcome: "practice",
     });
-    // Full navigation so TutorShell mounts fresh and consumes kickoff.
-    window.location.href = "/";
+    setDiscussKickoff(kickoff);
+    setDiscussSessionKey((k) => k + 1);
+    setSubmittingDiscuss(false);
   }, [
     challenge,
     talk,
     submittingDiscuss,
+    discussKickoff,
     qi,
     answer,
     selected,
     answers,
     accountId,
   ]);
+
+  const closeDiscuss = useCallback(() => {
+    setDiscussKickoff(null);
+  }, []);
+
+  const goNextAfterDiscuss = useCallback(() => {
+    if (!challenge) return;
+    const next = qi + 1;
+    setDiscussKickoff(null);
+    if (next >= challenge.items.length) {
+      setError(null);
+      return;
+    }
+    setQi(next);
+    const nextItem = challenge.items[next];
+    const rec = nextItem ? answers[nextItem.id] : undefined;
+    setSelected(rec?.selected ?? []);
+    setAnswer(rec?.essay ?? "");
+    setError(null);
+  }, [challenge, qi, answers]);
 
   const saveAttempt = useCallback(async () => {
     if (!talk || !challenge) return;
@@ -752,7 +774,7 @@ export function TedLab() {
                       <button
                         key={`${item.id}-c${idx}`}
                         type="button"
-                        disabled={submittingDiscuss}
+                        disabled={submittingDiscuss || !!discussKickoff}
                         onClick={() =>
                           setSelected((prev) => toggleChoice(prev, idx))
                         }
@@ -771,7 +793,7 @@ export function TedLab() {
                   })}
                   <button
                     type="button"
-                    disabled={submittingDiscuss || selected.length === 0}
+                    disabled={submittingDiscuss || !!discussKickoff || selected.length === 0}
                     onClick={() => setSelected([])}
                     className="min-h-9 w-fit text-left text-xs text-[#a89f92] underline-offset-2 hover:text-[#6db8a8] hover:underline disabled:opacity-40"
                   >
@@ -787,7 +809,7 @@ export function TedLab() {
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   rows={5}
-                  disabled={submittingDiscuss}
+                  disabled={submittingDiscuss || !!discussKickoff}
                   placeholder="Argue from your choice(s) — or your own view if you skipped. Type or speak…"
                   className="w-full rounded-xl border border-white/15 bg-black/40 p-4 text-sm text-[#e8e2d8] outline-none focus:border-[#6db8a8] disabled:opacity-60"
                 />
@@ -795,7 +817,7 @@ export function TedLab() {
                   <MicTranscribeButton
                     language="auto"
                     tone="onDark"
-                    disabled={submittingDiscuss}
+                    disabled={submittingDiscuss || !!discussKickoff}
                     onRecordingStart={stopPromptListen}
                     onTranscript={(t) => {
                       setAnswer((prev) => appendVoiceTranscript(prev, t));
@@ -811,15 +833,33 @@ export function TedLab() {
                 <button
                   type="button"
                   onClick={submitAndDiscuss}
-                  disabled={submittingDiscuss || !canSubmitHybrid(answer, selected).ok}
+                  disabled={
+                    submittingDiscuss ||
+                    !!discussKickoff ||
+                    !canSubmitHybrid(answer, selected).ok
+                  }
                   className="min-h-11 w-fit rounded-lg bg-[#4f7356] px-5 text-sm font-medium text-white disabled:opacity-40"
                 >
-                  {submittingDiscuss ? "Opening tutor…" : "Submit & discuss with AI teacher"}
+                  {submittingDiscuss
+                    ? "Opening discuss…"
+                    : discussKickoff
+                      ? "Discussing below…"
+                      : "Submit & discuss with AI teacher"}
                 </button>
                 <p className="text-[11px] leading-snug text-[#a89f92]">
-                  Opens the homepage tutor in Q&amp;A mode. You can keep chatting or
-                  return for the next question when your thinking holds together.
+                  Opens a chat under this question so you can still see the prompt,
+                  your choices, and your essay. Keep chatting or go to the next
+                  question when your thinking holds together.
                 </p>
+                {discussKickoff ? (
+                  <TedDiscussDialogue
+                    kickoff={discussKickoff}
+                    sessionKey={discussSessionKey}
+                    hasNext={!!challenge && qi + 1 < challenge.items.length}
+                    onNextQuestion={goNextAfterDiscuss}
+                    onClose={closeDiscuss}
+                  />
+                ) : null}
               </div>
             </div>
           )}
