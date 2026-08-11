@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import {
   appendVoiceTranscript,
   buildFallbackChallenge,
+  challengePromptSpeechText,
   challengeSystemPrompt,
   formatTedDifficultyLabel,
+  loadTedPromptListenEnabled,
   parseChallengeJson,
   resolveTedChallengeLevel,
+  saveTedPromptListenEnabled,
+  tedPromptListenText,
+  type ChallengeItem,
 } from "./ted-challenge";
 import type { TedTalk } from "./ted-catalog";
 
@@ -166,5 +171,72 @@ describe("parse + voice", () => {
       "Claim one. Because evidence.",
     );
     expect(appendVoiceTranscript("Keep me", "   ")).toBe("Keep me");
+  });
+
+  it("tedPromptListenText trims", () => {
+    expect(tedPromptListenText("  Hello  ")).toBe("Hello");
+    expect(tedPromptListenText("   ")).toBe("");
+  });
+});
+
+describe("TED prompt Listen preference (TL1–TL3)", () => {
+  const ACCT_A = "acct_ted_listen_a";
+  const ACCT_B = "acct_ted_listen_b";
+  const store = new Map<string, string>();
+  const ls = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => {
+      store.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    clear: () => store.clear(),
+  };
+
+  beforeEach(() => {
+    store.clear();
+    (globalThis as Record<string, unknown>).localStorage = ls;
+    (globalThis as Record<string, unknown>).window = { localStorage: ls };
+  });
+
+  it("TL1: default load → true", () => {
+    expect(loadTedPromptListenEnabled(ACCT_A)).toBe(true);
+  });
+
+  it("TL2: save false then load → false", () => {
+    saveTedPromptListenEnabled(false, ACCT_A);
+    expect(loadTedPromptListenEnabled(ACCT_A)).toBe(false);
+    saveTedPromptListenEnabled(true, ACCT_A);
+    expect(loadTedPromptListenEnabled(ACCT_A)).toBe(true);
+  });
+
+  it("TL3: account A off does not affect B default", () => {
+    saveTedPromptListenEnabled(false, ACCT_A);
+    expect(loadTedPromptListenEnabled(ACCT_A)).toBe(false);
+    expect(loadTedPromptListenEnabled(ACCT_B)).toBe(true);
+  });
+});
+
+describe("challenge prompt speech text (TS1–TS2)", () => {
+  const base: ChallengeItem = {
+    id: "q1",
+    kind: "literal",
+    prompt: "  What is the main idea?  ",
+    rubricHint: "Be clear",
+  };
+
+  it("TS1: prompt only → trimmed speech text", () => {
+    expect(challengePromptSpeechText(base)).toBe("What is the main idea?");
+  });
+
+  it("TS2: prompt + choices → numbered Choices suffix", () => {
+    const withChoices: ChallengeItem = {
+      ...base,
+      choices: ["A story", "Only jokes", "  "],
+    };
+    expect(challengePromptSpeechText(withChoices)).toBe(
+      "What is the main idea? Choices: 1. A story. 2. Only jokes.",
+    );
   });
 });

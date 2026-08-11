@@ -12,7 +12,10 @@ import {
 } from "@/lib/entertain/ted-catalog";
 import {
   appendVoiceTranscript,
+  challengePromptSpeechText,
   formatTedDifficultyLabel,
+  loadTedPromptListenEnabled,
+  saveTedPromptListenEnabled,
   softFeedbackThresholds,
   type TedChallenge,
   type ChallengeItem,
@@ -23,6 +26,7 @@ import {
   studioOutcomeFromSoftFeedback,
 } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
+import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -90,6 +94,10 @@ export function TedLab() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /** Auto Speak for English challenge prompts (homepage Speak on/off). */
+  const [promptListenAuto, setPromptListenAuto] = useState(true);
+  const [promptListening, setPromptListening] = useState(false);
+  const promptListenTokenRef = useRef(0);
 
   const [results, setResults] = useState<TedTalk[]>(() =>
     searchTedCatalog("", "all").slice(0, 18),
@@ -119,6 +127,73 @@ export function TedLab() {
     englishLevel,
   });
   const gradeKnown = typeof grade === "number" && Number.isFinite(grade);
+
+  useEffect(() => {
+    setPromptListenAuto(loadTedPromptListenEnabled(accountId));
+  }, [accountId]);
+
+  const stopPromptListen = useCallback(() => {
+    promptListenTokenRef.current += 1;
+    setPromptListening(false);
+    getSharedSpeechEngine().stop();
+  }, []);
+
+  const playPromptListen = useCallback(async (item: ChallengeItem) => {
+    const text = challengePromptSpeechText(item);
+    if (!text) return;
+    const token = ++promptListenTokenRef.current;
+    setPromptListening(true);
+    try {
+      await getSharedSpeechEngine().unlock();
+      if (token !== promptListenTokenRef.current) return;
+      await getSharedSpeechEngine().speak(text, {
+        voiceId: "ryan",
+        shouldContinue: () => token === promptListenTokenRef.current,
+        onStatus: (s) => {
+          if (token !== promptListenTokenRef.current) return;
+          setPromptListening(Boolean(s));
+        },
+        onError: () => {
+          if (token !== promptListenTokenRef.current) return;
+          setPromptListening(false);
+        },
+      });
+    } catch {
+      // unlock / play blocked — manual Listen still available
+    } finally {
+      if (token === promptListenTokenRef.current) {
+        setPromptListening(false);
+      }
+    }
+  }, []);
+
+  const togglePromptListenAuto = useCallback(() => {
+    const next = !promptListenAuto;
+    setPromptListenAuto(next);
+    saveTedPromptListenEnabled(next, accountId);
+    if (!next) stopPromptListen();
+  }, [promptListenAuto, accountId, stopPromptListen]);
+
+  // Auto-read English prompt when the question changes (Listen, not Speak).
+  useEffect(() => {
+    if (phase !== "challenge" || !challenge) return;
+    const item = challenge.items[qi];
+    if (!item) {
+      stopPromptListen();
+      return;
+    }
+    if (!promptListenAuto) return;
+    void playPromptListen(item);
+    return () => {
+      stopPromptListen();
+    };
+  }, [phase, challenge, qi, promptListenAuto, playPromptListen, stopPromptListen]);
+
+  useEffect(() => {
+    return () => {
+      stopPromptListen();
+    };
+  }, [stopPromptListen]);
 
   const openTalk = useCallback((t: TedTalk) => {
     setTalk(t);
@@ -533,6 +608,69 @@ export function TedLab() {
               <h3 className="text-lg font-medium leading-snug md:text-xl">
                 {item.prompt}
               </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (promptListening) {
+                      stopPromptListen();
+                      return;
+                    }
+                    void playPromptListen(item);
+                  }}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    promptListening
+                      ? "bg-[#6db8a8]/25 text-[#6db8a8]"
+                      : "border border-white/20 text-[#a89f92] hover:border-[#6db8a8] hover:text-[#e8e2d8]"
+                  }`}
+                  aria-label={promptListening ? "Stop reading" : "Replay prompt"}
+                  title={promptListening ? "Stop reading" : "Replay prompt"}
+                >
+                  {promptListening ? (
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                      <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
+                    </svg>
+                  ) : (
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      aria-hidden
+                    >
+                      <path
+                        d="M2.5 6.5v3h2.2L8 12.5V3.5L4.7 6.5H2.5Z"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M10 5.8a2.6 2.6 0 0 1 0 4.4M11.7 4.2a4.6 4.6 0 0 1 0 7.6"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                  {promptListening ? "Stop" : "Replay"}
+                </button>
+                <button
+                  type="button"
+                  onClick={togglePromptListenAuto}
+                  className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    promptListenAuto
+                      ? "border-[#6db8a8]/60 bg-[#6db8a8]/15 text-[#6db8a8]"
+                      : "border-white/20 text-[#a89f92] hover:border-[#6db8a8]/50"
+                  }`}
+                  aria-pressed={promptListenAuto}
+                  aria-label={promptListenAuto ? "Speak on" : "Speak off"}
+                  title={
+                    promptListenAuto
+                      ? "Speak on — tap to mute prompt reading"
+                      : "Speak off — tap to auto-read English prompts"
+                  }
+                >
+                  {promptListenAuto ? "Speak on" : "Speak off"}
+                </button>
+              </div>
               {item.choices && item.choices.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   {item.choices.map((ch) => (
@@ -564,6 +702,7 @@ export function TedLab() {
                   language="auto"
                   tone="onDark"
                   disabled={Boolean(feedback)}
+                  onRecordingStart={stopPromptListen}
                   onTranscript={(t) => {
                     setAnswer((prev) => appendVoiceTranscript(prev, t));
                   }}

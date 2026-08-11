@@ -8,6 +8,7 @@ import {
   englishLevelForGrade,
   parseEnglishLevel,
 } from "../student-profile";
+import { nsKey, RYAN_ACCOUNT } from "../tenant-storage";
 import type { TedTalk } from "./ted-catalog";
 
 export type ChallengeKind = "literal" | "structure" | "critique" | "retell";
@@ -115,6 +116,82 @@ export function appendVoiceTranscript(
   if (!chunk) return prev;
   const base = prev.trimEnd();
   return base ? `${base} ${chunk}` : chunk;
+}
+
+/** English TTS script for a challenge prompt (optional MCQ choices). */
+export function challengePromptSpeechText(item: ChallengeItem): string {
+  const prompt = item.prompt.trim();
+  const choices = item.choices?.map((c) => c.trim()).filter(Boolean) ?? [];
+  if (!choices.length) return prompt;
+  const listed = choices
+    .map((c, i) => `${i + 1}. ${c}`)
+    .join(". ");
+  return `${prompt} Choices: ${listed}.`;
+}
+
+/** Account-scoped Auto Listen for Challenge prompts (default ON). */
+const TED_PROMPT_LISTEN_MODULE = "tedPromptListen";
+const TED_PROMPT_SPEAK_LEGACY = "tedChallengeSpeak";
+
+export function loadTedPromptListenEnabled(
+  accountId: string = RYAN_ACCOUNT,
+): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const saved = localStorage.getItem(
+      nsKey(accountId, TED_PROMPT_LISTEN_MODULE),
+    );
+    if (saved != null) return saved !== "0" && saved !== "false";
+    // Migrate one-shot from earlier Speak-named key
+    const legacy = localStorage.getItem(
+      nsKey(accountId, TED_PROMPT_SPEAK_LEGACY),
+    );
+    if (legacy != null) {
+      const on = legacy !== "0" && legacy !== "false";
+      localStorage.setItem(
+        nsKey(accountId, TED_PROMPT_LISTEN_MODULE),
+        on ? "1" : "0",
+      );
+      return on;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+export function saveTedPromptListenEnabled(
+  enabled: boolean,
+  accountId: string = RYAN_ACCOUNT,
+): void {
+  try {
+    localStorage.setItem(
+      nsKey(accountId, TED_PROMPT_LISTEN_MODULE),
+      enabled ? "1" : "0",
+    );
+  } catch {
+    // ignore
+  }
+}
+
+/** @deprecated Use loadTedPromptListenEnabled — Speak naming was incorrect. */
+export function loadTedChallengeSpeakEnabled(
+  accountId: string = RYAN_ACCOUNT,
+): boolean {
+  return loadTedPromptListenEnabled(accountId);
+}
+
+/** @deprecated Use saveTedPromptListenEnabled — Speak naming was incorrect. */
+export function saveTedChallengeSpeakEnabled(
+  enabled: boolean,
+  accountId: string = RYAN_ACCOUNT,
+): void {
+  saveTedPromptListenEnabled(enabled, accountId);
+}
+
+/** Trim prompt string for TTS (empty → skip). Prefer challengePromptSpeechText for items. */
+export function tedPromptListenText(prompt: string): string {
+  return prompt.trim();
 }
 
 function sentences(text: string): string[] {

@@ -45,6 +45,20 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 - [x] **ENT-TED-A.4** — Unit tests TD1–TD7 (G3≠G4≠G5 cues); run_tests on touched files
 - [x] **ENT-TED-A.5** — apply_changes → publish_develop → deploy_live
 
+## 🎧 ENT-TED-LISTEN — TED Challenge prompt Listen / English TTS (2026-08-11)
+
+> **Design:** [subsystems/ted-challenge-prompt-listen.md](subsystems/ted-challenge-prompt-listen.md)  
+> **Goal:** Challenge **questions** auto-read in English (homepage **Listen**, not Speak / not Speak-answer mic). Default on; toggle off; Listen/Stop.
+
+- [x] **ENT-TED-L.1** — `load/saveTedPromptListenEnabled` + `challengePromptSpeechText` + unit TL1–TL3 / TS1–TS2
+- [x] **ENT-TED-L.2** — TedLab: auto-speak prompt on question change; Listen/Stop + Auto Listen toggle
+- [x] **ENT-TED-L.3** — Mic barge-in stops prompt TTS (`onRecordingStart`)
+- [x] **ENT-TED-L.4** — Docs (design + DESIGN map + this checklist) + `run_tests`
+- [ ] **ENT-TED-L.5** — apply_changes → publish_develop → deploy_live
+- [ ] **ENT-TED-L.6** — Manual TM-L1–TM-L4 on live Challenge UI
+
+~~## 🔊 ENT-TED-SPEAK~~ — **superseded** by ENT-TED-LISTEN (user clarified: homepage **Listen**, not Speak). See [ted-challenge-prompt-speak.md](subsystems/ted-challenge-prompt-speak.md) (cancelled).
+
 ## 🎤 ENT-TED-VOICE — TED Challenge voice input (2026-08-11)
 
 > **Design:** [subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)  

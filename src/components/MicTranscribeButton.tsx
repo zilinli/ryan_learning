@@ -35,6 +35,8 @@ type Props = {
   language?: SttLang;
   disabled?: boolean;
   onTranscript: (text: string) => void;
+  /** Fired when recording starts (e.g. barge-in: stop prompt Listen TTS). */
+  onRecordingStart?: () => void;
   className?: string;
   /** Smaller control for embedded composers (Help Ask AI, etc.) */
   compact?: boolean;
@@ -49,6 +51,7 @@ export function MicTranscribeButton({
   language = "auto",
   disabled,
   onTranscript,
+  onRecordingStart,
   className = "",
   compact = false,
   tone = "default",
@@ -66,12 +69,16 @@ export function MicTranscribeButton({
   const recorderRef = useRef<RecorderSession | null>(null);
   const languageRef = useRef(language);
   const onTranscriptRef = useRef(onTranscript);
+  const onRecordingStartRef = useRef(onRecordingStart);
   useEffect(() => {
     languageRef.current = language;
   }, [language]);
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
+  useEffect(() => {
+    onRecordingStartRef.current = onRecordingStart;
+  }, [onRecordingStart]);
 
   useEffect(() => {
     // Capability + coarse-pointer detection is corrected post-hydration.
@@ -154,6 +161,7 @@ export function MicTranscribeButton({
       setHint("Mic needs HTTPS");
       return;
     }
+    onRecordingStartRef.current?.();
     setHint("");
     setStatus("Listening… speak now");
     try {
