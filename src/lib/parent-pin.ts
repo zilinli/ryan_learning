@@ -70,3 +70,23 @@ export function lockParentSession(): void {
     /* ignore */
   }
 }
+
+const CHECK_MODE_KEY = "spark.checkMode";
+
+/** Check-answers mode — session-scoped so Family page and tutor share it. */
+export function loadCheckMode(): boolean {
+  try {
+    return sessionStorage.getItem(CHECK_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveCheckMode(on: boolean): void {
+  try {
+    if (on) sessionStorage.setItem(CHECK_MODE_KEY, "1");
+    else sessionStorage.removeItem(CHECK_MODE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

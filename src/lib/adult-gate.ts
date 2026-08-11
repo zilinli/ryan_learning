@@ -3,17 +3,6 @@
  * PIN for routine unlock; harder adult challenge before PIN reset so kids can't one-tap bypass.
  */
 
-import {
-  clearParentPin,
-  hasParentPin,
-  isParentSessionUnlocked,
-  lockParentSession,
-  saveParentPin,
-  unlockParentSession,
-  verifyParentPin,
-  PARENT_PIN_LENGTH,
-} from "./parent-pin";
-
 export {
   clearParentPin,
   hasParentPin,
@@ -23,7 +12,9 @@ export {
   unlockParentSession,
   verifyParentPin,
   PARENT_PIN_LENGTH,
-};
+  loadCheckMode,
+  saveCheckMode,
+} from "./parent-pin";
 
 export type AdultChallenge = {
   id: string;

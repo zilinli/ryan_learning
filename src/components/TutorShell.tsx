@@ -9,6 +9,7 @@ import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
 import { interruptHint } from "@/lib/speech-barge-in";
+import { loadCheckMode, saveCheckMode } from "@/lib/parent-pin";
 import {
   loadSpeakEnabled,
   loadVoiceId,
@@ -334,7 +335,14 @@ export function TutorShell() {
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
-  const [checkMode, setCheckMode] = useState(false);
+  const [checkMode, setCheckModeState] = useState(false);
+  const setCheckMode = useCallback((on: boolean) => {
+    setCheckModeState(on);
+    saveCheckMode(on);
+  }, []);
+  useEffect(() => {
+    setCheckModeState(loadCheckMode());
+  }, []);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const resetNextRef = useRef(false);
   /** sessionIds that need a fresh Cursor agent on next send */

@@ -131,7 +131,10 @@ export function SkillsPanel({ memory }: Props) {
       {open ? (
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--line)]/50 px-3 pb-2.5 pt-1.5">
           <p className="text-[10px] text-[var(--ink-muted)]">
-            BKT + SM-2 · parent tools → sidebar <strong>Parents</strong>
+            BKT + SM-2 · parents →{" "}
+            <a href="/family" className="text-[var(--teal)] underline-offset-2 hover:underline">
+              Family controls
+            </a>
           </p>
 
           {zpdSingle ? (

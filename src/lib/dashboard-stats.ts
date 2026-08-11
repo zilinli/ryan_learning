@@ -45,6 +45,9 @@ export type HeatCell = {
   count: number;
   skillId?: string;
   skillLabel?: string;
+  /** watch | recurring | persistent */
+  severity?: "watch" | "recurring" | "persistent";
+  parentTip?: string;
 };
 
 export type DashboardModel = {
@@ -124,6 +127,8 @@ export function buildMisconceptionHeat(mem: LearningMemory, max = 8): HeatCell[]
     for (const h of s.misconceptionHits || []) {
       const tag = getMisconception(h.id);
       const prev = map.get(h.id);
+      const severity =
+        h.count >= 4 ? "persistent" : h.count >= 2 ? "recurring" : "watch";
       if (!prev || h.count > prev.count) {
         map.set(h.id, {
           id: h.id,
@@ -131,6 +136,8 @@ export function buildMisconceptionHeat(mem: LearningMemory, max = 8): HeatCell[]
           count: h.count,
           skillId: s.id,
           skillLabel: s.label,
+          severity,
+          parentTip: tag?.promptHint?.slice(0, 120),
         });
       }
     }

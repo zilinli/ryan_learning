@@ -12,39 +12,26 @@ import {
   SUBJECT_LABELS,
   type SubjectKey,
 } from "@/lib/dashboard-stats";
-import {
-  buildAccountLearningExport,
-  downloadAccountLearningExport,
-} from "@/lib/account-export";
 import { stashPracticeKickoff } from "@/lib/idle-nudge";
-import { buildParentWeeklyDigest } from "@/lib/parent-digest";
-import {
-  hasParentPin,
-  isParentSessionUnlocked,
-  unlockParentSession,
-} from "@/lib/adult-gate";
-import { PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
+import { buildMistakePatterns } from "@/lib/family-report";
 
 export function LearningDashboard() {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
-  const [accountId, setAccountId] = useState("acct_ryan");
-  const [parentUnlocked, setParentUnlocked] = useState(false);
-  const [showPin, setShowPin] = useState(false);
+  const [accountLabel, setAccountLabel] = useState("student");
 
   useEffect(() => {
     const id = getActiveAccount(loadAccounts()).id;
-    setAccountId(id);
+    setAccountLabel(id.replace(/^acct_/, ""));
     setMemory(loadLearningMemory(id));
     void hydrateLearningMemoryFromServer(id).then(setMemory);
-    if (hasParentPin() && isParentSessionUnlocked()) {
-      setParentUnlocked(true);
-    }
   }, []);
 
   const model = useMemo(() => buildDashboardModel(memory), [memory]);
-  const weekly = useMemo(() => buildParentWeeklyDigest(memory), [memory]);
-  const pinSet = useMemo(() => hasParentPin(), [showPin, parentUnlocked]);
+  const patterns = useMemo(
+    () => (memory ? buildMistakePatterns(memory, 6) : []),
+    [memory],
+  );
 
   const radarValues = model.radar.map((r) => r.value);
   const poly = radarPolygonPoints(radarValues.length ? radarValues : [0], 100, 100, 80);
@@ -60,7 +47,7 @@ export function LearningDashboard() {
             Your progress
           </h1>
           <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
-            Account {accountId.replace(/^acct_/, "")} · {model.skillCount} skills tracked
+            Account {accountLabel} · {model.skillCount} skills tracked
           </p>
         </div>
         <a
@@ -222,138 +209,83 @@ export function LearningDashboard() {
             </p>
           </section>
 
-          {/* Misconception heat */}
+          {/* Mistake patterns — severity + practice CTA (full parent coaching on /family) */}
           <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
             <h2 className="text-[13px] font-semibold text-[var(--ink)]">
               Mistake patterns
             </h2>
             <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
-              Practice opens chat with a guided check — not a separate error book.
+              Sticky spots Spark noticed — tap Practice for a gentle check. Parents see
+              at-home tips on{" "}
+              <a href="/family" className="text-[var(--teal)] underline-offset-2 hover:underline">
+                Family controls
+              </a>
+              .
             </p>
-            <ul className="mt-3 space-y-2">
-              {model.misconceptionHeat.length ? (
-                model.misconceptionHeat.map((h) => {
-                  const max = model.misconceptionHeat[0]?.count || 1;
-                  const w = Math.max(8, Math.round((h.count / max) * 100));
+            <ul className="mt-3 space-y-3">
+              {patterns.length ? (
+                patterns.map((h) => {
+                  const max = patterns[0]?.count || 1;
+                  const w = Math.max(12, Math.round((h.count / max) * 100));
                   return (
-                    <li key={h.id}>
-                      <div className="flex items-center justify-between gap-2 text-[12px]">
-                        <span className="min-w-0 truncate">{h.label}</span>
-                        <span className="flex shrink-0 items-center gap-2">
-                          <span className="tabular-nums text-[var(--ink-muted)]">
-                            ×{h.count}
-                          </span>
-                          {h.skillId && h.skillLabel ? (
-                            <a
-                              href="/"
-                              onClick={() =>
-                                stashPracticeKickoff({
-                                  skillId: h.skillId!,
-                                  label: h.skillLabel!,
-                                  source: "dashboard-misconception",
-                                })
-                              }
-                              className="inline-flex min-h-11 items-center rounded-full border border-[var(--teal)]/45 bg-[var(--teal)]/12 px-3 text-[12px] font-semibold text-[var(--teal)]"
-                            >
-                              Practice
-                            </a>
-                          ) : null}
+                    <li
+                      key={h.id}
+                      className="rounded-xl border border-[var(--line)]/60 bg-[var(--surface)] p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-[var(--ink)]">
+                            {h.label}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-[var(--ink-muted)]">
+                            {h.skillLabel || "Skill"} · ×{h.count}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                            h.severity === "persistent"
+                              ? "bg-[var(--coral)]/15 text-[var(--coral)]"
+                              : h.severity === "recurring"
+                                ? "bg-[var(--mist)] text-[var(--ink)]"
+                                : "bg-[var(--mist)] text-[var(--ink-muted)]"
+                          }`}
+                        >
+                          {h.severity}
                         </span>
                       </div>
-                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
                         <div
                           className="h-full rounded-full bg-[var(--coral)]/70"
                           style={{ width: `${w}%` }}
                         />
                       </div>
+                      {h.skillId && h.skillLabel ? (
+                        <a
+                          href="/"
+                          onClick={() =>
+                            stashPracticeKickoff({
+                              skillId: h.skillId!,
+                              label: h.skillLabel!,
+                              source: "dashboard-misconception",
+                            })
+                          }
+                          className="mt-2 inline-flex min-h-10 items-center rounded-full border border-[var(--teal)]/45 bg-[var(--teal)]/12 px-3 text-[12px] font-semibold text-[var(--teal)]"
+                        >
+                          Practice this
+                        </a>
+                      ) : null}
                     </li>
                   );
                 })
               ) : (
                 <li className="text-[13px] text-[var(--ink-muted)]">
-                  No tagged patterns yet.
+                  No tagged patterns yet — keep chatting with Spark.
                 </li>
               )}
             </ul>
           </section>
-
-          {/* Parent weekly */}
-          <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
-            <h2 className="text-[13px] font-semibold text-[var(--ink-muted)]">
-              Parent view
-            </h2>
-            {!pinSet ? (
-              <div className="mt-2 space-y-2">
-                <p className="text-[13px] text-[var(--ink-muted)]">
-                  Set a parent PIN from the tutor sidebar → <strong>Parents</strong>, or here:
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowPin(true)}
-                  className="min-h-11 rounded-xl bg-[var(--teal)] px-4 text-[13px] font-semibold text-white"
-                >
-                  Set parent PIN
-                </button>
-              </div>
-            ) : !parentUnlocked ? (
-              <button
-                type="button"
-                onClick={() => setShowPin(true)}
-                className="mt-2 min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px]"
-              >
-                Unlock with PIN
-              </button>
-            ) : (
-              <div className="mt-2 space-y-3">
-                <pre className="whitespace-pre-wrap rounded-xl bg-[var(--mist)] p-3 text-[12px] leading-relaxed text-[var(--ink)]">
-                  {weekly.text}
-                </pre>
-                {weekly.idleDays != null && weekly.idleDays >= 3 ? (
-                  <p className="text-[12px] text-[var(--coral)]">
-                    Soft note: no skill activity for {weekly.idleDays} days — a
-                    short warm-up helps more than catching up in one sitting.
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const payload = buildAccountLearningExport(
-                      accountId,
-                      memory,
-                    );
-                    if (payload) downloadAccountLearningExport(payload);
-                  }}
-                  className="min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px] font-medium text-[var(--ink)]"
-                >
-                  Download learning JSON
-                </button>
-                <p className="text-[11px] text-[var(--ink-muted)]">
-                  Active account only · see{" "}
-                  <a
-                    href="/privacy"
-                    className="text-[var(--teal)] underline-offset-2 hover:underline"
-                  >
-                    privacy & data use
-                  </a>
-                  .
-                </p>
-              </div>
-            )}
-          </section>
         </div>
       )}
-
-      {showPin ? (
-        <PinGate
-          forceCreate={!pinSet}
-          onUnlock={() => {
-            unlockParentSession();
-            setParentUnlocked(true);
-            setShowPin(false);
-          }}
-          onCancel={() => setShowPin(false)}
-        />
-      ) : null}
     </div>
   );
 }

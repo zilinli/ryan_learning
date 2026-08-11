@@ -8,7 +8,6 @@ import { searchConversations } from "@/lib/history-retention";
 import { SPARK_GITHUB_URL, SPARK_FEEDBACK_LABEL } from "@/lib/site";
 import { SkillsPanel } from "./SkillsPanel";
 import { FeedbackPanel } from "./FeedbackPanel";
-import { ParentSettingsSheet } from "./ParentSettingsSheet";
 
 type Props = {
   open: boolean;
@@ -62,7 +61,6 @@ export function HistorySidebar({
   const [query, setQuery] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [parentOpen, setParentOpen] = useState(false);
 
   const hits = useMemo(
     () => searchConversations(conversations, query),
@@ -222,13 +220,12 @@ export function HistorySidebar({
       <SkillsPanel memory={learningMemory ?? null} />
 
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
-        <button
-          type="button"
-          onClick={() => setParentOpen(true)}
+        <a
+          href="/family"
           className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
-          Parents
-        </button>
+          Family controls
+        </a>
         <a
           href="/dashboard"
           className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
@@ -377,13 +374,6 @@ export function HistorySidebar({
         </div>
       ) : null}
       <FeedbackPanel open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-      <ParentSettingsSheet
-        open={parentOpen}
-        onClose={() => setParentOpen(false)}
-        memory={learningMemory ?? null}
-        checkMode={checkMode}
-        onCheckModeChange={onCheckModeChange}
-      />
     </>
   );
 }
