@@ -10,13 +10,23 @@ import {
 } from "@/lib/entertain/studio-structure";
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
-import type { BasisCoachReport } from "@/lib/entertain/basis-writing";
+import type { BasisCoachReport, WritingType } from "@/lib/entertain/basis-writing";
+import {
+  draftStats,
+  structureCtaLabel,
+  WRITING_TYPES,
+  writingTypeUsesMood,
+} from "@/lib/entertain/basis-writing";
 import {
   buildWritingFixIssues,
   nextOpenFix,
   remainingFixCount,
   type WritingFixIssue,
 } from "@/lib/entertain/basis-fix-session";
+import {
+  applyGrammarReplacement,
+  type GrammarMatch,
+} from "@/lib/entertain/languagetool";
 import { CameraCapture } from "./CameraCapture";
 import { FileAttachControl } from "./FileAttachControl";
 import { MicTranscribeButton } from "./MicTranscribeButton";
@@ -28,6 +38,8 @@ import { WritingPadHighlights } from "./WritingPadHighlights";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
+type MobileTab = "write" | "feedback" | "stage";
+const STAGE_EXPANDED_KEY = "spark.ws.stageExpanded";
 
 const STT_LANG_OPTIONS: Array<{ id: SttLang; label: string }> = [
   { id: "auto", label: "Auto detect" },
@@ -65,6 +77,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export function WritingStudio() {
   const { accountId, name: accountName } = useActiveStudioAccount();
   const [draft, setDraft] = useState("");
+  const [writingType, setWritingType] = useState<WritingType>("narrative");
   const [genre, setGenre] = useState<(typeof GENRES)[number]>("Indie");
   const [coach, setCoach] = useState<string | null>(null);
   const [coachReport, setCoachReport] = useState<BasisCoachReport | null>(null);
@@ -74,11 +87,16 @@ export function WritingStudio() {
   const [mentorSessionKey, setMentorSessionKey] = useState(0);
   const [mentorUserActive, setMentorUserActive] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
+  const [grammarMatches, setGrammarMatches] = useState<GrammarMatch[]>([]);
+  const [activeGrammarKey, setActiveGrammarKey] = useState<string | null>(null);
+  const [grammarTip, setGrammarTip] = useState<GrammarMatch | null>(null);
   const [lyrics, setLyrics] = useState("");
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
   const [gender, setGender] = useState<"female" | "male">("female");
   const [stageKind, setStageKind] = useState<StageKind>("music");
+  const [stageExpanded, setStageExpanded] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("write");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -98,9 +116,11 @@ export function WritingStudio() {
   const mentorOpenRef = useRef(false);
   const draftRef = useRef(draft);
   const genreRef = useRef(genre);
+  const writingTypeRef = useRef(writingType);
   const titleRef = useRef(title);
   const accountIdRef = useRef(accountId);
   const stageKindRef = useRef(stageKind);
+  const padTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -108,6 +128,9 @@ export function WritingStudio() {
   useEffect(() => {
     genreRef.current = genre;
   }, [genre]);
+  useEffect(() => {
+    writingTypeRef.current = writingType;
+  }, [writingType]);
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
@@ -123,6 +146,63 @@ export function WritingStudio() {
   useEffect(() => {
     mentorOpenRef.current = mentorOpen;
   }, [mentorOpen]);
+
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const raw = window.localStorage.getItem(STAGE_EXPANDED_KEY);
+      if (raw === "1") setStageExpanded(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      window.localStorage.setItem(
+        STAGE_EXPANDED_KEY,
+        stageExpanded ? "1" : "0",
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [stageExpanded]);
+
+  // Debounced grammar check (~800ms)
+  useEffect(() => {
+    const trimmed = draft.trim();
+    if (trimmed.length < 12) {
+      setGrammarMatches([]);
+      setGrammarTip(null);
+      return;
+    }
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch("/api/writing-studio/grammar-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: draft, language: "en-US" }),
+            signal: ac.signal,
+          });
+          const data = (await res.json()) as {
+            ok?: boolean;
+            matches?: GrammarMatch[];
+          };
+          if (!res.ok || !data.ok) return;
+          setGrammarMatches(Array.isArray(data.matches) ? data.matches : []);
+        } catch {
+          /* ignore abort / network */
+        }
+      })();
+    }, 800);
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [draft]);
 
   const appendToDraft = useCallback((text: string) => {
     const chunk = text.trim();
@@ -163,6 +243,8 @@ export function WritingStudio() {
           setMentorOpen(true);
           setFixOpen(false);
           setShowHighlights(false);
+          setMobileTab("feedback");
+          padTextareaRef.current?.blur();
         }
       }
       if (
@@ -213,6 +295,7 @@ export function WritingStudio() {
             action: "coach",
             draft: draftRef.current,
             genre: genreRef.current,
+            writingType: writingTypeRef.current,
             target: stageKindRef.current,
           }),
           signal,
@@ -228,6 +311,10 @@ export function WritingStudio() {
           openMentor: manual || live,
           forceNewSession: manual,
         });
+        if (manual) {
+          setMobileTab("feedback");
+          padTextareaRef.current?.blur();
+        }
         if (live && gen === coachGenRef.current) setPadStatus(null);
       } catch (e) {
         if (signal?.aborted || (e instanceof DOMException && e.name === "AbortError")) {
@@ -395,6 +482,8 @@ export function WritingStudio() {
   const structure = useCallback(async () => {
     setBusy("structure");
     setError(null);
+    setStageExpanded(true);
+    setMobileTab("stage");
     try {
       const res = await fetch("/api/writing-studio/coach", {
         method: "POST",
@@ -403,6 +492,7 @@ export function WritingStudio() {
           action: "structure",
           draft,
           genre,
+          writingType,
           target: stageKind,
         }),
       });
@@ -461,7 +551,7 @@ export function WritingStudio() {
     } finally {
       setBusy(null);
     }
-  }, [draft, genre, title, accountId, stageKind]);
+  }, [draft, genre, writingType, title, accountId, stageKind]);
 
   const saveDraftOnly = useCallback(async () => {
     if (!lyrics.trim()) {
@@ -624,11 +714,98 @@ export function WritingStudio() {
     }
   }, [lyrics, caption, title, gender, stageKind, accountId]);
 
+  const onGrammarClick = useCallback((match: GrammarMatch, key: string) => {
+    setActiveGrammarKey(key);
+    setGrammarTip(match);
+  }, []);
+
+  const applyGrammarFix = useCallback(
+    (replacement: string) => {
+      if (!grammarTip) return;
+      setDraft((prev) => applyGrammarReplacement(prev, grammarTip, replacement));
+      setGrammarTip(null);
+      setActiveGrammarKey(null);
+    },
+    [grammarTip],
+  );
+
   const padLocked = busy !== null;
   const activeFix = nextOpenFix(fixIssues);
   const openFixCount = remainingFixCount(fixIssues);
-  const gridClass =
-    "mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2";
+  const liveStats = draftStats(draft);
+  const showMood = writingTypeUsesMood(writingType);
+  const openSpotMarks = showHighlights && fixIssues.some((i) => i.status === "open");
+  const showGrammarOverlay =
+    !openSpotMarks && grammarMatches.length > 0 && showHighlights;
+  const showMarksPane = openSpotMarks || showGrammarOverlay;
+
+  const feedbackBody = (
+    <>
+      {mentorOpen && !fixOpen && (
+        <div className="mt-1">
+          <WritingMentorDialogue
+            report={coachReport}
+            coachText={coach}
+            draft={draft}
+            genre={genre}
+            target={stageKind}
+            sessionKey={mentorSessionKey}
+            onDraftChange={setDraft}
+            onClose={() => setMentorOpen(false)}
+            onUserActiveChange={setMentorUserActive}
+            spotFixCount={openFixCount}
+            onOpenSpotFixes={() => {
+              setFixOpen(true);
+              setShowHighlights(true);
+              setMobileTab("write");
+            }}
+          />
+        </div>
+      )}
+      {fixOpen && (
+        <div className="mt-1">
+          <WritingFixDialogue
+            issues={fixIssues}
+            draft={draft}
+            onIssuesChange={setFixIssues}
+            onDraftChange={setDraft}
+            onClose={() => {
+              setFixOpen(false);
+              if (coachReport || coach) setMentorOpen(true);
+            }}
+          />
+        </div>
+      )}
+      {!mentorOpen &&
+        !fixOpen &&
+        (coachReport ? (
+          <WritingCoachPanel
+            report={coachReport}
+            fallbackText={coach}
+            onTalk={() => {
+              setFixOpen(false);
+              setMentorOpen(true);
+            }}
+          />
+        ) : coach ? (
+          <div className="mt-2 space-y-2 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
+            <p className="whitespace-pre-wrap">{coach}</p>
+            <button
+              type="button"
+              onClick={() => setMentorOpen(true)}
+              className="min-h-10 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white"
+            >
+              Answer in coach chat
+            </button>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--ink-muted)]">
+            Tap <span className="font-semibold text-[var(--teal)]">Coach</span>{" "}
+            after a few lines — feedback lands here so you can keep writing.
+          </p>
+        ))}
+    </>
+  );
 
   return (
     <div className="flex flex-1 flex-col bg-[var(--surface-muted)]">
@@ -644,8 +821,38 @@ export function WritingStudio() {
         </p>
       </div>
 
-      <div className={gridClass}>
-        <div className="flex flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:border-b-0 md:border-r">
+      <div className="flex border-b border-[var(--line)] bg-[var(--surface)] md:hidden">
+        {(
+          [
+            ["write", "Write"],
+            ["feedback", "Feedback"],
+            ["stage", "Stage"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobileTab(id)}
+            className={`min-h-11 flex-1 text-sm font-semibold ${
+              mobileTab === id
+                ? "border-b-2 border-[var(--teal)] text-[var(--teal)]"
+                : "text-[var(--ink-muted)]"
+            }`}
+          >
+            {label}
+            {id === "feedback" && (coachReport || coach) ? (
+              <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-[var(--teal)]" />
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      <div className="mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2">
+        <div
+          className={`${
+            mobileTab === "write" ? "flex" : "hidden"
+          } flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:flex md:border-b-0 md:border-r`}
+        >
           <div className="flex items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
               Writing pad
@@ -657,6 +864,7 @@ export function WritingStudio() {
                   onClick={() => {
                     setFixOpen(false);
                     setMentorOpen(true);
+                    setMobileTab("feedback");
                   }}
                   className="min-h-9 rounded-full border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-2.5 text-[11px] font-semibold text-[var(--teal)]"
                   title="Open Spark coach chat"
@@ -671,6 +879,7 @@ export function WritingStudio() {
                     setMentorOpen(false);
                     setFixOpen(true);
                     setShowHighlights(true);
+                    setMobileTab("write");
                   }}
                   className="relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-2.5 text-[11px] font-semibold text-[var(--coral)]"
                   title="Optional spot fixes"
@@ -681,27 +890,35 @@ export function WritingStudio() {
                   </span>
                 </button>
               )}
-              {fixIssues.length > 0 && (
+              {(fixIssues.length > 0 || grammarMatches.length > 0) && (
                 <button
                   type="button"
                   onClick={() => setShowHighlights((v) => !v)}
                   className="min-h-9 rounded-lg px-2 text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
                 >
-                  {showHighlights ? "Edit text" : "Show marks"}
+                  {showHighlights
+                    ? "Edit text"
+                    : grammarMatches.length > 0
+                      ? `Marks · ${grammarMatches.length}`
+                      : "Show marks"}
                 </button>
               )}
             </div>
           </div>
 
-          {showHighlights && fixIssues.some((i) => i.status === "open") ? (
+          {showMarksPane ? (
             <div className="mt-2 space-y-2">
               <WritingPadHighlights
                 draft={draft}
-                issues={fixIssues}
+                issues={openSpotMarks ? fixIssues : []}
+                grammarMatches={grammarMatches}
                 activeId={activeFix?.id}
+                activeGrammarKey={activeGrammarKey}
+                onGrammarClick={onGrammarClick}
                 className="min-h-[180px]"
               />
               <textarea
+                ref={padTextareaRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={5}
@@ -711,6 +928,7 @@ export function WritingStudio() {
             </div>
           ) : (
             <textarea
+              ref={padTextareaRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={12}
@@ -718,27 +936,90 @@ export function WritingStudio() {
               className="mt-2 min-h-[220px] flex-1 resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
             />
           )}
-          {/* QuillBot-style compact toolbar: selects + capture, then primary actions */}
+
+          <p className="mt-1.5 text-[11px] tabular-nums text-[var(--ink-muted)]">
+            {liveStats.words} words · {liveStats.sentences} sentences
+            {grammarMatches.length > 0
+              ? ` · ${grammarMatches.length} grammar mark${grammarMatches.length === 1 ? "" : "s"}`
+              : ""}
+          </p>
+
+          {grammarTip && (
+            <div className="mt-2 rounded-xl border border-[var(--teal)]/35 bg-[var(--surface)] p-3 text-sm text-[var(--ink)]">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--teal)]">
+                {grammarTip.category}
+              </p>
+              <p className="mt-1 leading-snug">{grammarTip.message}</p>
+              {grammarTip.replacements.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {grammarTip.replacements.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => applyGrammarFix(r)}
+                      className="min-h-9 rounded-lg bg-[var(--teal)] px-2.5 text-xs font-semibold text-white"
+                    >
+                      {r === " " ? "Single space" : r}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setGrammarTip(null);
+                  setActiveGrammarKey(null);
+                }}
+                className="mt-2 text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)]/80 p-2.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
             <div className="flex flex-wrap items-center gap-2">
-              <label className="sr-only" htmlFor="ws-genre">
-                Mood / genre
+              <label className="sr-only" htmlFor="ws-writing-type">
+                Writing type
               </label>
               <select
-                id="ws-genre"
-                value={genre}
+                id="ws-writing-type"
+                value={writingType}
                 onChange={(e) =>
-                  setGenre(e.target.value as (typeof GENRES)[number])
+                  setWritingType(e.target.value as WritingType)
                 }
                 className={`${selectClass} min-w-[8.5rem] flex-1 sm:flex-none`}
-                title="Mood for structure & generation"
+                title="Writing type"
               >
-                {GENRES.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
+                {WRITING_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
                   </option>
                 ))}
               </select>
+
+              {showMood && (
+                <>
+                  <label className="sr-only" htmlFor="ws-genre">
+                    Mood / genre
+                  </label>
+                  <select
+                    id="ws-genre"
+                    value={genre}
+                    onChange={(e) =>
+                      setGenre(e.target.value as (typeof GENRES)[number])
+                    }
+                    className={`${selectClass} min-w-[8.5rem] flex-1 sm:flex-none`}
+                    title="Mood for lyrics / poetry staging"
+                  >
+                    {GENRES.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               <label className="sr-only" htmlFor="ws-stt-lang">
                 Mic language
@@ -808,49 +1089,10 @@ export function WritingStudio() {
               >
                 {busy === "structure"
                   ? "Structuring…"
-                  : stageKind === "music"
-                    ? "Turn into lyrics"
-                    : stageKind === "image"
-                      ? "Structure for image"
-                      : "Structure for video"}
+                  : structureCtaLabel(writingType, stageKind)}
               </button>
             </div>
           </div>
-
-          {mentorOpen && !fixOpen && (
-            <div className="mt-3">
-              <WritingMentorDialogue
-                report={coachReport}
-                coachText={coach}
-                draft={draft}
-                genre={genre}
-                target={stageKind}
-                sessionKey={mentorSessionKey}
-                onDraftChange={setDraft}
-                onClose={() => setMentorOpen(false)}
-                onUserActiveChange={setMentorUserActive}
-                spotFixCount={openFixCount}
-                onOpenSpotFixes={() => {
-                  setFixOpen(true);
-                  setShowHighlights(true);
-                }}
-              />
-            </div>
-          )}
-          {fixOpen && (
-            <div className="mt-3">
-              <WritingFixDialogue
-                issues={fixIssues}
-                draft={draft}
-                onIssuesChange={setFixIssues}
-                onDraftChange={setDraft}
-                onClose={() => {
-                  setFixOpen(false);
-                  if (coachReport || coach) setMentorOpen(true);
-                }}
-              />
-            </div>
-          )}
 
           {(padStatus || liveCoachBusy || busy === "ingest") && (
             <p className="mt-2 text-[11px] text-[var(--teal)]">
@@ -860,33 +1102,58 @@ export function WritingStudio() {
             </p>
           )}
           {error && (
-            <p className="mt-2 text-sm text-[var(--coral)] md:hidden">{error}</p>
+            <p className="mt-2 text-sm text-[var(--coral)]">{error}</p>
           )}
-
-          {coachReport ? (
-            <WritingCoachPanel
-              report={coachReport}
-              fallbackText={coach}
-              onTalk={() => {
-                setFixOpen(false);
-                setMentorOpen(true);
-              }}
-            />
-          ) : coach ? (
-            <div className="mt-4 space-y-2 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
-              <p className="whitespace-pre-wrap">{coach}</p>
-              <button
-                type="button"
-                onClick={() => setMentorOpen(true)}
-                className="min-h-10 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white"
-              >
-                Answer in coach chat
-              </button>
-            </div>
-          ) : null}
         </div>
 
-        <div className="flex flex-col bg-[#1a2228] p-4 text-[#e8e2d8]">
+        <div className="flex min-h-0 flex-col bg-[var(--surface)] md:bg-transparent">
+          <div
+            className={`${
+              mobileTab === "feedback" ? "flex" : "hidden"
+            } flex-1 flex-col border-b border-[var(--line)] bg-[var(--surface)] p-4 md:flex`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--teal)]">
+              Feedback
+            </p>
+            {feedbackBody}
+          </div>
+
+          <div
+            className={`${
+              mobileTab === "stage" ? "flex" : "hidden"
+            } flex-col md:flex ${
+              stageExpanded || mobileTab === "stage"
+                ? "flex-1"
+                : "md:flex-none"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setStageExpanded((v) => !v)}
+              className={`hidden items-center justify-between gap-2 border-b border-white/10 bg-[#1a2228] px-4 py-3 text-left text-[#e8e2d8] md:flex ${
+                stageExpanded ? "" : ""
+              }`}
+            >
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#8fb896]">
+                Stage ·{" "}
+                {stageKind === "music"
+                  ? "lyrics & song"
+                  : stageKind === "image"
+                    ? "image prompt"
+                    : "video prompt"}
+              </span>
+              <span className="text-[11px] text-[#a89f92]">
+                {stageExpanded ? "Collapse" : "Expand"}
+              </span>
+            </button>
+
+            <div
+              className={`${
+                stageExpanded || mobileTab === "stage"
+                  ? "flex"
+                  : "hidden md:hidden"
+              } flex-1 flex-col bg-[#1a2228] p-4 text-[#e8e2d8]`}
+            >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-[#8fb896]">
               Stage ·{" "}
@@ -1041,6 +1308,8 @@ export function WritingStudio() {
           </div>
           {status && <p className="mt-3 text-sm text-[#8fb896]">{status}</p>}
           {error && <p className="mt-2 text-sm text-[#e09a7a]">{error}</p>}
+            </div>
+          </div>
         </div>
       </div>
 

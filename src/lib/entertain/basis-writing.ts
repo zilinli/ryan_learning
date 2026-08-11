@@ -6,6 +6,42 @@
 
 export type BasisDimensionId = "topic" | "detail" | "vocab" | "grammar";
 
+/** Student writing genre — separate from Stage music mood. */
+export type WritingType =
+  | "narrative"
+  | "persuasive"
+  | "descriptive"
+  | "expository"
+  | "poetry"
+  | "lyrics"
+  | "free";
+
+export const WRITING_TYPES: Array<{ id: WritingType; label: string }> = [
+  { id: "narrative", label: "Narrative" },
+  { id: "persuasive", label: "Persuasive" },
+  { id: "descriptive", label: "Descriptive" },
+  { id: "expository", label: "Expository" },
+  { id: "poetry", label: "Poetry" },
+  { id: "lyrics", label: "Lyrics" },
+  { id: "free", label: "Free write" },
+];
+
+export function writingTypeUsesMood(type: WritingType): boolean {
+  return type === "lyrics" || type === "poetry";
+}
+
+export function structureCtaLabel(
+  writingType: WritingType,
+  stageKind: "music" | "image" | "video",
+): string {
+  if (stageKind === "image") return "Structure for image";
+  if (stageKind === "video") return "Structure for video";
+  if (writingType === "lyrics") return "Turn into lyrics";
+  if (writingType === "poetry") return "Shape as poem";
+  if (writingType === "free") return "Structure for stage";
+  return "Structure essay";
+}
+
 export type BasisLevel = "weak" | "ok" | "strong";
 
 export type BasisDimensionScore = {
@@ -248,7 +284,11 @@ function scoreVocab(draft: string, stats: BasisCoachReport["stats"]): BasisDimen
   };
 }
 
-function scoreGrammar(draft: string, stats: BasisCoachReport["stats"]): BasisDimensionScore {
+function scoreGrammar(
+  draft: string,
+  stats: BasisCoachReport["stats"],
+  grammarMatchCount = 0,
+): BasisDimensionScore {
   const meta = BASIS_DIMENSION_META.grammar;
   const hasEnd = /[.!?]/.test(draft);
   const starts = draft
@@ -281,6 +321,20 @@ function scoreGrammar(draft: string, stats: BasisCoachReport["stats"]): BasisDim
   } else {
     score = 4;
     tip = "Sentences look complete and varied enough to stage.";
+  }
+
+  if (grammarMatchCount >= 8) {
+    score = Math.min(score, 2);
+    tip =
+      "Several grammar / spelling marks need fixing — clear the underlined spots first.";
+  } else if (grammarMatchCount >= 4) {
+    score = Math.min(score, 3);
+    tip =
+      "A few mechanics marks are open — tap an underline, read why, then apply or rewrite.";
+  } else if (grammarMatchCount >= 1 && score >= 4) {
+    score = 3;
+    tip =
+      "Almost clean — fix the remaining underline, then re-check the rhythm of your openings.";
   }
 
   return {
@@ -331,13 +385,16 @@ function buildQuestions(focus: BasisDimensionId[]): string[] {
 }
 
 /** Local BASIS report — always available offline / as LLM fallback. */
-export function buildBasisCoachLocal(draft: string): BasisCoachReport {
+export function buildBasisCoachLocal(
+  draft: string,
+  opts?: { grammarMatchCount?: number; writingType?: WritingType },
+): BasisCoachReport {
   const stats = draftStats(draft);
   const dimensions = [
     scoreTopic(draft, stats),
     scoreDetail(draft, stats),
     scoreVocab(draft, stats),
-    scoreGrammar(draft, stats),
+    scoreGrammar(draft, stats, opts?.grammarMatchCount ?? 0),
   ];
   const sorted = [...dimensions].sort((a, b) => a.score - b.score);
   const focusIds = sorted
@@ -466,7 +523,23 @@ export function mergeBasisCoachFromLlm(
   };
 }
 
-export function basisCoachAgentPrompt(draft: string, genre: string): string {
+export function basisCoachAgentPrompt(
+  draft: string,
+  genre: string,
+  writingType: WritingType = "free",
+): string {
+  const typeHint =
+    writingType === "persuasive"
+      ? "Emphasize thesis clarity + evidence (topic + detail)."
+      : writingType === "narrative"
+        ? "Emphasize scene, character beat, and sensory detail."
+        : writingType === "expository"
+          ? "Emphasize clear topic sentence + organized explanation."
+          : writingType === "descriptive"
+            ? "Emphasize sensory precision and focused subject."
+            : writingType === "lyrics" || writingType === "poetry"
+              ? "Allow freer line breaks; still flag unclear meaning and weak verbs."
+              : "Balance all four dimensions.";
   return [
     "You are Spark — a calm writing tutor for an international-school student (BASIS-aligned).",
     "Assess the draft on exactly 4 dimensions, then prep a Socratic opener. Return ONLY JSON:",
@@ -495,7 +568,8 @@ export function basisCoachAgentPrompt(draft: string, genre: string): string {
     "Put the best draft quote in evidence on the strongest or focus dimension when you can.",
     "Never rewrite the whole draft. Never be babyish.",
     "Dimensions: topic=Topic sentence clarity; detail=Detail support; vocab=Vocabulary diversity; grammar=Grammatical accuracy.",
-    `Genre vibe: ${genre}.`,
+    `Writing type: ${writingType}. ${typeHint}`,
+    `Mood / genre vibe (for Stage): ${genre}.`,
     "",
     "Draft:",
     draft,

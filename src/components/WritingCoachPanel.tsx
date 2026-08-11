@@ -35,7 +35,9 @@ function scoreLabel(score: number): string {
 }
 
 export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
-  const [dimsOpen, setDimsOpen] = useState(false);
+  const [dimsOpen, setDimsOpen] = useState(() =>
+    Boolean(report?.focusIds?.length),
+  );
 
   if (!report?.dimensions?.length) {
     if (!fallbackText) return null;

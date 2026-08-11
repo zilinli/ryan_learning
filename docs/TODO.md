@@ -21,6 +21,21 @@
 
 ---
 
+## ✍️ WS-PAD-P0 — Writing Pad: grammar + Feedback/Stage layout (2026-08-12)
+
+> **Design:** [subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)  
+> **Goal:** Competitor-grade grammar underlines (LanguageTool or local), Feedback-first + collapsible Stage (mobile 3-tab), writing-type selector. Keep Stage song/image/video complete.
+
+- [x] **WS-PAD.1** — `languagetool.ts` + `POST /api/writing-studio/grammar-check` (env URL + local fallback)
+- [x] **WS-PAD.2** — `WritingPadHighlights` grammar matches + one-click replace; BASIS `scoreGrammar` uses match count
+- [x] **WS-PAD.3** — Writing type selector; mood/genre only for Lyrics/Poetry; Structure CTA adapts
+- [x] **WS-PAD.4** — Desktop Feedback + collapsible Stage; mobile Write/Feedback/Stage tabs
+- [x] **WS-PAD.5** — Live word/sentence count; desktop errors; coach panel auto-open weak dims
+- [x] **WS-PAD.6** — Unit tests + `run_tests`
+- [ ] **WS-PAD.7** — `apply_changes` → `publish_develop` → `deploy_live`
+
+---
+
 ## 📝 ENT-TED-HYBRID — TED Challenge MCQ + essay → tutor Q&A (2026-08-11)
 
 > **Design:** [subsystems/ted-challenge-hybrid-mcq.md](subsystems/ted-challenge-hybrid-mcq.md)  
@@ -34,7 +49,7 @@
 - [x] **ENT-TED-H.3d** — TutorShell: consume kickoff → new session auto-send + return banner (Next / Keep chatting)
 - [x] **ENT-TED-H.3e** — TedLab resume from stash at `qi` / `qi+1`
 - [x] **ENT-TED-H.4** — `run_tests` on handoff + ted-challenge
-- [ ] **ENT-TED-H.5** — apply_changes → publish_develop → deploy_live
+- [x] **ENT-TED-H.5** — apply_changes → publish_develop → deploy_live (code on `a0d6743`; live refresh with WS-PAD.7)
 - [ ] **ENT-TED-H.6** — Manual TM-H6–TM-H9 on live Challenge → tutor → Next
 
 ---

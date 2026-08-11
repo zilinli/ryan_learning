@@ -25,13 +25,17 @@ import {
   basisCoachAgentPrompt,
   buildBasisCoachLocal,
   mergeBasisCoachFromLlm,
+  type BasisCoachReport,
   type BasisDimensionId,
+  type WritingType,
+  WRITING_TYPES,
 } from "@/lib/entertain/basis-writing";
 import {
   localMentorReply,
   mentorTurnAgentPrompt,
   type MentorChatTurn,
 } from "@/lib/entertain/basis-mentor-session";
+import { localHeuristicGrammarCheck } from "@/lib/entertain/languagetool";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -138,6 +142,7 @@ export async function POST(req: Request) {
     action?: string;
     draft?: string;
     genre?: string;
+    writingType?: string;
     target?: string;
     images?: Array<{ name?: string; mimeType?: string; data?: string }>;
     fileText?: string;
@@ -166,6 +171,10 @@ export async function POST(req: Request) {
   const genre = GENRES.includes(body.genre as (typeof GENRES)[number])
     ? String(body.genre)
     : "Indie";
+  const writingTypeRaw = String(body.writingType || "free").toLowerCase();
+  const writingType: WritingType = WRITING_TYPES.some((t) => t.id === writingTypeRaw)
+    ? (writingTypeRaw as WritingType)
+    : "free";
   const images = (body.images || []).slice(0, MAX_IMAGES);
 
   if (action === "extract") {
@@ -460,7 +469,11 @@ export async function POST(req: Request) {
 
   // coach
   if (target === "music") {
-    const localReport = buildBasisCoachLocal(draft);
+    const grammarMatchCount = localHeuristicGrammarCheck(draft).length;
+    const localReport = buildBasisCoachLocal(draft, {
+      grammarMatchCount,
+      writingType,
+    });
     let report: BasisCoachReport = localReport;
     let agent: SDKAgent | null = null;
     try {
@@ -475,7 +488,7 @@ export async function POST(req: Request) {
       });
       let full = "";
       const run = await agent.send(
-        { text: basisCoachAgentPrompt(draft, genre) },
+        { text: basisCoachAgentPrompt(draft, genre, writingType) },
         {
           onDelta: ({ update }) => {
             if (update.type === "text-delta" && update.text) full += update.text;

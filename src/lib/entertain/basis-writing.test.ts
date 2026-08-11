@@ -3,6 +3,8 @@ import {
   buildBasisCoachLocal,
   mergeBasisCoachFromLlm,
   scoreToLevel,
+  structureCtaLabel,
+  writingTypeUsesMood,
 } from "./basis-writing";
 
 const VAGUE = [
@@ -62,5 +64,21 @@ describe("basis-writing", () => {
     expect(merged.dimensions.find((d) => d.id === "detail")!.score).toBe(1);
     expect(merged.dimensions.find((d) => d.id === "topic")!.score).toBe(4);
     expect(merged.questions[0]).toMatch(/scene/);
+  });
+
+  it("lowers grammar score when many grammar matches", () => {
+    const clean = buildBasisCoachLocal(RICH);
+    const dirty = buildBasisCoachLocal(RICH, { grammarMatchCount: 8 });
+    const g0 = clean.dimensions.find((d) => d.id === "grammar")!.score;
+    const g1 = dirty.dimensions.find((d) => d.id === "grammar")!.score;
+    expect(g1).toBeLessThanOrEqual(Math.min(g0, 2));
+  });
+
+  it("writing type helpers", () => {
+    expect(writingTypeUsesMood("lyrics")).toBe(true);
+    expect(writingTypeUsesMood("narrative")).toBe(false);
+    expect(structureCtaLabel("narrative", "music")).toBe("Structure essay");
+    expect(structureCtaLabel("lyrics", "music")).toBe("Turn into lyrics");
+    expect(structureCtaLabel("free", "image")).toBe("Structure for image");
   });
 });
