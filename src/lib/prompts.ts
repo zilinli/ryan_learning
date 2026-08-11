@@ -29,6 +29,10 @@ import {
   planPedagogyLoop,
 } from "./pedagogy-loop";
 import { sparkPromptLines } from "./spark-moment";
+import {
+  coachStatePromptBlock,
+  deriveCoachStateFromHistory,
+} from "./coach-state";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
@@ -547,6 +551,23 @@ export function buildTutorPrompt(params: {
           "Parent check mode overrides anti-spoiler and the hint ladder for this turn.",
         ].join("\n")
       : thinkFirstRules,
+    params.checkMode
+      ? ""
+      : (() => {
+          const focusPl =
+            loop.focusSkillId && params.learningMemory?.skills
+              ? params.learningMemory.skills.find((s) => s.id === loop.focusSkillId)
+                  ?.pKnown
+              : params.learningMemory?.skills?.length
+                ? [...params.learningMemory.skills].sort(
+                    (a, b) => a.pKnown - b.pKnown,
+                  )[0]?.pKnown
+                : undefined;
+          const coach = deriveCoachStateFromHistory(history, userText, {
+            bktMastery: focusPl,
+          });
+          return coachStatePromptBlock(coach);
+        })(),
     homeworkCoach,
     ...scratchDiagnosisPromptLines(hasHomework),
     ...pedagogyLoopPromptLines(loop),

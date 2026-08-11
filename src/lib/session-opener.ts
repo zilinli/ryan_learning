@@ -7,6 +7,7 @@ import {
   zpdWarmUpSkills,
   type LearningMemory,
 } from "./learning-memory";
+import { buildDailyReviewQueue } from "./review-queue";
 import { pickRecurringGapSkill } from "./knowledge-gaps";
 import { kvGet, kvSet } from "./browser-kv";
 import {
@@ -57,7 +58,12 @@ export function buildSessionOpener(
 
   // A3 — prefer skills weak across ≥2 days (with decay/expiry in gapHistory)
   const recurring = pickRecurringGapSkill(mem.gapHistory, mem);
-  const review = needsReviewSkills(mem, 1)[0];
+  // AUDIT8 — FSRS-inspired daily queue outranks plain SM-2 overdue when present
+  const queueTop = buildDailyReviewQueue(mem, {
+    now: now.getTime(),
+    limit: 1,
+  })[0]?.skill;
+  const review = queueTop ?? needsReviewSkills(mem, 1)[0];
   const zpd = zpdWarmUpSkills(mem, 1)[0];
   const skill = recurring ?? review ?? zpd;
   if (!skill) return null;

@@ -98,7 +98,7 @@ describe("engagement state", () => {
 });
 
 describe("engagementSummary", () => {
-  it("renders streak and day count", () => {
+  it("renders kid-facing streak and star goal", () => {
     const state = {
       ...emptyEngagement(),
       streak: 5,
@@ -108,9 +108,10 @@ describe("engagementSummary", () => {
       badges: ["3-day streak"],
     };
     const summary = engagementSummary(state);
-    expect(summary).toContain("🔥 5d");
-    expect(summary).toContain("今日 2/3");
-    expect(summary).toContain("3-day streak");
+    expect(summary).toContain("连续学习 5 天");
+    expect(summary).toContain("今日任务");
+    expect(summary).toContain("★★☆");
+    expect(summary).toContain("三天坚持");
   });
 });
 

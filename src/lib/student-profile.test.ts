@@ -224,6 +224,6 @@ describe("engagement", () => {
     state = recordLearningTurn(state);
     expect(state.solvesToday).toBe(3);
     expect(state.badges).toContain("Daily goal ✓");
-    expect(engagementSummary(state)).toMatch(/今日 3\/3/);
+    expect(engagementSummary(state)).toMatch(/今日任务/);
   });
 });

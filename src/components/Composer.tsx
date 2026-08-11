@@ -9,6 +9,7 @@ import {
 } from "@/lib/file-payload";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { CameraCapture } from "./CameraCapture";
+import { PhotoCropModal } from "./PhotoCropModal";
 import { FileAttachControl } from "./FileAttachControl";
 import { getTutorVoice, loadVoiceAutoSend, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
@@ -59,6 +60,10 @@ export function Composer({
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cropPending, setCropPending] = useState<{
+    dataUrl: string;
+    mimeType: string;
+  } | null>(null);
   const [voiceId, setVoiceId] = useState<TutorVoiceId>("auto");
   const [voiceAutoSend, setVoiceAutoSend] = useState(false);
   const [dialectPending, setDialectPending] = useState(false);
@@ -418,11 +423,26 @@ export function Composer({
         capturedCount={attachments.filter((a) => a.kind === "image").length}
         onClose={() => setCameraOpen(false)}
         onCapture={(payload) => {
+          setCameraOpen(false);
+          setCropPending({
+            dataUrl: payload.dataUrl,
+            mimeType: payload.mimeType,
+          });
+          setError("");
+        }}
+      />
+      <PhotoCropModal
+        open={!!cropPending}
+        dataUrl={cropPending?.dataUrl || ""}
+        mimeType={cropPending?.mimeType}
+        onCancel={() => setCropPending(null)}
+        onDone={(payload) => {
           const item = attachmentFromCameraCapture({
             ...payload,
             index: attachmentsRef.current.length + 1,
           });
           setAttachments((prev) => [...prev, item].slice(0, MAX_ATTACHMENTS));
+          setCropPending(null);
           setError("");
         }}
       />

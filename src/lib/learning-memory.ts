@@ -1293,9 +1293,11 @@ export function learningMemorySummary(mem: LearningMemory): string | null {
   const strong = skillStrengths(m, 1)[0];
   const top = [...m.skills].sort((a, b) => b.lastSeen - a.lastSeen)[0];
   if (weak && strong) {
-    return `强 ${strong.label} · 弱 ${weak.label}`;
+    return `擅长：${strong.label} · 需要加油：${weak.label}`;
   }
-  if (top) return `${top.label} · ${Math.round(top.mastery)}%`;
+  if (weak) return `需要加油：${weak.label}`;
+  if (strong) return `擅长：${strong.label}`;
+  if (top) return `最近练过：${top.label}`;
   return null;
 }
 

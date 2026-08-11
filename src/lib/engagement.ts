@@ -115,15 +115,24 @@ export function recordLearningTurn(
 }
 
 export function engagementSummary(state: EngagementState): string {
-  const parts = [
-    `🔥 ${state.streak}d`,
-    `今日 ${state.solvesToday}/3`,
-  ];
-  if (state.totalSolves >= 10) {
-    parts.push(`${state.totalSolves} turns`);
-  }
+  const streakLabel =
+    state.streak <= 0
+      ? "今天开始练"
+      : state.streak === 1
+        ? "连续学习 1 天🔥"
+        : `连续学习 ${state.streak} 天🔥`;
+  const goal = Math.min(3, Math.max(0, state.solvesToday));
+  const stars = "★".repeat(goal) + "☆".repeat(3 - goal);
+  const parts = [streakLabel, `今日任务 ${stars}`];
   if (state.badges.length) {
-    parts.push(state.badges[state.badges.length - 1]!);
+    const last = state.badges[state.badges.length - 1]!;
+    // Kid-facing badge aliases
+    if (last === "Daily goal ✓") parts.push("今日目标达成");
+    else if (last === "3-day streak") parts.push("三天坚持");
+    else if (last === "Week warrior") parts.push("一周勇士");
+    else if (last === "Curious mind") parts.push("好奇小脑袋");
+    else if (last === "Problem solver") parts.push("解题高手");
+    else parts.push(last);
   }
   return parts.join(" · ");
 }

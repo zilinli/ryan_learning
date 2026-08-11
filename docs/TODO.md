@@ -18,9 +18,27 @@
 > Claude report 2026-08: **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** (RPT2 public harden + Socratic integrity)
 > UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips + Slice A–D)
 > v4 deep analysis 2026-08: **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** (Studio BKT outcome + printable portfolio)
+> Product audit 2026-08: **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** (**多语言 + Code Agent 锁定保留**)
 
 ---
 
+## 🛡️ AUDIT8 — Product audit slices (2026-08-11)
+
+> **Design:** [subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)  
+> **Locks:** keep all languages/dialects; keep Code Agent full pipeline.  
+> **Goal:** Coach state machine + parent alias/TTS + FSRS-lite review queue + kid copy + photo crop; CA child-safe later.
+
+- [x] **AUDIT8.1** — `coach-state.ts` + unit tests (frustration / IDK / strategy ladder)
+- [x] **AUDIT8.2** — Inject coach block into `buildTutorPrompt`; extend Socratic integrity tests
+- [x] **AUDIT8.3** — Kid-facing `engagementSummary` + `learningMemorySummary`
+- [x] **AUDIT8.4** — `review-queue.ts` (FSRS-inspired R) + wire opener/practice
+- [x] **AUDIT8.5** — `/parent` → `/family` (TTS Listen digest deferred — edit budget)
+- [x] **AUDIT8.6** — Photo crop (`cropImageDataUrl` + modal) after camera
+- [ ] **AUDIT8.7** — Code Agent safe suggestions / PIN for destructive (keep agent)
+- [ ] **AUDIT8.8** — STT/TTS lazy-load plan (no language removal) — P2
+- [ ] **AUDIT8.9** — `run_tests` on touched files → `apply_changes` → `publish_develop` → `deploy_live`
+
+---
 
 ## 🎧 ENT-TED-INLINE — TED discuss stays on Lab + Writing structure adapt (2026-08-11)
 

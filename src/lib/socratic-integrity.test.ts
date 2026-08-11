@@ -14,6 +14,7 @@ function assertSocraticContract(prompt: string) {
   expect(prompt).toMatch(/Anti-spoiler/i);
   expect(prompt).toMatch(/L1\.5/);
   expect(prompt).toMatch(/L2\.5/);
+  expect(prompt).toMatch(/Coach state machine/);
   expect(prompt).not.toMatch(/SUSPENDED while check mode/i);
 }
 
@@ -51,5 +52,23 @@ describe("socratic-integrity (RPT2.3)", () => {
     expect(prompt).toMatch(/MEDIUM COMPUTATION/i);
     expect(prompt).toMatch(/HINT FIRST on turn 1/i);
     assertSocraticContract(prompt);
+  });
+
+  it("escalates coach HARD RULES after repeated I don't know", () => {
+    const prompt = buildTutorPrompt({
+      userText: "我不知道",
+      imageCount: 1,
+      fileSummaries: ["[Photo 1] angles worksheet"],
+      checkMode: false,
+      history: [
+        { role: "user", content: "I don't know" },
+        { role: "assistant", content: "What do you notice first?" },
+        { role: "user", content: "idk" },
+        { role: "assistant", content: "Try one more look at the figure." },
+      ],
+    });
+    expect(prompt).toMatch(/Coach state machine/);
+    expect(prompt).toMatch(/FORBIDDEN/);
+    expect(prompt).toMatch(/frustration=/);
   });
 });
