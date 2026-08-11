@@ -287,7 +287,11 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
 ### 6.3 Writing Studio Stage + deAPI text2X
 
-- Writing pad → Coach (`POST /api/lyric-studio/coach`) → structure lyrics → Stage tabs: **Song / Image / Video**.
+- Writing pad → Coach (`POST /api/lyric-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
+  - `target: music` (default) → `[Verse]` / `[Chorus]` lyrics + style caption
+  - `target: image|video` → visual / cinematic prompts (never lyric section tags)
+  - Generate rejects lyric-shaped prompts for image/video (`assertVisualPromptOk`)
+- Local fallback: `src/lib/entertain/studio-structure.ts`
 - **Primary (overseas):** [deAPI.ai](https://docs.deapi.ai) via `DEAPI_API_KEY`:
   - `POST /api/v2/audio/music` (txt2music)
   - `POST /api/v2/images/generations` (txt2img)

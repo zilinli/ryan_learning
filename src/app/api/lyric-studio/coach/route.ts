@@ -3,10 +3,10 @@
  * Body: {
  *   action: "coach" | "structure" | "extract",
  *   draft?, genre?,
+ *   target?: "music" | "image" | "video",
  *   images?: { name?, mimeType, data }[],
  *   fileText?: string
  * }
- * Coach = Socratic writing tips; structure = lyrics; extract = OCR/file → pad text.
  */
 
 import path from "node:path";
@@ -15,6 +15,11 @@ import type { SDKAgent, SDKImage, SDKUserMessage } from "@cursor/sdk";
 import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { stripDataUrlPrefix } from "@/lib/attachments";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
+import {
+  looksLikeLyricStructure,
+  structureDraftLocal,
+  type StudioStructureTarget,
+} from "@/lib/entertain/studio-structure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,26 +35,41 @@ function apiKey(): string {
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 const MAX_IMAGES = 3;
 
-function localStructure(draft: string, genre: string): {
-  lyrics: string;
-  caption: string;
-} {
-  const lines = draft
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const half = Math.max(2, Math.ceil(lines.length / 2));
-  const v1 = lines.slice(0, half).join("\n") || "Something I noticed today…";
-  const chorus =
-    lines.slice(half, half + 2).join("\n") || "Hold the feeling — say it twice.";
-  const lyrics = `[Verse]\n${v1}\n\n[Chorus]\n${chorus}\n\n[Verse]\n${lines.slice(half + 2).join("\n") || "Then the world shifted slightly…"}\n\n[Chorus]\n${chorus}`;
-  const caption = `${genre} mood, clear vocal, mid tempo, sincere storytelling, studio demo`;
-  return { lyrics, caption };
+function parseTarget(raw: unknown): StudioStructureTarget {
+  const t = String(raw || "music").toLowerCase();
+  if (t === "image" || t === "video" || t === "music") return t;
+  return "music";
 }
 
-function localCoach(draft: string): string {
+function localCoach(draft: string, target: StudioStructureTarget): string {
   const words = draft.trim().split(/\s+/).filter(Boolean).length;
   const tips: string[] = [];
+  if (target === "image") {
+    if (words < 15) {
+      tips.push(
+        "Name one clear subject and where they are — photo prompts need a concrete scene.",
+      );
+    } else {
+      tips.push(
+        "What lighting and camera distance fit this moment? Add one visual detail, not a lyric.",
+      );
+    }
+    tips.push("Avoid song structure tags — image models need a visual description.");
+    return tips.join("\n\n");
+  }
+  if (target === "video") {
+    if (words < 15) {
+      tips.push(
+        "Who or what moves, and how does the camera follow? Video needs action + motion.",
+      );
+    } else {
+      tips.push(
+        "Add one camera move (push-in, pan, tracking) and one continuous action beat.",
+      );
+    }
+    tips.push("Keep it cinematic prose — no [Verse]/[Chorus] tags.");
+    return tips.join("\n\n");
+  }
   if (words < 20) {
     tips.push(
       "Add one concrete sensory detail — a place, a sound, or a specific moment.",
@@ -68,6 +88,50 @@ function localCoach(draft: string): string {
   return tips.join("\n\n");
 }
 
+function structureAgentPrompt(
+  draft: string,
+  genre: string,
+  target: StudioStructureTarget,
+): string {
+  if (target === "image") {
+    return [
+      "Turn the student's writing into a TEXT-TO-IMAGE prompt.",
+      "Return ONLY JSON: {\"body\":\"...\",\"caption\":\"...\",\"prompt\":\"...\"}",
+      "body = concise visual scene (subject, setting, mood). NO [Verse]/[Chorus] tags.",
+      "caption = style notes (medium, lighting, composition).",
+      "prompt = body + caption fused for an image model (Flux-ready).",
+      "Never output song lyrics or karaoke structure.",
+      `Genre vibe: ${genre}.`,
+      "",
+      "Draft:",
+      draft,
+    ].join("\n");
+  }
+  if (target === "video") {
+    return [
+      "Turn the student's writing into a TEXT-TO-VIDEO prompt.",
+      "Return ONLY JSON: {\"body\":\"...\",\"caption\":\"...\",\"prompt\":\"...\"}",
+      "body = cinematic scene with continuous action + camera move. NO lyric section tags.",
+      "caption = style / fps feel / lighting notes.",
+      "prompt = body + caption fused for a video model.",
+      `Genre vibe: ${genre}.`,
+      "",
+      "Draft:",
+      draft,
+    ].join("\n");
+  }
+  return [
+    "You format student writing into song lyrics for music generation.",
+    "Never ghostwrite a wholly new song — reshape THEIR words.",
+    'Return ONLY JSON: {"lyrics":"...","caption":"..."}',
+    "lyrics must use [Verse] / [Chorus] / optional [Bridge] section tags.",
+    `Genre/mood for caption: ${genre}. Caption = short English style prompt (instruments, tempo, mood).`,
+    "",
+    "Draft:",
+    draft,
+  ].join("\n");
+}
+
 export async function POST(req: Request) {
   const limited = checkApiRateLimit(req, "lyric-coach", RATE_PRESETS.agent);
   if (limited) return limited;
@@ -76,6 +140,7 @@ export async function POST(req: Request) {
     action?: string;
     draft?: string;
     genre?: string;
+    target?: string;
     images?: Array<{ name?: string; mimeType?: string; data?: string }>;
     fileText?: string;
   } = {};
@@ -91,6 +156,7 @@ export async function POST(req: Request) {
       : body.action === "extract"
         ? "extract"
         : "coach";
+  const target = parseTarget(body.target);
   const draft = String(body.draft || "").trim().slice(0, 6000);
   const fileText = String(body.fileText || "").trim().slice(0, 8000);
   const genre = GENRES.includes(body.genre as (typeof GENRES)[number])
@@ -201,31 +267,21 @@ export async function POST(req: Request) {
   }
 
   if (action === "structure") {
-    const fallback = localStructure(draft, genre);
+    const fallback = structureDraftLocal(draft, genre, target);
     let agent: SDKAgent | null = null;
     try {
       agent = await Agent.create({
         apiKey: apiKey(),
         model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
-        name: "Lyric Structure",
+        name: "Studio Structure",
         local: {
           cwd: path.join(process.cwd(), "tutor-workspace"),
           settingSources: [],
         },
       });
       let full = "";
-      const prompt = [
-        "You format student writing into song lyrics for Bailian Fun-Music.",
-        "Never ghostwrite a wholly new song — reshape THEIR words.",
-        'Return ONLY JSON: {"lyrics":"...","caption":"..."}',
-        "lyrics must use [Verse] / [Chorus] / optional [Bridge] section tags.",
-        `Genre/mood for caption: ${genre}. Caption = short English style prompt (instruments, tempo, mood).`,
-        "",
-        "Draft:",
-        draft,
-      ].join("\n");
       const run = await agent.send(
-        { text: prompt },
+        { text: structureAgentPrompt(draft, genre, target) },
         {
           onDelta: ({ update }) => {
             if (update.type === "text-delta" && update.text) full += update.text;
@@ -250,14 +306,43 @@ export async function POST(req: Request) {
       if (m) {
         const parsed = JSON.parse(m[0]) as {
           lyrics?: string;
+          body?: string;
           caption?: string;
+          prompt?: string;
         };
-        if (parsed.lyrics && parsed.lyrics.includes("[")) {
-          return Response.json({
-            ok: true,
-            lyrics: String(parsed.lyrics).slice(0, 8000),
-            caption: String(parsed.caption || fallback.caption).slice(0, 500),
-          });
+        if (target === "music") {
+          const lyrics = String(parsed.lyrics || parsed.body || "");
+          if (lyrics.includes("[")) {
+            return Response.json({
+              ok: true,
+              target,
+              lyrics: lyrics.slice(0, 8000),
+              body: lyrics.slice(0, 8000),
+              caption: String(parsed.caption || fallback.caption).slice(0, 500),
+              prompt: String(parsed.caption || fallback.prompt).slice(0, 1200),
+            });
+          }
+        } else {
+          const bodyText = String(parsed.body || parsed.prompt || "");
+          const caption = String(parsed.caption || fallback.caption).slice(
+            0,
+            500,
+          );
+          const prompt = String(parsed.prompt || bodyText || fallback.prompt);
+          if (
+            bodyText.length >= 12 &&
+            !looksLikeLyricStructure(bodyText) &&
+            !looksLikeLyricStructure(prompt)
+          ) {
+            return Response.json({
+              ok: true,
+              target,
+              body: bodyText.slice(0, 8000),
+              lyrics: bodyText.slice(0, 8000),
+              caption,
+              prompt: prompt.slice(0, 1200),
+            });
+          }
         }
       }
     } catch (err) {
@@ -271,11 +356,18 @@ export async function POST(req: Request) {
         /* ignore */
       }
     }
-    return Response.json({ ok: true, ...fallback });
+    return Response.json({
+      ok: true,
+      target: fallback.target,
+      lyrics: fallback.lyrics,
+      body: fallback.body,
+      caption: fallback.caption,
+      prompt: fallback.prompt,
+    });
   }
 
   // coach
-  let coach = localCoach(draft);
+  let coach = localCoach(draft, target);
   let agent: SDKAgent | null = null;
   try {
     agent = await Agent.create({
@@ -288,8 +380,15 @@ export async function POST(req: Request) {
       },
     });
     let full = "";
+    const modeHint =
+      target === "image"
+        ? "Student is drafting toward a still image prompt."
+        : target === "video"
+          ? "Student is drafting toward a short video prompt."
+          : "Student is drafting toward song lyrics.";
     const prompt = [
-      "You are a witty writing coach for an international-school student writing song lyrics.",
+      "You are a witty writing coach for an international-school student.",
+      modeHint,
       "Socratic: ask 1–2 sharp questions and give 1 concrete craft tip.",
       "Never rewrite the whole draft. Never be babyish. Max 120 words.",
       `Genre vibe: ${genre}.`,
@@ -329,5 +428,5 @@ export async function POST(req: Request) {
       /* ignore */
     }
   }
-  return Response.json({ ok: true, coach });
+  return Response.json({ ok: true, coach, target });
 }

@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { GameId, GameCategory } from "./types";
 import { TED_CATALOG, searchTedCatalog, parseTedSlug } from "./ted-catalog";
 import { buildFallbackChallenge } from "./ted-challenge";
+import {
+  structureDraftLocal,
+  looksLikeLyricStructure,
+} from "./studio-structure";
 
 const STUDIO_IDS: GameId[] = ["ted-lab", "lyric-studio", "creations"];
 
@@ -34,5 +38,17 @@ describe("Studio product contract", () => {
     // Prefer open response — choices optional/rare
     const withChoices = c.items.filter((i) => i.choices && i.choices.length);
     expect(withChoices.length).toBeLessThanOrEqual(1);
+  });
+
+  it("modality structure: music vs image vs video formats differ", () => {
+    const draft = "Quiet rain. Bus stop. Grey coat. Waiting.";
+    const music = structureDraftLocal(draft, "Indie", "music");
+    const image = structureDraftLocal(draft, "Indie", "image");
+    const video = structureDraftLocal(draft, "Indie", "video");
+    expect(looksLikeLyricStructure(music.body)).toBe(true);
+    expect(looksLikeLyricStructure(image.prompt)).toBe(false);
+    expect(looksLikeLyricStructure(video.prompt)).toBe(false);
+    expect(image.prompt).not.toEqual(music.body);
+    expect(video.prompt).not.toEqual(music.body);
   });
 });

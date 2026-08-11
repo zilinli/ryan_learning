@@ -20,6 +20,11 @@ import {
   addCreation,
   type CreationType,
 } from "@/lib/entertain/creations-store";
+import {
+  assertVisualPromptOk,
+  buildVisualPrompt,
+  looksLikeLyricStructure,
+} from "@/lib/entertain/studio-structure";
 import { writeMediaBytes } from "@/lib/media-store";
 
 export const runtime = "nodejs";
@@ -80,12 +85,10 @@ export async function POST(req: Request) {
   const accountId = safeAccount(body.accountId);
   const title = String(body.title || `Untitled ${kind}`).slice(0, 160);
   const lyrics = String(body.lyrics || "").trim().slice(0, 8000);
-  const caption = String(body.caption || body.prompt || "")
+  const caption = String(body.caption || "")
     .trim()
     .slice(0, 500);
-  const prompt =
-    String(body.prompt || body.caption || "").trim().slice(0, 4000) ||
-    (lyrics ? lyrics.slice(0, 800) : "");
+  const rawPrompt = String(body.prompt || "").trim().slice(0, 4000);
 
   if (kind === "music") {
     if (!isMusicGenerateConfigured()) {
@@ -106,9 +109,10 @@ export async function POST(req: Request) {
       );
     }
     const gender = body.gender === "male" ? "male" : "female";
+    const musicCaption = caption || rawPrompt.slice(0, 500) || undefined;
     const result = await generateSongWithFallback({
       lyrics,
-      caption: caption || undefined,
+      caption: musicCaption,
       gender,
       durationSec: body.durationSec,
     });
@@ -152,7 +156,11 @@ export async function POST(req: Request) {
     }
     if (!audio) {
       return Response.json(
-        { ok: false, error: "Could not download generated audio", attempts: result.attempts },
+        {
+          ok: false,
+          error: "Could not download generated audio",
+          attempts: result.attempts,
+        },
         { status: 502 },
       );
     }
@@ -171,13 +179,16 @@ export async function POST(req: Request) {
       },
     );
     if (!meta) {
-      return Response.json({ ok: false, error: "Failed to store audio" }, { status: 500 });
+      return Response.json(
+        { ok: false, error: "Failed to store audio" },
+        { status: 500 },
+      );
     }
     const item = await addCreation(accountId, {
       type: "song",
       title,
       lyrics,
-      caption: caption || undefined,
+      caption: musicCaption,
       audioMediaId: mediaId,
       notes: result.provider ? `provider:${result.provider}` : undefined,
     });
@@ -194,7 +205,7 @@ export async function POST(req: Request) {
     });
   }
 
-  // image | video — deAPI only
+  // image | video — deAPI only; reject lyric-shaped prompts
   if (!isDeapiConfigured()) {
     return Response.json(
       {
@@ -205,11 +216,28 @@ export async function POST(req: Request) {
       { status: 503 },
     );
   }
-  if (prompt.length < 3) {
+
+  // Prefer an explicit prompt; otherwise fuse Stage body + caption.
+  // Reject if the Stage still looks like karaoke lyrics — image/video need visual prose.
+  if (looksLikeLyricStructure(rawPrompt) || looksLikeLyricStructure(lyrics)) {
     return Response.json(
-      { ok: false, error: "Prompt too short — use caption or prompt" },
+      {
+        ok: false,
+        error:
+          "Prompt still looks like song lyrics — restructure for Image/Video first",
+      },
       { status: 400 },
     );
+  }
+
+  const prompt =
+    rawPrompt ||
+    buildVisualPrompt(lyrics, caption) ||
+    caption ||
+    lyrics.slice(0, 800);
+  const promptError = assertVisualPromptOk(prompt);
+  if (promptError) {
+    return Response.json({ ok: false, error: promptError }, { status: 400 });
   }
 
   const gen =
@@ -283,5 +311,6 @@ export async function POST(req: Request) {
     provider: "deapi",
     model: gen.model,
     requestId: gen.requestId,
+    prompt,
   });
 }

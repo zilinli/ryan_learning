@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FILE_INPUT_ACCEPT } from "@/lib/attachments";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import {
+  buildVisualPrompt,
+  looksLikeLyricStructure,
+} from "@/lib/entertain/studio-structure";
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
 import { CameraCapture } from "./CameraCapture";
@@ -62,6 +66,7 @@ export function LyricStudio() {
   const genreRef = useRef(genre);
   const titleRef = useRef(title);
   const accountIdRef = useRef(accountId);
+  const stageKindRef = useRef(stageKind);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -75,6 +80,9 @@ export function LyricStudio() {
   useEffect(() => {
     accountIdRef.current = accountId;
   }, [accountId]);
+  useEffect(() => {
+    stageKindRef.current = stageKind;
+  }, [stageKind]);
 
   const appendToDraft = useCallback((text: string) => {
     const chunk = text.trim();
@@ -127,6 +135,7 @@ export function LyricStudio() {
             action: "coach",
             draft: draftRef.current,
             genre: genreRef.current,
+            target: stageKindRef.current,
           }),
           signal,
         });
@@ -178,7 +187,7 @@ export function LyricStudio() {
       window.clearTimeout(timer);
       ac.abort();
     };
-  }, [draft, genre, runCoach]);
+  }, [draft, genre, stageKind, runCoach]);
 
   useEffect(() => {
     return () => {
@@ -304,80 +313,148 @@ export function LyricStudio() {
       const res = await fetch("/api/lyric-studio/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "structure", draft, genre }),
+        body: JSON.stringify({
+          action: "structure",
+          draft,
+          genre,
+          target: stageKind,
+        }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
         lyrics?: string;
+        body?: string;
         caption?: string;
+        prompt?: string;
+        target?: string;
         error?: string;
       };
-      if (!res.ok || !data.lyrics)
+      const bodyText = String(data.body || data.lyrics || "").trim();
+      if (!res.ok || !bodyText)
         throw new Error(data.error || "Structure failed");
-      setLyrics(data.lyrics);
-      setCaption(data.caption || `${genre} mood`);
-      if (!title.trim()) {
-        setTitle(draft.split(/\n/)[0]?.slice(0, 48) || "Untitled song");
+      if (
+        stageKind !== "music" &&
+        looksLikeLyricStructure(bodyText)
+      ) {
+        throw new Error(
+          "Structure still looks like lyrics — try Structure again for Image/Video",
+        );
       }
-      setStatus("Ready — save draft or Stage → song / image / video.");
+      setLyrics(bodyText);
+      setCaption(
+        data.caption ||
+          (stageKind === "music"
+            ? `${genre} mood`
+            : String(data.prompt || "").slice(0, 500) || `${genre} visual mood`),
+      );
+      if (!title.trim()) {
+        const fallbackTitle =
+          stageKind === "music"
+            ? "Untitled song"
+            : stageKind === "image"
+              ? "Untitled image"
+              : "Untitled video";
+        setTitle(draft.split(/\n/)[0]?.slice(0, 48) || fallbackTitle);
+      }
+      setStatus(
+        stageKind === "music"
+          ? "Ready — lyrics structured for song."
+          : stageKind === "image"
+            ? "Ready — visual prompt structured for image."
+            : "Ready — cinematic prompt structured for video.",
+      );
       void recordStudioLearningTurn({
         accountId,
         source: "writing",
         title: title.trim() || draft.split(/\n/)[0]?.slice(0, 48) || "Writing",
         userText: draft,
-        assistantText: data.lyrics,
+        assistantText: bodyText,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Structure failed");
     } finally {
       setBusy(null);
     }
-  }, [draft, genre, title, accountId]);
+  }, [draft, genre, title, accountId, stageKind]);
 
   const saveLyricsOnly = useCallback(async () => {
     if (!lyrics.trim()) {
-      setError("Structure lyrics first");
+      setError(
+        stageKind === "music"
+          ? "Structure lyrics first"
+          : "Structure a visual prompt first",
+      );
       return;
     }
     setBusy("save");
     setError(null);
     try {
+      const type =
+        stageKind === "music"
+          ? "song"
+          : stageKind === "image"
+            ? "image"
+            : "video";
       const res = await fetch("/api/creations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           accountId,
-          type: "song",
-          title: title.trim() || "Untitled song",
+          type,
+          title:
+            title.trim() ||
+            (stageKind === "music"
+              ? "Untitled song"
+              : stageKind === "image"
+                ? "Untitled image"
+                : "Untitled video"),
           lyrics,
           caption,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
-      setStatus("Saved lyrics draft to My Creations.");
+      setStatus(
+        stageKind === "music"
+          ? "Saved lyrics draft to My Creations."
+          : "Saved Stage draft to My Creations.",
+      );
       void recordStudioLearningTurn({
         accountId,
         source: "writing",
-        title: title.trim() || "Untitled song",
+        title: title.trim() || "Untitled draft",
         userText: lyrics,
-        assistantText: "Lyrics draft saved",
+        assistantText: `${type} draft saved`,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setBusy(null);
     }
-  }, [lyrics, caption, title, accountId]);
+  }, [lyrics, caption, title, accountId, stageKind]);
 
   const generate = useCallback(async () => {
     if (stageKind === "music" && (!lyrics.trim() || !caption.trim())) {
       setError("Need structured lyrics + style notes");
       return;
     }
-    if (stageKind !== "music" && !caption.trim() && !lyrics.trim()) {
-      setError("Add style notes or lyrics as the prompt");
+    if (stageKind !== "music" && !lyrics.trim() && !caption.trim()) {
+      setError("Structure a visual prompt (or add scene + style notes)");
       return;
+    }
+    const visualPrompt =
+      stageKind === "music" ? "" : buildVisualPrompt(lyrics, caption);
+    if (stageKind !== "music") {
+      if (looksLikeLyricStructure(visualPrompt) || looksLikeLyricStructure(lyrics)) {
+        setError(
+          "Stage still looks like song lyrics — tap Structure for Image/Video first",
+        );
+        return;
+      }
+      if (visualPrompt.trim().length < 8) {
+        setError("Visual prompt too short");
+        return;
+      }
     }
     setBusy("generate");
     setError(null);
@@ -405,9 +482,9 @@ export function LyricStudio() {
               : stageKind === "image"
                 ? "Untitled image"
                 : "Untitled video"),
-          lyrics,
+          lyrics: stageKind === "music" ? lyrics : undefined,
           caption,
-          prompt: caption || lyrics.slice(0, 400),
+          prompt: stageKind === "music" ? caption : visualPrompt,
           gender,
         }),
       });
@@ -564,7 +641,13 @@ export function LyricStudio() {
               onClick={() => void structure()}
               className="min-h-11 rounded-lg border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40"
             >
-              {busy === "structure" ? "Structuring…" : "Turn into lyrics"}
+              {busy === "structure"
+                ? "Structuring…"
+                : stageKind === "music"
+                  ? "Turn into lyrics"
+                  : stageKind === "image"
+                    ? "Structure for image"
+                    : "Structure for video"}
             </button>
           </div>
 
@@ -589,7 +672,12 @@ export function LyricStudio() {
         <div className="flex flex-col bg-[#1a2228] p-4 text-[#e8e2d8]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-[#8fb896]">
-              Stage · lyrics & media
+              Stage ·{" "}
+              {stageKind === "music"
+                ? "lyrics & song"
+                : stageKind === "image"
+                  ? "image prompt"
+                  : "video prompt"}
             </label>
             <div className="flex gap-1 rounded-lg border border-white/15 p-0.5">
               {(
@@ -624,7 +712,13 @@ export function LyricStudio() {
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
             rows={stageKind === "music" ? 8 : 5}
-            placeholder="[Verse] / [Chorus] — also used as image/video prompt seed"
+            placeholder={
+              stageKind === "music"
+                ? "[Verse] / [Chorus] structured lyrics"
+                : stageKind === "image"
+                  ? "Visual scene — subject, setting, mood (no lyric tags)"
+                  : "Cinematic scene — subject, action, camera move (no lyric tags)"
+            }
             className="mt-2 min-h-[120px] flex-1 resize-y rounded-lg border border-white/15 bg-black/30 p-3 font-mono text-xs leading-relaxed outline-none focus:border-[#8fb896]"
           />
           <input
@@ -633,7 +727,9 @@ export function LyricStudio() {
             placeholder={
               stageKind === "music"
                 ? "Style notes (deAPI caption / mood)"
-                : "Prompt / style (deAPI text2X)"
+                : stageKind === "image"
+                  ? "Style notes — lighting, medium, composition"
+                  : "Style notes — motion, lighting, cinematic feel"
             }
             className="mt-2 min-h-11 rounded-lg border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-[#8fb896]"
           />
@@ -699,7 +795,11 @@ export function LyricStudio() {
               onClick={() => void saveLyricsOnly()}
               className="min-h-11 rounded-lg border border-white/25 px-4 text-sm disabled:opacity-40"
             >
-              {busy === "save" ? "Saving…" : "Save lyrics"}
+              {busy === "save"
+                ? "Saving…"
+                : stageKind === "music"
+                  ? "Save lyrics"
+                  : "Save draft"}
             </button>
             <button
               type="button"
