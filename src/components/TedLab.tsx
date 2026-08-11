@@ -9,8 +9,13 @@ import {
   type TedTalk,
   type TedTopic,
 } from "@/lib/entertain/ted-catalog";
-import type { TedChallenge, ChallengeItem } from "@/lib/entertain/ted-challenge";
+import {
+  appendVoiceTranscript,
+  type TedChallenge,
+  type ChallengeItem,
+} from "@/lib/entertain/ted-challenge";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
 type Phase = "browse" | "watch" | "challenge";
@@ -329,9 +334,23 @@ export function TedLab() {
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 rows={5}
-                placeholder="Argue carefully…"
+                placeholder="Argue carefully — type or speak…"
                 className="w-full rounded-xl border border-white/15 bg-black/40 p-4 text-sm text-[#e8e2d8] outline-none focus:border-[#6db8a8]"
               />
+              <div className="flex flex-wrap items-start gap-3">
+                <MicTranscribeButton
+                  language="auto"
+                  compact
+                  disabled={Boolean(feedback)}
+                  onTranscript={(t) => {
+                    setAnswer((prev) => appendVoiceTranscript(prev, t));
+                  }}
+                />
+                <p className="max-w-[14rem] pt-1 text-[11px] leading-snug text-[#a89f92]">
+                  Hold mic to speak (tap twice on phone). Words append into your
+                  answer.
+                </p>
+              </div>
               {feedback && (
                 <p className="rounded-lg border border-[#6db8a8]/30 bg-[#6db8a8]/10 p-3 text-sm leading-relaxed">
                   {feedback}

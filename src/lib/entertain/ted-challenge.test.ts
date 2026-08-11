@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendVoiceTranscript,
   buildFallbackChallenge,
   parseChallengeJson,
 } from "./ted-challenge";
@@ -48,5 +49,13 @@ describe("ted-challenge", () => {
     expect(
       parseChallengeJson('{"items":[{"kind":"literal","prompt":"x"}]}', talk),
     ).toBeNull();
+  });
+
+  it("appendVoiceTranscript TV1–TV3", () => {
+    expect(appendVoiceTranscript("", "  Hello world  ")).toBe("Hello world");
+    expect(appendVoiceTranscript("Claim one.", "Because evidence.")).toBe(
+      "Claim one. Because evidence.",
+    );
+    expect(appendVoiceTranscript("Keep me", "   ")).toBe("Keep me");
   });
 });

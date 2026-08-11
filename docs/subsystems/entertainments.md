@@ -283,6 +283,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Catalog:** curated JSON in `ted-catalog.ts` (~40 talks); client search/filter; paste `ted.com/talks/{slug}` URL.
 - **Transcript:** `GET /api/ted/transcript?slug=` — server fetch + `data/ted-cache/`; used for challenge generation only (no transcript browser UI).
 - **Challenge:** `POST /api/ted/challenge` — advanced listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`.
+- **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
 - **Pedagogy:** BASIS / international-school tone — claim–evidence–implication, steelman, retell; not babyish MC.
 
 ### 6.3 Writing Studio Stage + deAPI text2X

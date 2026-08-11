@@ -21,6 +21,17 @@ export type TedChallenge = {
   generatedFromTranscript: boolean;
 };
 
+/** Append STT text into a Challenge answer without wiping typed draft. */
+export function appendVoiceTranscript(
+  prev: string,
+  transcript: string,
+): string {
+  const chunk = transcript.trim();
+  if (!chunk) return prev;
+  const base = prev.trimEnd();
+  return base ? `${base} ${chunk}` : chunk;
+}
+
 function sentences(text: string): string[] {
   return text
     .split(/(?<=[.!?])\s+/)

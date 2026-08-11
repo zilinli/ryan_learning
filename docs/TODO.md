@@ -20,6 +20,19 @@
 
 ---
 
+## 🎤 ENT-TED-VOICE — TED Challenge voice input (2026-08-11)
+
+> **Design:** [subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)  
+> **Goal:** Challenge answers support mic → STT text (reuse `MicTranscribeButton`), not text-only.
+
+- [x] **ENT-TED-V.1** — `appendVoiceTranscript` helper + unit tests TV1–TV3
+- [x] **ENT-TED-V.2** — Wire mic into `TedLab` Challenge textarea (append; disable after Check)
+- [x] **ENT-TED-V.3** — Docs: design note + entertainments §6.2 + DESIGN map + this checklist
+- [ ] **ENT-TED-V.4** — `run_tests` → apply_changes → publish_develop → deploy_live
+- [ ] **ENT-TED-V.5** — Manual TM1–TM3 on live Challenge UI
+
+---
+
 ## 🎵 ENT-AUDIO — My Creations mobile play (2026-08-11)
 
 > **Design:** [subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)  
