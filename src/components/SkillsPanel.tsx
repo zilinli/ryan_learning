@@ -216,20 +216,22 @@ export function SkillsPanel({
               Parent
             </p>
             {!pinSet ? (
-              <p className="mt-1 text-[10px] text-[var(--ink-muted)]">
-                Set parent PIN
-                <span className="text-[var(--teal)]">
-                  {" "}
-                  — tap Unlock below (first time creates a 4-digit PIN)
-                </span>
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowPin(true)}
-                className="mt-1 min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-              >
-                Set parent PIN
-              </button>
+              <div className="mt-1 space-y-1">
+                <p className="text-[10px] text-[var(--ink-muted)]">
+                  Set parent PIN
+                  <span className="text-[var(--teal)]">
+                    {" "}
+                    — first time creates a 4-digit PIN
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPin(true)}
+                  className="min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+                >
+                  Set parent PIN
+                </button>
+              </div>
             ) : !parentUnlocked ? (
               <button
                 type="button"
