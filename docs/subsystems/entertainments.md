@@ -275,6 +275,8 @@ npm test -- src/lib/entertain
 
 Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
+**Account chrome:** `StudioAccountBar` on Studio hub, Entertainments hub, and every game/studio TopBar. TED + Writing call `recordStudioLearningTurn` → per-account `learning-memory` (subjects for Dashboard).
+
 ### 6.2 TED Lab
 
 - **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files.

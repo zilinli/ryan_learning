@@ -70,6 +70,8 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 | `/entertain?hub=studio` | **Studio · learning** — TED Lab, Writing Studio, My Creations |
 | `/entertain` | **Entertainments** — board / arcade / logic games only |
 
+**Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
+
 **Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`).
 
 **Media generation** (no local GPU):

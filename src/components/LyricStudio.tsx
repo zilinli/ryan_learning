@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
+import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import { useActiveStudioAccount } from "./StudioAccountBar";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
 
 export function LyricStudio() {
+  const { accountId, name: accountName } = useActiveStudioAccount();
   const [draft, setDraft] = useState("");
   const [genre, setGenre] = useState<(typeof GENRES)[number]>("Indie");
   const [coach, setCoach] = useState<string | null>(null);
@@ -38,12 +40,19 @@ export function LyricStudio() {
       };
       if (!res.ok || !data.coach) throw new Error(data.error || "Coach failed");
       setCoach(data.coach);
+      void recordStudioLearningTurn({
+        accountId,
+        source: "writing",
+        title: title.trim() || "Writing pad",
+        userText: draft,
+        assistantText: data.coach,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Coach failed");
     } finally {
       setBusy(null);
     }
-  }, [draft, genre]);
+  }, [draft, genre, accountId, title]);
 
   const structure = useCallback(async () => {
     setBusy("structure");
@@ -68,12 +77,19 @@ export function LyricStudio() {
         setTitle(draft.split(/\n/)[0]?.slice(0, 48) || "Untitled song");
       }
       setStatus("Ready — save draft or Stage → song / image / video.");
+      void recordStudioLearningTurn({
+        accountId,
+        source: "writing",
+        title: title.trim() || draft.split(/\n/)[0]?.slice(0, 48) || "Writing",
+        userText: draft,
+        assistantText: data.lyrics,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Structure failed");
     } finally {
       setBusy(null);
     }
-  }, [draft, genre, title]);
+  }, [draft, genre, title, accountId]);
 
   const saveLyricsOnly = useCallback(async () => {
     if (!lyrics.trim()) {
@@ -87,7 +103,7 @@ export function LyricStudio() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accountId: RYAN_ACCOUNT,
+          accountId,
           type: "song",
           title: title.trim() || "Untitled song",
           lyrics,
@@ -97,12 +113,19 @@ export function LyricStudio() {
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
       setStatus("Saved lyrics draft to My Creations.");
+      void recordStudioLearningTurn({
+        accountId,
+        source: "writing",
+        title: title.trim() || "Untitled song",
+        userText: lyrics,
+        assistantText: "Lyrics draft saved",
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setBusy(null);
     }
-  }, [lyrics, caption, title]);
+  }, [lyrics, caption, title, accountId]);
 
   const generate = useCallback(async () => {
     if (stageKind === "music" && (!lyrics.trim() || !caption.trim())) {
@@ -131,7 +154,7 @@ export function LyricStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kind: stageKind,
-          accountId: RYAN_ACCOUNT,
+          accountId,
           title:
             title.trim() ||
             (stageKind === "music"
@@ -153,7 +176,6 @@ export function LyricStudio() {
         audioUrl?: string;
         provider?: string;
         model?: string;
-        attempts?: string[];
       };
       if (res.status === 503 || data.status === "unconfigured") {
         setStatus(
@@ -174,13 +196,22 @@ export function LyricStudio() {
       setStatus(
         `Ready (${data.provider || "deapi"}${data.model ? ` · ${data.model}` : ""}) — also in My Creations.`,
       );
+      if (stageKind === "music" || lyrics.trim()) {
+        void recordStudioLearningTurn({
+          accountId,
+          source: "writing",
+          title: title.trim() || "Stage piece",
+          userText: lyrics || caption,
+          assistantText: `Generated ${stageKind} via ${data.provider || "deapi"}`,
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generate failed");
       setStatus(null);
     } finally {
       setBusy(null);
     }
-  }, [lyrics, caption, title, gender, stageKind]);
+  }, [lyrics, caption, title, gender, stageKind, accountId]);
 
   return (
     <div className="flex flex-1 flex-col bg-[var(--surface-muted)]">
@@ -191,10 +222,12 @@ export function LyricStudio() {
         <h2 className="mt-1 text-center text-2xl font-semibold text-[var(--ink)]">
           Write. Polish. Stage it.
         </h2>
+        <p className="mt-2 text-center text-[11px] text-[var(--ink-muted)]">
+          For {accountName} · writing turns update ELA skills on Dashboard
+        </p>
       </div>
 
       <div className="mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2">
-        {/* Notebook */}
         <div className="flex flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:border-b-0 md:border-r">
           <label className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
             Writing pad
@@ -247,7 +280,6 @@ export function LyricStudio() {
           )}
         </div>
 
-        {/* Stage · lyrics & text2X */}
         <div className="flex flex-col bg-[#1a2228] p-4 text-[#e8e2d8]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-[#8fb896]">

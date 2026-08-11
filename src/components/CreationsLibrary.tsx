@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CreationItem } from "@/lib/entertain/creations-store";
-import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
+import { useActiveStudioAccount } from "./StudioAccountBar";
 
 function formatDate(ts: number): string {
   try {
@@ -18,6 +18,7 @@ function formatDate(ts: number): string {
 }
 
 export function CreationsLibrary() {
+  const { accountId, name: accountName } = useActiveStudioAccount();
   const [items, setItems] = useState<CreationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export function CreationsLibrary() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/creations?accountId=${encodeURIComponent(RYAN_ACCOUNT)}`,
+        `/api/creations?accountId=${encodeURIComponent(accountId)}`,
       );
       const data = (await res.json()) as {
         ok?: boolean;
@@ -41,7 +42,7 @@ export function CreationsLibrary() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accountId]);
 
   useEffect(() => {
     void load();
@@ -52,11 +53,11 @@ export function CreationsLibrary() {
       await fetch("/api/creations", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: RYAN_ACCOUNT, id }),
+        body: JSON.stringify({ accountId, id }),
       });
       setItems((prev) => prev.filter((i) => i.id !== id));
     },
-    [],
+    [accountId],
   );
 
   return (
@@ -69,7 +70,7 @@ export function CreationsLibrary() {
           My Creations
         </h2>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
-          Songs, images, videos, and TED challenges — private to this account.
+          {accountName}&apos;s songs, images, videos, and TED challenges.
         </p>
       </div>
 

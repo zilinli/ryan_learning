@@ -10,7 +10,8 @@ import {
   type TedTopic,
 } from "@/lib/entertain/ted-catalog";
 import type { TedChallenge, ChallengeItem } from "@/lib/entertain/ted-challenge";
-import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
+import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
+import { useActiveStudioAccount } from "./StudioAccountBar";
 
 type Phase = "browse" | "watch" | "challenge";
 
@@ -39,6 +40,7 @@ function softFeedback(item: ChallengeItem, answer: string): string {
 }
 
 export function TedLab() {
+  const { accountId, name: accountName } = useActiveStudioAccount();
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState<TedTopic | "all">("all");
   const [paste, setPaste] = useState("");
@@ -121,13 +123,21 @@ export function TedLab() {
   }, [talk]);
 
   const submitAnswer = useCallback(() => {
-    if (!challenge) return;
+    if (!challenge || !talk) return;
     const item = challenge.items[qi];
     if (!item) return;
     const fb = softFeedback(item, answer);
     setFeedback(fb);
     setAnswers((prev) => ({ ...prev, [item.id]: answer.trim() }));
-  }, [challenge, qi, answer]);
+    void recordStudioLearningTurn({
+      accountId,
+      source: "ted",
+      title: talk.title,
+      userText: `Prompt (${item.kind}): ${item.prompt}\nStudent: ${answer.trim()}`,
+      assistantText: fb,
+      tedTopics: talk.topics,
+    });
+  }, [challenge, qi, answer, talk, accountId]);
 
   const nextQuestion = useCallback(() => {
     setFeedback(null);
@@ -145,7 +155,7 @@ export function TedLab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accountId: RYAN_ACCOUNT,
+          accountId,
           type: "ted_challenge",
           title: `TED · ${talk.title}`,
           talkSlug: talk.slug,
@@ -154,10 +164,18 @@ export function TedLab() {
         }),
       });
       setSaved(true);
+      void recordStudioLearningTurn({
+        accountId,
+        source: "ted",
+        title: talk.title,
+        userText: notes.slice(0, 4000),
+        assistantText: "TED challenge saved to My Creations",
+        tedTopics: talk.topics,
+      });
     } catch {
       setError("Could not save to My Creations");
     }
-  }, [talk, challenge, answers]);
+  }, [talk, challenge, answers, accountId]);
 
   if (phase === "watch" && talk) {
     return (
@@ -326,6 +344,9 @@ export function TedLab() {
         <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
           Official TED player only. Challenges probe claim, structure, and critique —
           not baby quizzes.
+        </p>
+        <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
+          Tracking for {accountName} · answers update subject skills on Dashboard
         </p>
       </div>
       <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-auto px-4 py-6">
