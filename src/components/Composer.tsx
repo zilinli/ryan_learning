@@ -74,6 +74,11 @@ export function Composer({
     onDismiss: () => void;
   } | null>(null);
   const dialectTokenRef = useRef(0);
+  const dialectMetaRef = useRef<{
+    original: string;
+    engine?: "bailian" | "iflytek" | "local";
+    dialect: "teo" | "hak";
+  } | null>(null);
   const attachmentsRef = useRef<ClientAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Keep a ref of the latest attachments for stable event-handler closures
@@ -336,7 +341,7 @@ export function Composer({
             onConfirmIntent={setVoiceConfirm}
             voiceAutoSend={voiceAutoSend}
             onVoiceAutoSendChange={setVoiceAutoSend}
-            onTranscript={(t) => {
+            onTranscript={(t, meta) => {
               const lang = getTutorVoice(voiceId).lang;
               const needsConfirm =
                 lang === "teo" ||
@@ -349,6 +354,15 @@ export function Composer({
                 const token = dialectTokenRef.current + 1;
                 dialectTokenRef.current = token;
                 setText(t);
+                if (lang === "teo" || lang === "hak") {
+                  dialectMetaRef.current = {
+                    original: t,
+                    engine: meta?.engine,
+                    dialect: lang,
+                  };
+                } else {
+                  dialectMetaRef.current = null;
+                }
                 if (lang === "sha") {
                   setDialectPending(false);
                   return;
@@ -366,7 +380,26 @@ export function Composer({
                       corrected?: string;
                     } | null;
                     if (token !== dialectTokenRef.current) return;
-                    if (data?.corrected) setText(data.corrected);
+                    const corrected =
+                      typeof data?.corrected === "string" && data.corrected.trim()
+                        ? data.corrected.trim()
+                        : t;
+                    setText(corrected);
+                    // TEO.5 — log engine + original → corrected for Chaoshan corpus
+                    const fb = dialectMetaRef.current;
+                    if (fb && (fb.dialect === "teo" || fb.dialect === "hak")) {
+                      void fetch("/api/dialect-feedback", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          text: corrected,
+                          dialect: fb.dialect,
+                          timestamp: Date.now(),
+                          engine: fb.engine,
+                          original: fb.original,
+                        }),
+                      }).catch(() => undefined);
+                    }
                   } catch {
                     // keep original transcript
                   } finally {
@@ -377,6 +410,7 @@ export function Composer({
                 })();
                 return;
               }
+              dialectMetaRef.current = null;
               setText(t);
               if (!needsConfirm) {
                 window.setTimeout(() => submit(t), 0);

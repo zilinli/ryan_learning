@@ -13,6 +13,11 @@ import { consumeConsoleSse } from "@/lib/console-sse";
 import type { ConsoleRunSnapshot } from "@/lib/console-run-store";
 import type { ClientAttachment } from "@/lib/file-payload";
 import type { ConsoleMessage, DiffBlock, ToolCall } from "@/lib/types";
+import {
+  SAFE_SUGGESTIONS,
+  needsParentPinForConsole,
+} from "@/lib/console-safe-intent";
+import { isParentSessionUnlocked } from "@/lib/adult-gate";
 
 type Props = { open: boolean; onClose: () => void; onMinimize: () => void };
 
@@ -20,13 +25,7 @@ const ACC_URL = typeof window !== "undefined"
   ? `http://${window.location.hostname}:3001/`
   : "http://65.49.201.123:3001/";
 
-const HINT_EXAMPLES = [
-  "Make the text bigger",
-  "Add a dark orange accent",
-  "Fix the photo on mobile",
-  "Show math steps one by one",
-  "Add a new subject filter",
-];
+const HINT_EXAMPLES = SAFE_SUGGESTIONS;
 
 function finishFromText(
   full: string,
@@ -53,6 +52,8 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const [msgs, setMsgs] = useState<ConsoleMessage[]>([]);
   const [err, setError] = useState("");
   const [showPin, setShowPin] = useState(false);
+  const [pinReason, setPinReason] = useState<"send" | "apply">("apply");
+  const [pendingSubmit, setPendingSubmit] = useState<ComposerSubmit | null>(null);
   const [diff, setDiff] = useState<DiffBlock | null>(null);
   const [accAvailable, setAccAvailable] = useState(false);
   const [hint, setHint] = useState(HINT_EXAMPLES[0]);
@@ -376,9 +377,36 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
     clearCodeAgentPanelContext();
   }, []);
 
-  const lock = useCallback(() => {
-    setShowPin(false); setPhase("applied");
+  const requestSend = useCallback((payload: ComposerSubmit) => {
+    if (needsParentPinForConsole(payload.text, isParentSessionUnlocked())) {
+      setPendingSubmit(payload);
+      setPinReason("send");
+      setShowPin(true);
+      return;
+    }
+    void send(payload);
+  }, [send]);
+
+  const onPinUnlock = useCallback(() => {
+    setShowPin(false);
+    if (pinReason === "send" && pendingSubmit) {
+      const payload = pendingSubmit;
+      setPendingSubmit(null);
+      void send(payload);
+      return;
+    }
+    setPhase("applied");
     setTimeout(() => { setPhase("idle"); setDiff(null); }, 3000);
+  }, [pinReason, pendingSubmit, send]);
+
+  const requestApply = useCallback(() => {
+    if (isParentSessionUnlocked()) {
+      setPhase("applied");
+      setTimeout(() => { setPhase("idle"); setDiff(null); }, 3000);
+      return;
+    }
+    setPinReason("apply");
+    setShowPin(true);
   }, []);
 
   if (!open) return null;
@@ -419,12 +447,12 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
       <span className="text-3xl">🛠</span>
       <p className="text-sm font-semibold text-[var(--ink)]">Tell Spark how to improve</p>
       <p className="text-xs text-[var(--ink-muted)] leading-relaxed max-w-[260px]">
-        Describe what you want changed — fonts, colors, layout, features. The code agent reads your files and makes edits.
+        Describe what you want changed — fonts, colors, layout, features. Publish / deploy needs a parent PIN.
       </p>
       <div className="flex flex-col gap-1.5 mt-1">
         <p className="text-[10px] font-semibold text-[var(--ink-muted)] uppercase tracking-wide">Try:</p>
         {HINT_EXAMPLES.map(ex => (
-          <button key={ex} type="button" onClick={() => send({ text: ex, attachments: [] })}
+          <button key={ex} type="button" onClick={() => requestSend({ text: ex, attachments: [] })}
             className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)] transition text-left">• {ex}</button>
         ))}
       </div>
@@ -465,7 +493,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
             <pre className="max-h-[120px] overflow-y-auto rounded bg-[var(--mist)]/50 p-2 text-[11px] text-[var(--ink)] leading-snug whitespace-pre-wrap">{diff.hunks.slice(0, 600)}</pre>
           </div>
           <div className="mt-2 flex gap-2">
-            <button type="button" onClick={() => setShowPin(true)}
+            <button type="button" onClick={requestApply}
               className="flex-1 rounded-full bg-[var(--teal)] py-1.5 text-xs font-semibold text-white hover:brightness-105">Apply</button>
             <button type="button" onClick={() => { setPhase("idle"); setDiff(null); }}
               className="flex-1 rounded-full border border-[var(--line)] py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:bg-[var(--mist)]">Cancel</button>
@@ -473,7 +501,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
         </div>
       ) : null}
       <div className="shrink-0 px-3 pb-3 pt-1">
-        <ConsoleComposer disabled={phase === "thinking"} singleLine placeholder={`Try: ${hint}`} onSubmit={send} />
+        <ConsoleComposer disabled={phase === "thinking"} singleLine placeholder={`Try: ${hint}`} onSubmit={requestSend} />
       </div>
     </>
   );
@@ -500,7 +528,15 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
           {panelContent}
         </div>
       </div>
-      {showPin ? <PinGate onUnlock={lock} onCancel={() => setShowPin(false)} /> : null}
+      {showPin ? (
+        <PinGate
+          onUnlock={onPinUnlock}
+          onCancel={() => {
+            setShowPin(false);
+            setPendingSubmit(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

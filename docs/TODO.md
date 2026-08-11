@@ -34,9 +34,11 @@
 - [x] **AUDIT8.4** — `review-queue.ts` (FSRS-inspired R) + wire opener/practice
 - [x] **AUDIT8.5** — `/parent` → `/family` (TTS Listen digest deferred — edit budget)
 - [x] **AUDIT8.6** — Photo crop (`cropImageDataUrl` + modal) after camera
-- [ ] **AUDIT8.7** — Code Agent safe suggestions / PIN for destructive (keep agent)
-- [ ] **AUDIT8.8** — STT/TTS lazy-load plan (no language removal) — P2
+- [x] **AUDIT8.7** — Code Agent safe suggestions / PIN for destructive (keep agent) — [ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)
+- [x] **AUDIT8.8** — Voice menu Core/More lazy groups (no language removal)
 - [ ] **AUDIT8.9** — `run_tests` on touched files → `apply_changes` → `publish_develop` → `deploy_live`
+- [x] **TODO-CLEAN.1** — Wire TEO.5 dialect-feedback `engine`+`original` from Composer/VoiceControls
+- [ ] **TODO-CLEAN.2** — Release pending slices already coded (ENT-INLINE.5 / WS-PAD.7 / ENT-TED-L.6) with AUDIT8.9 deploy
 
 ---
 
@@ -870,7 +872,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 
 - [ ] **TEO.0** — Real-audio A/B: Bailian vs. iFlytek on 12–15 Teochew clips (internet datasets — `panlr/teochew_wild`; human-scored) — see §4
 - [x] **TEO.4** — Feedback log: `DialectFeedback.engine` + `.original` fields — `dialect-feedback.ts` + tests (6 passing)
-- [ ] **TEO.5** — Wire UI call site (`Composer.tsx` / dialect-correct path) to pass `engine` + `original` through to `/api/dialect-feedback`
+- [x] **TEO.5** — Wire UI call site (`Composer.tsx` / dialect-correct path) to pass `engine` + `original` through to `/api/dialect-feedback`
 - [ ] **TEO.1–3** — Per-dialect STT engine routing (`stt-engine-order.ts` + `route.ts` rewire) — only if TEO.0 confirms iFlytek wins
   - [ ] **TEO.1** — `stt-engine-order.ts` + unit tests
   - [ ] **TEO.2** — Rewire `route.ts` POST to walk ordered list for `teo`/`hak`
@@ -1356,7 +1358,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 | **Deletion sync + themes + F dialect** | ✅ done | — |
 | **Phase G dialect speech** | 🟡 partial | G.3 local Teochew TTS; G.4 LoRA STT (optional); G.5.3 GPT-SoVITS; **15.2.6** clone ID |
 | **Phase 15 cloud dialect** | 🟡 nearly done | **15.2.6** family Teochew clone; 15.5 backlog |
-| **TEO Teochew STT remediation** | 🟡 feedback done | TEO.4 done; TEO.0 A/B eval + TEO.5 wire-up pending; TEO.1-3 blocked on TEO.0 result |
+| **TEO Teochew STT remediation** | 🟡 TEO.5 done | TEO.4+TEO.5 done; TEO.0 A/B eval pending; TEO.1-3 blocked on TEO.0 result |
 | **Phase 0 UI** | ✅ code done | Manual 0.14 QA; competitive polish separate |
 | **Phase 6 testing gaps** | 🔴 open | cursor-agent / speech-player / chat route / TutorShell RTL |
 | **Phase 7–9, 11** | ✅ done | — |
@@ -1374,5 +1376,5 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 1. **CA-P0.R3** — human smoke M1–M4 on live (worksheet chip, practice, opener, barge-in)
 2. **P1 competitive** — C1/CA-5 (scratch-work / **2.4**), C2–C4 teaching depth
 3. **Phase G / 15 remaining** — Teochew family clone ID (**15.2.6**); optional G.3/G.4 only if cloud quality insufficient
-4. **TEO Teochew STT** — run A/B eval TEO.0 (internet Teochew samples → human-scored) + TEO.5 wire-up; TEO.1-3 routing only if iFlytek wins
+4. **TEO Teochew STT** — run A/B eval TEO.0 (internet Teochew samples → human-scored); TEO.5 wired; TEO.1-3 routing only if iFlytek wins
 4. **Phase 10.3 / Phase 6** — CI + coverage gaps when hardening

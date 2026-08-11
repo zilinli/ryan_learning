@@ -33,6 +33,7 @@ import {
   startWavRecorder,
 } from "@/lib/wav-recorder";
 import { interruptHint, planBargeIn } from "@/lib/speech-barge-in";
+import { CORE_VOICE_IDS, moreVoiceIds } from "@/lib/voice-menu-groups";
 import {
   applyConfusableChoice,
   confirmOptions,
@@ -59,7 +60,7 @@ type Props = {
   voiceEnabled: boolean;
   onVoiceEnabledChange: (v: boolean) => void;
   onVoiceIdChange?: (id: TutorVoiceId) => void;
-  onTranscript: (text: string) => void;
+  onTranscript: (text: string, meta?: { engine?: "bailian" | "iflytek" | "local" }) => void;
   /** Report-v3 R4 — when true, Composer may auto-send STT (parent/student opt-in) */
   voiceAutoSend?: boolean;
   onVoiceAutoSendChange?: (v: boolean) => void;
@@ -122,6 +123,7 @@ export function VoiceControls({
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
   const [speakError, setSpeakError] = useState(false);
   const [dialectNotice, setDialectNotice] = useState<string | null>(null);
+  const [moreLangsOpen, setMoreLangsOpen] = useState(false);
 
   const pointerActiveRef = useRef(false);
   const recorderRef = useRef<RecorderSession | null>(null);
@@ -332,6 +334,7 @@ export function VoiceControls({
     [stopSpeaking],
   );
 
+  const lastSttEngineRef = useRef<"bailian" | "iflytek" | "local" | undefined>(undefined);
   const recentSkillsRef = useRef(recentSkillIds);
   useEffect(() => {
     recentSkillsRef.current = recentSkillIds;
@@ -354,7 +357,8 @@ export function VoiceControls({
         pair && chosen
           ? applyConfusableChoice(transcript, pair, chosen)
           : transcript;
-      onTranscript(out);
+      const engine = lastSttEngineRef.current;
+      onTranscript(out, engine ? { engine } : undefined);
     },
     [clearConfirmTimer, onTranscript, onConfirmIntent],
   );
@@ -401,6 +405,7 @@ export function VoiceControls({
         const data = (await res.json().catch(() => null)) as {
           text?: string;
           error?: string;
+          engine?: "bailian" | "iflytek" | "local";
         } | null;
         if (!res.ok) {
           throw new Error(
@@ -413,6 +418,12 @@ export function VoiceControls({
         const text = (data?.text || "").trim();
         if (!text) throw new Error("Didn't catch that — try again louder");
         setStatus("");
+        const engine =
+          data?.engine === "bailian" || data?.engine === "iflytek" || data?.engine === "local"
+            ? data.engine
+            : undefined;
+        lastSttEngineRef.current = engine;
+        const meta = engine ? { engine } : undefined;
         // B3 — voice-only confirm-intent (typed path never hits this)
         const pair = detectConfusable(text, recentSkillsRef.current);
         if (pair) {
@@ -422,9 +433,11 @@ export function VoiceControls({
             // VC5 — fail-open: send original transcript
             resolveConfirm(text, null);
           }, confirmTimeoutMs());
+          // Still surface engine when confusable resolves via onTranscript inside resolveConfirm
+          // — confusable path does not pass engine; Composer only needs it for teo/hak.
           return;
         }
-        onTranscript(text);
+        onTranscript(text, meta);
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Recognition failed";
@@ -785,7 +798,10 @@ export function VoiceControls({
                   </span>
                 </button>
               </li>
-              {TUTOR_VOICES.map((v) => (
+              {CORE_VOICE_IDS.map((id) => {
+                const v = TUTOR_VOICES.find((x) => x.id === id);
+                if (!v) return null;
+                return (
                 <li key={v.id}>
                   <button
                     type="button"
@@ -805,7 +821,46 @@ export function VoiceControls({
                     ) : null}
                   </button>
                 </li>
-              ))}
+                );
+              })}
+              <li className="border-t border-[var(--line)]/60 mt-1 pt-1">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setMoreLangsOpen((o) => !o)}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium text-[var(--ink)] hover:bg-[var(--mist)]"
+                >
+                  <span>More languages</span>
+                  <span className="text-[var(--ink-muted)]">{moreLangsOpen ? "Hide" : "Show"}</span>
+                </button>
+              </li>
+              {moreLangsOpen
+                ? moreVoiceIds().map((id) => {
+                    const v = TUTOR_VOICES.find((x) => x.id === id);
+                    if (!v) return null;
+                    return (
+                      <li key={v.id}>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => void changeVoice(v.id)}
+                          className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
+                            v.id === voiceId
+                              ? "bg-[var(--mist)] font-medium text-[var(--ink)]"
+                              : "text-[var(--ink-muted)] hover:bg-[var(--mist)] hover:text-[var(--ink)]"
+                          }`}
+                        >
+                          <span>{v.label}</span>
+                          {v.id === voiceId ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20,6 9,17 4,12" />
+                            </svg>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })
+                : null}
             </ul>
           </>
         ) : null}

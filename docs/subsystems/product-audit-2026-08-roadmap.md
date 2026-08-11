@@ -60,10 +60,12 @@ Audit says Spark’s pedagogy/BKT/multi-tenant are strong, but: (1) Socratic lad
 
 - Safe-intent suggestions + PIN for destructive paths only.
 - No removal of console / auto-git.
+- **Shipped 2026-08-11:** `console-safe-intent.ts` + `CodeAgentPanel` PIN gate — [ca-child-safe-and-voice-lazy.md](ca-child-safe-and-voice-lazy.md)
 
 ### Slice G — Languages lazy-load (P2)
 
 - Preload yue/en/zh; load es/fr/ms/dialects on first use. **Zero language deletions.**
+- **Shipped 2026-08-11 (menu groups):** Core vs More in `VoiceControls` — same doc. Network TTS lazy remains on-demand per `/api/tts`.
 
 ### Slice H — Ops (P2, optional)
 

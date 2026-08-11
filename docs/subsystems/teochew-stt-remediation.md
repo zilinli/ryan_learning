@@ -170,7 +170,7 @@ Only `teo` traffic gets an extra API call in the new default order (iFlytek runs
 ### 6.1 Tasks
 
 - [x] **TEO.4** — Add `engine` + `original` fields to `DialectFeedback`, update `dialect-feedback.test.ts` (6 tests passing)
-- [ ] **TEO.5** — Wire the calling site (wherever the edit-before-send UI posts corrections) to pass both fields through
+- [x] **TEO.5** — Wire Composer dialect-correct path to POST `/api/dialect-feedback` with `engine` + `original` (VoiceControls passes STT `engine`)
 
 ---
 
@@ -203,7 +203,7 @@ Only `teo` traffic gets an extra API call in the new default order (iFlytek runs
 ```md
 - [ ] **TEO.0** — Real-audio A/B: Bailian vs. iFlytek on 12–15 Teochew clips (internet datasets + human-scored) — see [teochew-stt-remediation.md](subsystems/teochew-stt-remediation.md) §4
 - [x] **TEO.4** — Feedback log: `DialectFeedback.engine` + `.original` fields — §6
-- [ ] **TEO.5** — Wire UI call site to pass `engine` + `original` through — §6
+- [x] **TEO.5** — Wire UI call site to pass `engine` + `original` through — §6
 - [ ] **TEO.1–3** — Per-dialect STT engine routing (only if TEO.0 confirms iFlytek wins for teo) — §5
 ```
 
