@@ -10,11 +10,19 @@ import {
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
 import type { BasisCoachReport } from "@/lib/entertain/basis-writing";
+import {
+  buildWritingFixIssues,
+  nextOpenFix,
+  remainingFixCount,
+  type WritingFixIssue,
+} from "@/lib/entertain/basis-fix-session";
 import { CameraCapture } from "./CameraCapture";
 import { FileAttachControl } from "./FileAttachControl";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 import { WritingCoachPanel } from "./WritingCoachPanel";
+import { WritingFixDialogue } from "./WritingFixDialogue";
+import { WritingPadHighlights } from "./WritingPadHighlights";
 
 const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
@@ -46,6 +54,9 @@ export function WritingStudio() {
   const [genre, setGenre] = useState<(typeof GENRES)[number]>("Indie");
   const [coach, setCoach] = useState<string | null>(null);
   const [coachReport, setCoachReport] = useState<BasisCoachReport | null>(null);
+  const [fixIssues, setFixIssues] = useState<WritingFixIssue[]>([]);
+  const [fixOpen, setFixOpen] = useState(false);
+  const [showHighlights, setShowHighlights] = useState(false);
   const [lyrics, setLyrics] = useState("");
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
@@ -100,8 +111,17 @@ export function WritingStudio() {
       report?: BasisCoachReport | null,
     ) => {
       setCoach(coachText);
-      if (report) setCoachReport(report);
-      else setCoachReport(null);
+      if (report) {
+        setCoachReport(report);
+        const queue = buildWritingFixIssues(draftRef.current, report, 8);
+        setFixIssues(queue);
+        if (queue.length > 0) {
+          setFixOpen(true);
+          setShowHighlights(true);
+        }
+      } else {
+        setCoachReport(null);
+      }
       if (
         recordLearning &&
         coachText &&
@@ -544,6 +564,11 @@ export function WritingStudio() {
   }, [lyrics, caption, title, gender, stageKind, accountId]);
 
   const padLocked = busy !== null;
+  const activeFix = nextOpenFix(fixIssues);
+  const openFixCount = remainingFixCount(fixIssues);
+  const gridClass = fixOpen
+    ? "mx-auto grid w-full max-w-6xl flex-1 gap-0 lg:grid-cols-[minmax(260px,0.95fr)_minmax(280px,1.1fr)_minmax(280px,1fr)]"
+    : "mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2";
 
   return (
     <div className="flex flex-1 flex-col bg-[var(--surface-muted)]">
@@ -555,22 +580,78 @@ export function WritingStudio() {
           Write. Polish. Stage it.
         </h2>
         <p className="mt-2 text-center text-[11px] text-[var(--ink-muted)]">
-          For {accountName} · writing turns update ELA skills on Dashboard
+          For {accountName} · Coach opens a fix dialogue by severity · writing
+          turns update ELA skills
         </p>
       </div>
 
-      <div className="mx-auto grid w-full max-w-5xl flex-1 gap-0 md:grid-cols-2">
-        <div className="flex flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:border-b-0 md:border-r">
-          <label className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-            Writing pad
-          </label>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={12}
-            placeholder="A scene, a feeling, a line you can't shake… or speak / attach / snap"
-            className="mt-2 min-h-[220px] flex-1 resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
+      <div className={gridClass}>
+        {fixOpen && (
+          <WritingFixDialogue
+            issues={fixIssues}
+            draft={draft}
+            onIssuesChange={setFixIssues}
+            onDraftChange={setDraft}
+            onClose={() => setFixOpen(false)}
           />
+        )}
+
+        <div className="flex flex-col border-b border-[var(--line)] bg-[#f3efe6] p-4 dark:bg-[#2a2620] md:border-b-0 md:border-r">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+              Writing pad
+            </label>
+            <div className="flex items-center gap-2">
+              {openFixCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFixOpen(true)}
+                  className="relative inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-2.5 text-[11px] font-semibold text-[var(--coral)]"
+                  title="Open fix dialogue"
+                >
+                  Issues
+                  <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--coral)] text-[10px] text-white">
+                    {openFixCount}
+                  </span>
+                </button>
+              )}
+              {fixIssues.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowHighlights((v) => !v)}
+                  className="min-h-9 rounded-lg px-2 text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                >
+                  {showHighlights ? "Edit text" : "Show marks"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {showHighlights && fixIssues.some((i) => i.status === "open") ? (
+            <div className="mt-2 space-y-2">
+              <WritingPadHighlights
+                draft={draft}
+                issues={fixIssues}
+                activeId={activeFix?.id}
+                className="min-h-[180px]"
+              />
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={5}
+                placeholder="Edit here if you need a free rewrite…"
+                className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
+              />
+            </div>
+          ) : (
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={12}
+              placeholder="A scene, a feeling, a line you can't shake… or speak / attach / snap"
+              className="mt-2 min-h-[220px] flex-1 resize-y rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-[#1f1c18]"
+            />
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             {GENRES.map((g) => (
               <button

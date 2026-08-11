@@ -291,7 +291,8 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 ### 6.3 Writing Studio Stage + deAPI text2X
 
 - Writing pad → Coach (`POST /api/writing-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
-  - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions) — not a wall of text.
+  - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions).
+  - **Fix dialogue** (`WritingFixDialogue`): after Coach, a left-side chat walks issues by severity; student replies → **Apply to pad** rewrites the highlighted span in the Writing Pad. Marks via `WritingPadHighlights`.
   - `target: music` (default) → `[Verse]` / `[Chorus]` lyrics + style caption
   - `target: image|video` → visual / cinematic prompts (never lyric section tags)
   - Generate rejects lyric-shaped prompts for image/video (`assertVisualPromptOk`)
