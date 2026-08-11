@@ -29,7 +29,7 @@
 - [x] **UX-RPT.2** — StepReveal Got it / Simpler chips → `spark:quick-reply` → Composer draft
 - [x] **UX-RPT.3** — Prompt: soft persona + stronger `~~~step` discipline
 - [x] **UX-RPT.4** — Unit tests (`tutor-wait-status`) + run_tests
-- [ ] **UX-RPT.5** — apply_changes → publish_develop → deploy_live
+- [x] **UX-RPT.5** — apply_changes → publish_develop → deploy_live (`8e9d874` + live `.next` has wait/chips; health ok 2026-08-11)
 - [ ] **UX-RPT.6** — Manual: photo wait phases; step chips fill composer
 
 ---
