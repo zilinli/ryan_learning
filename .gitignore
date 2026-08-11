@@ -38,6 +38,9 @@ yarn-error.log*
 /logs/
 *.log
 
+# local data backups (AUD.5)
+/backups/
+
 # local runtime
 /tmp/
 /data/conversations/*.json

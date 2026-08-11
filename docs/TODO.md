@@ -1119,6 +1119,24 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 
 ---
 
+## 📋 Phase AUD: 2026-08 external product audit — selective acceptance
+
+> **Design:** [subsystems/audit-2026-08-product-acceptance.md](subsystems/audit-2026-08-product-acceptance.md)  
+> Filter: chat-first / no error-book app / no streaks (see competitive-product-plan-v2)
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| [x] AUD.1 | Acceptance matrix + DESIGN pointer | done | `audit-2026-08-product-acceptance.md` |
+| [x] AUD.2 | Dialect visibility in metadata + Help/FAQ | done | `layout.tsx` description + FAQ chips |
+| [x] AUD.3 | Static `/privacy` data-use + disclaimer | done | `src/app/privacy/page.tsx` |
+| [x] AUD.4 | PIN-gated learning JSON export on `/dashboard` | done | `account-export.ts` + dashboard button |
+| [x] AUD.5 | `scripts/backup-data.sh` for `data/` | done | local tar; no `.env` |
+| [ ] AUD.6 | Soft nudge / portfolio PDF / usage admin / multi-model | backlog | Explicit defer |
+
+**Rejected as product (do not build):** dedicated `/mistakes` 错题本, `/parent` mega-dashboard, streaks, exposed knowledge-map UI, lowering Code Agent PIN.
+
+---
+
 ## 📊 Summary (reconciled 2026-08-09)
 
 | Phase | Status | What's left |
@@ -1137,6 +1155,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 | **Phase 12** | 🟡 mostly done | 12F.4 WL catalog; 12G.1–3 policy / validate |
 | **Phase 13** | ✅ mostly done | 13E.1b PIN-on-delete; 13E.2 gradeBand empty copy |
 | **Phase 14** | ✅ done | 14C.1 manual verify; 14C.2 pinch optional |
+| **Phase AUD** | ✅ AUD.1–5 | AUD.6 backlog (nudge/PDF/usage/multi-model) |
 | **Phase 2** | 🟡 | **2.4** / CA-5 only (2.2 done via CA-1) |
 | **Phase 3** Geometry | 🔴 open | 3.1–3.3 / CA-9 |
 | **Phase 4** Voice | 🟡 | 4.1b continuous; 4.3 parent voice note (4.1a/4.2 done) |

@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Is my data private?",
-    a: "Your conversations are stored only on your device (localStorage) and optionally synced across your devices via Spark's own server. No third-party analytics. Voice data is sent to cloud STT services for transcription only.",
+    a: "Spark is self-hosted for a small family set of accounts. Chats and BKT learning memory live on this server (account-scoped) plus your browser localStorage. Parent PIN gates digests and learning export on /dashboard. Full note: /privacy. Cloud STT/TTS (when used) only gets the audio/text for that request.",
   },
   {
     q: "How do I switch accounts?",

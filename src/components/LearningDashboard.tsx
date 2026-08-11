@@ -12,6 +12,10 @@ import {
   SUBJECT_LABELS,
   type SubjectKey,
 } from "@/lib/dashboard-stats";
+import {
+  buildAccountLearningExport,
+  downloadAccountLearningExport,
+} from "@/lib/account-export";
 import { buildParentWeeklyDigest } from "@/lib/parent-digest";
 import { hasParentPin, PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
@@ -244,9 +248,34 @@ export function LearningDashboard() {
                 Unlock weekly digest
               </button>
             ) : (
-              <pre className="mt-2 whitespace-pre-wrap rounded-xl bg-[var(--mist)] p-3 text-[12px] leading-relaxed text-[var(--ink)]">
-                {weekly.text}
-              </pre>
+              <div className="mt-2 space-y-3">
+                <pre className="whitespace-pre-wrap rounded-xl bg-[var(--mist)] p-3 text-[12px] leading-relaxed text-[var(--ink)]">
+                  {weekly.text}
+                </pre>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payload = buildAccountLearningExport(
+                      accountId,
+                      memory,
+                    );
+                    if (payload) downloadAccountLearningExport(payload);
+                  }}
+                  className="min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px] font-medium text-[var(--ink)]"
+                >
+                  Download learning JSON
+                </button>
+                <p className="text-[11px] text-[var(--ink-muted)]">
+                  Active account only · see{" "}
+                  <a
+                    href="/privacy"
+                    className="text-[var(--teal)] underline-offset-2 hover:underline"
+                  >
+                    privacy & data use
+                  </a>
+                  .
+                </p>
+              </div>
             )}
           </section>
         </div>

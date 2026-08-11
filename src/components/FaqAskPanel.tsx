@@ -41,9 +41,9 @@ const REPLY_LANGS: { id: FaqReplyLang; label: string }[] = [
 
 const SUGGESTIONS = [
   "How do I change the tutor voice language?",
+  "Does Spark support 粤语 / 客家话 / 闽南话 tutoring?",
   "为什么 Listen 没声音？",
-  "Bagaimana nak translate jawapan ke English?",
-  "Where is my data stored?",
+  "Where is my data stored? (privacy)",
 ];
 
 function newId(prefix: string) {
