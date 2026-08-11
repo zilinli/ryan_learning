@@ -18,6 +18,18 @@
 
 ---
 
+## 👁 AUD.6a-vis — Soft idle / dialect / Practice more visible (2026-08-11)
+
+> **Design:** [subsystems/audit-2026-08-product-acceptance.md](subsystems/audit-2026-08-product-acceptance.md) §AUD.6a-vis  
+> **Goal:** Make shipped AUD.6a surfaces scannable without streaks or new routes.
+
+- [x] **AUD.6a-vis.1** — Empty chat: dialect chip row + opener eyebrow / stronger border for return|practice
+- [x] **AUD.6a-vis.2** — Dashboard Practice → pill button + short section hint
+- [x] **AUD.6a-vis.3** — run_tests (idle-nudge / session-opener) → apply_changes → publish_develop → deploy_live
+- [ ] **AUD.6a-vis.4** — Manual: empty chat chips; dashboard Practice → chat practice card
+
+---
+
 ## 📎 DOC: Document upload parse — MD / Office / HTML (2026-08-10)
 
 > **Design:** [subsystems/document-upload-parse.md](subsystems/document-upload-parse.md)

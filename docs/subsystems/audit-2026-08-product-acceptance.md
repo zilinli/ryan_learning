@@ -82,6 +82,18 @@ Accept the **intent** (remember → track → show progress) when it maps to exi
 
 **Non-goals:** push notifications, streak UI, `/mistakes` route, email digests.
 
+### AUD.6a-vis — Make AUD.6a surfaces scannable (2026-08-11)
+
+**Problem:** Soft return / dialect / Practice landed as muted copy (`text-xs` / 11px links). Active accounts rarely hit idle≥3d, so Welcome-back feels “missing.”
+
+**Approach (UI only; logic unchanged):**
+1. Empty chat: dialect as a short chip row (粤语 / 客家话 / 闽南话 / 上海话), not grey paragraph.
+2. Session opener cards: eyebrow by `kind` (`Welcome back` / `From learning map` / warm-up) + stronger teal border for `return` / `practice`.
+3. Dashboard: **Practice** as a teal pill button (≥44px hit); short hint under Focus / Mistake headers.
+4. Keep `IDLE_SOFT_DAYS = 3`, no streaks, no `/mistakes`.
+
+**Test design:** unit regressions on idle-nudge / session-opener; manual — empty chat chips visible; dashboard Practice → chat shows practice eyebrow card.
+
 ---
 
 ## Key files

@@ -151,7 +151,10 @@ export function LearningDashboard() {
               <h2 className="text-[13px] font-semibold text-[var(--coral)]">
                 Focus · SM-2 due
               </h2>
-              <ul className="mt-2 space-y-1 text-[13px]">
+              <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                Tap Practice to open a short warm-up in chat.
+              </p>
+              <ul className="mt-2 space-y-2 text-[13px]">
                 {(model.weak.length ? model.weak : model.reviewDue).map((s) => (
                   <li key={s.id} className="flex items-center justify-between gap-2">
                     <span className="truncate">{s.label}</span>
@@ -168,7 +171,7 @@ export function LearningDashboard() {
                             source: "dashboard-weak",
                           })
                         }
-                        className="text-[11px] font-medium text-[var(--teal)] underline-offset-2 hover:underline"
+                        className="inline-flex min-h-11 items-center rounded-full border border-[var(--teal)]/45 bg-[var(--teal)]/12 px-3 text-[12px] font-semibold text-[var(--teal)]"
                       >
                         Practice
                       </a>
@@ -216,6 +219,9 @@ export function LearningDashboard() {
             <h2 className="text-[13px] font-semibold text-[var(--ink)]">
               Mistake patterns
             </h2>
+            <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+              Practice opens chat with a guided check — not a separate error book.
+            </p>
             <ul className="mt-3 space-y-2">
               {model.misconceptionHeat.length ? (
                 model.misconceptionHeat.map((h) => {
@@ -239,7 +245,7 @@ export function LearningDashboard() {
                                   source: "dashboard-misconception",
                                 })
                               }
-                              className="text-[11px] font-medium text-[var(--teal)] underline-offset-2 hover:underline"
+                              className="inline-flex min-h-11 items-center rounded-full border border-[var(--teal)]/45 bg-[var(--teal)]/12 px-3 text-[12px] font-semibold text-[var(--teal)]"
                             >
                               Practice
                             </a>

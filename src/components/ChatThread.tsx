@@ -308,6 +308,17 @@ export function ChatThread({
   };
 
   if (messages.length === 0) {
+    const openerEyebrow =
+      sessionOpener?.kind === "return"
+        ? "Welcome back"
+        : sessionOpener?.kind === "practice"
+          ? "From learning map"
+          : sessionOpener
+            ? "Today's warm-up"
+            : null;
+    const openerEmphasized =
+      sessionOpener?.kind === "return" || sessionOpener?.kind === "practice";
+
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center animate-fade-up">
         <div className="text-4xl">📚</div>
@@ -318,10 +329,24 @@ export function ChatThread({
           Snap a photo, type a question, or use the mic. I&apos;ll guide you step by
           step — no spoilers.
         </p>
-        <p className="max-w-md text-xs leading-relaxed text-[var(--ink-muted)]">
-          Voice tutoring in 粤语 / Cantonese, 客家话, 闽南话, 上海话, and more — pick
-          a voice in the sidebar.
-        </p>
+        <div className="w-full max-w-md rounded-2xl border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-4 py-3 text-left">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Voice tutoring
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Supported dialects">
+            {["粤语", "客家话", "闽南话", "上海话", "EN / 普通话"].map((label) => (
+              <li
+                key={label}
+                className="rounded-full border border-[var(--teal)]/40 bg-[var(--surface-muted)] px-2.5 py-1 text-[12px] font-medium text-[var(--ink)]"
+              >
+                {label}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[12px] leading-relaxed text-[var(--ink-muted)]">
+            Pick a voice in the sidebar — dialects stay on that account.
+          </p>
+        </div>
         <button
           type="button"
           onClick={onSnapHomework}
@@ -331,8 +356,11 @@ export function ChatThread({
         </button>
 
         {practiceOffer && practiceOffer.targets.length > 0 ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-4 py-3 text-left">
-            <p className="text-sm font-medium text-[var(--ink)]">
+          <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--teal)]/50 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              Practice offer
+            </p>
+            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
               Practice 3 quick ones?
             </p>
             <p className="mt-1 text-xs text-[var(--ink-muted)]">
@@ -363,8 +391,21 @@ export function ChatThread({
             </div>
           </div>
         ) : sessionOpener ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)]/80 px-4 py-3 text-left">
-            <p className="text-sm font-medium text-[var(--ink)]">{sessionOpener.line}</p>
+          <div
+            className={`mt-3 w-full max-w-md rounded-2xl bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm ${
+              openerEmphasized
+                ? "border-2 border-[var(--teal)]/55"
+                : "border border-[var(--line)]"
+            }`}
+          >
+            {openerEyebrow ? (
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+                {openerEyebrow}
+              </p>
+            ) : null}
+            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+              {sessionOpener.line}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
