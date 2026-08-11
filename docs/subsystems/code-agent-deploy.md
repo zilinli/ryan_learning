@@ -42,6 +42,8 @@ Dry-run: `CONSOLE_DEPLOY_DRY_RUN=1` → no side effects (unit tests).
 
 Timeout: build ≤ 240s (console route `maxDuration` = 300).
 
+`npm run build` uses **smart-build** which **stashes** `.next` → `.next.prev` before rebuilding and **restores** on failure/interrupt, so a failed Code Agent deploy no longer deletes the live production bundle.
+
 ### 2.2 SYS prompt contract
 
 After any change under `src/` / `public/` / `next.config.*` that affects the running app:

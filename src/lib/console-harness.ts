@@ -344,11 +344,35 @@ async function deployLive(_args: Record<string, SDKJsonValue>): Promise<string> 
   }
 
   const build = await exe("npm", ["run", "build"], { timeout: BUILD_TO });
+  const buildIdPath = path.join(root(), ".next", "BUILD_ID");
+  let hasBuild = false;
+  try {
+    await fs.access(buildIdPath);
+    hasBuild = true;
+  } catch {
+    hasBuild = false;
+  }
+
   if (build.exitCode !== 0) {
     return JSON.stringify({
       ok: false,
       phase: "build",
       exitCode: build.exitCode,
+      hasBuildId: hasBuild,
+      note: hasBuild
+        ? "Build failed; smart-build should have restored previous .next"
+        : "Build failed and .next/BUILD_ID missing — site may be down; run npm run build manually",
+      log: (build.stdout + build.stderr).slice(-6000),
+    });
+  }
+
+  if (!hasBuild) {
+    return JSON.stringify({
+      ok: false,
+      phase: "build",
+      exitCode: 0,
+      hasBuildId: false,
+      note: "Build exited 0 but BUILD_ID missing — refusing pm2 restart",
       log: (build.stdout + build.stderr).slice(-6000),
     });
   }
@@ -381,9 +405,20 @@ async function deployLive(_args: Record<string, SDKJsonValue>): Promise<string> 
 
 async function revertChanges(): Promise<string> {
   await exe("git", ["checkout", "--", "."], { timeout: GIT_TO });
+  // Never wipe production `.next` / stash — gitignored but required by pm2 npm start.
   await exe(
     "git",
-    ["clean", "-fd", "--", ":(exclude).git", ":(exclude)node_modules", ":(exclude).env*"],
+    [
+      "clean",
+      "-fd",
+      "--",
+      ":(exclude).git",
+      ":(exclude)node_modules",
+      ":(exclude).env*",
+      ":(exclude).next",
+      ":(exclude).next.prev",
+      ":(exclude).console-backups",
+    ],
     { timeout: GIT_TO },
   );
   resetFileChangeCount();
