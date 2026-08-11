@@ -360,7 +360,7 @@ describe("hybrid MCQ + essay (TMH1–TMH6)", () => {
     const empty = buildChoiceSoftFeedback(item, []);
     expect(exact).toMatch(/lines up with the talk/i);
     expect(miss).toMatch(/may miss the talk/i);
-    expect(empty).toMatch(/Pick at least one option/i);
+    expect(empty).toMatch(/No option selected|essay|own view/i);
     expect(exact).not.toMatch(/write-up|essay|retell/i);
   });
 

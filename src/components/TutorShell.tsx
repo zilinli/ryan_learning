@@ -128,6 +128,14 @@ import {
   buildPracticeKickoffOpener,
   consumePracticeKickoff,
 } from "@/lib/idle-nudge";
+import {
+  buildTedChallengeKickoffMessage,
+  clearTedChallengeResume,
+  consumeTedChallengeKickoff,
+  detectTedCoherenceSignal,
+  peekTedChallengeResume,
+  tedLabResumeHref,
+} from "@/lib/entertain/ted-challenge-handoff";
 
 function messageId() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -344,6 +352,11 @@ export function TutorShell() {
     null,
   );
   const [sessionOpener, setSessionOpener] = useState<SessionOpener | null>(null);
+  const [tedReturn, setTedReturn] = useState<{
+    talkTitle: string;
+    nextQi: number;
+    coherent: boolean;
+  } | null>(null);
   const [dailyBlurb, setDailyBlurb] = useState<string | null>(null);
   const [emotionLine, setEmotionLine] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("");
@@ -380,6 +393,8 @@ export function TutorShell() {
   const accountsRef = useRef<AccountRecord[]>([]);
   /** When a deep-link pinned an account, don't let roster hydrate overwrite it. */
   const deepLinkAccountRef = useRef<string | null>(null);
+  const tedKickoffHandledRef = useRef(false);
+  const pendingTedKickoffRef = useRef<string | null>(null);
 
   useEffect(() => {
     checkModeRef.current = checkMode;
@@ -966,6 +981,57 @@ export function TutorShell() {
         : null,
     );
   };
+
+  // TED Challenge → homepage Q&A: consume one-shot kickoff after store is ready
+  useEffect(() => {
+    if (!ready || !store || tedKickoffHandledRef.current) return;
+    tedKickoffHandledRef.current = true;
+    const kick = consumeTedChallengeKickoff();
+    if (!kick) {
+      const resume = peekTedChallengeResume();
+      if (resume) {
+        setTedReturn({
+          talkTitle: resume.talkTitle,
+          nextQi: resume.qi,
+          coherent: false,
+        });
+      }
+      return;
+    }
+    setPracticeOffer(null);
+    setSessionOpener(null);
+    setTedReturn({
+      talkTitle: kick.talkTitle,
+      nextQi: kick.nextQi,
+      coherent: false,
+    });
+    pendingTedKickoffRef.current = buildTedChallengeKickoffMessage(kick);
+    if (messages.length > 0) {
+      startNewSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on ready
+  }, [ready, store]);
+
+  // Auto-send kickoff once the active chat is empty
+  useEffect(() => {
+    if (!ready || !store || !sessionId || busy) return;
+    const text = pendingTedKickoffRef.current;
+    if (!text || messages.length > 0) return;
+    pendingTedKickoffRef.current = null;
+    void handleSend({ text, attachments: [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot after new session
+  }, [ready, store, sessionId, busy, messages.length]);
+
+  // Strengthen return banner when tutor signals coherent reasoning
+  useEffect(() => {
+    if (!tedReturn || tedReturn.coherent) return;
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+    if (lastAssistant && detectTedCoherenceSignal(lastAssistant.content)) {
+      setTedReturn((prev) => (prev ? { ...prev, coherent: true } : null));
+    }
+  }, [messages, tedReturn]);
 
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
@@ -1598,6 +1664,43 @@ export function TutorShell() {
         ) : null}
 
         <div className="shrink-0 border-t border-[var(--line)]/60 bg-[color-mix(in_srgb,var(--bg0)_82%,transparent)] backdrop-blur-md">
+        {tedReturn ? (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-snug text-[var(--ink-muted)] sm:text-sm">
+              {tedReturn.coherent
+                ? `Your thinking looks solid on “${tedReturn.talkTitle}” — ready for the next TED question when you are.`
+                : `TED Challenge · “${tedReturn.talkTitle}” — keep chatting, or jump to the next question.`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = tedLabResumeHref();
+                }}
+                className="min-h-9 rounded-lg bg-[var(--teal)] px-3 text-xs font-medium text-white sm:text-sm"
+              >
+                Next TED question
+              </button>
+              <button
+                type="button"
+                onClick={() => setTedReturn(null)}
+                className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] sm:text-sm"
+              >
+                Keep chatting
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearTedChallengeResume();
+                  setTedReturn(null);
+                }}
+                className="min-h-9 px-2 text-xs text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : null}
         <Composer
           disabled={busy}
           accountId={accountId}

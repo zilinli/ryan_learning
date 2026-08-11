@@ -12,8 +12,6 @@ import {
 } from "@/lib/entertain/ted-catalog";
 import {
   appendVoiceTranscript,
-  buildChoiceSoftFeedback,
-  buildEssaySoftFeedback,
   challengePromptSpeechText,
   choiceLetter,
   formatHybridAnswerNotes,
@@ -24,8 +22,14 @@ import {
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
 import {
+  canSubmitHybrid,
+  consumeTedChallengeResume,
+  prepareTedChallengeHandoff,
+  stashTedChallengeKickoff,
+  stashTedChallengeResume,
+} from "@/lib/entertain/ted-challenge-handoff";
+import {
   recordStudioLearningTurn,
-  studioOutcomeFromSoftFeedback,
 } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
@@ -51,12 +55,8 @@ function formatDuration(sec: number): string {
   return ` · ${Math.round(sec / 60)} min`;
 }
 
-function toggleChoice(
-  mode: ChallengeItem["choiceMode"],
-  prev: number[],
-  index: number,
-): number[] {
-  if (mode === "single") return [index];
+/** UI always allows multi-select; soft-score still uses item.choiceMode. */
+function toggleChoice(prev: number[], index: number): number[] {
   return prev.includes(index)
     ? prev.filter((i) => i !== index)
     : [...prev, index].sort((a, b) => a - b);
@@ -82,9 +82,9 @@ export function TedLab() {
   const [qi, setQi] = useState(0);
   const [answer, setAnswer] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
-  const [choiceFeedback, setChoiceFeedback] = useState<string | null>(null);
-  const [essayFeedback, setEssayFeedback] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
+  const [submittingDiscuss, setSubmittingDiscuss] = useState(false);
+  const resumeConsumedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   /** Auto Listen for English challenge prompts (homepage Listen, not Speak). */
@@ -198,12 +198,42 @@ export function TedLab() {
     setQi(0);
     setAnswer("");
     setSelected([]);
-    setChoiceFeedback(null);
-    setEssayFeedback(null);
     setAnswers({});
     setSaved(false);
     setError(null);
     window.setTimeout(() => setChallengeReady(true), 45_000);
+  }, []);
+
+  // Resume challenge after homepage Q&A (“Next TED question”)
+  useEffect(() => {
+    if (resumeConsumedRef.current) return;
+    resumeConsumedRef.current = true;
+    const resume = consumeTedChallengeResume();
+    if (!resume) return;
+    const t: TedTalk =
+      findTedTalk(resume.talkSlug) || {
+        slug: resume.talkSlug,
+        title: resume.talkTitle,
+        speaker: resume.speaker,
+        durationSec: 0,
+        topics: ["ideas"] as TedTopic[],
+        blurb: "Resumed TED Challenge",
+      };
+    setTalk(t);
+    setChallenge(resume.challenge);
+    setQi(
+      Math.min(
+        Math.max(0, resume.qi),
+        Math.max(0, resume.challenge.items.length),
+      ),
+    );
+    setAnswers(resume.answers || {});
+    setAnswer("");
+    setSelected([]);
+    setChallengeReady(true);
+    setPhase("challenge");
+    setSaved(false);
+    setError(null);
   }, []);
 
   const runSearch = useCallback(
@@ -392,8 +422,6 @@ export function TedLab() {
       setQi(0);
       setAnswer("");
       setSelected([]);
-      setChoiceFeedback(null);
-      setEssayFeedback(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Challenge failed");
     } finally {
@@ -401,72 +429,63 @@ export function TedLab() {
     }
   }, [talk, age, grade, gradeBand, englishLevel]);
 
-  const submitChoice = useCallback(() => {
-    if (!challenge || !talk) return;
+  /** Optional MCQ + required essay → homepage tutor Q&A. */
+  const submitAndDiscuss = useCallback(() => {
+    if (!challenge || !talk || submittingDiscuss) return;
     const item = challenge.items[qi];
-    if (!item || selected.length === 0 || choiceFeedback) return;
-    const fb = buildChoiceSoftFeedback(item, selected);
-    setChoiceFeedback(fb);
-    setAnswers((prev) => ({
-      ...prev,
-      [item.id]: {
-        selected: [...selected],
-        essay: prev[item.id]?.essay ?? answer.trim(),
-      },
-    }));
-    void recordStudioLearningTurn({
-      accountId,
-      source: "ted",
-      title: talk.title,
-      userText: `Prompt (${item.kind}): ${item.prompt}\nChoices: ${selected.map(choiceLetter).join(", ")}`,
-      assistantText: fb,
-      tedTopics: talk.topics,
-      outcome: studioOutcomeFromSoftFeedback(fb),
-    });
-  }, [challenge, qi, selected, choiceFeedback, answer, talk, accountId]);
-
-  const submitEssay = useCallback(() => {
-    if (!challenge || !talk) return;
-    const item = challenge.items[qi];
-    if (!item || answer.trim().length < 3 || essayFeedback) return;
-    const level = challenge.level || englishLevel || "developing";
-    const fb = buildEssaySoftFeedback(item, answer, level);
-    setEssayFeedback(fb);
+    if (!item) return;
     const essay = answer.trim();
-    setAnswers((prev) => ({
-      ...prev,
-      [item.id]: {
-        selected: prev[item.id]?.selected ?? [...selected],
-        essay,
-      },
-    }));
+    const gate = canSubmitHybrid(essay, selected);
+    if (!gate.ok) {
+      setError(gate.reason || "Write your essay first.");
+      return;
+    }
+    setError(null);
+    setSubmittingDiscuss(true);
+    const nextAnswers = {
+      ...answers,
+      [item.id]: { selected: [...selected], essay },
+    };
+    setAnswers(nextAnswers);
+    const { kickoff, resume } = prepareTedChallengeHandoff({
+      talkSlug: talk.slug,
+      talkTitle: talk.title,
+      speaker: talk.speaker,
+      item,
+      selected,
+      essay,
+      qi,
+      challenge,
+      answers: nextAnswers,
+      accountId,
+    });
+    stashTedChallengeKickoff(kickoff);
+    stashTedChallengeResume(resume);
+    const choiceNote =
+      selected.length > 0
+        ? selected.map(choiceLetter).join(", ")
+        : "(none — own view)";
     void recordStudioLearningTurn({
       accountId,
       source: "ted",
       title: talk.title,
-      userText: `Prompt (${item.kind}): ${item.prompt}\nEssay: ${essay}`,
-      assistantText: fb,
+      userText: `Prompt (${item.kind}): ${item.prompt}\nChoices: ${choiceNote}\nEssay: ${essay}`,
+      assistantText: "Submitted for tutor Q&A on the homepage.",
       tedTopics: talk.topics,
-      outcome: studioOutcomeFromSoftFeedback(fb),
+      outcome: "practice",
     });
+    // Full navigation so TutorShell mounts fresh and consumes kickoff.
+    window.location.href = "/";
   }, [
     challenge,
+    talk,
+    submittingDiscuss,
     qi,
     answer,
-    essayFeedback,
     selected,
-    talk,
+    answers,
     accountId,
-    englishLevel,
   ]);
-
-  const nextQuestion = useCallback(() => {
-    setChoiceFeedback(null);
-    setEssayFeedback(null);
-    setAnswer("");
-    setSelected([]);
-    setQi((i) => i + 1);
-  }, []);
 
   const saveAttempt = useCallback(async () => {
     if (!talk || !challenge) return;
@@ -626,7 +645,7 @@ export function TedLab() {
             <div className="space-y-4 animate-[fade-up_0.4s_ease]">
               <h3 className="text-xl font-semibold">Challenge complete</h3>
               <p className="text-sm text-[#a89f92]">
-                You argued with the talk — keep the attempt in My Creations.
+                You argued with the talk — save the attempt, or keep exploring the catalog.
               </p>
               <button
                 type="button"
@@ -721,9 +740,11 @@ export function TedLab() {
               {item.choices && item.choices.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   <p className="text-[11px] uppercase tracking-wider text-[#a89f92]">
-                    {item.choiceMode === "multi"
-                      ? "Select all that apply"
-                      : "Choose one"}
+                    Select any that apply (optional)
+                  </p>
+                  <p className="text-xs text-[#a89f92]">
+                    Multi-select OK — explain your logic in the essay. If your view
+                    isn&apos;t listed, skip selection.
                   </p>
                   {item.choices.map((ch, idx) => {
                     const on = selected.includes(idx);
@@ -731,11 +752,9 @@ export function TedLab() {
                       <button
                         key={`${item.id}-c${idx}`}
                         type="button"
-                        disabled={Boolean(choiceFeedback)}
+                        disabled={submittingDiscuss}
                         onClick={() =>
-                          setSelected((prev) =>
-                            toggleChoice(item.choiceMode, prev, idx),
-                          )
+                          setSelected((prev) => toggleChoice(prev, idx))
                         }
                         className={`min-h-11 rounded-xl border px-4 py-2.5 text-left text-sm transition ${
                           on
@@ -750,40 +769,33 @@ export function TedLab() {
                       </button>
                     );
                   })}
-                  {choiceFeedback && (
-                    <p className="rounded-lg border border-[#6db8a8]/30 bg-[#6db8a8]/10 p-3 text-sm leading-relaxed">
-                      {choiceFeedback}
-                    </p>
-                  )}
-                  {!choiceFeedback && (
-                    <button
-                      type="button"
-                      onClick={submitChoice}
-                      disabled={selected.length === 0}
-                      className="min-h-11 w-fit rounded-lg bg-[#a85f42] px-5 text-sm font-medium text-white disabled:opacity-40"
-                    >
-                      Check selection
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={submittingDiscuss || selected.length === 0}
+                    onClick={() => setSelected([])}
+                    className="min-h-9 w-fit text-left text-xs text-[#a89f92] underline-offset-2 hover:text-[#6db8a8] hover:underline disabled:opacity-40"
+                  >
+                    None of these — I&apos;ll explain in the essay
+                  </button>
                 </div>
               ) : null}
               <div className="flex flex-col gap-2">
                 <p className="text-[11px] uppercase tracking-wider text-[#a89f92]">
-                  Essay / 论述
+                  Essay / 论述 (required)
                 </p>
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   rows={5}
-                  disabled={Boolean(essayFeedback)}
-                  placeholder="Argue carefully — type or speak…"
+                  disabled={submittingDiscuss}
+                  placeholder="Argue from your choice(s) — or your own view if you skipped. Type or speak…"
                   className="w-full rounded-xl border border-white/15 bg-black/40 p-4 text-sm text-[#e8e2d8] outline-none focus:border-[#6db8a8] disabled:opacity-60"
                 />
                 <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#6db8a8]/35 bg-black/35 px-3 py-2.5">
                   <MicTranscribeButton
                     language="auto"
                     tone="onDark"
-                    disabled={Boolean(essayFeedback)}
+                    disabled={submittingDiscuss}
                     onRecordingStart={stopPromptListen}
                     onTranscript={(t) => {
                       setAnswer((prev) => appendVoiceTranscript(prev, t));
@@ -796,33 +808,19 @@ export function TedLab() {
                     </p>
                   </div>
                 </div>
-                {essayFeedback && (
-                  <p className="rounded-lg border border-[#6db8a8]/30 bg-[#6db8a8]/10 p-3 text-sm leading-relaxed">
-                    {essayFeedback}
-                  </p>
-                )}
-                {!essayFeedback && (
-                  <button
-                    type="button"
-                    onClick={submitEssay}
-                    disabled={answer.trim().length < 3}
-                    className="min-h-11 w-fit rounded-lg bg-[#a85f42] px-5 text-sm font-medium text-white disabled:opacity-40"
-                  >
-                    Check essay
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={submitAndDiscuss}
+                  disabled={submittingDiscuss || !canSubmitHybrid(answer, selected).ok}
+                  className="min-h-11 w-fit rounded-lg bg-[#4f7356] px-5 text-sm font-medium text-white disabled:opacity-40"
+                >
+                  {submittingDiscuss ? "Opening tutor…" : "Submit & discuss with AI teacher"}
+                </button>
+                <p className="text-[11px] leading-snug text-[#a89f92]">
+                  Opens the homepage tutor in Q&amp;A mode. You can keep chatting or
+                  return for the next question when your thinking holds together.
+                </p>
               </div>
-              {choiceFeedback && essayFeedback && (
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={nextQuestion}
-                    className="min-h-11 rounded-lg bg-[#4f7356] px-5 text-sm font-medium text-white"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>

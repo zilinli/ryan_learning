@@ -235,7 +235,7 @@ export function buildChoiceSoftFeedback(
     return "You caught some of the right ideas — check whether you over- or under-selected.";
   }
   if (score === "empty") {
-    return "Pick at least one option before locking in your selection.";
+    return "No option selected — that's OK if your view isn't listed; make sure your essay carries your own view.";
   }
   return "Your selection may miss the talk's main focus — re-listen for the claim, then try again.";
 }

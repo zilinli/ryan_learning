@@ -21,17 +21,21 @@
 
 ---
 
-## 📝 ENT-TED-HYBRID — TED Challenge MCQ + essay per item (2026-08-11)
+## 📝 ENT-TED-HYBRID — TED Challenge MCQ + essay → tutor Q&A (2026-08-11)
 
 > **Design:** [subsystems/ted-challenge-hybrid-mcq.md](subsystems/ted-challenge-hybrid-mcq.md)  
-> **Goal:** Every Challenge question has ~4 reading-comprehension options (single or multi-select), then a written/spoken essay — both skill types on one prompt. **Checks are independent.**
+> **Goal:** Optional multi-select + required essay on every prompt → **Submit & discuss** handoffs to homepage Socratic Q&A. Student may Next or keep chatting; coherence cue suggests next question.
 
 - [x] **ENT-TED-H.1** — Extend `ChallengeItem` (`choices` / `choiceMode` / `correctChoices`) + enrich/score/format helpers
 - [x] **ENT-TED-H.2** — Banded fallbacks + LLM system prompt require hybrid on every item
-- [x] **ENT-TED-H.3** — TedLab UI: `selected[]` for MCQ (no essay overwrite); **Check selection** + **Check essay** independent; Next after both
-- [x] **ENT-TED-H.4** — Split soft feedback helpers + unit TMH7–TMH8; `run_tests`
+- [x] **ENT-TED-H.3a** — TedLab: `selected[]` for MCQ (no essay overwrite) + split soft-check helpers (TMH)
+- [x] **ENT-TED-H.3b** — TedLab v2 UX: optional multi-select + “None of these” + required essay + **Submit & discuss**
+- [x] **ENT-TED-H.3c** — `ted-challenge-handoff` stash/consume + kickoff message + coherence detect (TH1–TH6)
+- [x] **ENT-TED-H.3d** — TutorShell: consume kickoff → new session auto-send + return banner (Next / Keep chatting)
+- [x] **ENT-TED-H.3e** — TedLab resume from stash at `qi` / `qi+1`
+- [x] **ENT-TED-H.4** — `run_tests` on handoff + ted-challenge
 - [ ] **ENT-TED-H.5** — apply_changes → publish_develop → deploy_live
-- [ ] **ENT-TED-H.6** — Manual TM-H1–TM-H5 on live Challenge
+- [ ] **ENT-TED-H.6** — Manual TM-H6–TM-H9 on live Challenge → tutor → Next
 
 ---
 
