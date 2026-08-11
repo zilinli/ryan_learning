@@ -1,6 +1,6 @@
 /**
- * TED listening challenge builders — difficulty adapts to **grade number (G4 grain)**
- * + English level + soft age nudge.
+ * TED listening challenge builders — difficulty adapts to **grade number**
+ * (G1–G12) + English level + soft age nudge. G4 is only the default when grade is unknown.
  */
 
 import type { EnglishLevel, GradeBand } from "../student-profile";
@@ -27,7 +27,7 @@ export type TedChallenge = {
   generatedFromTranscript: boolean;
   /** Resolved difficulty band used to build prompts. */
   level?: EnglishLevel;
-  /** Grade number used for prompt cues (G4 baseline). */
+  /** Grade number used for prompt cues (defaults to 4 only when unknown). */
   grade?: number;
 };
 
@@ -54,12 +54,21 @@ export function normalizeLearnerGrade(grade?: number): number {
   if (typeof grade === "number" && Number.isFinite(grade)) {
     return Math.max(1, Math.min(12, Math.round(grade)));
   }
-  return 4; // G4 default (Ryan-safe)
+  return 4; // default only when grade is missing
 }
 
 /** Typical age for a US/international grade (rough mid-year). */
 export function typicalAgeForGrade(grade: number): number {
   return Math.max(5, Math.min(18, normalizeLearnerGrade(grade) + 5));
+}
+
+/** UI / API caption: "G10 · advanced" */
+export function formatTedDifficultyLabel(
+  learner?: TedChallengeLearner | null,
+): string {
+  const grade = normalizeLearnerGrade(learner?.grade);
+  const level = resolveTedChallengeLevel(learner);
+  return `G${grade} · ${level}`;
 }
 
 /**
@@ -224,12 +233,15 @@ function buildItemsForLevel(
   }
 
   if (level === "confident") {
+    const g8 = grade >= 8;
     return [
       {
         id: "q1",
         kind: "literal",
-        prompt: `State ${speaker}'s central claim in “${title}” in one precise sentence.`,
-        rubricHint: "Name the claim, not only the topic.",
+        prompt: g8
+          ? `State ${speaker}'s central claim in “${title}” in one precise sentence — Grade ${grade} stretch: name the claim, not only the topic.`
+          : `State ${speaker}'s central claim in “${title}” in one precise sentence.`,
+        rubricHint: `Name the claim, not only the topic. (Grade ${grade})`,
       },
       {
         id: "q2",
@@ -240,7 +252,9 @@ function buildItemsForLevel(
       {
         id: "q3",
         kind: "critique",
-        prompt: `What is one fair weakness or gap in the argument? Answer it briefly in 2–3 sentences.`,
+        prompt: g8
+          ? `What is one fair weakness or gap in the argument? In 3–4 sentences, point to evidence quality or a missing trade-off.`
+          : `What is one fair weakness or gap in the argument? Answer it briefly in 2–3 sentences.`,
         rubricHint:
           "Point to evidence quality, overgeneralization, or a missing trade-off.",
       },
@@ -253,32 +267,43 @@ function buildItemsForLevel(
       {
         id: "q5",
         kind: "retell",
-        prompt: `Retell the talk for a sharp classmate — max 4 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”).`,
-        rubricHint: "Carry the argument, not only the opening.",
+        prompt: g8
+          ? `Retell the talk for a sharp classmate — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and one implication.`
+          : `Retell the talk for a sharp classmate — max 4 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”).`,
+        rubricHint: `Carry the argument, not only the opening. (Grade ${grade})`,
       },
     ];
   }
 
-  // advanced
+  // advanced — grade grain within G9–G12
+  const g11 = grade >= 11;
+  const g10 = grade >= 10;
   return [
     {
       id: "q1",
       kind: "literal",
-      prompt: `In one precise sentence, what is ${speaker}'s central claim in “${title}”?`,
-      rubricHint:
-        "Name the claim, not a vague theme. Quote a key phrase if you can.",
+      prompt: g10
+        ? `In one precise sentence, what is ${speaker}'s central claim in “${title}”? Grade ${grade}: include the key mechanism or stakes, not a vague theme.`
+        : `In one precise sentence, what is ${speaker}'s central claim in “${title}”?`,
+      rubricHint: g10
+        ? `Name the claim + stakes. (Grade ${grade} advanced)`
+        : "Name the claim, not a vague theme. Quote a key phrase if you can.",
     },
     {
       id: "q2",
       kind: "structure",
-      prompt: `How does the talk move from hook → evidence → takeaway? Sketch the arc in 3 short bullets.`,
+      prompt: g11
+        ? `Map the talk's rhetoric: hook → evidence moves → takeaway. 3–4 bullets; label each beat (story / data / counterexample).`
+        : `How does the talk move from hook → evidence → takeaway? Sketch the arc in 3 short bullets.`,
       rubricHint:
         "Look for story, data, or counterexample beats — not a plot summary of jokes.",
     },
     {
       id: "q3",
       kind: "critique",
-      prompt: `Steelman the strongest objection someone could raise against the talk's argument. Then answer it in 2–3 sentences.`,
+      prompt: g10
+        ? `Steelman the strongest objection to the talk's argument (Grade ${grade}). Then answer it in 3–4 sentences with a trade-off or counter-evidence.`
+        : `Steelman the strongest objection someone could raise against the talk's argument. Then answer it in 2–3 sentences.`,
       rubricHint:
         "Strong objections attack evidence quality, overgeneralization, or missing trade-offs.",
     },
@@ -286,14 +311,19 @@ function buildItemsForLevel(
       id: "q4",
       kind: "critique",
       prompt: `Pick one memorable line (or paraphrase of: “${hook.slice(0, 120)}…”). Why does it persuade — rhetoric, evidence, or emotion?`,
-      rubricHint:
-        "Separate style from substance; advanced listeners name the technique.",
+      rubricHint: g10
+        ? `Separate style from substance; Grade ${grade} listeners name the technique.`
+        : "Separate style from substance; advanced listeners name the technique.",
     },
     {
       id: "q5",
       kind: "retell",
-      prompt: `Explain the talk to a sharp classmate who missed it — max 4 sentences. Include one idea from later in the talk (hint near: “${mid.slice(0, 100)}…”).`,
-      rubricHint: "Retell should carry the argument, not only the opening joke.",
+      prompt: g11
+        ? `Brief a sharp peer who missed it — 5–6 sentences. Carry the argument, one later idea (hint: “${mid.slice(0, 100)}…”), and one real-world implication.`
+        : g10
+          ? `Explain the talk to a sharp classmate who missed it — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and why it matters.`
+          : `Explain the talk to a sharp classmate who missed it — max 4 sentences. Include one idea from later in the talk (hint near: “${mid.slice(0, 100)}…”).`,
+      rubricHint: `Retell should carry the argument, not only the opening. (Grade ${grade})`,
     },
   ];
 }
@@ -407,6 +437,7 @@ const BAND_PROMPT: Record<
       "advanced international-school listeners (roughly B2+, grades 9–12).",
     rules: [
       "Tone: witty, rigorous, never babyish. Steelman / rhetoric OK.",
+      "Calibrate to the stated Grade N: G9 = solid advanced; G10–11 = longer critique + implication; G12 = denser rhetoric mapping.",
       "Socratic — do not reveal answers.",
     ],
   },
@@ -423,7 +454,7 @@ export function challengeSystemPrompt(
     typeof learner?.age === "number" ? `Age ~${learner.age}.` : "";
   return [
     `You design TED listening challenges for: ${band.audience}`,
-    `Target difficulty band: ${level}. Grade ${grade} (G4 grain). ${age}`.trim(),
+    `Target difficulty band: ${level}. Grade ${grade} (G${grade} grain). ${age}`.trim(),
     ...band.rules,
     'Return ONLY JSON: {"items":[{"kind":"literal|structure|critique|retell","prompt":"...","rubricHint":"...","choices":["..."]}]}',
     "Include 4–5 items mixing kinds. Prefer open response; choices only if helpful for emerging learners.",

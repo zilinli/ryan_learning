@@ -12,6 +12,7 @@ import {
 } from "@/lib/entertain/ted-catalog";
 import {
   appendVoiceTranscript,
+  formatTedDifficultyLabel,
   softFeedbackThresholds,
   type TedChallenge,
   type ChallengeItem,
@@ -106,6 +107,14 @@ export function TedLab() {
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchGenRef = useRef(0);
   const skipDebouncedSearchRef = useRef(false);
+
+  const difficultyLabel = formatTedDifficultyLabel({
+    age,
+    grade,
+    gradeBand,
+    englishLevel,
+  });
+  const gradeKnown = typeof grade === "number" && Number.isFinite(grade);
 
   const openTalk = useCallback((t: TedTalk) => {
     setTalk(t);
@@ -378,7 +387,7 @@ export function TedLab() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.2em] text-[#6db8a8]">
-                TED Lab · listen
+                TED Lab · listen · {difficultyLabel}
               </p>
               <h2 className="mt-0.5 truncate font-[family-name:var(--font-display,Georgia,serif)] text-base font-semibold sm:text-lg">
                 {talk.title}
@@ -471,7 +480,7 @@ export function TedLab() {
       <div className="flex flex-1 flex-col bg-[#141210] text-[#e8e2d8]">
         <div className="border-b border-teal-800/40 px-4 py-4">
           <p className="text-[11px] uppercase tracking-[0.2em] text-[#6db8a8]">
-            Challenge · {talk.title}
+            Challenge · {difficultyLabel} · {talk.title}
           </p>
           <div className="mt-3 flex gap-1.5">
             {challenge.items.map((it, i) => (
@@ -603,10 +612,25 @@ export function TedLab() {
         </h2>
         <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
           Search the full TED catalog live. Challenge difficulty follows your
-          grade (G4 grain), English level, and age.
+          grade
+          {gradeKnown ? (
+            <>
+              {" "}
+              (
+              <span className="font-semibold text-[#6db8a8]">
+                {difficultyLabel}
+              </span>
+              )
+            </>
+          ) : (
+            <> (set grade on Account)</>
+          )}
+          , English level, and age — not one-size quizzes.
         </p>
         <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
-          Tracking for {accountName} · answers update subject skills on Dashboard
+          Tracking for {accountName}
+          {gradeKnown ? ` · G${grade}` : ""} · answers update subject skills on
+          Dashboard
         </p>
         <div className="mx-auto mt-4 flex max-w-md flex-wrap items-center justify-center gap-2">
           <a

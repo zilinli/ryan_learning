@@ -286,7 +286,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Transcript:** `GET /api/ted/transcript?slug=` — server fetch + `data/ted-cache/`; used for challenge generation only (no transcript browser UI).
 - **Challenge:** `POST /api/ted/challenge` — listening items (`literal` / `structure` / `critique` / `retell`); LLM when available, else `buildFallbackChallenge`. Body may include `learner: { age, grade, gradeBand, englishLevel }` so difficulty matches the active profile at **grade-number grain** (G4 baseline; see [ted-challenge-adaptive-difficulty.md](./ted-challenge-adaptive-difficulty.md)).
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
-- **Pedagogy:** Defaults from **numeric grade** (not only gradeBand) + optional English level + age nudge. G4 = developing baseline; G3 softer; G5 same band but harder cue. Advanced keeps steelman; emerging never does.
+- **Pedagogy:** Defaults from **numeric grade** (G1–G12) + optional English level + age nudge. UI shows the resolved label (e.g. **G10 · advanced**). G4 is only the fallback when grade is unknown. G3 softer; G5 same developing band but harder cue; G9–G12 advanced with grade grain inside the band.
 
 ### 6.3 Writing Studio Stage + deAPI text2X
 

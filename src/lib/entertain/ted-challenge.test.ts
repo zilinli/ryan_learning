@@ -3,6 +3,7 @@ import {
   appendVoiceTranscript,
   buildFallbackChallenge,
   challengeSystemPrompt,
+  formatTedDifficultyLabel,
   parseChallengeJson,
   resolveTedChallengeLevel,
 } from "./ted-challenge";
@@ -24,7 +25,7 @@ const richTx =
   "Middle evidence appears here with enough length to matter. ".repeat(4) +
   "Closing implication wraps the arc for listeners.";
 
-describe("resolveTedChallengeLevel (G4 grain)", () => {
+describe("resolveTedChallengeLevel (grade grain)", () => {
   it("TD1: grade 4 + unset english → developing", () => {
     expect(resolveTedChallengeLevel({ grade: 4 })).toBe("developing");
   });
@@ -50,6 +51,11 @@ describe("resolveTedChallengeLevel (G4 grain)", () => {
   it("defaults missing learner to G4 developing", () => {
     expect(resolveTedChallengeLevel(null)).toBe("developing");
     expect(resolveTedChallengeLevel({})).toBe("developing");
+  });
+
+  it("formatTedDifficultyLabel shows G10 · advanced", () => {
+    expect(formatTedDifficultyLabel({ grade: 10 })).toBe("G10 · advanced");
+    expect(formatTedDifficultyLabel({ grade: 4 })).toBe("G4 · developing");
   });
 });
 
@@ -83,6 +89,18 @@ describe("banded + grade-cued fallbacks", () => {
     expect(g10.items.some((i) => /steelman/i.test(i.prompt))).toBe(true);
   });
 
+  it("G9 vs G10 advanced cues differ", () => {
+    const g9 = buildFallbackChallenge(talk, richTx, { grade: 9 });
+    const g10 = buildFallbackChallenge(talk, richTx, { grade: 10 });
+    expect(g9.level).toBe("advanced");
+    expect(g10.level).toBe("advanced");
+    const g9Retell = g9.items.find((i) => i.kind === "retell")!.prompt;
+    const g10Retell = g10.items.find((i) => i.kind === "retell")!.prompt;
+    expect(g9Retell).toMatch(/max 4 sentences/);
+    expect(g10Retell).toMatch(/about 5 sentences/);
+    expect(g10.items.some((i) => /Grade 10/.test(i.prompt))).toBe(true);
+  });
+
   it("G4 vs G5 developing cues differ", () => {
     const g4 = buildFallbackChallenge(talk, richTx, { grade: 4 });
     const g5 = buildFallbackChallenge(talk, richTx, { grade: 5 });
@@ -107,10 +125,16 @@ describe("banded + grade-cued fallbacks", () => {
 
 describe("challengeSystemPrompt", () => {
   it("TD6: mentions resolved band and Grade N", () => {
-    const p = challengeSystemPrompt(talk, { grade: 4 });
-    expect(p).toMatch(/developing/i);
-    expect(p).toMatch(/Grade 4/);
-    expect(p).toMatch(/G4 grain/);
+    const p4 = challengeSystemPrompt(talk, { grade: 4 });
+    expect(p4).toMatch(/developing/i);
+    expect(p4).toMatch(/Grade 4/);
+    expect(p4).toMatch(/G4 grain/);
+
+    const p10 = challengeSystemPrompt(talk, { grade: 10 });
+    expect(p10).toMatch(/advanced/i);
+    expect(p10).toMatch(/Grade 10/);
+    expect(p10).toMatch(/G10 grain/);
+    expect(p10).not.toMatch(/G4 grain/);
   });
 });
 
