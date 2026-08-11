@@ -11,6 +11,7 @@ import {
 } from "@/lib/tts-cache";
 import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
 import { cleanTutorSpeechText } from "@/lib/tts-text";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -175,6 +176,9 @@ async function synthesizeDialect(
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "tts", RATE_PRESETS.voice);
+  if (limited) return limited;
+
   try {
     const body = (await req.json()) as {
       text?: string;

@@ -87,6 +87,7 @@ flowchart TB
 | **[subsystems/report-v3-feasibility.md](subsystems/report-v3-feasibility.md)** | Third-party audit R1–R10 feasibility + W1–W3 landing notes |
 | **[subsystems/parent-gate.md](subsystems/parent-gate.md)** | Parent PIN gate + `/family` Family controls (Khan-style) |
 | **[subsystems/audit-2026-08-product-acceptance.md](subsystems/audit-2026-08-product-acceptance.md)** | 2026-08 external product audit — acceptance matrix (错题本/家长台/方言/导出) |
+| **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** | 2026-08-11 Claude deep report — robots/noindex, API rate limit, Socratic integrity |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |

@@ -15,7 +15,15 @@ const body = Source_Sans_3({
 export const metadata: Metadata = {
   title: "The Answer Book · AI Tutor",
   description:
-    "Socratic AI tutor for international-school students — thinking first, homework photos, voice. Supports 粤语 / Cantonese, 客家话, 闽南话, 上海话, and more. https://github.com/zilinli/ryan_learning",
+    "Socratic AI tutor for international-school students — thinking first, homework photos, voice. Supports 粤语 / Cantonese, 客家话, 闽南话, 上海话, and more.",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
   appleWebApp: {
     capable: true,
     title: "The Answer Book",

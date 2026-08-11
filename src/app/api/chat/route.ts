@@ -14,6 +14,7 @@ import { readServerLearningMemory } from "@/lib/learning-memory-store";
 import type { ChatRequestBody } from "@/lib/types";
 import type { EngagementState } from "@/lib/engagement";
 import type { SDKImage } from "@cursor/sdk";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,9 @@ function friendlyStatus(raw: string): string | null {
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "chat", RATE_PRESETS.agent);
+  if (limited) return limited;
+
   if (!hasCursorApiKey()) {
     return Response.json(
       { error: "Cursor API Key is not configured." },

@@ -19,6 +19,7 @@ import {
   stripDataUrlPrefix,
 } from "@/lib/attachments";
 import { buildFileSummaries } from "@/lib/extract-files";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,9 @@ function apiKey(): string {
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "faq-ai", RATE_PRESETS.agent);
+  if (limited) return limited;
+
   let body: {
     question?: string;
     replyLang?: string;

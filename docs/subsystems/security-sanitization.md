@@ -14,6 +14,11 @@
 | Tool escape | Python/JS breakout | temp-only dir, 8s timeout, no network |
 | SSRF | Internal network via `fetch_page` | Restrict to http/https, no private IPs |
 | Path traversal | File read via crafted paths | `path.basename`/`path.resolve` guards |
+| Public crawl / index | duckdns URL discovered via search | `robots.ts` Disallow `/` + metadata `noindex` |
+| API key burn | Unbounded `/api/chat` etc. from internet | In-process `api-rate-limit` on costly routes |
+| Meta overshare | GitHub URL in `<meta description>` | Scrubbed from public metadata |
+
+> **Ops note (deferred):** For a public hostname, prefer Nginx Basic Auth, IP allowlist, or Tailscale in front of Spark — app-level PIN does not replace edge access control. See [claude-report-2026-08-feasibility.md](claude-report-2026-08-feasibility.md).
 
 ## SVG Sanitization Pipeline
 
@@ -42,5 +47,7 @@
 |------|------|
 | `src/lib/geometry-svg.ts` | `sanitizeSvg()`, `repairCollapsedSvg()` |
 | `src/lib/tutor-harness.ts` | Sandbox execution |
+| `src/lib/api-rate-limit.ts` | Per-IP sliding window for costly APIs |
+| `src/app/robots.ts` | Disallow all crawlers |
 | `scripts/ensure-env.mjs` | Key validation + unlock |
 | `.env.local.example` | Template (no secrets) |

@@ -8,6 +8,7 @@ import {
   transcribeWithIflytek,
 } from "@/lib/iflytek-asr";
 import { sttEngineOrder, type SttEngine } from "@/lib/stt-engine-order";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -263,6 +264,9 @@ async function walkEngineOrder(
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "transcribe", RATE_PRESETS.voice);
+  if (limited) return limited;
+
   try {
     const form = await req.formData();
     const audio = form.get("audio");

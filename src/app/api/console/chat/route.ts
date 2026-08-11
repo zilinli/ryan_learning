@@ -16,6 +16,7 @@ import {
 import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachments";
 import { buildFileSummaries } from "@/lib/extract-files";
 import type { ConsoleChatRequestBody, ConsoleMessage } from "@/lib/types";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -231,6 +232,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "console-chat", RATE_PRESETS.agent);
+  if (limited) return limited;
+
   let body: ConsoleChatRequestBody;
   try { body = await req.json() as ConsoleChatRequestBody; } catch {
     return Response.json({ error: "Bad JSON" }, { status: 400 });

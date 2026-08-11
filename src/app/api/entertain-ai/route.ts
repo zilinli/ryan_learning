@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGameAiMove } from "@/lib/entertain/game-ai";
 import type { AiMoveRequest, AiMoveResponse } from "@/lib/entertain/types";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const limited = checkApiRateLimit(request, "entertain-ai", RATE_PRESETS.entertain);
+  if (limited) return limited;
+
   try {
     const body = (await request.json()) as AiMoveRequest & {
       legalMoves?: string[];

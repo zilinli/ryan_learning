@@ -20,6 +20,7 @@ import type {
   TranslateLang,
 } from "@/lib/dict-types";
 import { DICT_LANG_LABELS } from "@/lib/dict-types";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,9 @@ function apiKey(): string {
 }
 
 export async function POST(req: Request) {
+  const limited = checkApiRateLimit(req, "dict-translate", RATE_PRESETS.agent);
+  if (limited) return limited;
+
   let body: SentenceTranslateRequest;
   try {
     body = (await req.json()) as SentenceTranslateRequest;

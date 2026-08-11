@@ -1,9 +1,13 @@
 import { hasCursorApiKey, listAvailableModels } from "@/lib/cursor-agent";
+import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const limited = checkApiRateLimit(req, "models", RATE_PRESETS.models);
+  if (limited) return limited;
+
   if (!hasCursorApiKey()) {
     return Response.json(
       {

@@ -15,6 +15,20 @@
 > Code Agent pipeline: **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** (research → design → TODO → develop push → deploy)
 > Listen sync + Stop: **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)**
 > AI FAQ (Ask AI): **[subsystems/ai-faq.md](subsystems/ai-faq.md)**
+> Claude report 2026-08: **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** (RPT2 public harden + Socratic integrity)
+
+---
+
+## 🛡 RPT2 — Claude report slice: robots / API rate limit / Socratic integrity (2026-08-11)
+
+> **Design:** [subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)  
+> **Goal:** Feasible public-hardening from the 2026-08-11 deep-analysis report (no full auth / no Agent→PR).
+
+- [x] **RPT2.1** — `robots.ts` Disallow all + layout noindex; scrub GitHub URL from meta description
+- [x] **RPT2.2** — Shared `api-rate-limit` on costly `/api/*` routes
+- [x] **RPT2.3** — Unit tests: rate-limit + Socratic prompt integrity under jailbreak-ish text
+- [x] **RPT2.4** — security-sanitization + DESIGN pointer; run_tests → apply_changes → publish_develop → deploy_live
+- [ ] **RPT2.5** — Manual: `/robots.txt`; metadata noindex; burst API → 429
 
 ---
 
