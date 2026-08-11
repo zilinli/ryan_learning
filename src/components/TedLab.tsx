@@ -12,15 +12,16 @@ import {
 } from "@/lib/entertain/ted-catalog";
 import {
   appendVoiceTranscript,
+  buildHybridSoftFeedback,
   challengePromptSpeechText,
+  choiceLetter,
+  formatHybridAnswerNotes,
   formatTedDifficultyLabel,
   loadTedPromptListenEnabled,
   saveTedPromptListenEnabled,
-  softFeedbackThresholds,
   type TedChallenge,
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
-import type { EnglishLevel } from "@/lib/student-profile";
 import {
   recordStudioLearningTurn,
   studioOutcomeFromSoftFeedback,
@@ -32,6 +33,7 @@ import { useActiveStudioAccount } from "./StudioAccountBar";
 
 type Phase = "browse" | "watch" | "challenge";
 type ListSource = "ted-live" | "curated-fallback" | "loading";
+type AnswerRecord = { selected: number[]; essay: string };
 
 const TOPICS: Array<TedTopic | "all"> = [
   "all",
@@ -43,32 +45,20 @@ const TOPICS: Array<TedTopic | "all"> = [
   "technology",
 ];
 
-function softFeedback(
-  item: ChallengeItem,
-  answer: string,
-  level: EnglishLevel = "developing",
-): string {
-  const n = answer.trim().split(/\s+/).filter(Boolean).length;
-  const th = softFeedbackThresholds(level);
-  if (n < th.short) {
-    return "Short answers can be sharp — but this one needs more evidence or a clearer claim. Try one more sentence.";
-  }
-  if (
-    item.kind === "critique" &&
-    level !== "emerging" &&
-    !/because|however|although|but|yet|why|because/i.test(answer)
-  ) {
-    return "Nice start. Push the critique: name the tension (because / however) so the objection lands.";
-  }
-  if (item.kind === "retell" && n < th.retell) {
-    return "Retell should carry the arc. Add one beat from the middle or end of the talk.";
-  }
-  return `Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
-}
-
 function formatDuration(sec: number): string {
   if (!sec || sec <= 0) return "";
   return ` · ${Math.round(sec / 60)} min`;
+}
+
+function toggleChoice(
+  mode: ChallengeItem["choiceMode"],
+  prev: number[],
+  index: number,
+): number[] {
+  if (mode === "single") return [index];
+  return prev.includes(index)
+    ? prev.filter((i) => i !== index)
+    : [...prev, index].sort((a, b) => a - b);
 }
 
 export function TedLab() {
@@ -90,8 +80,9 @@ export function TedLab() {
   const [challenge, setChallenge] = useState<TedChallenge | null>(null);
   const [qi, setQi] = useState(0);
   const [answer, setAnswer] = useState("");
+  const [selected, setSelected] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   /** Auto Listen for English challenge prompts (homepage Listen, not Speak). */
@@ -204,6 +195,7 @@ export function TedLab() {
     setChallenge(null);
     setQi(0);
     setAnswer("");
+    setSelected([]);
     setFeedback(null);
     setAnswers({});
     setSaved(false);
@@ -396,6 +388,7 @@ export function TedLab() {
       setPhase("challenge");
       setQi(0);
       setAnswer("");
+      setSelected([]);
       setFeedback(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Challenge failed");
@@ -408,31 +401,43 @@ export function TedLab() {
     if (!challenge || !talk) return;
     const item = challenge.items[qi];
     if (!item) return;
+    if (selected.length === 0 || answer.trim().length < 3) return;
     const level = challenge.level || englishLevel || "developing";
-    const fb = softFeedback(item, answer, level);
+    const fb = buildHybridSoftFeedback(item, selected, answer, level);
     setFeedback(fb);
-    setAnswers((prev) => ({ ...prev, [item.id]: answer.trim() }));
+    setAnswers((prev) => ({
+      ...prev,
+      [item.id]: { selected: [...selected], essay: answer.trim() },
+    }));
+    const notes = formatHybridAnswerNotes(item, selected, answer);
     void recordStudioLearningTurn({
       accountId,
       source: "ted",
       title: talk.title,
-      userText: `Prompt (${item.kind}): ${item.prompt}\nStudent: ${answer.trim()}`,
+      userText: `Prompt (${item.kind}): ${item.prompt}\n${notes}`,
       assistantText: fb,
       tedTopics: talk.topics,
       outcome: studioOutcomeFromSoftFeedback(fb),
     });
-  }, [challenge, qi, answer, talk, accountId, englishLevel]);
+  }, [challenge, qi, answer, selected, talk, accountId, englishLevel]);
 
   const nextQuestion = useCallback(() => {
     setFeedback(null);
     setAnswer("");
+    setSelected([]);
     setQi((i) => i + 1);
   }, []);
 
   const saveAttempt = useCallback(async () => {
     if (!talk || !challenge) return;
     const notes = challenge.items
-      .map((it) => `Q (${it.kind}): ${it.prompt}\nA: ${answers[it.id] || "(skipped)"}`)
+      .map((it) => {
+        const rec = answers[it.id];
+        const body = rec
+          ? formatHybridAnswerNotes(it, rec.selected, rec.essay)
+          : "Choices: (skipped)\nEssay: (skipped)";
+        return `Q (${it.kind}): ${it.prompt}\n${body}`;
+      })
       .join("\n\n");
     try {
       await fetch("/api/creations", {
@@ -726,7 +731,7 @@ export function TedLab() {
                   <button
                     type="button"
                     onClick={submitAnswer}
-                    disabled={answer.trim().length < 3}
+                    disabled={selected.length === 0 || answer.trim().length < 3}
                     className="min-h-11 rounded-lg bg-[#a85f42] px-5 text-sm font-medium text-white disabled:opacity-40"
                   >
                     Check thinking

@@ -2,13 +2,17 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   appendVoiceTranscript,
   buildFallbackChallenge,
+  buildHybridSoftFeedback,
   challengePromptSpeechText,
   challengeSystemPrompt,
+  enrichChallengeItem,
+  formatHybridAnswerNotes,
   formatTedDifficultyLabel,
   loadTedPromptListenEnabled,
   parseChallengeJson,
   resolveTedChallengeLevel,
   saveTedPromptListenEnabled,
+  scoreChoiceSelection,
   tedPromptListenText,
   type ChallengeItem,
 } from "./ted-challenge";
@@ -224,19 +228,117 @@ describe("challenge prompt speech text (TS1–TS2)", () => {
     kind: "literal",
     prompt: "  What is the main idea?  ",
     rubricHint: "Be clear",
+    choices: ["A story", "Only jokes", "Random facts", "A game"],
+    choiceMode: "single",
+    correctChoices: [0],
   };
 
-  it("TS1: prompt only → trimmed speech text", () => {
-    expect(challengePromptSpeechText(base)).toBe("What is the main idea?");
+  it("TS1: prompt only → trimmed speech text when choices empty after trim", () => {
+    expect(challengePromptSpeechText({ ...base, choices: [] })).toBe(
+      "What is the main idea?",
+    );
+    expect(
+      challengePromptSpeechText({
+        ...base,
+        choices: ["", "  ", "", ""],
+      }),
+    ).toBe("What is the main idea?");
   });
 
   it("TS2: prompt + choices → numbered Choices suffix", () => {
     const withChoices: ChallengeItem = {
       ...base,
-      choices: ["A story", "Only jokes", "  "],
+      choices: ["A story", "Only jokes", "  ", "Extra"],
     };
     expect(challengePromptSpeechText(withChoices)).toBe(
-      "What is the main idea? Choices: 1. A story. 2. Only jokes.",
+      "What is the main idea? Choices: 1. A story. 2. Only jokes. 3. Extra.",
     );
+  });
+});
+
+describe("hybrid MCQ + essay (TMH1–TMH6)", () => {
+  it("TMH1: every fallback item (all bands) has 4 choices + mode + corrects", () => {
+    for (const grade of [3, 4, 7, 10]) {
+      const c = buildFallbackChallenge(talk, richTx, { grade });
+      expect(c.items.length).toBeGreaterThanOrEqual(4);
+      for (const item of c.items) {
+        expect(item.choices).toHaveLength(4);
+        expect(["single", "multi"]).toContain(item.choiceMode);
+        expect(item.correctChoices.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("TMH2: scoreChoiceSelection exact / partial / miss", () => {
+    const item = enrichChallengeItem(
+      {
+        kind: "structure",
+        prompt: "Arc?",
+        choiceMode: "multi",
+        choices: ["Hook", "Evidence", "Takeaway", "Ad"],
+        correctChoices: [0, 1, 2],
+      },
+      0,
+    );
+    expect(scoreChoiceSelection(item, [0, 1, 2])).toBe("exact");
+    expect(scoreChoiceSelection(item, [0, 1])).toBe("partial");
+    expect(scoreChoiceSelection(item, [3])).toBe("miss");
+    expect(scoreChoiceSelection(item, [])).toBe("empty");
+  });
+
+  it("TMH3: enrichChallengeItem pads <4 choices and defaults mode", () => {
+    const item = enrichChallengeItem(
+      { kind: "literal", prompt: "Main idea?", choices: ["Only one"] },
+      2,
+    );
+    expect(item.id).toBe("q3");
+    expect(item.choices).toHaveLength(4);
+    expect(item.choiceMode).toBe("single");
+    expect(item.correctChoices).toEqual([0]);
+  });
+
+  it("TMH4: parseChallengeJson keeps hybrid fields", () => {
+    const raw = `{"items":[
+      {"kind":"literal","prompt":"Claim?","rubricHint":"Be precise","choiceMode":"single","choices":["A","B","C","D"],"correctChoices":[1]},
+      {"kind":"structure","prompt":"Arc","rubricHint":"3 bullets","choiceMode":"multi","choices":["H","E","T","X"],"correctChoices":[0,1,2]},
+      {"kind":"critique","prompt":"Gap?","rubricHint":"Trade-offs","choices":["Gap","Accent","Color","Noise"]}
+    ]}`;
+    const parsed = parseChallengeJson(raw, talk, "developing", 4);
+    expect(parsed?.items).toHaveLength(3);
+    expect(parsed?.items[0].correctChoices).toEqual([1]);
+    expect(parsed?.items[1].choiceMode).toBe("multi");
+    expect(parsed?.items[2].choices).toHaveLength(4);
+    expect(parsed?.items[2].correctChoices.length).toBeGreaterThan(0);
+  });
+
+  it("TMH5: system prompt requires 4 choices + single|multi on every item", () => {
+    const p = challengeSystemPrompt(talk, { grade: 4 });
+    expect(p).toMatch(/EVERY item/i);
+    expect(p).toMatch(/choiceMode/);
+    expect(p).toMatch(/correctChoices/);
+    expect(p).toMatch(/single\|multi/);
+  });
+
+  it("TMH6: formatHybridAnswerNotes + soft feedback", () => {
+    const item = enrichChallengeItem(
+      {
+        kind: "literal",
+        prompt: "Main idea",
+        choiceMode: "single",
+        choices: ["Idea", "Joke", "List", "Game"],
+        correctChoices: [0],
+      },
+      0,
+    );
+    expect(
+      formatHybridAnswerNotes(item, [0], "The talk is about kindness."),
+    ).toBe("Choices: A\nEssay: The talk is about kindness.");
+    const fb = buildHybridSoftFeedback(
+      item,
+      [0],
+      "The talk is about kindness because the speaker shares a clear idea.",
+      "developing",
+    );
+    expect(fb).toMatch(/lines up with the talk/i);
   });
 });

@@ -26,7 +26,7 @@ describe("Studio product contract", () => {
     );
   });
 
-  it("fallback challenge is advanced (mixed kinds, open prompts)", () => {
+  it("fallback challenge is hybrid MCQ + essay on every item", () => {
     const talk = TED_CATALOG[0]!;
     const c = buildFallbackChallenge(
       talk,
@@ -35,9 +35,14 @@ describe("Studio product contract", () => {
     );
     expect(c.items.every((i) => i.prompt.length > 20)).toBe(true);
     expect(c.items.some((i) => i.kind === "retell")).toBe(true);
-    // Prefer open response — choices optional/rare
-    const withChoices = c.items.filter((i) => i.choices && i.choices.length);
-    expect(withChoices.length).toBeLessThanOrEqual(1);
+    expect(
+      c.items.every(
+        (i) =>
+          i.choices.length === 4 &&
+          (i.choiceMode === "single" || i.choiceMode === "multi") &&
+          i.correctChoices.length > 0,
+      ),
+    ).toBe(true);
   });
 
   it("modality structure: music vs image vs video formats differ", () => {

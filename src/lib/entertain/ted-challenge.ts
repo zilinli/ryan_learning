@@ -13,13 +13,128 @@ import type { TedTalk } from "./ted-catalog";
 
 export type ChallengeKind = "literal" | "structure" | "critique" | "retell";
 
+/** Reading-comp style: one answer vs select-all-that-apply. */
+export type ChoiceMode = "single" | "multi";
+
 export type ChallengeItem = {
   id: string;
   kind: ChallengeKind;
   prompt: string;
   rubricHint: string;
-  choices?: string[];
+  /** ~4 options (reading-comprehension style). */
+  choices: string[];
+  choiceMode: ChoiceMode;
+  /** 0-based indices of correct option(s) for soft check. */
+  correctChoices: number[];
 };
+
+export type ChoiceScore = "exact" | "partial" | "miss" | "empty";
+
+const CHOICE_LETTERS = ["A", "B", "C", "D"] as const;
+
+export function choiceLetter(index: number): string {
+  return CHOICE_LETTERS[index] ?? String(index + 1);
+}
+
+/** Normalize / pad hybrid MCQ fields so every item is UI-safe. */
+export function enrichChallengeItem(
+  raw: {
+    id?: string;
+    kind?: ChallengeKind | string;
+    prompt?: string;
+    rubricHint?: string;
+    choices?: string[];
+    choiceMode?: ChoiceMode | string;
+    correctChoices?: number[];
+  },
+  index: number,
+): ChallengeItem {
+  const kinds: ChallengeKind[] = [
+    "literal",
+    "structure",
+    "critique",
+    "retell",
+  ];
+  const kind = kinds.includes(raw.kind as ChallengeKind)
+    ? (raw.kind as ChallengeKind)
+    : "critique";
+  const choices = (Array.isArray(raw.choices) ? raw.choices : [])
+    .map((c) => String(c).trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const padded = [...choices];
+  const fillers = [
+    "The speaker's main idea or claim",
+    "A detail that is not the focus",
+    "Something the talk never covers",
+    "A joke with no connection to the talk",
+  ];
+  while (padded.length < 4) {
+    padded.push(fillers[padded.length]!);
+  }
+  const modeRaw = String(raw.choiceMode || "").toLowerCase();
+  const choiceMode: ChoiceMode = modeRaw === "multi" ? "multi" : "single";
+  let correct = (Array.isArray(raw.correctChoices) ? raw.correctChoices : [])
+    .map((n) => Number(n))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n < padded.length);
+  correct = [...new Set(correct)].sort((a, b) => a - b);
+  if (correct.length === 0) {
+    correct = choiceMode === "multi" ? [0, 1] : [0];
+  }
+  if (choiceMode === "single" && correct.length > 1) {
+    correct = [correct[0]!];
+  }
+  return {
+    id: String(raw.id || `q${index + 1}`),
+    kind,
+    prompt: String(raw.prompt || "").trim() || `Question ${index + 1}`,
+    rubricHint: String(
+      raw.rubricHint || "Be precise and evidence-aware.",
+    ).trim(),
+    choices: padded,
+    choiceMode,
+    correctChoices: correct,
+  };
+}
+
+export function scoreChoiceSelection(
+  item: ChallengeItem,
+  selected: number[],
+): ChoiceScore {
+  const picked = [
+    ...new Set(
+      selected.filter(
+        (i) => Number.isInteger(i) && i >= 0 && i < item.choices.length,
+      ),
+    ),
+  ].sort((a, b) => a - b);
+  if (picked.length === 0) return "empty";
+  const correct = [...item.correctChoices].sort((a, b) => a - b);
+  const corrSet = new Set(correct);
+  const hit = picked.filter((i) => corrSet.has(i)).length;
+  const extra = picked.filter((i) => !corrSet.has(i)).length;
+  if (hit === correct.length && extra === 0 && picked.length === correct.length) {
+    return "exact";
+  }
+  if (item.choiceMode === "multi" && hit > 0) return "partial";
+  return "miss";
+}
+
+export function formatHybridAnswerNotes(
+  item: ChallengeItem,
+  selected: number[],
+  essay: string,
+): string {
+  const letters = selected
+    .filter((i) => i >= 0 && i < item.choices.length)
+    .sort((a, b) => a - b)
+    .map((i) => choiceLetter(i));
+  const choiceLine =
+    letters.length > 0
+      ? `Choices: ${letters.join(", ")}`
+      : "Choices: (none)";
+  return `${choiceLine}\nEssay: ${essay.trim() || "(skipped)"}`;
+}
 
 export type TedChallenge = {
   talkSlug: string;
@@ -107,6 +222,41 @@ export function softFeedbackThresholds(level: EnglishLevel): {
   return { short: 10, retell: 45 };
 }
 
+/** Soft MCQ + essay feedback (Socratic — no answer-key dump). */
+export function buildHybridSoftFeedback(
+  item: ChallengeItem,
+  selected: number[],
+  essay: string,
+  level: EnglishLevel = "developing",
+): string {
+  const score = scoreChoiceSelection(item, selected);
+  const mcq =
+    score === "exact"
+      ? "Your selection lines up with the talk's focus — nice."
+      : score === "partial"
+        ? "You caught some of the right ideas — check whether you over- or under-selected."
+        : score === "empty"
+          ? "Pick at least one option before locking in your thinking."
+          : "Your selection may miss the talk's main focus — re-listen for the claim, then tighten the essay.";
+
+  const n = essay.trim().split(/\s+/).filter(Boolean).length;
+  const th = softFeedbackThresholds(level);
+  if (n < th.short) {
+    return `${mcq} Short answers can be sharp — but this write-up needs more evidence or a clearer claim. Try one more sentence.`;
+  }
+  if (
+    item.kind === "critique" &&
+    level !== "emerging" &&
+    !/because|however|although|but|yet|why/i.test(essay)
+  ) {
+    return `${mcq} Nice start on the essay. Push the critique: name the tension (because / however) so the objection lands.`;
+  }
+  if (item.kind === "retell" && n < th.retell) {
+    return `${mcq} Retell should carry the arc. Add one beat from the middle or end of the talk.`;
+  }
+  return `${mcq} Solid draft for a ${item.kind} prompt. Rubric nudge: ${item.rubricHint}`;
+}
+
 /** Append STT text into a Challenge answer without wiping typed draft. */
 export function appendVoiceTranscript(
   prev: string,
@@ -118,7 +268,7 @@ export function appendVoiceTranscript(
   return base ? `${base} ${chunk}` : chunk;
 }
 
-/** English TTS script for a challenge prompt (optional MCQ choices). */
+/** English TTS script for a challenge prompt (MCQ choices). */
 export function challengePromptSpeechText(item: ChallengeItem): string {
   const prompt = item.prompt.trim();
   const choices = item.choices?.map((c) => c.trim()).filter(Boolean) ?? [];
@@ -217,46 +367,102 @@ function buildDevelopingItems(
   const g5 = grade >= 5;
 
   return [
-    {
-      id: "q1",
-      kind: "literal",
-      prompt: g5
-        ? `In one clear sentence, what is ${speaker} mainly trying to say in “${title}”? Name the idea, not only the topic.`
-        : `In one clear sentence, what is ${speaker} mainly trying to say in “${title}”?`,
-      rubricHint: g5
-        ? "State the main idea — Grade 5 stretch: be specific."
-        : "State the main idea — not every detail. (Grade 4 listening)",
-    },
-    {
-      id: "q2",
-      kind: "structure",
-      prompt: `How does the talk move? Write 3 short bullets: beginning → middle → end.`,
-      rubricHint: "Look for an opening hook, examples, and a takeaway.",
-    },
-    {
-      id: "q3",
-      kind: "critique",
-      prompt: g5
-        ? `What surprised you or felt unclear? In 2–3 sentences, give one reason and one example from the talk.`
-        : `What surprised you or felt unclear? Explain in 2–3 sentences why.`,
-      rubricHint: "Honest reaction + a reason (because…).",
-    },
-    {
-      id: "q4",
-      kind: "critique",
-      prompt: `Pick a memorable line or idea (hint near: “${hook.slice(0, 100)}…”). Why did it stick?`,
-      rubricHint: "Say whether it was a story, a fact, or a feeling that worked.",
-    },
-    {
-      id: "q5",
-      kind: "retell",
-      prompt: g5
-        ? `Explain the talk to a classmate in about 4 sentences. Include one idea from later in the talk (hint: “${mid.slice(0, 80)}…”).`
-        : `Explain the talk to a classmate in about 3 sentences. Include one idea from later in the talk (hint: “${mid.slice(0, 80)}…”).`,
-      rubricHint: g5
-        ? "Grade 5 stretch: retell should carry the arc, not only the opening."
-        : "Retell should include more than the opening. (G4 baseline)",
-    },
+    enrichChallengeItem(
+      {
+        id: "q1",
+        kind: "literal",
+        prompt: g5
+          ? `In one clear sentence, what is ${speaker} mainly trying to say in “${title}”? Name the idea, not only the topic.`
+          : `In one clear sentence, what is ${speaker} mainly trying to say in “${title}”?`,
+        rubricHint: g5
+          ? "State the main idea — Grade 5 stretch: be specific."
+          : "State the main idea — not every detail. (Grade 4 listening)",
+        choiceMode: "single",
+        choices: [
+          `A clear main idea ${speaker} wants us to remember`,
+          "Only funny stories with no takeaway",
+          "A random list of unrelated facts",
+          "Instructions for a classroom game",
+        ],
+        correctChoices: [0],
+      },
+      0,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q2",
+        kind: "structure",
+        prompt: `How does the talk move? Write 3 short bullets: beginning → middle → end.`,
+        rubricHint: "Look for an opening hook, examples, and a takeaway.",
+        choiceMode: "multi",
+        choices: [
+          "An opening hook that grabs attention",
+          "Examples or evidence in the middle",
+          "A takeaway or closing idea",
+          "A cooking recipe unrelated to the talk",
+        ],
+        correctChoices: [0, 1, 2],
+      },
+      1,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q3",
+        kind: "critique",
+        prompt: g5
+          ? `What surprised you or felt unclear? In 2–3 sentences, give one reason and one example from the talk.`
+          : `What surprised you or felt unclear? Explain in 2–3 sentences why.`,
+        rubricHint: "Honest reaction + a reason (because…).",
+        choiceMode: "single",
+        choices: [
+          "Something surprising or unclear that you can explain with a reason",
+          "Nothing — the talk needs no reaction",
+          "Only the speaker's clothing",
+          "A topic never mentioned",
+        ],
+        correctChoices: [0],
+      },
+      2,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q4",
+        kind: "critique",
+        prompt: `Pick a memorable line or idea (hint near: “${hook.slice(0, 100)}…”). Why did it stick?`,
+        rubricHint: "Say whether it was a story, a fact, or a feeling that worked.",
+        choiceMode: "multi",
+        choices: [
+          "A story that made the idea stick",
+          "A clear fact or example",
+          "A strong feeling or image",
+          "A line that had nothing to do with the talk",
+        ],
+        correctChoices: [0, 1, 2],
+        // multi: story / fact / feeling all valid; essay judges which
+      },
+      3,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q5",
+        kind: "retell",
+        prompt: g5
+          ? `Explain the talk to a classmate in about 4 sentences. Include one idea from later in the talk (hint: “${mid.slice(0, 80)}…”).`
+          : `Explain the talk to a classmate in about 3 sentences. Include one idea from later in the talk (hint: “${mid.slice(0, 80)}…”).`,
+        rubricHint: g5
+          ? "Grade 5 stretch: retell should carry the arc, not only the opening."
+          : "Retell should include more than the opening. (G4 baseline)",
+        choiceMode: "multi",
+        choices: [
+          "The opening idea or hook",
+          "A middle example or later idea",
+          "A closing takeaway",
+          "Only the title with no content",
+        ],
+        correctChoices: [0, 1, 2],
+      },
+      4,
+    ),
   ];
 }
 
@@ -272,36 +478,75 @@ function buildItemsForLevel(
 
   if (level === "emerging") {
     return [
-      {
-        id: "q1",
-        kind: "literal",
-        prompt: `In one short sentence: what is this talk mainly about? (Talk: “${title}” by ${speaker}.)`,
-        rubricHint: "Name the topic in plain words — one clear idea is enough.",
-        choices: [
-          "A story or idea the speaker wants us to remember",
-          "Only jokes with no main idea",
-          "A list of random facts",
-          "Instructions for a game",
-        ],
-      },
-      {
-        id: "q2",
-        kind: "literal",
-        prompt: `Name one thing ${speaker} talked about that you understood well.`,
-        rubricHint: "Pick one concrete detail from the talk.",
-      },
-      {
-        id: "q3",
-        kind: "structure",
-        prompt: `What came first in the talk, and what came near the end? Write two short lines.`,
-        rubricHint: "Beginning vs ending — keep it simple.",
-      },
-      {
-        id: "q4",
-        kind: "retell",
-        prompt: `Tell a friend what the talk was about in 2 short sentences.`,
-        rubricHint: "Use your own words. Short is OK.",
-      },
+      enrichChallengeItem(
+        {
+          id: "q1",
+          kind: "literal",
+          prompt: `In one short sentence: what is this talk mainly about? (Talk: “${title}” by ${speaker}.)`,
+          rubricHint:
+            "Name the topic in plain words — one clear idea is enough.",
+          choiceMode: "single",
+          choices: [
+            "A story or idea the speaker wants us to remember",
+            "Only jokes with no main idea",
+            "A list of random facts",
+            "Instructions for a game",
+          ],
+          correctChoices: [0],
+        },
+        0,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q2",
+          kind: "literal",
+          prompt: `Name one thing ${speaker} talked about that you understood well.`,
+          rubricHint: "Pick one concrete detail from the talk.",
+          choiceMode: "single",
+          choices: [
+            "One concrete detail from the talk",
+            "Something never said in the talk",
+            "Only the audience clapping",
+            "A math formula from another class",
+          ],
+          correctChoices: [0],
+        },
+        1,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q3",
+          kind: "structure",
+          prompt: `What came first in the talk, and what came near the end? Write two short lines.`,
+          rubricHint: "Beginning vs ending — keep it simple.",
+          choiceMode: "multi",
+          choices: [
+            "Something near the beginning",
+            "Something near the end",
+            "Only the middle with no start or end",
+            "A commercial break",
+          ],
+          correctChoices: [0, 1],
+        },
+        2,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q4",
+          kind: "retell",
+          prompt: `Tell a friend what the talk was about in 2 short sentences.`,
+          rubricHint: "Use your own words. Short is OK.",
+          choiceMode: "single",
+          choices: [
+            "A short retell in my own words",
+            "Copy every word from the talk",
+            "Say the talk was boring with no details",
+            "Talk about a different video",
+          ],
+          correctChoices: [0],
+        },
+        3,
+      ),
     ];
   }
 
@@ -312,43 +557,98 @@ function buildItemsForLevel(
   if (level === "confident") {
     const g8 = grade >= 8;
     return [
-      {
-        id: "q1",
-        kind: "literal",
-        prompt: g8
-          ? `State ${speaker}'s central claim in “${title}” in one precise sentence — Grade ${grade} stretch: name the claim, not only the topic.`
-          : `State ${speaker}'s central claim in “${title}” in one precise sentence.`,
-        rubricHint: `Name the claim, not only the topic. (Grade ${grade})`,
-      },
-      {
-        id: "q2",
-        kind: "structure",
-        prompt: `Sketch the talk's arc in 3 bullets: hook → evidence → takeaway.`,
-        rubricHint: "Look for story, data, or examples — not just jokes.",
-      },
-      {
-        id: "q3",
-        kind: "critique",
-        prompt: g8
-          ? `What is one fair weakness or gap in the argument? In 3–4 sentences, point to evidence quality or a missing trade-off.`
-          : `What is one fair weakness or gap in the argument? Answer it briefly in 2–3 sentences.`,
-        rubricHint:
-          "Point to evidence quality, overgeneralization, or a missing trade-off.",
-      },
-      {
-        id: "q4",
-        kind: "critique",
-        prompt: `Pick one memorable line (or paraphrase of: “${hook.slice(0, 120)}…”). How does it persuade — story, evidence, or emotion?`,
-        rubricHint: "Separate style from substance.",
-      },
-      {
-        id: "q5",
-        kind: "retell",
-        prompt: g8
-          ? `Retell the talk for a sharp classmate — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and one implication.`
-          : `Retell the talk for a sharp classmate — max 4 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”).`,
-        rubricHint: `Carry the argument, not only the opening. (Grade ${grade})`,
-      },
+      enrichChallengeItem(
+        {
+          id: "q1",
+          kind: "literal",
+          prompt: g8
+            ? `State ${speaker}'s central claim in “${title}” in one precise sentence — Grade ${grade} stretch: name the claim, not only the topic.`
+            : `State ${speaker}'s central claim in “${title}” in one precise sentence.`,
+          rubricHint: `Name the claim, not only the topic. (Grade ${grade})`,
+          choiceMode: "single",
+          choices: [
+            "A precise central claim (not only a vague topic)",
+            "A topic label with no claim",
+            "A joke summary only",
+            "An unrelated news headline",
+          ],
+          correctChoices: [0],
+        },
+        0,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q2",
+          kind: "structure",
+          prompt: `Sketch the talk's arc in 3 bullets: hook → evidence → takeaway.`,
+          rubricHint: "Look for story, data, or examples — not just jokes.",
+          choiceMode: "multi",
+          choices: [
+            "Hook that opens the talk",
+            "Evidence, story, or examples",
+            "A takeaway or closing move",
+            "A product ad break",
+          ],
+          correctChoices: [0, 1, 2],
+        },
+        1,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q3",
+          kind: "critique",
+          prompt: g8
+            ? `What is one fair weakness or gap in the argument? In 3–4 sentences, point to evidence quality or a missing trade-off.`
+            : `What is one fair weakness or gap in the argument? Answer it briefly in 2–3 sentences.`,
+          rubricHint:
+            "Point to evidence quality, overgeneralization, or a missing trade-off.",
+          choiceMode: "single",
+          choices: [
+            "A fair gap: evidence quality, overgeneralization, or missing trade-off",
+            "The speaker's accent",
+            "The slide colors",
+            "A complaint with no link to the argument",
+          ],
+          correctChoices: [0],
+        },
+        2,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q4",
+          kind: "critique",
+          prompt: `Pick one memorable line (or paraphrase of: “${hook.slice(0, 120)}…”). How does it persuade — story, evidence, or emotion?`,
+          rubricHint: "Separate style from substance.",
+          choiceMode: "multi",
+          choices: [
+            "Story / narrative",
+            "Evidence / data",
+            "Emotion / feeling",
+            "None of these — random noise",
+          ],
+          correctChoices: [0, 1, 2],
+        },
+        3,
+      ),
+      enrichChallengeItem(
+        {
+          id: "q5",
+          kind: "retell",
+          prompt: g8
+            ? `Retell the talk for a sharp classmate — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and one implication.`
+            : `Retell the talk for a sharp classmate — max 4 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”).`,
+          rubricHint: `Carry the argument, not only the opening. (Grade ${grade})`,
+          choiceMode: "multi",
+          choices: [
+            "The central claim",
+            "A later idea or evidence beat",
+            "Why it matters / implication",
+            "Only the speaker's name",
+          ],
+          correctChoices: [0, 1],
+        },
+        4,
+      ),
     ];
   }
 
@@ -356,52 +656,107 @@ function buildItemsForLevel(
   const g11 = grade >= 11;
   const g10 = grade >= 10;
   return [
-    {
-      id: "q1",
-      kind: "literal",
-      prompt: g10
-        ? `In one precise sentence, what is ${speaker}'s central claim in “${title}”? Grade ${grade}: include the key mechanism or stakes, not a vague theme.`
-        : `In one precise sentence, what is ${speaker}'s central claim in “${title}”?`,
-      rubricHint: g10
-        ? `Name the claim + stakes. (Grade ${grade} advanced)`
-        : "Name the claim, not a vague theme. Quote a key phrase if you can.",
-    },
-    {
-      id: "q2",
-      kind: "structure",
-      prompt: g11
-        ? `Map the talk's rhetoric: hook → evidence moves → takeaway. 3–4 bullets; label each beat (story / data / counterexample).`
-        : `How does the talk move from hook → evidence → takeaway? Sketch the arc in 3 short bullets.`,
-      rubricHint:
-        "Look for story, data, or counterexample beats — not a plot summary of jokes.",
-    },
-    {
-      id: "q3",
-      kind: "critique",
-      prompt: g10
-        ? `Steelman the strongest objection to the talk's argument (Grade ${grade}). Then answer it in 3–4 sentences with a trade-off or counter-evidence.`
-        : `Steelman the strongest objection someone could raise against the talk's argument. Then answer it in 2–3 sentences.`,
-      rubricHint:
-        "Strong objections attack evidence quality, overgeneralization, or missing trade-offs.",
-    },
-    {
-      id: "q4",
-      kind: "critique",
-      prompt: `Pick one memorable line (or paraphrase of: “${hook.slice(0, 120)}…”). Why does it persuade — rhetoric, evidence, or emotion?`,
-      rubricHint: g10
-        ? `Separate style from substance; Grade ${grade} listeners name the technique.`
-        : "Separate style from substance; advanced listeners name the technique.",
-    },
-    {
-      id: "q5",
-      kind: "retell",
-      prompt: g11
-        ? `Brief a sharp peer who missed it — 5–6 sentences. Carry the argument, one later idea (hint: “${mid.slice(0, 100)}…”), and one real-world implication.`
-        : g10
-          ? `Explain the talk to a sharp classmate who missed it — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and why it matters.`
-          : `Explain the talk to a sharp classmate who missed it — max 4 sentences. Include one idea from later in the talk (hint near: “${mid.slice(0, 100)}…”).`,
-      rubricHint: `Retell should carry the argument, not only the opening. (Grade ${grade})`,
-    },
+    enrichChallengeItem(
+      {
+        id: "q1",
+        kind: "literal",
+        prompt: g10
+          ? `In one precise sentence, what is ${speaker}'s central claim in “${title}”? Grade ${grade}: include the key mechanism or stakes, not a vague theme.`
+          : `In one precise sentence, what is ${speaker}'s central claim in “${title}”?`,
+        rubricHint: g10
+          ? `Name the claim + stakes. (Grade ${grade} advanced)`
+          : "Name the claim, not a vague theme. Quote a key phrase if you can.",
+        choiceMode: "single",
+        choices: [
+          "A precise claim with mechanism or stakes",
+          "A vague theme without a claim",
+          "A biographical aside only",
+          "An unrelated policy slogan",
+        ],
+        correctChoices: [0],
+      },
+      0,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q2",
+        kind: "structure",
+        prompt: g11
+          ? `Map the talk's rhetoric: hook → evidence moves → takeaway. 3–4 bullets; label each beat (story / data / counterexample).`
+          : `How does the talk move from hook → evidence → takeaway? Sketch the arc in 3 short bullets.`,
+        rubricHint:
+          "Look for story, data, or counterexample beats — not a plot summary of jokes.",
+        choiceMode: "multi",
+        choices: [
+          "Hook / opening frame",
+          "Evidence move (story, data, or counterexample)",
+          "Takeaway / closing implication",
+          "An off-topic Q&A only",
+        ],
+        correctChoices: [0, 1, 2],
+      },
+      1,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q3",
+        kind: "critique",
+        prompt: g10
+          ? `Steelman the strongest objection to the talk's argument (Grade ${grade}). Then answer it in 3–4 sentences with a trade-off or counter-evidence.`
+          : `Steelman the strongest objection someone could raise against the talk's argument. Then answer it in 2–3 sentences.`,
+        rubricHint:
+          "Strong objections attack evidence quality, overgeneralization, or missing trade-offs.",
+        choiceMode: "single",
+        choices: [
+          "A steelmanned objection on evidence, overgeneralization, or trade-offs",
+          "A personal insult of the speaker",
+          "A complaint about video length only",
+          "Agreeing with everything without critique",
+        ],
+        correctChoices: [0],
+      },
+      2,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q4",
+        kind: "critique",
+        prompt: `Pick one memorable line (or paraphrase of: “${hook.slice(0, 120)}…”). Why does it persuade — rhetoric, evidence, or emotion?`,
+        rubricHint: g10
+          ? `Separate style from substance; Grade ${grade} listeners name the technique.`
+          : "Separate style from substance; advanced listeners name the technique.",
+        choiceMode: "multi",
+        choices: [
+          "Rhetoric / framing technique",
+          "Evidence / substance",
+          "Emotion / pathos",
+          "None — decorative filler only",
+        ],
+        correctChoices: [0, 1, 2],
+      },
+      3,
+    ),
+    enrichChallengeItem(
+      {
+        id: "q5",
+        kind: "retell",
+        prompt: g11
+          ? `Brief a sharp peer who missed it — 5–6 sentences. Carry the argument, one later idea (hint: “${mid.slice(0, 100)}…”), and one real-world implication.`
+          : g10
+            ? `Explain the talk to a sharp classmate who missed it — about 5 sentences. Include one later idea (hint: “${mid.slice(0, 100)}…”) and why it matters.`
+            : `Explain the talk to a sharp classmate who missed it — max 4 sentences. Include one idea from later in the talk (hint near: “${mid.slice(0, 100)}…”).`,
+        rubricHint: `Retell should carry the argument, not only the opening. (Grade ${grade})`,
+        choiceMode: "multi",
+        choices: [
+          "The argument / central claim",
+          "A later idea from the talk",
+          "A real-world implication",
+          "Only the opening joke",
+        ],
+        correctChoices: [0, 1],
+      },
+      4,
+    ),
   ];
 }
 
@@ -442,28 +797,14 @@ export function parseChallengeJson(
         prompt?: string;
         rubricHint?: string;
         choices?: string[];
+        choiceMode?: string;
+        correctChoices?: number[];
       }>;
     };
     if (!Array.isArray(data.items) || data.items.length < 3) return null;
-    const kinds: ChallengeKind[] = [
-      "literal",
-      "structure",
-      "critique",
-      "retell",
-    ];
-    const items: ChallengeItem[] = data.items.slice(0, 5).map((it, i) => ({
-      id: `q${i + 1}`,
-      kind: kinds.includes(it.kind as ChallengeKind)
-        ? (it.kind as ChallengeKind)
-        : "critique",
-      prompt: String(it.prompt || "").trim() || `Question ${i + 1}`,
-      rubricHint: String(
-        it.rubricHint || "Be precise and evidence-aware.",
-      ).trim(),
-      choices: Array.isArray(it.choices)
-        ? it.choices.map(String).slice(0, 4)
-        : undefined,
-    }));
+    const items: ChallengeItem[] = data.items
+      .slice(0, 5)
+      .map((it, i) => enrichChallengeItem(it, i));
     return {
       talkSlug: talk.slug,
       title: talk.title,
@@ -487,7 +828,7 @@ const BAND_PROMPT: Record<
     rules: [
       "Use simple vocabulary; short sentences in prompts.",
       "Prefer literal + simple structure + short retell. Soft opinion OK; NO steelman, rhetoric, or academic jargon.",
-      "Optional 2–4 easy choices on at most one item.",
+      "EVERY item must include exactly 4 easy choices + choiceMode single|multi + correctChoices indices.",
       "Never talk down — friendly and clear, not babyish baby-talk.",
     ],
   },
@@ -498,7 +839,7 @@ const BAND_PROMPT: Record<
       "Clear everyday academic English; avoid steelman / rhetoric jargon.",
       "Mix literal, structure (beginning→middle→end), gentle critique (surprise/unclear), and short retell.",
       "Calibrate length to the stated Grade N: G4 ≈ 3-sentence retell; G5 ≈ slightly longer + one evidence example.",
-      "Socratic — do not reveal answers.",
+      "EVERY item: 4 choices (single or multi) + open essay prompt. Socratic — do not reveal answers in the prompt text.",
     ],
   },
   confident: {
@@ -506,7 +847,7 @@ const BAND_PROMPT: Record<
     rules: [
       "Precise but accessible. Claim + evidence + mild critique OK.",
       "Avoid the heaviest debate jargon unless needed.",
-      "Socratic — do not reveal answers.",
+      "EVERY item: 4 choices (single or multi) + open essay. Socratic — do not reveal answers.",
     ],
   },
   advanced: {
@@ -515,7 +856,7 @@ const BAND_PROMPT: Record<
     rules: [
       "Tone: witty, rigorous, never babyish. Steelman / rhetoric OK.",
       "Calibrate to the stated Grade N: G9 = solid advanced; G10–11 = longer critique + implication; G12 = denser rhetoric mapping.",
-      "Socratic — do not reveal answers.",
+      "EVERY item: 4 choices (single or multi) + open essay. Socratic — do not reveal answers.",
     ],
   },
 };
@@ -533,8 +874,8 @@ export function challengeSystemPrompt(
     `You design TED listening challenges for: ${band.audience}`,
     `Target difficulty band: ${level}. Grade ${grade} (G${grade} grain). ${age}`.trim(),
     ...band.rules,
-    'Return ONLY JSON: {"items":[{"kind":"literal|structure|critique|retell","prompt":"...","rubricHint":"...","choices":["..."]}]}',
-    "Include 4–5 items mixing kinds. Prefer open response; choices only if helpful for emerging learners.",
+    'Return ONLY JSON: {"items":[{"kind":"literal|structure|critique|retell","prompt":"...","rubricHint":"...","choiceMode":"single|multi","choices":["A","B","C","D"],"correctChoices":[0]}]}',
+    "Include 4–5 items mixing kinds. EVERY item must have exactly 4 choices + choiceMode + correctChoices (0-based). Students also write an open essay after selecting.",
     `Talk: “${talk.title}” by ${talk.speaker}.`,
   ].join("\n");
 }
