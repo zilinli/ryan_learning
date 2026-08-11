@@ -70,14 +70,66 @@ function localCoach(draft: string, target: StudioStructureTarget): string {
     tips.push("Keep it cinematic prose — no [Verse]/[Chorus] tags.");
     return tips.join("\n\n");
   }
-  if (words < 20) {
+  // ── Music target — BASIS writing dimensions ──
+  if (words < 10) {
     tips.push(
-      "Add one concrete sensory detail — a place, a sound, or a specific moment.",
+      "Start with one clear topic sentence — what is this song about in one line?",
     );
-  } else {
     tips.push(
       "Underline your strongest image. Can you make the next line more specific than the last?",
     );
+  } else {
+    // BASIS-aligned craft tips: thesis, detail, vocabulary, grammar
+    const lines = draft.split(/\n/).filter(Boolean);
+    const firstLine = (lines[0] || "").trim();
+
+    // Topic sentence / thesis clarity
+    if (firstLine.length < 15) {
+      tips.push(
+        "Your opening line is short — try expanding it to one clear topic sentence that tells us what the song is about.",
+      );
+    } else if (!firstLine.endsWith(".") && !firstLine.endsWith("?") && !firstLine.endsWith("!")) {
+      tips.push(
+        "Good opening! Try ending your first line with a period so it stands as a clear topic sentence.",
+      );
+    }
+
+    // Detail support
+    const sensoryWords = draft.match(
+      /\b(smell|taste|touch|sound|feel|see|saw|hear|heard|warm|cold|bright|dark|loud|quiet|soft|hard|rough|smooth)\b/gi,
+    );
+    if ((sensoryWords?.length || 0) < 2) {
+      tips.push(
+        "Add one concrete sensory detail — a sound, a smell, or a texture. Strong writing uses specific evidence, not general feelings.",
+      );
+    }
+
+    // Vocabulary diversity
+    const uniqueWords = new Set(
+      draft
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 3),
+    );
+    if (uniqueWords.size < 12 && words > 15) {
+      tips.push(
+        "Your vocabulary is clear but could be more varied — try replacing one common word with a more precise choice (e.g., 'walked' → 'strolled' or 'dashed').",
+      );
+    }
+
+    // Grammar / sentence variety
+    const sentenceStarts = draft
+      .split(/[.!?]\s+/)
+      .filter((s) => s.trim())
+      .map((s) => s.trim().split(/\s+/)[0]?.toLowerCase() || "");
+    const startVariety = new Set(sentenceStarts);
+    if (sentenceStarts.length >= 4 && startVariety.size <= 2) {
+      tips.push(
+        "Try varying how your sentences begin — too many start the same way. Mix a question, a command, or a short fragment to vary the rhythm.",
+      );
+    }
+
+    // Always push forward
     tips.push(
       "Don't need a full song yet — chase one honest sentence, then expand around it.",
     );
@@ -389,13 +441,23 @@ export async function POST(req: Request) {
     const prompt = [
       "You are a witty writing coach for an international-school student.",
       modeHint,
+      target === "music"
+        ? "Assess the draft across 4 writing dimensions (be brief — max 2 that need most work):\n" +
+          "1. Topic sentence clarity — can the reader tell what the piece is mainly about in one line?\n" +
+          "2. Detail support — are there concrete sensory details or evidence, not only general feelings?\n" +
+          "3. Vocabulary diversity — are word choices precise and varied, or repetitive?\n" +
+          "4. Grammar — are sentences complete and grammatically correct?\n" +
+          "Pick the 1-2 dimensions that could improve most and give a SPECIFIC craft tip for each."
+        : "",
       "Socratic: ask 1–2 sharp questions and give 1 concrete craft tip.",
       "Never rewrite the whole draft. Never be babyish. Max 120 words.",
       `Genre vibe: ${genre}.`,
       "",
       "Draft:",
       draft,
-    ].join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
     const run = await agent.send(
       { text: prompt },
       {

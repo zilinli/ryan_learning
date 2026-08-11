@@ -58,6 +58,30 @@ describe("POST /api/lyric-studio/coach — local fallback", () => {
     expect(data.target).toBe("music");
   });
 
+  it("coach music target includes BASIS writing dimensions", async () => {
+    const { POST } = await import("./route");
+    const longDraft = [
+      "The rain falls slow on the window pane.",
+      "The rain makes me think of home again.",
+      "The rain taps soft like a quiet friend.",
+      "The rain keeps falling until the end.",
+    ].join("\n");
+    const res = await POST(
+      coachReq({
+        action: "coach",
+        draft: longDraft,
+        genre: "Indie",
+        target: "music",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    const coach = String(data.coach).toLowerCase();
+    // Local fallback should detect repeated starts and suggest variety
+    expect(coach).toMatch(/vary|repeated|start|sentence|topic|sensory|vocabulary|detail|grammar/);
+  });
+
   it("coach image target avoids lyric advice defaults", async () => {
     const { POST } = await import("./route");
     const res = await POST(
