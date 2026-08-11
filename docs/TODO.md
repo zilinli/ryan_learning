@@ -28,7 +28,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 - [x] **ENT-TED-A.2** — `resolveTedChallengeLevel` + banded **and grade-cued** `buildFallbackChallenge` / `challengeSystemPrompt`
 - [x] **ENT-TED-A.3** — API + TedLab pass `learner` (incl. `grade`); softFeedback scales by band
 - [x] **ENT-TED-A.4** — Unit tests TD1–TD7 (G3≠G4≠G5 cues); run_tests on touched files
-- [ ] **ENT-TED-A.5** — apply_changes → publish_develop → deploy_live
+- [x] **ENT-TED-A.5** — apply_changes → publish_develop → deploy_live
 
 ## 🎤 ENT-TED-VOICE — TED Challenge voice input (2026-08-11)
 
