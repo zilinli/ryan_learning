@@ -9,6 +9,11 @@ import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
 import { interruptHint } from "@/lib/speech-barge-in";
+import {
+  initialWaitStatus,
+  isGenericWaitStatus,
+  waitStatusAt,
+} from "@/lib/tutor-wait-status";
 import { loadCheckMode, saveCheckMode } from "@/lib/parent-pin";
 import {
   loadSpeakEnabled,
@@ -351,6 +356,7 @@ export function TutorShell() {
   const composerApiRef = useRef<ComposerApi | null>(null);
   const checkModeRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
+  const waitPhaseTimerRef = useRef<number | null>(null);
   const voiceEnabledRef = useRef(true);
   const voiceIdRef = useRef<TutorVoiceId>("auto");
   const accountIdRef = useRef(RYAN_ACCOUNT_ID);
@@ -1009,7 +1015,19 @@ export function TutorShell() {
     if (busy || !store || !sessionId) return;
     setBusy(true);
     setError("");
-    setAgentStatus("Thinking…");
+    const hasMedia = payload.attachments.length > 0;
+    const waitStartedAt = Date.now();
+    setAgentStatus(initialWaitStatus({ hasMedia }));
+    if (waitPhaseTimerRef.current != null) {
+      window.clearInterval(waitPhaseTimerRef.current);
+      waitPhaseTimerRef.current = null;
+    }
+    waitPhaseTimerRef.current = window.setInterval(() => {
+      setAgentStatus((cur) => {
+        if (!isGenericWaitStatus(cur)) return cur;
+        return waitStatusAt({ hasMedia }, Date.now() - waitStartedAt);
+      });
+    }, 1000);
 
     // B1.h — any student turn (homework photo/text) yields the ZPD opener for the day
     if (sessionOpener) {
@@ -1110,6 +1128,10 @@ export function TutorShell() {
           let pendingDelta = "";
           let pendingRafId: number | undefined;
           return (delta: string) => {
+            if (waitPhaseTimerRef.current != null) {
+              window.clearInterval(waitPhaseTimerRef.current);
+              waitPhaseTimerRef.current = null;
+            }
             setAgentStatus("");
             // Feed every raw delta to TTS immediately for fluid speech
             if (shouldSpeak) {
@@ -1136,7 +1158,15 @@ export function TutorShell() {
             });
           };
         })(),
-        (status) => setAgentStatus(status),
+        (status) => {
+          setAgentStatus((cur) => {
+            if (!status) return cur;
+            // Real tool labels win; timed wait phases own generic Thinking…
+            if (!isGenericWaitStatus(status)) return status;
+            if (cur && !isGenericWaitStatus(cur)) return cur;
+            return cur || status;
+          });
+        },
         (text) => {
           // Replace glued streaming text with the corrected final reply
           setStore((prev) => {
@@ -1224,6 +1254,10 @@ export function TutorShell() {
         return upsertActive(prev, { messages: msgs });
       });
     } finally {
+      if (waitPhaseTimerRef.current != null) {
+        window.clearInterval(waitPhaseTimerRef.current);
+        waitPhaseTimerRef.current = null;
+      }
       setBusy(false);
       setAgentStatus("");
       // Persist promptly when the turn ends
@@ -1445,7 +1479,16 @@ export function TutorShell() {
         </main>
 
         {agentStatus ? (
-          <p className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-1 text-xs text-[var(--teal)]">
+          <p
+            className="mx-auto flex w-full max-w-3xl shrink-0 items-center gap-2 px-4 pb-1 text-xs text-[var(--teal)]"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="inline-flex gap-0.5" aria-hidden>
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--teal)]" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--teal)] [animation-delay:200ms]" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--teal)] [animation-delay:400ms]" />
+            </span>
             {agentStatus}
           </p>
         ) : null}

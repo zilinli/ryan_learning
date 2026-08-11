@@ -152,6 +152,20 @@ function styleLine(mode: ReplyLangMode): string {
   return "Style: warm AI teacher — Socratic and interactive; student thinks first; short enough for phone + TTS.";
 }
 
+/** Soft persona (UX-RPT.3) — calm coach for 9–12yo; not a cartoon mascot. */
+function personaLines(mode: ReplyLangMode): string[] {
+  const core =
+    mode === "zh" || mode === "yue" || mode === "sha"
+      ? "Persona: 你是耐心、冷静的家庭辅导老师——先鼓励再适度挑战；像坐在旁边的真人老师，不是卡通角色或游戏 NPC。"
+      : "Persona: you are a calm, patient home tutor — encourage first, then gently challenge; like a real teacher beside them, not a cartoon mascot or game NPC.";
+  return [
+    "",
+    "[Tutor persona — soft emotional rhythm]",
+    core,
+    "Emotional beat: notice effort → one short encourage → one clear next move. Never pile on praise badges or streaks.",
+  ];
+}
+
 function findThisCue(mode: ReplyLangMode): string {
   if (mode === "zh") return "**找到这里**";
   if (mode === "yue") return "**睇呢度**";
@@ -241,6 +255,7 @@ function subjectCoachingLines(band?: GradeBand): string {
     "- Ask «is this math, reading, science, or writing?» then switch to the right mode.",
     "Progressive disclosure: when showing step-by-step work, wrap EACH step in its own",
     "`~~~step` fence (Step 1 / Step 2…). The UI reveals only one step until the student taps Next — never dump a long list of open steps.",
+    "Prefer `~~~step` whenever you would otherwise list 2+ reasoning steps in one reply (豆包-style confirm-before-next). After each reveal the UI offers Got it / Simpler — you still end non-fence turns with ONE question.",
     "",
   ].join("\n");
 }
@@ -498,6 +513,7 @@ export function buildTutorPrompt(params: {
     "[Tutor context]",
     audienceLine(mode),
     styleLine(mode),
+    ...personaLines(mode),
     `[Language style — ${profile.gradeBand} band] Confirm: "${lang.confirm}". Encourage: "${lang.encourage}". When stuck: "${lang.stuck}". On error: "${lang.error}". Prefer "${lang.thinkAloud}" before giving answers.`,
     ...studentProfilePromptLines(profile),
     ...curriculumPromptLines(profile),

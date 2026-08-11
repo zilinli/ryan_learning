@@ -16,6 +16,21 @@
 > Listen sync + Stop: **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)**
 > AI FAQ (Ask AI): **[subsystems/ai-faq.md](subsystems/ai-faq.md)**
 > Claude report 2026-08: **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** (RPT2 public harden + Socratic integrity)
+> UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips)
+
+---
+
+## ✨ UX-RPT — Competitor UX report slice (2026-08-11)
+
+> **Design:** [subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)  
+> **Goal:** Absorb high-feasibility UX from 竞品调研 (latency perception + step follow-ups + soft persona). Defer Ello dual-agent / child ASR / streaks.
+
+- [x] **UX-RPT.1** — Phased wait status (photo-aware labels + “Taking a bit longer…”) in TutorShell
+- [x] **UX-RPT.2** — StepReveal Got it / Simpler chips → `spark:quick-reply` → Composer draft
+- [x] **UX-RPT.3** — Prompt: soft persona + stronger `~~~step` discipline
+- [x] **UX-RPT.4** — Unit tests (`tutor-wait-status`) + run_tests
+- [ ] **UX-RPT.5** — apply_changes → publish_develop → deploy_live
+- [ ] **UX-RPT.6** — Manual: photo wait phases; step chips fill composer
 
 ---
 

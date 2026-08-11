@@ -70,6 +70,7 @@ export function Composer({
   } | null>(null);
   const dialectTokenRef = useRef(0);
   const attachmentsRef = useRef<ClientAttachment[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Keep a ref of the latest attachments for stable event-handler closures
   // (addFiles/submit are recreated or memoized without deps).
   useEffect(() => {
@@ -79,6 +80,28 @@ export function Composer({
   useEffect(() => {
     setVoiceAutoSend(loadVoiceAutoSend(accountId || RYAN_ACCOUNT));
   }, [accountId]);
+
+  // UX-RPT.2 — step chips fill draft (never auto-send)
+  useEffect(() => {
+    const onQuick = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ text?: string }>).detail;
+      const t = typeof detail?.text === "string" ? detail.text.trim() : "";
+      if (!t || disabled) return;
+      setText(t);
+      dialectTokenRef.current += 1;
+      setDialectPending(false);
+      window.requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.style.height = "auto";
+          el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+        }
+      });
+    };
+    window.addEventListener("spark:quick-reply", onQuick);
+    return () => window.removeEventListener("spark:quick-reply", onQuick);
+  }, [disabled]);
 
   useEffect(() => {
     onComposerApi?.({
@@ -186,6 +209,7 @@ export function Composer({
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
         <textarea
+          ref={textareaRef}
           value={text}
           disabled={disabled}
           rows={1}

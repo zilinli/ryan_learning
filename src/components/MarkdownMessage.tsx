@@ -157,6 +157,40 @@ function StepReveal({
                 {step.content}
               </div>
             ) : null}
+            {isRevealed ? (
+              <div className="mt-2 ml-7 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="min-h-11 min-w-[5.5rem] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(
+                      new CustomEvent("spark:quick-reply", {
+                        detail: { text: "Got it — what's next?" },
+                      }),
+                    );
+                  }}
+                >
+                  Got it
+                </button>
+                <button
+                  type="button"
+                  className="min-h-11 min-w-[5.5rem] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(
+                      new CustomEvent("spark:quick-reply", {
+                        detail: {
+                          text: "Can you explain that step more simply?",
+                        },
+                      }),
+                    );
+                  }}
+                >
+                  Simpler
+                </button>
+              </div>
+            ) : null}
           </div>
         );
       })}
