@@ -276,7 +276,7 @@ export function LearningDashboard() {
             </h2>
             {!pinSet ? (
               <p className="mt-2 text-[13px] text-[var(--ink-muted)]">
-                Set a parent PIN via Code Agent to unlock the weekly digest here.
+                Set a parent PIN (Learning panel → Parent, or Code Agent) to unlock the weekly digest here.
               </p>
             ) : !parentUnlocked ? (
               <button

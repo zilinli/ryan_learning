@@ -34,6 +34,8 @@ export function PinGate({ onUnlock, onCancel }: Props) {
   const [isNew] = useState(() => !hasParentPin());
   const [pin, setPin] = useState("");
   const [confirm, setConfirm] = useState("");
+  /** First-time setup: after 4 digits, move to confirm entry. */
+  const [confirming, setConfirming] = useState(false);
   const [err, setError] = useState("");
   const [att, setAtt] = useState(0);
   // Lockout target timestamp (ms) — only ever read inside event handlers.
@@ -75,19 +77,19 @@ export function PinGate({ onUnlock, onCancel }: Props) {
     (d: string) => {
       if (lockUntil > Date.now() || shake) return;
       if (isNew) {
-        if (confirm) setConfirm((p) => (p + d).slice(0, PIN_LENGTH));
+        if (confirming) setConfirm((p) => (p + d).slice(0, PIN_LENGTH));
         else setPin((p) => (p + d).slice(0, PIN_LENGTH));
       } else {
         setPin((p) => (p + d).slice(0, PIN_LENGTH));
       }
     },
-    [isNew, confirm, lockUntil, shake],
+    [isNew, confirming, lockUntil, shake],
   );
 
   const back = useCallback(() => {
-    if (isNew && confirm) setConfirm((p) => p.slice(0, -1));
+    if (isNew && confirming) setConfirm((p) => p.slice(0, -1));
     else setPin((p) => p.slice(0, -1));
-  }, [isNew, confirm]);
+  }, [isNew, confirming]);
 
   const submit = useCallback(() => {
     if (isNew) {
@@ -95,14 +97,21 @@ export function PinGate({ onUnlock, onCancel }: Props) {
         fail("Need 4 digits");
         return;
       }
-      if (!confirm) {
+      if (!confirming) {
+        setConfirming(true);
         setConfirm("");
+        setError("");
+        return;
+      }
+      if (confirm.length < PIN_LENGTH) {
+        fail("Confirm with 4 digits");
         return;
       }
       if (confirm !== pin) {
         setError("PINs don't match");
         setPin("");
         setConfirm("");
+        setConfirming(false);
         setShake(true);
         window.setTimeout(() => setShake(false), 600);
         return;
@@ -129,7 +138,7 @@ export function PinGate({ onUnlock, onCancel }: Props) {
       }
       onUnlock(pin);
     }
-  }, [isNew, pin, confirm, att, fail, onUnlock]);
+  }, [isNew, pin, confirm, confirming, att, fail, onUnlock]);
 
   const confirmDots = (
     <>
@@ -159,7 +168,9 @@ export function PinGate({ onUnlock, onCancel }: Props) {
 
   const submitDisabled =
     locked ||
-    (isNew && !confirm ? pin.length < PIN_LENGTH : (confirm ? confirm.length : pin.length) < PIN_LENGTH);
+    (isNew && !confirming
+      ? pin.length < PIN_LENGTH
+      : (confirming ? confirm.length : pin.length) < PIN_LENGTH);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,28,34,0.5)] px-4">
@@ -171,15 +182,21 @@ export function PinGate({ onUnlock, onCancel }: Props) {
         <div className="mb-4 text-center">
           <span className="text-3xl">🔐</span>
           <h2 className="mt-2 text-lg font-semibold text-[var(--ink)]">
-            {isNew && !confirm ? "Set parent PIN" : isNew ? "Confirm PIN" : "Enter PIN"}
+            {isNew && !confirming
+              ? "Set parent PIN"
+              : isNew
+                ? "Confirm PIN"
+                : "Enter PIN"}
           </h2>
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            {isNew ? "Choose 4 digits to keep changes safe." : "PIN needed to apply changes."}
+            {isNew
+              ? "Choose 4 digits to keep parent tools safe."
+              : "PIN needed for parent view."}
           </p>
         </div>
 
         <div className="mb-4 flex justify-center gap-2">
-          {isNew && confirm ? confirmDots : pinDots}
+          {isNew && confirming ? confirmDots : pinDots}
         </div>
 
         {err ? (
@@ -231,7 +248,7 @@ export function PinGate({ onUnlock, onCancel }: Props) {
           onClick={submit}
           className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--teal)] px-4 text-sm font-semibold text-white hover:brightness-105 disabled:opacity-40"
         >
-          {isNew && !confirm ? "Set PIN" : isNew ? "Confirm" : "Unlock"}
+          {isNew && !confirming ? "Set PIN" : isNew ? "Confirm" : "Unlock"}
         </button>
 
         {!isNew ? (

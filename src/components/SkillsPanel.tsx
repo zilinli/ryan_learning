@@ -220,9 +220,16 @@ export function SkillsPanel({
                 Set parent PIN
                 <span className="text-[var(--teal)]">
                   {" "}
-                  — open Code Agent to configure
+                  — tap Unlock below (first time creates a 4-digit PIN)
                 </span>
               </p>
+              <button
+                type="button"
+                onClick={() => setShowPin(true)}
+                className="mt-1 min-h-11 w-full rounded-lg border border-[var(--line)] px-2 text-left text-[12px] text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+              >
+                Set parent PIN
+              </button>
             ) : !parentUnlocked ? (
               <button
                 type="button"
