@@ -31,6 +31,7 @@
 > **目标:** 体验激活 → 优等生挑战性 → 趣味与家庭 → 几何交互可视化（stretch）
 
 - [x] **SPARK-R.0** — Me 时间线删除单条记录（Wrote/Empty day 卡 + Related 创作块；`removeJournalMadeBlock` + DELETE `creationId` + 两击确认 `DeleteChip`）
+- [x] **SPARK-R.0b** — Timeline `DeleteChip` 常显（触屏可发现：图标+文案、≥44px、两击确认）；Me peek + `/me/journal` 手动验证
 - [x] **SPARK-R.1 (P0-opener)** — 开场卡「再给我一题/拍作业」+ `challengeLine` 高阶提示 + `rotateSessionOpener`
 - [x] **SPARK-R.2 (P0-fastpath)** — `local-facts.ts` 单位换算/路程公式/平方立方/百分比口算 + 接入 `useTutorSession`
 - [x] **SPARK-R.3 (P0-dots)** — `SkillDots` 成长可视化挂到 `MeHome`

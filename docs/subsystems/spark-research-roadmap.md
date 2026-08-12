@@ -12,6 +12,20 @@
 - `DELETE /api/journal` 支持可选 `creationId`（不影响 My Creations 中的创作本身）。
 - `JournalTimeline.tsx` 每张 Wrote/Empty day/Related 卡加 `DeleteChip`（两击确认：首次变「Sure?」）。
 
+#### R.0b — 删除控件可发现（触屏）
+
+**Problem:** R.0 的垃圾桶默认 `opacity-0`，仅 `group-hover` / focus 可见；手机/平板无 hover，孩子感觉「没有删除」。
+
+**Approach:** 与 My Creations 一致——常显文案按钮（图标 + Delete/Remove）；保留两击确认；触摸目标 ≥44px；卡片标题留右内边距避免重叠。
+
+**Key files:** `src/components/JournalTimeline.tsx`（`DeleteChip`）
+
+**Risks:** 误触 → 两击 + 4s 自动取消；删除不可恢复 → 文案明确。
+
+**Test design:**
+- Unit: 已有 `journal-store` / `DELETE /api/journal`（不变）。
+- Manual: Me peek + `/me/journal` 在触屏上每张卡右上角可见 Delete；点一次 Sure?，再点后条目消失。
+
 ## 阶段一：体验激活
 
 ### R.1 — 主动开场卡增强（§8.1）
