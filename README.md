@@ -28,6 +28,8 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 
 ## Features
 
+### Chat & Learning
+
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
 - **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. Voice picker labels are language-only (no engine names). See [design doc](docs/subsystems/dialect-support-teochew-hakka.md) and [Shanghainese](docs/subsystems/shanghainese-support.md).
 - **Help & feedback** — sidebar panel: **Ask AI** (default; answers from docs + code, any language, voice/photo/file), browse FAQ, or submit suggestions to GitHub Issues (with feasibility → `docs/TODO.md`). See [faq-feedback-panel.md](docs/subsystems/faq-feedback-panel.md) and [ai-faq.md](docs/subsystems/ai-faq.md).
@@ -42,6 +44,18 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
 - **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
+
+### Parent Hub (`/family`)
+
+PIN-gated family dashboard — inspired by Khan Academy's parent view: weekly narrative report, effort radar chart, mistake coaching with severity ranking and actionable tips, learning data export (JSON + printable HTML portfolio), and parent-to-student messaging with Markdown/Mermaid support and read receipts.
+
+### Me Hub & Journal (`/me`)
+
+A personal home for each student: **Facebook Timeline**-style chronological spine grouped by day, mixing journal entries with My Creations (songs, images, videos) and studio challenge results. Private journal with daily Spark prompts, rich text, photos, and camera input. Every new My Creation auto-writes into that day's journal entry. Student-private by default; Family PIN can _read_ (not edit). See [journal-and-me-hub](docs/subsystems/journal-and-me-hub.md).
+
+### Dashboard (`/dashboard`)
+
+Student-facing learning dashboard with BKT skill maps across subjects, recent activity feed, and engagement streaks.
 
 ### Dictionary / Translation (`/dict`)
 
@@ -76,9 +90,9 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 **Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Coach** returns a **BASIS writing check** (topic / detail / vocab / grammar scores + craft tip) in a visual panel — not a wall of text. **Structure** is modality-aware (`target: music|image|video`). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach**.
 
 **TED Lab** searches the **live TED catalog** (`GET /api/ted/search` → TED InstantSearch), with **Refresh batch** for newest talks, plus links to open official TED pages. Watch UI keeps a **compact player** with a **sticky “Ready for challenge”** bar on phones.
-**NatGeo Lab** offers 30 curated National Geographic Kids articles (animals, science, space, history, etc.) with grade-banded reading comprehension challenges.
+**NatGeo Lab** — 30 curated National Geographic Kids articles (animals, science, space, history) with grade-banded reading comprehension, video + article hybrid layout.
 
-**BBC Doc Lab** features 25 BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas) with observation, explanation, and vocabulary challenges.
+**BBC Doc Lab** features 25 BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas) with listen-first observation, explanation, and vocabulary challenges.
 
 **RSA Lab** showcases 25 RSA animated talks on psychology, education, creativity, and society, with argument-driven challenges reusing TED's critique model.
 
@@ -215,14 +229,14 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | **Default account** | **Ryan** (BASIS G4) — always present, cannot be deleted |
 | **Roles** | `student` (default; all learning features) or `parent` (messaging + family hub only) |
 | **New accounts** | Each starts fresh with grade-appropriate defaults (G1–G12); parent accounts require only a name |
-| **Data isolation** | Chat history, learning memory (BKT), engagement streaks, and voice preferences are per-account |
+| **Data isolation** | Chat history, learning memory (BKT), engagement streaks, journal entries, and voice preferences are per-account |
 | **Shared settings** | Theme and parent PIN are device-wide (same for every account) |
 | **Switching** | Tap the account avatar in the header — instant switch, no login required |
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
 | **Account limit** | Up to 6 accounts per device |
 | **Cross-device sync** | Accounts sync globally via server — create on iPad, see on laptop |
 
-Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo), and global cross-device account sync.
+Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo), and global cross-device account sync. Also see [PIN gate](docs/subsystems/parent-gate.md) and [deletion sync](docs/subsystems/deletion-sync-and-themes.md).
 
 ---
 
@@ -233,10 +247,10 @@ Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tena
 | App | [Next.js](https://nextjs.org/) 16 (App Router) + React 19 + TypeScript |
 | UI | Tailwind CSS 4, KaTeX, Mermaid, react-markdown |
 | Agent | [Cursor SDK](https://cursor.com/) (`@cursor/sdk`) + in-process tool harness |
-| Voice | Local STT service (Whisper + SenseVoice) + Edge neural TTS via `/api/tts` |
-| Storage | localStorage (per-account namespaced), IndexedDB, server-side JSON files (history, media, learning memory) |
+| Voice | Local STT service (Whisper + SenseVoice) + Edge neural TTS via `/api/tts` + cloud dialect TTS (Formospeech Hakka, iFlytek, Bailian) |
+| Storage | localStorage (per-account namespaced), IndexedDB, server-side JSON files (history, media, learning memory, creations, journal, messages) |
 | Ops | systemd service supervision (`spark-tutor`, `spark-stt`, `spark-acc`), health-check gating, auto-git pipeline |
-| Tests | Vitest unit tests + `verify:*` end-to-end scripts |
+| Tests | Vitest unit tests (200+ files, 1200+ tests) + `verify:*` end-to-end scripts |
 
 ---
 
@@ -299,17 +313,29 @@ List models available to your key: `GET /api/models`.
 │   │   └── api/
 │   │       ├── chat/               # Tutor chat (Socratic)
 │   │       ├── console/chat/       # Code Agent chat
-│   │       ├── transcribe/         # Speech-to-text
-│   │       ├── tts/                # Text-to-speech
+│   │       ├── transcribe/         # Speech-to-text (STT)
+│   │       ├── tts/                # Text-to-speech (TTS)
 │   │       ├── media/              # Photo vault / homework images / song audio
-│   │       ├── ted/                # TED transcript + challenge
-│   │       ├── writing-studio/       # Coach + legacy song generate
+│   │       ├── ted/                # TED search, challenge, discuss, evaluate, transcript
+│   │       ├── natgeo/             # NatGeo Kids search, challenge, evaluate
+│   │       ├── bbc/                # BBC Doc search, challenge, evaluate
+│   │       ├── rsa/                # RSA Shorts search, challenge, evaluate
+│   │       ├── writing-studio/       # Coach + grammar-check + legacy song generate
 │   │       ├── studio/             # Stage text2X (music / image / video via deAPI)
-│   │       ├── creations/          # Studio library CRUD
+│   │       ├── creations/          # Studio library CRUD + share tokens
 │   │       ├── messages/           # Parent → student messaging
-│   │       └── history/            # Chat history
-│   ├── components/                 # TutorShell, EntertainPage, TedLab, WritingStudio, CodeAgentPanel, …
-│   └── lib/                        # prompts, entertain/*, deapi-client, fun-music, volc-gensong, media-store, …
+│   │       ├── dict/               # Dictionary lookup + LLM translation
+│   │       ├── learning/           # BKT learning data
+│   │       ├── journal/            # Journal entries
+│   │       ├── accounts/           # Multi-account sync
+│   │       ├── setup/              # Setup bootstrap
+│   │       └── history/            # Chat history sync
+│   ├── components/                 # TutorShell, EntertainPage, TedLab, NatGeoLab, BbcDocLab, RsaShortsLab,
+│   │                               #   WritingStudio, CodeAgentPanel, MessageBell, MessageHub, MessageList,
+│   │                               #   FamilyControlsPage, Dictionary, HistorySidebar, MeHub, …
+│   └── lib/                        # prompts, entertain/*, parent-messages, messages-sync, deapi-client,
+│                                   #   fun-music, volc-gensong, media-store, learning-memory, family-report,
+│                                   #   journal-store, review-queue, coach-state, …
 ├── agent-chat/                     # Standalone Agent Chat Console (Next.js, port 3001)
 │   ├── public/index.html           # Vanilla JS SPA frontend
 │   └── src/
@@ -317,14 +343,40 @@ List models available to your key: `GET /api/models`.
 │       └── lib/                    # agent, git-ops, attachments, prompts, stt
 ├── tutor-workspace/                # Agent working notes (AGENTS.md)
 ├── scripts/                        # ensure-env, health-check, restart-services, verify-*, STT server
-├── data/                           # Runtime data (conversations, media, learning-memory.json)
-└── docs/                           # Design docs, subsystem specs, TODO
+├── data/                           # Runtime data (conversations, media, learning-memory, journal, messages, …)
+└── docs/                           # Design docs, subsystem specs, TODO — see docs/TODO.md for full index
 ```
 
 Teaching policy lives mainly in:
 
 - [`src/lib/prompts.ts`](./src/lib/prompts.ts) — system prompt / hint ladder
 - [`tutor-workspace/AGENTS.md`](./tutor-workspace/AGENTS.md) — agent instructions
+
+---
+
+## Design Docs
+
+Design documents live in `docs/subsystems/`. Key reads:
+
+| Doc | Topic |
+|-----|-------|
+| [entertainments](docs/subsystems/entertainments.md) | Studio Learning + games engine architecture |
+| [journal-and-me-hub](docs/subsystems/journal-and-me-hub.md) | Journal, Timeline, Me Hub, Stage styles |
+| [dictionary-api](docs/subsystems/dictionary-api.md) | Multilingual dictionary + LLM translation |
+| [code-agent-pipeline](docs/subsystems/code-agent-pipeline.md) | Code Agent delivery pipeline |
+| [multi-tenant-isolation](docs/subsystems/multi-tenant-isolation.md) | Account isolation model |
+| [memory-bkt](docs/subsystems/memory-bkt.md) | Bayesian Knowledge Tracing |
+| [grade-agnostic-adaptive](docs/subsystems/grade-agnostic-adaptive.md) | K-12 grade-agnostic adaptation |
+| [voice-tts-stt](docs/subsystems/voice-tts-stt.md) | Voice pipeline (STT + TTS) |
+| [dialect-support-teochew-hakka](docs/subsystems/dialect-support-teochew-hakka.md) | Dialect & language support |
+| [geometry-diagrams](docs/subsystems/geometry-diagrams.md) | SVG geometry drawing |
+| [storage-sync](docs/subsystems/storage-sync.md) | Storage architecture & sync |
+| [parent-gate](docs/subsystems/parent-gate.md) | PIN gate for parent features |
+| [faq-feedback-panel](docs/subsystems/faq-feedback-panel.md) | Help & feedback system |
+| [product-audit-2026-08-roadmap](docs/subsystems/product-audit-2026-08-roadmap.md) | Product audit & roadmap |
+| [ux-competitor-report-2026-08-feasibility](docs/subsystems/ux-competitor-report-2026-08-feasibility.md) | UX competitor analysis |
+
+Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.
 
 ---
 
@@ -360,7 +412,7 @@ The restart script stops services in reverse dependency order, then starts and h
 ## Development
 
 ```bash
-npm test                 # unit tests (Vitest)
+npm test                 # unit tests (Vitest) — 200+ files, 1200+ tests
 npm run lint
 npm run verify:all       # unit + history/upload/tts/stt/voice/diagrams/system/sse/file-locking
 ```
@@ -418,7 +470,7 @@ Please do **not** commit secrets (`.env.local`, API keys, unlocked credential bl
 
 - Treat `CURSOR_API_KEY` as a secret; never commit it
 - Tutor tools run in a constrained harness (short timeouts, no arbitrary host shell)
-- SVG from the model is sanitized before render
+- SVG from the model is sanitized before render. See [security sanitization](docs/subsystems/security-sanitization.md).
 - Code Agent changes require a **parent PIN gate** before applying edits
 - Account creation and deletion are PIN-gated; switching between accounts is PIN-free
 - Per-account data isolation via localStorage namespace prefixes (`spark.{accountId}.{module}`)
