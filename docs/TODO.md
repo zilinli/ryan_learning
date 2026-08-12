@@ -46,7 +46,7 @@
 - [x] **ENT-LAB.2** — `lab-discuss` + `POST /api/lab/discuss` + `LabDiscussDialogue` / `MediaLabChallengeView`
 - [x] **ENT-LAB.3** — Wire BbcDocLab / RsaShortsLab / NatGeoLab: voice `appendVoiceTranscript` + Submit & discuss
 - [x] **ENT-LAB.4** — Unit LD* + clip-resolve tests
-- [ ] **ENT-LAB.5** — apply_changes → publish_develop → deploy_live
+- [x] **ENT-LAB.5** — apply_changes → publish_develop → deploy_live
 - [ ] **ENT-LAB.6** — Manual: BBC/RSA/NatGeo Submit & discuss stays on Lab; Next advances qi
 
 ---
