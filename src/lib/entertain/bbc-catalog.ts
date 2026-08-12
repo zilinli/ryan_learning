@@ -31,11 +31,11 @@ export function bbcVideoUrl(videoId: string): string {
 export const BBC_CATALOG: BbcClip[] = [
   // ── BBC Earth: Planet Earth & Blue Planet ──
   {
-    videoId: "EF8C4v7JIbA",
+    videoId: "el4CQj-TCbA",
     title: "Iguana vs Snakes — Planet Earth II",
     series: "Planet Earth II",
     topic: "nature",
-    durationSec: 300,
+    durationSec: 267,
     gradeMin: 3,
     gradeMax: 8,
     blurb: "A hatchling iguana races across a beach — chased by dozens of racer snakes. One of the most intense chase scenes ever filmed.",
