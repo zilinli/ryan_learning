@@ -188,6 +188,8 @@ export const RYAN_ACCOUNT_ID = "acct_ryan";
 export type AccountRecord = {
   id: string;
   profile: StudentProfile;
+  /** "student" (default) or "parent" — parent accounts skip learning flows. */
+  role: "student" | "parent";
   createdAt: number;
   updatedAt: number;
 };
@@ -256,6 +258,7 @@ function ryanAccount(now = Date.now()): AccountRecord {
   return {
     id: RYAN_ACCOUNT_ID,
     profile: { ...RYAN_PROFILE },
+    role: "student",
     createdAt: now,
     updatedAt: now,
   };
@@ -286,6 +289,7 @@ export function loadAccounts(): AccountsStore {
           .map((a) => ({
             id: a.id,
             profile: normalizeProfile(a.profile),
+            role: (a as any).role === "parent" ? "parent" as const : "student" as const,
             createdAt: a.createdAt || Date.now(),
             updatedAt: a.updatedAt || Date.now(),
           }));
@@ -311,6 +315,7 @@ export function loadAccounts(): AccountsStore {
         store.accounts.push({
           id,
           profile: legacy,
+          role: "student",
           createdAt: now,
           updatedAt: now,
         });
@@ -408,6 +413,7 @@ export function createAccount(
   const record: AccountRecord = {
     id,
     profile,
+    role: "student",
     createdAt: now,
     updatedAt: now,
   };
@@ -450,6 +456,32 @@ export function saveRyanAccount(switchTo = false, store?: AccountsStore): Accoun
     next.accounts = [ryanAccount(now), ...next.accounts];
   }
   saveAccounts(next);
+  return next;
+}
+
+/** Create a parent account (no learning profile). */
+export function createParentAccount(name: string, store?: AccountsStore): AccountsStore {
+  const base = store ?? loadAccounts();
+  const now = Date.now();
+  const id = newAccountId();
+  const profile = normalizeProfile({ name, age: 0, grade: 0 });
+  profile.name = name.trim() || "Parent";
+  profile.school = "";
+  profile.curriculum = null;
+  const record: AccountRecord = {
+    id,
+    profile,
+    role: "parent",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const next: AccountsStore = {
+    version: 1,
+    activeId: base.activeId, // don't switch away from student
+    accounts: [...base.accounts, record],
+  };
+  saveAccounts(next);
+  pushAccountsToServer(next);
   return next;
 }
 

@@ -35,6 +35,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid; comic/joke SVG viewBoxes auto-expand so labels are not clipped
 - **Voice** — neural TTS + STT; Auto language switching; **Listen** on finished assistant messages to replay any history turn. See [voice-tts-stt.md](docs/subsystems/voice-tts-stt.md).
 - **Learning memory** — topic mastery, streaks, light badges (never interrupt a stuck moment)
+- **Parent hub** — PIN-gated `/family` page: weekly report, charts, mistake coaching, **message student**, learning export
 - **Multi-account** — per-account data isolation: each student gets their own chat history, learning progress, and voice preferences. Default = Ryan. Siblings and classmates stay separate.
 - **Themes** — four built-in themes (Light, Dark, Light blue, Light green) with WCAG-AA contrast. **Light green is the default.** Switch via the palette button in the header — a collapsed menu keeps the header clean. First-visit visitors and returning users with no saved preference get light green.
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
@@ -90,6 +91,28 @@ Without credentials, lyrics-only drafts still save; generate returns 503.
 
 Open **Studio · learning** or **Entertainments** from the sidebar.
 ---
+
+### Parent → Student Messaging
+
+Parents can send Markdown messages (including Mermaid diagrams, images, tables) to their child through the PIN-gated `/family` hub:
+
+| Feature | Details |
+|---------|---------|
+| **Compose** | Markdown editor with title, urgency tag (routine / important / urgent), and preview |
+| **Render** | Rich Markdown rendering: headers, bold, lists, code blocks, inline images |
+| **Mermaid** | Fenced ` ```mermaid ` blocks render as diagrams (flowchart, graph, sequence) |
+| **Urgency** | Three levels — urgent messages get red highlight, important gets amber |
+| **Delivery** | Student sees a notification bell in the tutor header (red badge with unread count) |
+| **Read tracking** | Parent sees "Read Xm ago" when student opens the message |
+| **Storage** | Server-side JSON per student account (`data/accounts/{id}/messages.json`); max 200 messages |
+
+**Student view:** Tap the bell icon → overlay panel with message list → tap to open. Unread messages show a "New" badge. Read state syncs across tabs via `BroadcastChannel`.
+
+**Parent view:** `/family` → PIN unlock → Messages section → compose / browse sent messages / see read receipts.
+
+Messages use the same account model: parent accounts (`role: "parent"`) send messages; student accounts (`role: "student"`) receive them on the same device. Parents do **not** participate in tutoring sessions.
+
+
 
 ## Code Agent
 
@@ -190,13 +213,14 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | Property | Behavior |
 |----------|----------|
 | **Default account** | **Ryan** (BASIS G4) — always present, cannot be deleted |
-| **New accounts** | Each starts fresh with grade-appropriate defaults (G1–G12) |
+| **Roles** | `student` (default; all learning features) or `parent` (messaging + family hub only) |
+| **New accounts** | Each starts fresh with grade-appropriate defaults (G1–G12); parent accounts require only a name |
 | **Data isolation** | Chat history, learning memory (BKT), engagement streaks, and voice preferences are per-account |
 | **Shared settings** | Theme and parent PIN are device-wide (same for every account) |
 | **Switching** | Tap the account avatar in the header — instant switch, no login required |
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
 | **Account limit** | Up to 6 accounts per device |
-|| **Cross-device sync** | Accounts sync globally via server — create on iPad, see on laptop |
+| **Cross-device sync** | Accounts sync globally via server — create on iPad, see on laptop |
 
 Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo), and global cross-device account sync.
 
@@ -282,6 +306,7 @@ List models available to your key: `GET /api/models`.
 │   │       ├── writing-studio/       # Coach + legacy song generate
 │   │       ├── studio/             # Stage text2X (music / image / video via deAPI)
 │   │       ├── creations/          # Studio library CRUD
+│   │       ├── messages/           # Parent → student messaging
 │   │       └── history/            # Chat history
 │   ├── components/                 # TutorShell, EntertainPage, TedLab, WritingStudio, CodeAgentPanel, …
 │   └── lib/                        # prompts, entertain/*, deapi-client, fun-music, volc-gensong, media-store, …

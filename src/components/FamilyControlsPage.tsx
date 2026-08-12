@@ -31,6 +31,7 @@ import {
 } from "@/lib/adult-gate";
 import { PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
+import { MessageHub } from "./MessageHub";
 
 function severityLabel(s: PatternSeverity): string {
   if (s === "persistent") return "Persistent";
@@ -442,6 +443,14 @@ export function FamilyControlsPage() {
                 )}
               </ul>
             </div>
+          </section>
+
+          {/* ── Messages ── */}
+          <section>
+            <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--ink)]">
+              Messages
+            </h2>
+            <MessageHub accountId={accountId} accountName={accountName} />
           </section>
 
           {/* Tools */}

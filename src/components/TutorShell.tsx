@@ -8,6 +8,8 @@ import { CodeAgentPanel } from "./CodeAgentPanel";
 import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
+import { MessageBell } from "./MessageBell";
+import { MessageList } from "./MessageList";
 import { interruptHint } from "@/lib/speech-barge-in";
 import {
   initialWaitStatus,
@@ -324,6 +326,7 @@ function upsertActive(
 
 export function TutorShell() {
   const [ready, setReady] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [store, setStore] = useState<ConversationsStore | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1546,6 +1549,7 @@ export function TutorShell() {
               </svg>
             </button>
             <ThemePicker />
+            <MessageBell accountId={accountId} onOpen={() => setMessagesOpen(true)} />
             <AccountSwitcher
               accounts={accounts}
               activeId={accountId}
@@ -1746,6 +1750,15 @@ export function TutorShell() {
         >
           <span className="text-lg">🤖</span>
         </button>
+      )}
+
+      {/* ── Messages overlay for student ── */}
+      {messagesOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-12 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setMessagesOpen(false); }}>
+          <div className="m-4 w-full max-w-lg max-h-[80dvh] overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--bg0)] p-6 shadow-2xl">
+            <MessageList accountId={accountId} onClose={() => setMessagesOpen(false)} />
+          </div>
+        </div>
       )}
     </div>
   );
