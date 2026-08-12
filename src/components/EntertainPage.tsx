@@ -220,7 +220,7 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
       <header className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5">
         <StudioAccountBar className="mb-3" />
         <h1 className="text-center font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--ink)]">
-          Entertainments
+          Games
         </h1>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
           Board games · arcade · puzzles

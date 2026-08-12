@@ -218,7 +218,7 @@ export function LearningDashboard() {
               Sticky spots Spark noticed — tap Practice for a gentle check. Parents see
               at-home tips on{" "}
               <a href="/family" className="text-[var(--teal)] underline-offset-2 hover:underline">
-                Family controls
+                Family
               </a>
               .
             </p>

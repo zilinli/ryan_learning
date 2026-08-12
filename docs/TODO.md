@@ -24,6 +24,19 @@
 
 ---
 
+## 🧭 UX-IA — Family platform IA + Lab search refresh (2026-08-12)
+
+> **North star:** [DESIGN.md](DESIGN.md) § Family Learning Platform (2026-08 update)  
+> **External audit:** `/root/spark-tutor-用户体验与产品化分析报告.md` (UX/productization, not security)
+
+- [x] **UX-IA.1** — Sidebar/README labels: Studio / Games / Family / Progress (no feature cuts)
+- [x] **UX-IA.2** — `TutorShell` split: extract session hook; thinner shell JSX
+- [x] **UX-IA.3** — Family first-visit dismissible guidance (PIN → chat → Progress/Messages)
+- [x] **UX-IA.4** — BBC/RSA/NatGeo: API search + Refresh batch (TED parity; caption gate for YT)
+- [ ] **UX-IA.5** — Tests + README + push develop/master
+
+---
+
 ## 📓 JM — Journal + Me hub + Stage styles (2026-08-12) — DESIGN ONLY
 
 > **Design:** [subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)  

@@ -43,7 +43,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
+- **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain`. See [entertainments.md](docs/subsystems/entertainments.md).
 
 ### Parent Hub (`/family`)
 
@@ -53,9 +53,9 @@ PIN-gated family dashboard — inspired by Khan Academy's parent view: weekly na
 
 A personal home for each student: **Facebook Timeline**-style chronological spine grouped by day, mixing journal entries with My Creations (songs, images, videos) and studio challenge results. Private journal with daily Spark prompts, rich text, photos, and camera input. Every new My Creation auto-writes into that day's journal entry. Student-private by default; Family PIN can _read_ (not edit). See [journal-and-me-hub](docs/subsystems/journal-and-me-hub.md).
 
-### Dashboard (`/dashboard`)
+### Progress (`/dashboard`)
 
-Student-facing learning dashboard with BKT skill maps across subjects, recent activity feed, and engagement streaks.
+Student-facing **Progress** — BKT skill maps across subjects, recent activity, and practice CTAs. Route stays `/dashboard`; sidebar and Me link use the **Progress** label.
 
 ### Dictionary / Translation (`/dict`)
 
@@ -76,25 +76,23 @@ Word lookup **and** AI sentence/photo translation in one page:
 
 Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.
 
-### Entertainments / Studio
+### Studio / Games
 
-Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainments** on the next; **Code Agent** on the bottom row (mobile uses shorter labels).
+Sidebar: **Family | Me** on one row; **Progress** full width; **Studio | Games** on the next; **Code Agent** on the bottom row.
 
 | Route | Content |
 |-------|---------|
-| `/studio` | **Studio · learning** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
-| `/entertain` | **Entertainments** — board / arcade / logic games only (`?hub=studio` redirects to `/studio`) |
+| `/studio` | **Studio** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
+| `/entertain` | **Games** — board / arcade / logic games only (`?hub=studio` redirects to `/studio`) |
 
-**Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED, NatGeo, BBC, RSA answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
+**Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED, NatGeo, BBC, RSA answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on **Progress**.
 
 **Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Coach** returns a **BASIS writing check** (topic / detail / vocab / grammar scores + craft tip) in a visual panel — not a wall of text. **Structure** is modality-aware (`target: music|image|video`). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach**.
 
 **TED Lab** searches the **live TED catalog** (`GET /api/ted/search` → TED InstantSearch), with **Refresh batch** for newest talks, plus links to open official TED pages. Watch UI keeps a **compact player** with a **sticky “Ready for challenge”** bar on phones.
 **NatGeo Lab** — 30 curated National Geographic Kids articles (animals, science, space, history) with grade-banded reading comprehension, video + article hybrid layout.
 
-**BBC Doc Lab** features 25 BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas) with listen-first observation, explanation, and vocabulary challenges.
-
-**RSA Lab** showcases 25 RSA animated talks on psychology, education, creativity, and society, with argument-driven challenges reusing TED's critique model.
+**BBC Doc Lab** and **RSA Lab** search official YouTube channels live (`GET /api/bbc/search`, `/api/rsa/search`) with English-caption gate and **Refresh batch**, same pattern as TED.
 
 **Media generation** (no local GPU):
 
@@ -103,7 +101,7 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 Without credentials, lyrics-only drafts still save; generate returns 503.
 
-Open **Studio · learning** or **Entertainments** from the sidebar.
+Open **Studio** or **Games** from the sidebar.
 ---
 
 ### Parent → Student Messaging

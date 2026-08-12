@@ -1,83 +1,81 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetApiRateLimitForTests } from "@/lib/api-rate-limit";
+import * as natgeoSearch from "@/lib/entertain/natgeo-search";
+
+beforeEach(() => {
+  resetApiRateLimitForTests();
+  vi.restoreAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("GET /api/natgeo/search", () => {
-  it("returns all articles with no query", async () => {
+  it("returns search results", async () => {
+    vi.spyOn(natgeoSearch, "searchNatGeoLive").mockResolvedValue({
+      articles: [
+        {
+          slug: "african-lion",
+          title: "African Lion",
+          topic: "animals",
+          gradeMin: 2,
+          gradeMax: 6,
+          readingTimeMin: 3,
+          blurb: "Lions",
+          imageUrl: "https://example.com/lion",
+          body: "Lion body text long enough for tests.",
+        },
+      ],
+      page: 0,
+      nbPages: 1,
+      nbHits: 1,
+      query: "lion",
+      source: "natgeo-live",
+      cursor: "1",
+      hasNextPage: false,
+    });
+
     const { GET } = await import("./route");
-    const req = new Request("http://localhost/api/natgeo/search");
-    const res = await GET(req);
+    const res = await GET(
+      new Request("http://localhost/api/natgeo/search?q=lion"),
+    );
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.articles.length).toBeGreaterThanOrEqual(25);
-    expect(body.total).toBe(body.articles.length);
-    expect(body.topics).toBeTruthy();
+    const data = await res.json();
+    expect(data.articles[0].slug).toBe("african-lion");
+    expect(data.source).toBe("natgeo-live");
   });
 
-  it("filters by topic", async () => {
+  it("refresh mode uses refreshNatGeoBatch", async () => {
+    vi.spyOn(natgeoSearch, "refreshNatGeoBatch").mockResolvedValue({
+      articles: [
+        {
+          slug: "emperor-penguin",
+          title: "Emperor Penguin",
+          topic: "animals",
+          gradeMin: 2,
+          gradeMax: 6,
+          readingTimeMin: 2,
+          blurb: "Penguins",
+          imageUrl: "https://example.com/penguin",
+          body: "Penguin body.",
+        },
+      ],
+      page: 0,
+      nbPages: 2,
+      nbHits: 30,
+      query: "",
+      source: "curated-fallback",
+      cursor: "18",
+      hasNextPage: true,
+    });
+
     const { GET } = await import("./route");
-    const req = new Request(
-      "http://localhost/api/natgeo/search?topic=space",
+    const res = await GET(
+      new Request("http://localhost/api/natgeo/search?mode=refresh"),
     );
-    const res = await GET(req);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    for (const a of body.articles) {
-      expect(a.topic).toBe("space");
-    }
-  });
-
-  it("filters by query", async () => {
-    const { GET } = await import("./route");
-    const req = new Request(
-      "http://localhost/api/natgeo/search?q=volcano",
-    );
-    const res = await GET(req);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.articles.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("filters by grade", async () => {
-    const { GET } = await import("./route");
-    const req = new Request(
-      "http://localhost/api/natgeo/search?grade=4",
-    );
-    const res = await GET(req);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    for (const a of body.articles) {
-      expect(a.gradeMin).toBeLessThanOrEqual(4);
-      expect(a.gradeMax).toBeGreaterThanOrEqual(4);
-    }
-  });
-
-  it("handles unknown topic gracefully", async () => {
-    const { GET } = await import("./route");
-    const req = new Request(
-      "http://localhost/api/natgeo/search?topic=unknown",
-    );
-    const res = await GET(req);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    // Should return all articles since topic is invalid
-    expect(body.articles.length).toBeGreaterThan(0);
-  });
-
-  it("each article has only metadata (no body)", async () => {
-    const { GET } = await import("./route");
-    const req = new Request("http://localhost/api/natgeo/search");
-    const res = await GET(req);
-    const body = await res.json();
-    for (const a of body.articles) {
-      expect(a.slug).toBeTruthy();
-      expect(a.title).toBeTruthy();
-      expect(a.topic).toBeTruthy();
-      expect(a.gradeMin).toBeGreaterThanOrEqual(1);
-      expect(a.gradeMax).toBeLessThanOrEqual(12);
-      expect(a.readingTimeMin).toBeGreaterThanOrEqual(1);
-      expect(a.blurb).toBeTruthy();
-      // Search endpoint should NOT return full body
-      expect(a.body).toBeUndefined();
-    }
+    const data = await res.json();
+    expect(data.mode).toBe("refresh");
+    expect(data.articles[0].slug).toBe("emperor-penguin");
   });
 });

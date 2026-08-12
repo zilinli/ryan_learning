@@ -16,6 +16,7 @@ import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { youtubeEmbedUrl } from "@/lib/youtube-urls";
 import { readResponseJson } from "@/lib/api-json";
+import { useLabCatalogSearch } from "./useLabCatalogSearch";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -30,22 +31,38 @@ function choiceLetter(i: number): string { return "ABCD"[i] ?? String(i); }
 export function NatGeoLab() {
   const { accountId, grade } = useActiveStudioAccount();
   const [phase, setPhase] = useState<Phase>("browse");
-  const [query, setQuery] = useState(""); const [topic, setTopic] = useState<NatGeoTopic | "all">("all");
-  const [articles, setArticles] = useState<NatGeoArticle[]>([]);
+  const [topic, setTopic] = useState<NatGeoTopic | "all">("all");
+  const {
+    query,
+    setQuery,
+    items: articles,
+    listBusy,
+    listSource,
+    error: searchError,
+    page,
+    nbHits,
+    hasNextPage,
+    runSearch,
+    refreshBatch,
+  } = useLabCatalogSearch<NatGeoArticle>({
+    apiPath: "/api/natgeo/search",
+    resultKey: "articles",
+    localSearch: (q, t) => searchNatGeoCatalog(q, t as NatGeoTopic | undefined),
+    topic,
+    grade,
+  });
   const [selectedArticle, setSelectedArticle] = useState<NatGeoArticle | null>(null);
   const [challenge, setChallenge] = useState<NatGeoChallenge | null>(null);
   const [qi, setQi] = useState(0); const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const [readSecs, setReadSecs] = useState(0); const [readReady, setReadReady] = useState(false);
-  const searchRef = useRef(0); const readTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const readTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => { setArticles(topic === "all" ? searchNatGeoCatalog("") : searchNatGeoCatalog("", topic)); }, [topic]);
   useEffect(() => () => { if (readTimer.current) clearInterval(readTimer.current); }, []);
 
-  const doSearch = useCallback((q: string) => { const gen = ++searchRef.current; const filtered = searchNatGeoCatalog(q, topic === "all" ? undefined : topic); if (gen === searchRef.current) setArticles(filtered); }, [topic]);
-
   const openArticle = useCallback((article: NatGeoArticle) => {
-    setSelectedArticle(article); setChallenge(null); setQi(0); setAnswers({});
+    const full = findNatGeoArticle(article.slug) ?? article;
+    setSelectedArticle(full); setChallenge(null); setQi(0); setAnswers({});
     setReadSecs(0); setReadReady(false); setPhase("read");
     if (readTimer.current) clearInterval(readTimer.current);
     readTimer.current = setInterval(() => { setReadSecs(s => { if (s + 1 >= 30) { setReadReady(true); if (readTimer.current) clearInterval(readTimer.current); return 30; } return s + 1; }); }, 1000);
@@ -84,15 +101,20 @@ export function NatGeoLab() {
   if (phase === "browse") {
     return (
       <div className="mt-4 space-y-4 animate-fade-up">
-        <input value={query} onChange={e => { setQuery(e.target.value); doSearch(e.target.value); }} placeholder="Search articles about animals, space, history..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
-        <div className="flex flex-wrap gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : NATGEO_TOPIC_LABELS[t]}</button>))}</div>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search articles about animals, space, history..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
+        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : NATGEO_TOPIC_LABELS[t]}</button>))}
+          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="rounded-full border border-[var(--coral)]/40 px-3 py-1 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "Loading…" : "Refresh batch"}</button>
+        </div>
+        <p className="text-[11px] text-[var(--ink-muted)]">{listSource === "loading" ? "Searching NatGeo Kids…" : listSource === "live" ? `NatGeo live · ${nbHits} articles` : `Curated backup · ${nbHits} articles`}</p>
+        {searchError ? <p className="text-xs text-[var(--coral)]">{searchError}</p> : null}
         {articles.length > 0 ? (<ul className="grid gap-3 sm:grid-cols-2">{articles.map(a => (
           <li key={a.slug}><button onClick={() => openArticle(a)} className="flex w-full flex-col gap-1.5 rounded-2xl border border-[var(--line)] bg-white/85 p-4 text-left transition hover:border-[var(--teal)] hover:shadow-sm dark:bg-white/5">
             <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[var(--ink)]">{a.title}</span><span className="shrink-0 rounded-full bg-[var(--mist)] px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]">{NATGEO_TOPIC_LABELS[a.topic]}</span></div>
             <p className="line-clamp-2 text-xs leading-relaxed text-[var(--ink-muted)]">{a.blurb}</p>
             <div className="flex items-center gap-2 text-[10px] text-[var(--ink-muted)]/70">{a.videoId && <span className="text-[var(--coral)]">▶ video</span>}<span>{formatGradeBand(a)}</span><span>{a.readingTimeMin} min read</span></div>
           </button></li>
-        ))}</ul>) : (<p className="py-8 text-center text-sm text-[var(--ink-muted)]">No articles found.</p>)}
+        ))}</ul>) : !listBusy ? (<p className="py-8 text-center text-sm text-[var(--ink-muted)]">No articles found.</p>) : null}
+        {hasNextPage ? (<button type="button" disabled={listBusy} onClick={() => void runSearch({ page: page + 1, append: true })} className="w-full rounded-xl border border-[var(--line)] py-2 text-sm text-[var(--ink-muted)] hover:border-[var(--teal)] disabled:opacity-40">Load more</button>) : null}
       </div>
     );
   }

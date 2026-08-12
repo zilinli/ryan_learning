@@ -133,7 +133,7 @@ export function SkillsPanel({ memory }: Props) {
           <p className="text-[10px] text-[var(--ink-muted)]">
             BKT + SM-2 · parents →{" "}
             <a href="/family" className="text-[var(--teal)] underline-offset-2 hover:underline">
-              Family controls
+              Family
             </a>
           </p>
 

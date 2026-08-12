@@ -46,6 +46,44 @@ function severityClass(s: PatternSeverity): string {
   return "bg-[var(--mist)] text-[var(--ink-muted)]";
 }
 
+const FAMILY_GUIDE_KEY = "spark.familyGuideDismissed";
+
+function FamilyFirstVisitGuide({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <section className="rounded-2xl border border-[var(--teal)]/30 bg-[var(--surface)] p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Getting started
+          </h2>
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--ink)]">
+            Three quick steps — about 30 seconds:
+          </p>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-[13px] leading-relaxed text-[var(--ink-muted)]">
+            <li>Set or unlock your parent PIN (you just did).</li>
+            <li>Let your kid chat with Spark a few times this week — the summary fills in from real turns.</li>
+            <li>
+              Check{" "}
+              <a href="/dashboard" className="font-medium text-[var(--teal)] underline-offset-2 hover:underline">
+                Progress
+              </a>{" "}
+              for practice, and use Messages below to nudge them.
+            </li>
+          </ol>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="shrink-0 min-h-9 rounded-lg px-2 text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
+          aria-label="Dismiss guide"
+        >
+          Dismiss
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function PatternCard({ p }: { p: MistakePattern }) {
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
@@ -90,6 +128,7 @@ export function FamilyControlsPage() {
   const [showPin, setShowPin] = useState(false);
   const [checkMode, setCheckMode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     const acct = getActiveAccount(loadAccounts());
@@ -101,6 +140,13 @@ export function FamilyControlsPage() {
     setUnlocked(ok);
     setCheckMode(loadCheckMode());
     if (!ok) setShowPin(true);
+    else {
+      try {
+        setShowGuide(localStorage.getItem(FAMILY_GUIDE_KEY) !== "1");
+      } catch {
+        setShowGuide(false);
+      }
+    }
   }, []);
 
   const report = useMemo(
@@ -127,6 +173,20 @@ export function FamilyControlsPage() {
     unlockParentSession();
     setUnlocked(true);
     setShowPin(false);
+    try {
+      setShowGuide(localStorage.getItem(FAMILY_GUIDE_KEY) !== "1");
+    } catch {
+      setShowGuide(true);
+    }
+  };
+
+  const dismissGuide = () => {
+    try {
+      localStorage.setItem(FAMILY_GUIDE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setShowGuide(false);
   };
 
   const lock = () => {
@@ -143,7 +203,7 @@ export function FamilyControlsPage() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-3 px-4 py-5">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              Family controls
+              Family
             </p>
             <h1 className="mt-0.5 text-2xl font-semibold tracking-tight sm:text-3xl">
               {accountName}&apos;s week
@@ -197,6 +257,9 @@ export function FamilyControlsPage() {
         </div>
       ) : (
         <main className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+          {showGuide ? (
+            <FamilyFirstVisitGuide onDismiss={dismissGuide} />
+          ) : null}
           {/* Narrative */}
           <section className="rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/5 p-5">
             <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--teal)]">
@@ -496,7 +559,7 @@ export function FamilyControlsPage() {
                 href="/dashboard"
                 className="min-h-11 rounded-xl border border-[var(--line)] px-4 text-[13px] leading-[2.75rem]"
               >
-                Student dashboard
+                Progress
               </a>
               <a
                 href="/privacy"

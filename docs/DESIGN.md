@@ -125,30 +125,46 @@ flowchart TB
 
 ---
 
-## 🎯 Design Philosophy: Zero-Barrier for Elementary Students
+## 🎯 Design Philosophy: Family Learning Platform (2026-08 update)
 
-> **最高原则：界面简单易用，小学生 0 基础上手。对话是重点，极简风格。**
+> **最高原则：孩子侧对话优先、零门槛上手；家长侧可见、可引导；多入口命名清晰、不堆叠同义入口。**
+
+Spark 已从早期「纯聊天框」演化为 **家庭学习平台**：孩子仍以聊天为主战场；**Me**（日记/创作）、**Studio**（听写做）、**Games**（放松玩）、**Family**（家长 PIN 周报）是刻意保留的分层，而非违背初心的功能膨胀。
 
 ### Three Pillars
 
 ![Design Philosophy Mindmap](figures/DESIGN-1-mindmap.svg)
 
-### What We Removed (vs. Typical EdTech)
+1. **Chat-first for the child** — 主界面仍是「问作业、苏格拉底引导、语音/拍照」；不把课程目录、知识图谱地图、排行榜堆在孩子面前。
+2. **Family visibility** — 家长通过 PIN 门控的 **Family** 看周报、趋势、消息；孩子通过 **Me / Progress** 看自己的成长，而非两套重叠的「控制台」。
+3. **Clear surfaces, low mode-switching** — **Studio**（make & learn）与 **Games**（play）语义分离；Dictionary、Code Agent 等高级能力折叠在侧边栏，不抢占首屏。
+
+### What We Still Avoid (vs. Typical EdTech)
 
 | Typical EdTech | Spark Decision | Why |
 |---------------|---------------|-----|
-| Dashboard with courses, progress bars, charts | None — just a chat | 9yo doesn't need a dashboard |
-| Login / registration flow | URL-is-the-session (no auth) | 0-friction start |
-| Settings panel | Voice selector only | Everything else infers automatically |
-| Multi-level navigation (tabs, drawers) | Chat + collapsible sidebar | No mode-switching for a child |
-| Onboarding wizard / tutorial | Placeholder text: "Ask me anything about your homework" | Self-discoverable |
-| Feature notification badges | None | No cognitive noise |
+| Kid-facing course catalog / badge wall | No — chat + Me/Studio/Games | 9yo 不需要选课中心 |
+| Login / registration flow | URL + account picker, PIN only for parent/admin | 零摩擦启动 |
+| Kid settings panel | Voice + theme only | 其余自动推断 |
+| Streak anxiety / leaderboards | No competitive streaks for child | 不制造打卡焦虑 |
+| Default answer-dump solver | Socratic Hint Ladder + tests | 核心教学底线 |
+| Exposed knowledge-map UI for kids | Internal memory only; Progress 简版 | 图谱可有，不当课程平台 |
+
+### What We Added On Purpose (family platform)
+
+| Surface | Role |
+|---------|------|
+| **Family** (`/family`) | PIN 家长周报、消息、导出 |
+| **Progress** (`/dashboard`) | 学生练习入口、雷达/趋势（Practice CTA） |
+| **Me** (`/me`) | 日记时间线、创作归档 |
+| **Studio** (`/studio`) | TED/BBC/RSA/NatGeo/Writing Lab |
+| **Games** (`/entertain`) | 棋类/街机/逻辑，与 Studio 分离 |
 
 ### Physical Reference: A Tutor Sitting Next to You
 
-When Ryan sits with a human tutor, there's no dashboard. No course catalog. No profile settings. It's just: **"What are you working on today?"**
+When Ryan sits with a human tutor, the *session* is still: **"What are you working on today?"** — but a real family also has a fridge chart, a journal, and a parent who checks in. Spark models the **session** as chat-first; the **platform** adds Me/Studio/Games/Family without replacing the tutor metaphor for the core loop.
 
-Spark models this 1:1 physical tutoring session. Every UI decision is tested against: *"Would a physical tutor have this?"* If not, cut it.
+Every UI decision is tested against: *"Would a physical tutor / caring parent have this in the room?"* Dashboards-for-parents and journals-for-kids pass; course catalogs and streak walls do not.
 
 ### Conversation is the Core
 

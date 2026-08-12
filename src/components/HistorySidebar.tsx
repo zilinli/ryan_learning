@@ -225,19 +225,25 @@ export function HistorySidebar({
           <a
             href="/family"
             className="flex min-h-10 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Family controls"
+            title="Family — parent hub (PIN)"
           >
-            <span className="truncate sm:hidden">Family</span>
-            <span className="hidden truncate sm:inline">Family controls</span>
+            Family
           </a>
           <a
             href="/me"
             className="flex min-h-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Me — journal, creations, chats"
+            title="Me — journal, creations, progress"
           >
             Me
           </a>
         </div>
+        <a
+          href="/dashboard"
+          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          title="Progress — skills, practice"
+        >
+          Progress
+        </a>
         <a
           href="/dict"
           className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
@@ -248,20 +254,19 @@ export function HistorySidebar({
             Dictionary / Translation
           </span>
         </a>
-        {/* Row: Studio · learning + Entertainments */}
+        {/* Row: Studio + Games */}
         <div className="mb-2 grid grid-cols-2 gap-1.5">
           <a
             href="/studio"
             className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Studio · learning"
+            title="Studio — make & learn"
           >
-            <span className="truncate sm:hidden">Studio</span>
-            <span className="hidden truncate sm:inline">Studio · learning</span>
+            Studio
           </a>
           <a
             href="/entertain"
             className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Entertainments"
+            title="Games — play"
           >
             <svg
               width="12"
@@ -278,8 +283,7 @@ export function HistorySidebar({
               <rect x="3" y="14" width="7" height="7" rx="1" />
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
-            <span className="truncate sm:hidden">Games</span>
-            <span className="hidden truncate sm:inline">Entertainments</span>
+            Games
           </a>
         </div>
         <div className="mb-2 grid grid-cols-2 gap-1.5">

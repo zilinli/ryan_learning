@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLabCatalogSearch } from "./useLabCatalogSearch";
 import {
   BBC_TOPICS,
   BBC_TOPIC_LABELS,
@@ -28,9 +29,26 @@ function choiceLetter(i: number): string { return "ABCD"[i] ?? String(i); }
 export function BbcDocLab() {
   const { accountId, grade, englishLevel } = useActiveStudioAccount();
   const [phase, setPhase] = useState<Phase>("browse");
-  const [query, setQuery] = useState("");
   const [topic, setTopic] = useState<BbcTopic | "all">("all");
-  const [clips, setClips] = useState<BbcClip[]>([]);
+  const {
+    query,
+    setQuery,
+    items: clips,
+    listBusy,
+    listSource,
+    error: searchError,
+    page,
+    nbHits,
+    hasNextPage,
+    runSearch,
+    refreshBatch,
+  } = useLabCatalogSearch<BbcClip>({
+    apiPath: "/api/bbc/search",
+    resultKey: "clips",
+    localSearch: (q, t) => searchBbcCatalog(q, t as BbcTopic | undefined),
+    topic,
+    grade,
+  });
   const [selectedClip, setSelectedClip] = useState<BbcClip | null>(null);
   const [challengeReady, setChallengeReady] = useState(false);
   const [challenge, setChallenge] = useState<any>(null);
@@ -41,9 +59,6 @@ export function BbcDocLab() {
   const watchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const difficultyLabel = formatTedDifficultyLabel({ grade, englishLevel });
 
-  useEffect(() => {
-    setClips(topic === "all" ? searchBbcCatalog("") : searchBbcCatalog("", topic));
-  }, [topic]);
   useEffect(() => () => { if (watchTimer.current) clearTimeout(watchTimer.current); }, []);
 
   const openClip = useCallback((clip: BbcClip) => {
@@ -90,9 +105,14 @@ export function BbcDocLab() {
   if (phase === "browse") {
     return (
       <div className="mt-4 space-y-4 animate-fade-up">
-        <input value={query} onChange={e => { setQuery(e.target.value); setClips(searchBbcCatalog(e.target.value, topic === "all" ? undefined : topic)); }} placeholder="Search BBC documentaries..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
-        <div className="flex flex-wrap gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : BBC_TOPIC_LABELS[t]}</button>))}</div>
-        {clips.length > 0 ? (<ul className="grid gap-3 sm:grid-cols-2">{clips.map(c => (<li key={c.videoId}><button onClick={() => openClip(c)} className="flex w-full flex-col gap-1.5 rounded-2xl border border-[var(--line)] bg-white/85 p-4 text-left transition hover:border-[var(--teal)] hover:shadow-sm dark:bg-white/5"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[var(--ink)]">{c.title}</span><span className="shrink-0 rounded-full bg-[var(--mist)] px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]">{c.channel}</span></div><p className="line-clamp-2 text-xs leading-relaxed text-[var(--ink-muted)]">{c.blurb}</p><div className="flex items-center gap-2 text-[10px] text-[var(--ink-muted)]/70"><span>{c.series}</span><span>{formatDuration(c.durationSec)}</span><span>G{c.gradeMin}-{c.gradeMax}</span></div></button></li>))}</ul>) : (<p className="py-8 text-center text-sm text-[var(--ink-muted)]">No clips found.</p>)}
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search BBC documentaries..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
+        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : BBC_TOPIC_LABELS[t]}</button>))}
+          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="rounded-full border border-[var(--coral)]/40 px-3 py-1 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "Loading…" : "Refresh batch"}</button>
+        </div>
+        <p className="text-[11px] text-[var(--ink-muted)]">{listSource === "loading" ? "Searching BBC channels…" : listSource === "live" ? `YouTube live · ${nbHits} clips with captions` : `Curated backup · ${nbHits} clips`}</p>
+        {searchError ? <p className="text-xs text-[var(--coral)]">{searchError}</p> : null}
+        {clips.length > 0 ? (<ul className="grid gap-3 sm:grid-cols-2">{clips.map(c => (<li key={c.videoId}><button onClick={() => openClip(c)} className="flex w-full flex-col gap-1.5 rounded-2xl border border-[var(--line)] bg-white/85 p-4 text-left transition hover:border-[var(--teal)] hover:shadow-sm dark:bg-white/5"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[var(--ink)]">{c.title}</span><span className="shrink-0 rounded-full bg-[var(--mist)] px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]">{c.channel}</span></div><p className="line-clamp-2 text-xs leading-relaxed text-[var(--ink-muted)]">{c.blurb}</p><div className="flex items-center gap-2 text-[10px] text-[var(--ink-muted)]/70"><span>{c.series}</span><span>{formatDuration(c.durationSec)}</span><span>G{c.gradeMin}-{c.gradeMax}</span></div></button></li>))}</ul>) : !listBusy ? (<p className="py-8 text-center text-sm text-[var(--ink-muted)]">No clips found.</p>) : null}
+        {hasNextPage ? (<button type="button" disabled={listBusy} onClick={() => void runSearch({ page: page + 1, append: true })} className="w-full rounded-xl border border-[var(--line)] py-2 text-sm text-[var(--ink-muted)] hover:border-[var(--teal)] disabled:opacity-40">Load more</button>) : null}
       </div>
     );
   }

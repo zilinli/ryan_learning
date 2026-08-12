@@ -138,7 +138,7 @@ export function MeHome() {
           href="/dashboard"
           className="flex min-h-12 items-center justify-between rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 text-sm font-medium"
         >
-          Learning dashboard
+          Progress
           <span className="text-[var(--ink-muted)]">→</span>
         </a>
       </section>
