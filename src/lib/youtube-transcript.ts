@@ -146,10 +146,11 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
     "--write-auto-subs",
     "--write-subs",
     "--sub-langs",
-    "en.*,en",
+    "en,en-orig,en-GB,en.*",
     "--sub-format",
     "vtt/best",
     "--no-warnings",
+    "--ignore-errors",
     "-o",
     outBase,
     `https://www.youtube.com/watch?v=${videoId}`,
@@ -162,7 +163,8 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
       cwd: process.cwd(),
     });
   } catch {
-    return null;
+    // yt-dlp may exit non-zero after a partial success (e.g. one lang 429
+    // while en.vtt already written). Still harvest whatever files exist.
   }
 
   // Prefer en*.vtt then any .vtt / .srt for this id
@@ -172,6 +174,7 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
   } catch {
     return null;
   }
+  if (names.length === 0) return null;
   const prefer = (a: string, b: string) => {
     const score = (n: string) => {
       let s = 0;
