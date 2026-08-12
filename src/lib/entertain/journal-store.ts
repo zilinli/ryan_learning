@@ -177,6 +177,40 @@ export async function deleteJournalEntry(
   return true;
 }
 
+/**
+ * Remove one "Related" creation block from an entry's `made` list.
+ * When the entry still has prose left, only the block is removed; when the
+ * block was the only content, the whole entry is deleted. The Creation in
+ * My Creations is untouched.
+ */
+export async function removeJournalMadeBlock(
+  accountId: string,
+  entryId: string,
+  creationId: string,
+): Promise<boolean> {
+  const store = await loadJournal(accountId);
+  const idx = store.items.findIndex((e) => e.id === entryId);
+  if (idx < 0) return false;
+  const prev = store.items[idx]!;
+  const nextMade = prev.made.filter((m) => m.creationId !== creationId);
+  if (nextMade.length === prev.made.length) return false;
+  if (prev.body.trim() || nextMade.length > 0) {
+    const next: JournalEntry = {
+      ...prev,
+      made: nextMade,
+      updatedAt: Date.now(),
+      title: prev.title || entryTitle(prev.body, nextMade),
+      source: inferSource({ body: prev.body, made: nextMade }),
+    };
+    store.items[idx] = next;
+    await saveJournal(accountId, store);
+  } else {
+    store.items = store.items.filter((e) => e.id !== entryId);
+    await saveJournal(accountId, store);
+  }
+  return true;
+}
+
 function madeFromCreation(item: CreationItem): JournalMadeBlock {
   const snapshot = String(
     item.lyrics || item.notes || item.caption || item.challengeScore || "",

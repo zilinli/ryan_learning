@@ -598,6 +598,24 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
             description:
               "Shapes: triangle|polygon|line|segment|circle|point|angle|right_angle|text|arrow|bar (horizontal/vertical bars with labels for Singapore bar models, part-whole & comparison) with coordinates in a ~320×240 canvas",
           },
+          steps: {
+            type: "array",
+            description:
+              "Optional P3 step-by-step teaching: each item is { caption, highlight: [0-based shape indexes to keep bright], note?: measurement label such as \"base = 5 cm\" }. When present, the app shows an interactive step player so the child taps through highlights one at a time.",
+            items: {
+              type: "object",
+              properties: {
+                caption: { type: "string" },
+                highlight: {
+                  type: "array",
+                  items: { type: "number" },
+                  description: "Indexes into the shapes array",
+                },
+                note: { type: "string" },
+              },
+              required: ["caption", "highlight"],
+            },
+          },
         },
         required: ["shapes"],
       },
@@ -614,11 +632,29 @@ export function createTutorHarnessTools(): Record<string, SDKCustomTool> {
           }
           const diagramId = asString(args.diagramId) || undefined;
           const revision = asNumber(args.revision, diagramId ? 1 : 0);
+          const steps = (Array.isArray(args.steps) ? args.steps : [])
+            .map((s: unknown) => {
+              const step = (s || {}) as {
+                caption?: unknown;
+                highlight?: unknown;
+                note?: unknown;
+              };
+              const highlight = Array.isArray(step.highlight)
+                ? step.highlight.map(Number).filter((i) => Number.isFinite(i))
+                : [];
+              return {
+                caption: asString(step.caption, ""),
+                highlight,
+                ...(step.note ? { note: asString(step.note, "") } : {}),
+              };
+            })
+            .filter((s) => s.caption && s.highlight.length > 0);
           const spec: GeometrySpec = {
             title: asString(args.title) || undefined,
             width: asNumber(args.width, 320),
             height: asNumber(args.height, 240),
             shapes,
+            ...(steps.length ? { steps } : {}),
             ...(diagramId
               ? { diagramId, revision: Math.max(1, revision || 1) }
               : {}),

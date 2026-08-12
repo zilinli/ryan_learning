@@ -12,6 +12,10 @@ import {
   nodeText,
   splitTutorContent,
 } from "@/lib/geometry-svg";
+import {
+  GeometryStepPlayer,
+  isGeometryStepsBody,
+} from "./GeometryStepPlayer";
 
 type Props = {
   content: string;
@@ -44,6 +48,10 @@ function looksLikeSvg(text: string): boolean {
 
 export function isStepLanguage(lang: string): boolean {
   return lang === "step" || lang === "steps";
+}
+
+export function isGeometryStepsLanguage(lang: string): boolean {
+  return lang === "geom-steps" || lang === "geomsteps";
 }
 
 export function isAnswerLanguage(lang: string): boolean {
@@ -328,6 +336,9 @@ export const MarkdownMessage = memo(function MarkdownMessage({
       if (isAnswerLanguage(lang)) {
         return <AnswerFold body={text} variant={user ? "user" : "assistant"} />;
       }
+      if (isGeometryStepsLanguage(lang) || isGeometryStepsBody(text)) {
+        return <GeometryStepPlayer body={text} />;
+      }
       if (isDiagramLanguage(lang) || looksLikeSvg(text)) {
         return (
           <DiagramBlock
@@ -369,7 +380,13 @@ export const MarkdownMessage = memo(function MarkdownMessage({
         ).props;
         const lang = fenceLanguage(props?.className);
         const body = nodeText(props?.children).replace(/\n$/, "");
-        if (isStepLanguage(lang) || isDiagramLanguage(lang) || looksLikeSvg(body)) {
+        if (
+          isStepLanguage(lang) ||
+          isGeometryStepsLanguage(lang) ||
+          isGeometryStepsBody(body) ||
+          isDiagramLanguage(lang) ||
+          looksLikeSvg(body)
+        ) {
           return <>{children}</>;
         }
       }

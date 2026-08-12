@@ -78,4 +78,46 @@ describe("/api/journal", () => {
     );
     expect((await del.json()).ok).toBe(true);
   });
+
+  it("DELETE with creationId removes only the made block", async () => {
+    const { appendCreationToJournal } = await import(
+      "@/lib/entertain/journal-store"
+    );
+    const day = await appendCreationToJournal(
+      ACCT,
+      {
+        id: "cr_route_made",
+        type: "song",
+        title: "Delete me from timeline",
+        createdAt: Date.parse("2026-08-12T10:00:00"),
+        accountId: ACCT,
+        lyrics: "x",
+      },
+      "2026-08-12",
+    );
+
+    const del = await DELETE(
+      new Request("http://localhost/api/journal", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: ACCT,
+          id: day.id,
+          creationId: "cr_route_made",
+        }),
+      }),
+    );
+    expect((await del.json()).ok).toBe(true);
+  });
+
+  it("DELETE requires an id", async () => {
+    const del = await DELETE(
+      new Request("http://localhost/api/journal", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: ACCT }),
+      }),
+    );
+    expect(del.status).toBe(400);
+  });
 });

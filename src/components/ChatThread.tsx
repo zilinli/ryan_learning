@@ -14,6 +14,11 @@ import { parseSparkFence, stripSparkFence } from "@/lib/spark-moment";
 import { collapseDiagramsInMessages } from "@/lib/diagram-lifecycle";
 import type { PendingPracticeOffer } from "@/lib/session-practice";
 import type { SessionOpener } from "@/lib/session-opener";
+import {
+  buildDeepDivePrompt,
+  DEEP_DIVE_LABELS,
+  type DeepDiveMode,
+} from "@/lib/prompts";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
 
@@ -44,6 +49,14 @@ type Props = {
   onPracticeTomorrow?: () => void;
   onPracticeDismiss?: () => void;
   onOpenerTry?: () => void;
+  /** P0 — cycle to the next practice target as the opener's main skill */
+  onOpenerNext?: () => void;
+  /** P1 — start an explicit challenge-mode session on a mastered skill */
+  onChallenge?: () => void;
+  /** P1 — show "Challenge me!" only when a mastered skill exists */
+  canChallenge?: boolean;
+  /** P1 — send a "go deeper" follow-up turn (换方法 / 边界 / 跨学科) */
+  onDeepDive?: (mode: DeepDiveMode) => void;
   /** Snap homework — dismiss opener + open camera */
   onSnapHomework?: () => void;
   /** UX-RPT.10 — dismissible kid daily one-liner */
@@ -133,6 +146,10 @@ export function ChatThread({
   onPracticeTomorrow,
   onPracticeDismiss,
   onOpenerTry,
+  onOpenerNext,
+  onChallenge,
+  canChallenge,
+  onDeepDive,
   onSnapHomework,
   dailyBlurb,
   onDismissDailyBlurb,
@@ -464,6 +481,11 @@ export function ChatThread({
             <p className="mt-1 text-sm font-medium text-[var(--ink)]">
               {sessionOpener.line}
             </p>
+            {sessionOpener.challengeLine ? (
+              <p className="mt-1.5 text-[12px] leading-snug text-[var(--ink-muted)]">
+                {sessionOpener.challengeLine}
+              </p>
+            ) : null}
             {sessionOpener.practiceTargets && sessionOpener.practiceTargets.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {[sessionOpener.label, ...sessionOpener.practiceTargets.map((t) => t.label)].map(
@@ -490,16 +512,36 @@ export function ChatThread({
               >
                 Start 3 quick questions
               </button>
+              {onOpenerNext &&
+              sessionOpener.practiceTargets &&
+              sessionOpener.practiceTargets.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={onOpenerNext}
+                  className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
+                >
+                  Another one
+                </button>
+              ) : null}
+              {onChallenge && canChallenge ? (
+                <button
+                  type="button"
+                  onClick={onChallenge}
+                  className="min-h-11 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/5 px-3 text-sm font-medium text-[var(--teal)]"
+                >
+                  Challenge me!
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={onSnapHomework}
                 className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
               >
-                Not now — snap homework instead
+                Snap homework today
               </button>
             </div>
             <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
-              Quick warm-up on “{sessionOpener.label}”. “Not now” → snap homework.
+              Quick warm-up on “{sessionOpener.label}”. “Snap homework today” → camera.
             </p>
           </div>
         ) : null}
@@ -864,6 +906,9 @@ export function ChatThread({
           </article>
         );
       })}
+      {onDeepDive && !streaming && messages.some((m) => m.role === "assistant") ? (
+        <DeepDiveControl onPick={onDeepDive} />
+      ) : null}
       {lightbox ? (
         <ImageLightbox
           src={lightbox.src}
@@ -884,6 +929,55 @@ export function ChatThread({
           ↓ New messages
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * P1 (report §8.5) — "继续深挖" under the last reply. Expands to three
+ * one-tap actions: another method / boundary cases / cross-subject link.
+ */
+function DeepDiveControl({ onPick }: { onPick: (mode: DeepDiveMode) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1 inline-flex items-center gap-1 self-start rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)]"
+      >
+        Go deeper
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="6,9 12,15 18,9" />
+        </svg>
+      </button>
+    );
+  }
+  const modes: DeepDiveMode[] = ["method", "boundary", "cross"];
+  return (
+    <div className="mt-1 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+        Go deeper
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {modes.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onPick(m)}
+            className="min-h-10 rounded-xl bg-[var(--action-bg)] px-3 text-[13px] font-medium text-[var(--action-ink)]"
+          >
+            {DEEP_DIVE_LABELS[m]}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="min-h-10 rounded-xl px-3 text-[13px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+        >
+          Close
+        </button>
+      </div>
     </div>
   );
 }

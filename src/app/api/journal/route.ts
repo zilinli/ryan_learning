@@ -10,6 +10,7 @@ import {
   deleteJournalEntry,
   getJournalEntry,
   loadJournal,
+  removeJournalMadeBlock,
   updateJournalEntry,
 } from "@/lib/entertain/journal-store";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
@@ -92,9 +93,13 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   const limited = checkApiRateLimit(req, "journal-del", RATE_PRESETS.entertain);
   if (limited) return limited;
-  let body: { accountId?: string; id?: string } = {};
+  let body: { accountId?: string; id?: string; creationId?: string } = {};
   try {
-    body = (await req.json()) as { accountId?: string; id?: string };
+    body = (await req.json()) as {
+      accountId?: string;
+      id?: string;
+      creationId?: string;
+    };
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
@@ -103,6 +108,9 @@ export async function DELETE(req: Request) {
   if (!id) {
     return Response.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
-  const ok = await deleteJournalEntry(accountId, id);
+  const creationId = String(body.creationId || "").slice(0, 80);
+  const ok = creationId
+    ? await removeJournalMadeBlock(accountId, id, creationId)
+    : await deleteJournalEntry(accountId, id);
   return Response.json({ ok });
 }

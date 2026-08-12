@@ -32,6 +32,10 @@ import {
 import { PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { MessageHub } from "./MessageHub";
+import {
+  loadFeynmanDone,
+  markFeynmanDone,
+} from "@/lib/feynman-task";
 
 function severityLabel(s: PatternSeverity): string {
   if (s === "persistent") return "Persistent";
@@ -114,6 +118,59 @@ function PatternCard({ p }: { p: MistakePattern }) {
         {p.parentTip}
       </p>
     </article>
+  );
+}
+
+/** P2 — weekly "explain it to the family" teach-back card. */
+function FeynmanTeachBack({
+  accountId,
+  weekOf,
+  skillLabel,
+  kidPrompt,
+  parentPrompt,
+}: {
+  accountId: string;
+  weekOf: string;
+  skillLabel: string;
+  kidPrompt: string;
+  parentPrompt: string;
+}) {
+  const [done, setDone] = useState(() => loadFeynmanDone(accountId, weekOf));
+  return (
+    <section className="rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/5 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Teach-back (Feynman)
+          </h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">
+            {kidPrompt}
+          </p>
+          <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
+            {parentPrompt}
+          </p>
+          {done ? (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#2e9e6b]/15 px-3 py-1.5 text-[12px] font-semibold text-[#2e9e6b]">
+              ✓ Taught {skillLabel} to the family this week
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            markFeynmanDone(accountId, { weekOf, skillId: "feynman", skillLabel, kidPrompt, parentPrompt });
+            setDone(true);
+          }}
+          className={`shrink-0 min-h-11 rounded-xl px-4 text-[13px] font-semibold transition ${
+            done
+              ? "border border-[#2e9e6b]/40 text-[#2e9e6b]"
+              : "bg-[var(--teal)] text-white hover:opacity-90"
+          }`}
+        >
+          {done ? "Done — thank you!" : "We did it"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -283,6 +340,24 @@ export function FamilyControlsPage() {
               {copied ? "Copied" : "Copy week text"}
             </button>
           </section>
+
+          {/* P2 — biggest breakthrough of the week */}
+          {report.weekly.breakthrough ? (
+            <section className="rounded-2xl border border-[#2e9e6b]/35 bg-[#2e9e6b]/10 p-5">
+              <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[#2e9e6b]">
+                Biggest breakthrough this week
+              </h2>
+              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">
+                {report.weekly.breakthrough.text}
+              </p>
+              {report.weekly.breakthrough.skillLabel ? (
+                <p className="mt-2 text-[13px] text-[var(--ink-muted)]">
+                  Keep the momentum: ask them to show you one trick they learned
+                  in {report.weekly.breakthrough.skillLabel}.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
           {/* KPIs */}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
@@ -529,6 +604,17 @@ export function FamilyControlsPage() {
               </ul>
             </div>
           </section>
+
+          {/* ── Feynman teach-back (P2) ── */}
+          {report.weekly.feynmanTask ? (
+            <FeynmanTeachBack
+              accountId={accountId}
+              weekOf={report.weekly.weekOf}
+              skillLabel={report.weekly.feynmanTask.skillLabel}
+              kidPrompt={report.weekly.feynmanTask.kidPrompt}
+              parentPrompt={report.weekly.feynmanTask.parentPrompt}
+            />
+          ) : null}
 
           {/* ── Messages ── */}
           <section>

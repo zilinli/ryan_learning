@@ -6,6 +6,7 @@ import {
   localDateKey,
   markOpenerShown,
   openerDateStorageKey,
+  rotateSessionOpener,
   wasOpenerShownToday,
   yieldOpenerForHomework,
 } from "./session-opener";
@@ -94,7 +95,9 @@ describe("session-opener (CA-3)", () => {
           skillId: "fractions-concepts",
           label: "Fraction concepts",
           days: ["2026-08-08", "2026-08-09"],
-          expiresAt: day.getTime() + 86_400_000,
+          // expiresAt must outlive real Date.now() — pickRecurringGapSkill
+          // prunes with real clock, not the passed `day`.
+          expiresAt: Date.now() + 86_400_000,
         },
       ],
     };
@@ -142,5 +145,134 @@ describe("session-opener (CA-3)", () => {
     expect(wasOpenerShownToday("acct_a", day)).toBe(true);
     expect(buildSessionOpener(baseMem(), "acct_a", day)).toBeNull();
     expect(yieldOpenerForHomework("acct_b", "just chatting", day)).toBe(false);
+  });
+
+  it("P0: mastered skill yields a challengeLine", () => {
+    const mem = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.45,
+          mastery: 45,
+          attempts: 5,
+          correct: 2,
+          incorrect: 3,
+          lastSeen: Date.now(),
+          sm2State: {
+            ef: 2.3,
+            interval: 2,
+            reps: 2,
+            prevReview: Date.now() - 10 * 86_400_000,
+          },
+          eloState: { rating: 1300, n: 5, lastUpdate: Date.now() },
+        },
+        {
+          id: "algebra-equations",
+          label: "Algebra equations",
+          topicId: "algebra",
+          pKnown: 0.92,
+          mastery: 92,
+          attempts: 12,
+          correct: 11,
+          incorrect: 1,
+          lastSeen: Date.now(),
+          sm2State: {
+            ef: 2.5,
+            interval: 8,
+            reps: 6,
+            prevReview: Date.now() - 3 * 86_400_000,
+          },
+          eloState: { rating: 1750, n: 12, lastUpdate: Date.now() },
+        },
+      ],
+      updatedAt: Date.now(),
+    });
+    const opener = buildSessionOpener(mem, "acct_a")!;
+    expect(opener.challengeLine).toMatch(/Algebra equations/i);
+  });
+
+  it("P0: rotateSessionOpener cycles to the next practice target", () => {
+    const opener = buildSessionOpener(
+      normalizeMemory({
+        skills: [
+          {
+            id: "fractions-concepts",
+            label: "Fraction concepts",
+            topicId: "fractions",
+            pKnown: 0.45,
+            mastery: 45,
+            attempts: 5,
+            correct: 2,
+            incorrect: 3,
+            lastSeen: Date.now(),
+            sm2State: {
+              ef: 2.3,
+              interval: 2,
+              reps: 2,
+              prevReview: Date.now() - 10 * 86_400_000,
+            },
+            eloState: { rating: 1300, n: 5, lastUpdate: Date.now() },
+          },
+          {
+            id: "place-value",
+            label: "Place value",
+            topicId: "numbers",
+            pKnown: 0.5,
+            mastery: 50,
+            attempts: 4,
+            correct: 2,
+            incorrect: 2,
+            lastSeen: Date.now(),
+            sm2State: {
+              ef: 2.3,
+              interval: 1,
+              reps: 1,
+              prevReview: Date.now() - 5 * 86_400_000,
+            },
+            eloState: { rating: 1350, n: 4, lastUpdate: Date.now() },
+          },
+          {
+            id: "time-conversion",
+            label: "Time conversion",
+            topicId: "measurement",
+            pKnown: 0.6,
+            mastery: 60,
+            attempts: 3,
+            correct: 2,
+            incorrect: 1,
+            lastSeen: Date.now(),
+            sm2State: {
+              ef: 2.3,
+              interval: 1,
+              reps: 1,
+              prevReview: Date.now() - 5 * 86_400_000,
+            },
+            eloState: { rating: 1400, n: 3, lastUpdate: Date.now() },
+          },
+        ],
+        updatedAt: Date.now(),
+      }),
+      "acct_a",
+    );
+    expect(opener).not.toBeNull();
+    const targets = opener!.practiceTargets;
+    if (!targets || targets.length === 0) {
+      // No rotation available — the helper must still be a no-op-safe null
+      expect(rotateSessionOpener(opener!)).toBeNull();
+      return;
+    }
+    const next = rotateSessionOpener(opener!)!;
+    expect(next.skillId).toBe(targets[0]!.skillId);
+    expect(next.practiceTargets?.[next.practiceTargets.length - 1]?.skillId).toBe(
+      opener!.skillId,
+    );
+  });
+
+  it("P0: rotateSessionOpener returns null without practiceTargets", () => {
+    const opener = buildSessionOpener(baseMem(), "acct_a")!;
+    const next = rotateSessionOpener(opener);
+    expect(next).toBeNull();
   });
 });

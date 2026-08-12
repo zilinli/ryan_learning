@@ -24,6 +24,10 @@ export type SessionOpener = {
   line: string;
   /** Up to 2 extra related skills for the short-practice card */
   practiceTargets?: PracticeTarget[];
+  /** P0 — optional advanced hint offered above the daily ZPD/review target */
+  challengeLine?: string;
+  /** P1 — custom kickoff message used instead of the default opener line */
+  kickoffOverride?: string;
 };
 
 const DATE_KEY_PREFIX = "spark.opener.date.";
@@ -110,10 +114,47 @@ export function buildSessionOpener(
     kind,
     line,
     practiceTargets: targets.length > 0 ? targets : undefined,
+    challengeLine: buildChallengeLine(mem, skill.id),
+  };
+}
+
+/** P0 — an optional high-end hint: name a mastered skill worth stretching. */
+function buildChallengeLine(
+  mem: LearningMemory,
+  excludeSkillId: string,
+): string | undefined {
+  const mastered = [...(mem.skills || [])]
+    .filter((s) => s.id !== excludeSkillId && s.pKnown >= 0.8)
+    .sort((a, b) => b.pKnown - a.pKnown)[0];
+  if (!mastered) return undefined;
+  return `You've got ${mastered.label} down — ask me for a tougher spin on it.`;
+}
+
+/**
+ * P0 — "再给我一题": rotate to the next practice target as the main opener.
+ * Returns null when there is nothing to rotate to.
+ */
+export function rotateSessionOpener(
+  opener: SessionOpener,
+): SessionOpener | null {
+  const targets = opener.practiceTargets;
+  if (!targets || targets.length === 0) return null;
+  const [next, ...rest] = targets;
+  return {
+    skillId: next.skillId,
+    label: next.label,
+    kind: opener.kind,
+    line: `Today fits ${next.label} — or snap homework first?`,
+    practiceTargets: [
+      ...rest,
+      { skillId: opener.skillId, label: opener.label },
+    ],
+    challengeLine: opener.challengeLine,
   };
 }
 
 export function buildOpenerKickoffMessage(opener: SessionOpener): string {
+  if (opener.kickoffOverride?.trim()) return opener.kickoffOverride.trim();
   return `Let's warm up with ${opener.label}. One short question at a time — guide me, don't spoil.`;
 }
 

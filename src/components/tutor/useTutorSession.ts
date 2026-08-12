@@ -7,6 +7,15 @@ import {
   waitStatusAt,
 } from "@/lib/tutor-wait-status";
 import { tryLocalRecall } from "@/lib/local-recall";
+import { tryLocalFacts } from "@/lib/local-facts";
+import { recordChallengeOutcome } from "@/lib/challenge-mode";
+import {
+  addWrongAnswer,
+  buildWrongReviewOpener,
+  consumeWrongReviewKickoff,
+  skillLabelForText,
+} from "@/lib/wrong-answer-store";
+import { reconcileWeeklyGoal } from "@/lib/weekly-goal";
 import {
   emotionPromptLines,
   emotionUiLine,
@@ -678,11 +687,15 @@ export function useTutorSession() {
     setPracticeOffer(offer);
     if (!offer) {
       const mem = learningMemory || loadLearningMemory(accountId);
-      const kick = consumePracticeKickoff();
+      // P1 — wrong-answer review handoff takes priority over practice kickoff
+      const wrongKick = consumeWrongReviewKickoff();
+      const kick = wrongKick ? null : consumePracticeKickoff();
       setSessionOpener(
-        kick
-          ? buildPracticeKickoffOpener(kick)
-          : buildSessionOpener(mem, accountId),
+        wrongKick
+          ? buildWrongReviewOpener(wrongKick)
+          : kick
+            ? buildPracticeKickoffOpener(kick)
+            : buildSessionOpener(mem, accountId),
       );
     } else {
       setSessionOpener(null);
@@ -967,10 +980,14 @@ export function useTutorSession() {
     // Start focus timer on first message of the session
     startSessionTimer();
 
-    // UX-RPT.7 — narrow local recall (no Agent) for pure arithmetic facts
+    // UX-RPT.7 / P0 — narrow local fast-path (no Agent): arithmetic facts
+    // first, then unit/formula/power-table facts (report §8.2).
     const recall =
       payload.attachments.length === 0 ? tryLocalRecall(payload.text) : null;
-    if (recall) {
+    const fact =
+      payload.attachments.length === 0 ? tryLocalFacts(payload.text) : null;
+    const localHit = recall ?? fact;
+    if (localHit) {
       setBusy(true);
       setError("");
       setAgentStatus("");
@@ -987,7 +1004,7 @@ export function useTutorSession() {
       const assistantMsg: ChatMessage = {
         id: messageId(),
         role: "assistant",
-        content: recall.reply,
+        content: localHit.reply,
         createdAt: Date.now(),
       };
       const nextMessages = [...messages, userMsg, assistantMsg];
@@ -1195,8 +1212,29 @@ export function useTutorSession() {
       setLearningMemory(nextMem);
       syncProfileFromSkills(profile, nextMem);
       void pushLearningMemoryToServer(nextMem, accountId);
+      // P2 — short-cycle weekly goal: count skills newly mastered this week.
+      reconcileWeeklyGoal(accountId, nextMem);
 
       const outcome = classifyTurnOutcome(payload.text, full);
+      // P1 — auto difficulty ramp: correct answers bump the challenge streak,
+      // wrong answers drop it back (only while a challenge session is active).
+      recordChallengeOutcome(accountId, outcome);
+      // P1 — wrong-answer book: log incorrect turns with the question asked.
+      if (outcome === "incorrect") {
+        const lastAssistant = [...messages]
+          .reverse()
+          .find((m) => m.role === "assistant");
+        const inferred = skillLabelForText(
+          [lastAssistant?.content || "", payload.text].join("\n"),
+        );
+        addWrongAnswer(accountId, {
+          skillId: inferred.skillId,
+          skillLabel: inferred.skillLabel,
+          question: lastAssistant?.content || "",
+          studentAnswer: payload.text,
+          assistantText: full,
+        });
+      }
       const emotionKind =
         outcome === "correct"
           ? "win"

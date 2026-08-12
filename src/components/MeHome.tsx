@@ -5,6 +5,10 @@ import { loadConversations } from "@/lib/storage";
 import { journalPromptForGrade } from "@/lib/entertain/journal-model";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 import { JournalTimeline } from "./JournalTimeline";
+import { SkillDots } from "./SkillDots";
+import { WrongAnswerBook } from "./WrongAnswerBook";
+import { WeeklyGoalCard } from "./WeeklyGoalCard";
+import { ReadAlongPractice } from "./ReadAlongPractice";
 import type { CreationItem } from "@/lib/entertain/creations-store";
 
 export function MeHome() {
@@ -73,6 +77,22 @@ export function MeHome() {
 
       <section className="mb-6">
         <JournalTimeline peek />
+      </section>
+
+      <section className="mb-6">
+        <WeeklyGoalCard accountId={acct.accountId} />
+      </section>
+
+      <section className="mb-6">
+        <SkillDots accountId={acct.accountId} />
+      </section>
+
+      <section className="mb-6">
+        <WrongAnswerBook accountId={acct.accountId} />
+      </section>
+
+      <section className="mb-6">
+        <ReadAlongPractice />
       </section>
 
       <section className="mb-6">

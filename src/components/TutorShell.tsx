@@ -17,14 +17,27 @@ import {
   dismissPracticeOfferForToday,
   savePracticeOffer,
 } from "@/lib/session-practice";
-import { buildOpenerKickoffMessage } from "@/lib/session-opener";
+import {
+  buildOpenerKickoffMessage,
+  markOpenerShown,
+  rotateSessionOpener,
+} from "@/lib/session-opener";
 import {
   clearTedChallengeResume,
   tedLabResumeHref,
 } from "@/lib/entertain/ted-challenge-handoff";
 import { engagementSummary } from "@/lib/engagement";
 import { learningMemorySummary } from "@/lib/learning-memory";
-import { markOpenerShown } from "@/lib/session-opener";
+import {
+  buildChallengeKickoffMessage,
+  getChallengeStreak,
+  pickChallengeSkills,
+  startChallengeSession,
+} from "@/lib/challenge-mode";
+import {
+  buildDeepDivePrompt,
+  type DeepDiveMode,
+} from "@/lib/prompts";
 import { interruptHint } from "@/lib/speech-barge-in";
 
 export function TutorShell() {
@@ -231,6 +244,36 @@ export function TutorShell() {
               markOpenerShown(accountId);
               setSessionOpener(null);
               void handleSend({ text, attachments: [] });
+            }}
+            onOpenerNext={() => {
+              if (!sessionOpener) return;
+              const next = rotateSessionOpener(sessionOpener);
+              if (next) setSessionOpener(next);
+            }}
+            onChallenge={() => {
+              if (!learningMemory) return;
+              const top = pickChallengeSkills(learningMemory, 1)[0];
+              if (!top) return;
+              const streak = getChallengeStreak(accountId, top.id);
+              const text = buildChallengeKickoffMessage(top, streak);
+              markOpenerShown(accountId);
+              setSessionOpener(null);
+              startChallengeSession({
+                accountId,
+                skillId: top.id,
+                label: top.label,
+                startedAt: Date.now(),
+              });
+              void handleSend({ text, attachments: [] });
+            }}
+            canChallenge={Boolean(
+              learningMemory && pickChallengeSkills(learningMemory, 1).length > 0,
+            )}
+            onDeepDive={(mode: DeepDiveMode) => {
+              void handleSend({
+                text: buildDeepDivePrompt(mode),
+                attachments: [],
+              });
             }}
             onSnapHomework={() => {
               if (sessionOpener) {

@@ -161,6 +161,9 @@ function buildNarrative(
       `Gains showing in ${weekly.masteryUp.map((s) => s.label).join(", ")}.`,
     );
   }
+  if (weekly.breakthrough) {
+    nameBits.push(`Biggest breakthrough: ${weekly.breakthrough.text}`);
+  }
   if (weekly.masteryDown.length) {
     nameBits.push(
       `Worth a calm look: ${weekly.masteryDown.map((s) => s.label).join(", ")}.`,
@@ -169,6 +172,11 @@ function buildNarrative(
   if (patterns[0]) {
     nameBits.push(
       `Top sticky pattern: “${patterns[0].label}” (×${patterns[0].count}) — ${patterns[0].parentTip}`,
+    );
+  }
+  if (weekly.feynmanTask) {
+    nameBits.push(
+      `P2 teach-back: ask them to explain ${weekly.feynmanTask.skillLabel} to you — one example, one check question.`,
     );
   }
   if (weekly.nextWeekFocus.length) {

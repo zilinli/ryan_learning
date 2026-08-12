@@ -8,6 +8,7 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   loadJournal,
+  removeJournalMadeBlock,
   updateJournalEntry,
 } from "./journal-store";
 
@@ -99,6 +100,62 @@ describe("journal-store", () => {
     expect(updated?.body).toBe("Hello there");
     expect(await deleteJournalEntry(ACCT, row.id)).toBe(true);
     expect((await loadJournal(ACCT)).items).toHaveLength(0);
+  });
+
+  it("removes a made block but keeps prose on the entry", async () => {
+    const row = await createJournalEntry(ACCT, {
+      body: "I wrote this.",
+      date: "2026-08-02",
+    });
+    const day = await appendCreationToJournal(
+      ACCT,
+      {
+        id: "cr_prose_made",
+        type: "song",
+        title: "Sing",
+        createdAt: Date.parse("2026-08-02T10:00:00"),
+        accountId: ACCT,
+        lyrics: "x",
+      },
+      "2026-08-02",
+    );
+    expect(day.id).toBe(row.id);
+    const ok = await removeJournalMadeBlock(ACCT, row.id, "cr_prose_made");
+    expect(ok).toBe(true);
+    const store = await loadJournal(ACCT);
+    expect(store.items).toHaveLength(1);
+    expect(store.items[0]?.body).toBe("I wrote this.");
+    expect(store.items[0]?.made).toHaveLength(0);
+    expect(store.items[0]?.source).toBe("student");
+  });
+
+  it("deletes the whole entry when the made block was the only content", async () => {
+    const day = await appendCreationToJournal(
+      ACCT,
+      {
+        id: "cr_fake_only",
+        type: "image",
+        title: "Drawing",
+        createdAt: Date.parse("2026-08-03T10:00:00"),
+        accountId: ACCT,
+        caption: "sunset",
+      },
+      "2026-08-03",
+    );
+    const ok = await removeJournalMadeBlock(ACCT, day.id, "cr_fake_only");
+    expect(ok).toBe(true);
+    const store = await loadJournal(ACCT);
+    expect(store.items.filter((e) => e.id === day.id)).toHaveLength(0);
+  });
+
+  it("returns false when the made block is not present", async () => {
+    const row = await createJournalEntry(ACCT, {
+      body: "Only prose",
+      date: "2026-08-04",
+    });
+    const ok = await removeJournalMadeBlock(ACCT, row.id, "cr_unknown");
+    expect(ok).toBe(false);
+    expect((await loadJournal(ACCT)).items).toHaveLength(1);
   });
 
   it("buildTimeline clusters by day newest first", () => {

@@ -583,6 +583,18 @@ export type GeometrySpec = {
   diagramId?: string;
   /** CA-8 — monotonic revision (1, 2, 3…) */
   revision?: number;
+  /** P3 — interactive step-by-step highlight: each step dims non-highlighted shapes */
+  steps?: GeometryStep[];
+};
+
+/** P3 — one teaching step: which shapes to keep bright + a measurement note. */
+export type GeometryStep = {
+  /** Kid-facing caption for this step (e.g. "The base is 5 cm") */
+  caption: string;
+  /** 0-based indexes into spec.shapes that stay bright while others dim */
+  highlight: number[];
+  /** Measurement annotation rendered as a callout ("base = 5 cm") */
+  note?: string;
 };
 
 function esc(s: string): string {
@@ -624,7 +636,7 @@ function unit(from: GeomPoint, to: GeomPoint): GeomPoint {
   return [dx / len, dy / len];
 }
 
-function renderShape(shape: GeomShape, idx: number): string {
+function renderShape(shape: GeomShape, idx: number, dim = false): string {
   const stroke = "stroke" in shape && shape.stroke ? shape.stroke : "#1f4d4a";
   const fill =
     "fill" in shape && shape.fill
@@ -632,6 +644,8 @@ function renderShape(shape: GeomShape, idx: number): string {
       : shape.type === "triangle" || shape.type === "polygon" || shape.type === "circle"
         ? "rgba(46,139,132,0.12)"
         : "none";
+  // P3 — dim whole shape groups (labels included) while another step is active
+  const wrap = (out: string) => (dim ? `<g opacity="0.25">${out}</g>` : out);
 
   if (shape.type === "triangle" || shape.type === "polygon") {
     const pts = shape.points;
@@ -643,7 +657,7 @@ function renderShape(shape: GeomShape, idx: number): string {
       const [lx, ly] = labelOffset(pts[i]!, pts);
       out += `<text x="${lx}" y="${ly}" font-size="14" font-family="Source Sans 3, sans-serif" fill="#163532" text-anchor="middle" dominant-baseline="middle">${esc(lab)}</text>`;
     });
-    return out;
+    return wrap(out);
   }
 
   if (shape.type === "line" || shape.type === "segment" || shape.type === "arrow") {
@@ -667,11 +681,11 @@ function renderShape(shape: GeomShape, idx: number): string {
       ];
       out += `<polygon points="${n(tip[0])},${n(tip[1])} ${left.join(",")} ${right.join(",")}" fill="${stroke}"/>`;
     }
-    return out;
+    return wrap(out);
   }
 
   if (shape.type === "circle") {
-    return `<circle cx="${n(shape.center[0])}" cy="${n(shape.center[1])}" r="${n(shape.r)}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+    return wrap(`<circle cx="${n(shape.center[0])}" cy="${n(shape.center[1])}" r="${n(shape.r)}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`);
   }
 
   if (shape.type === "point") {
@@ -680,7 +694,7 @@ function renderShape(shape: GeomShape, idx: number): string {
     if (shape.label) {
       out += `<text x="${n(shape.at[0] + 10)}" y="${n(shape.at[1] - 8)}" font-size="14" fill="#163532">${esc(shape.label)}</text>`;
     }
-    return out;
+    return wrap(out);
   }
 
   if (shape.type === "angle") {
@@ -709,7 +723,7 @@ function renderShape(shape: GeomShape, idx: number): string {
       const ly = n(shape.at[1] + Math.sin(mid) * (r + 14));
       out += `<text x="${lx}" y="${ly}" font-size="13" fill="#163532" text-anchor="middle">${esc(shape.label)}</text>`;
     }
-    return out;
+    return wrap(out);
   }
 
   if (shape.type === "right_angle") {
@@ -725,11 +739,11 @@ function renderShape(shape: GeomShape, idx: number): string {
       n(shape.at[1] + u2y * size),
     ];
     const b: GeomPoint = [n(a[0] + u2x * size), n(a[1] + u2y * size)];
-    return `<polyline points="${a.join(",")} ${b.join(",")} ${c.join(",")}" fill="none" stroke="${stroke}" stroke-width="2"/>`;
+    return wrap(`<polyline points="${a.join(",")} ${b.join(",")} ${c.join(",")}" fill="none" stroke="${stroke}" stroke-width="2"/>`);
   }
 
   if (shape.type === "text") {
-    return `<text x="${n(shape.at[0])}" y="${n(shape.at[1])}" font-size="${shape.size ?? 14}" fill="#163532" text-anchor="middle">${esc(shape.text)}</text>`;
+    return wrap(`<text x="${n(shape.at[0])}" y="${n(shape.at[1])}" font-size="${shape.size ?? 14}" fill="#163532" text-anchor="middle">${esc(shape.text)}</text>`);
   }
 
   if (shape.type === "bar") {
@@ -762,27 +776,61 @@ function renderShape(shape: GeomShape, idx: number): string {
       }
     }
 
-    return out;
+    return wrap(out);
   }
 
   return `<!-- unknown shape ${idx} -->`;
 }
 
 /** Build a teaching SVG from a simple geometry JSON spec. */
-export function buildGeometrySvg(spec: GeometrySpec): string {
+export function buildGeometrySvg(
+  spec: GeometrySpec,
+  opts?: { stepIndex?: number },
+): string {
   const width = Math.min(Math.max(spec.width ?? 320, 160), 640);
   const height = Math.min(Math.max(spec.height ?? 240, 120), 480);
-  const parts = (spec.shapes || []).map((s, i) => renderShape(s, i));
+  const step =
+    opts?.stepIndex != null ? spec.steps?.[opts.stepIndex] : undefined;
+  const highlighted = new Set(step?.highlight || []);
+  const parts = (spec.shapes || []).map((s, i) =>
+    renderShape(s, i, !!step && !highlighted.has(i)),
+  );
   const title = spec.title
     ? `<text x="${width / 2}" y="18" font-size="13" fill="#5a6b68" text-anchor="middle">${esc(spec.title)}</text>`
+    : "";
+  // P3 — step callout: measurement note + caption pinned to the bottom
+  const callout = step
+    ? `<g>
+        <rect x="${n(width / 2 - 8)}" y="${height - 34}" width="16" height="18" fill="#e0792f" rx="3"/>
+        <text x="${width / 2}" y="${height - 21}" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">${step.highlight.length}</text>
+        ${step.note ? `<text x="${n(width / 2)}" y="${height - 42}" font-size="13" font-weight="700" fill="#e0792f" text-anchor="middle">${esc(step.note)}</text>` : ""}
+        <text x="${width / 2}" y="${height - 9}" font-size="12" fill="#5a6b68" text-anchor="middle">${esc(step.caption)}</text>
+      </g>`
     : "";
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${esc(spec.title || "geometry diagram")}">`,
     `<rect width="100%" height="100%" fill="#f7fbfa" rx="12"/>`,
     title,
     ...parts,
+    callout,
     `</svg>`,
   ].join("");
+}
+
+/**
+ * P3 — every view of a stepped figure: index 0 is the un-highlighted overview,
+ * then one highlighted SVG per step (shapes outside the step's highlight list
+ * are dimmed and the step's note/caption are rendered as a callout).
+ */
+export function buildGeometryStepSvgs(
+  spec: GeometrySpec,
+): Array<{ caption: string; svg: string }> {
+  const overview = buildGeometrySvg(spec);
+  const steps = (spec.steps || []).map((step, i) => ({
+    caption: step.caption,
+    svg: buildGeometrySvg(spec, { stepIndex: i }),
+  }));
+  return [{ caption: "Overview", svg: overview }, ...steps];
 }
 
 export function geometrySpecToMarkdown(spec: GeometrySpec): string {
@@ -795,5 +843,19 @@ export function geometrySpecToMarkdown(spec: GeometrySpec): string {
   }
   const img = svgToMarkdownImage(svg, alt);
   // Prefer markdown image (reliable). Keep a fenced fallback if encoding fails.
-  return img ?? `\`\`\`svg\n${svg}\n\`\`\``;
+  const base = img ?? `\`\`\`svg\n${svg}\n\`\`\``;
+  if (!spec.steps?.length) return base;
+  // P3 — append the interactive step-player fence (client renders GeometryStepPlayer)
+  const steps = spec.steps.map((s) => ({
+    caption: s.caption,
+    highlight: (s.highlight || []).map(Number).filter((i) => Number.isFinite(i)),
+    ...(s.note ? { note: s.note } : {}),
+  }));
+  return `${base}\n\n\`\`\`geom-steps\n${JSON.stringify({
+    width: spec.width,
+    height: spec.height,
+    title: spec.title,
+    shapes: spec.shapes,
+    steps,
+  })}\n\`\`\``;
 }

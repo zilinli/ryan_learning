@@ -15,6 +15,7 @@ import {
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
+import { buildFeynmanTask, type FeynmanTask } from "./feynman-task";
 
 const WEEK_MS = 7 * 86_400_000;
 
@@ -69,6 +70,15 @@ export type ParentWeeklyDigest = {
   nextWeekFocus: SkillMastery[];
   /** AUD.6a — whole days since last skill activity; null if unknown */
   idleDays: number | null;
+  /** P2 — weekly "explain it to the family" teach-back topic */
+  feynmanTask: FeynmanTask | null;
+  /** P2 (§8.10) — "biggest breakthrough of the week" growth story */
+  breakthrough: {
+    skillLabel?: string;
+    win?: string;
+    digestInsight?: string;
+    text: string;
+  } | null;
   text: string;
 };
 
@@ -85,6 +95,48 @@ function deltaHint(s: SkillMastery): string {
   if (s.incorrect > s.correct) return "↓ needs support";
   if (s.correct > s.incorrect) return "↑ building";
   return "→ holding";
+}
+
+/**
+ * P2 (§8.10) — biggest breakthrough of the week as a short growth story,
+ * woven from the week's top gain + recentWins + newest session digest.
+ */
+function buildBreakthrough(
+  mem: LearningMemory,
+  masteryUp: SkillMastery[],
+  now: number,
+): ParentWeeklyDigest["breakthrough"] {
+  const weekStart = now - WEEK_MS;
+  const gain = masteryUp[0];
+  const win = mem.recentWins[0];
+  const digest =
+    mem.sessionDigests.find((d) => {
+      const t = Date.parse(d.date);
+      return Number.isFinite(t) && t >= weekStart;
+    }) || mem.sessionDigests[0];
+
+  const bits: string[] = [];
+  if (gain) {
+    bits.push(
+      `${gain.label} climbed toward mastery — they kept at it through ${gain.attempts} attempts this week.`,
+    );
+  }
+  if (win) {
+    bits.push(`A highlight they noticed: “${win}”.`);
+  }
+  if (digest?.insight) {
+    bits.push(`The session story: ${digest.insight}`);
+  }
+  if (digest?.bestApproach) {
+    bits.push(`What worked: ${digest.bestApproach}`);
+  }
+  if (!bits.length) return null;
+  return {
+    skillLabel: gain?.label,
+    win,
+    digestInsight: digest?.insight,
+    text: bits.join(" "),
+  };
 }
 
 /**
@@ -105,6 +157,8 @@ export function buildParentWeeklyDigest(
       reviewDue: [],
       nextWeekFocus: [],
       idleDays: null,
+      feynmanTask: null,
+      breakthrough: null,
       text: `Week of ${weekOf}: no skill activity logged yet.`,
     };
   }
@@ -159,6 +213,8 @@ export function buildParentWeeklyDigest(
 
   const idleDays = daysSinceLastActivity(mem, now);
   const idleNote = parentIdleNote(idleDays);
+  const feynmanTask = buildFeynmanTask(mem, now);
+  const breakthrough = buildBreakthrough(mem, masteryUp, now);
 
   const lines: string[] = [`Week of ${weekOf}`];
   if (idleNote) {
@@ -188,6 +244,14 @@ export function buildParentWeeklyDigest(
   if (nextWeekFocus.length) {
     lines.push(`Next week focus: ${nextWeekFocus.map((s) => s.label).join(", ")}`);
   }
+  if (feynmanTask) {
+    lines.push(
+      `Feynman teach-back: have the child explain ${feynmanTask.skillLabel} to you — one example, one check question.`,
+    );
+  }
+  if (breakthrough) {
+    lines.push(`Biggest breakthrough: ${breakthrough.text}`);
+  }
 
   return {
     weekOf,
@@ -198,6 +262,8 @@ export function buildParentWeeklyDigest(
     reviewDue,
     nextWeekFocus,
     idleDays,
+    feynmanTask,
+    breakthrough,
     text: lines.join("\n"),
   };
 }

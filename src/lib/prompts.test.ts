@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { buildTutorPrompt } from "./prompts";
+import { buildDeepDivePrompt, buildTutorPrompt } from "./prompts";
+
+describe("buildDeepDivePrompt (P1)", () => {
+  it("method mode asks for a different approach", () => {
+    const p = buildDeepDivePrompt("method");
+    expect(p).toMatch(/DIFFERENT way/i);
+    expect(p).toMatch(/compare/i);
+  });
+
+  it("boundary mode probes edge cases", () => {
+    const p = buildDeepDivePrompt("boundary");
+    expect(p).toMatch(/boundary/i);
+    expect(p).toMatch(/edge/i);
+  });
+
+  it("cross mode links subjects", () => {
+    const p = buildDeepDivePrompt("cross");
+    expect(p).toMatch(/another subject/i);
+    expect(p).toMatch(/real life/i);
+  });
+});
 
 describe("buildTutorPrompt", () => {
   it("includes student message and tutor context", () => {

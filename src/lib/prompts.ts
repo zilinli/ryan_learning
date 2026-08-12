@@ -580,3 +580,37 @@ export function buildTutorPrompt(params: {
     userText.trim() || defaultStudentLine(mode, hasHomework),
   ].join("\n");
 }
+
+// ── P1 "继续深挖" (report §8.5) ────────────────────────────────────
+
+export type DeepDiveMode = "method" | "boundary" | "cross";
+
+export const DEEP_DIVE_LABELS: Record<DeepDiveMode, string> = {
+  method: "Another method",
+  boundary: "Boundary cases",
+  cross: "Cross-subject link",
+};
+
+/** User turn that pushes the tutor to go one level deeper. */
+export function buildDeepDivePrompt(mode: DeepDiveMode): string {
+  switch (mode) {
+    case "method":
+      return [
+        "Let's go deeper on what we just did:",
+        "Show me a DIFFERENT way to solve it (another method, drawing, or representation).",
+        "Then tell me which way you think is easiest and why — ask me to compare.",
+      ].join("\n");
+    case "boundary":
+      return [
+        "Let's go deeper on what we just did:",
+        "Explore the boundary / edge cases. When does this break or change (zero, extremes, tricks)?",
+        "Ask me what happens in those cases before you explain.",
+      ].join("\n");
+    case "cross":
+      return [
+        "Let's go deeper on what we just did:",
+        "Connect it to another subject or to real life with ONE concrete example.",
+        "Ask me to guess the connection first, then build on my answer.",
+      ].join("\n");
+  }
+}

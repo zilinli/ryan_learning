@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGeometryStepSvgs,
   buildGeometrySvg,
   ensureTutorDiagrams,
   geometrySpecToMarkdown,
@@ -225,5 +226,72 @@ describe("buildGeometrySvg", () => {
       shapes: [{ type: "circle", center: [10, 10], r: 5 }],
     });
     expect(svg).toContain("<circle");
+  });
+
+  it("P3: overview keeps every shape bright", () => {
+    const svg = buildGeometrySvg({
+      shapes: [
+        { type: "circle", center: [40, 60], r: 20 },
+        { type: "circle", center: [160, 120], r: 30 },
+      ],
+      steps: [{ caption: "Focus the big circle", highlight: [1] }],
+    });
+    expect(svg).not.toContain('opacity="0.25"');
+    expect(svg).not.toContain("Focus the big circle");
+  });
+
+  it("P3: active step dims non-highlighted shapes and pins the callout", () => {
+    const spec = {
+      shapes: [
+        { type: "circle", center: [40, 60], r: 20 },
+        { type: "circle", center: [160, 120], r: 30 },
+      ],
+      steps: [
+        { caption: "The big circle is the whole.", highlight: [1], note: "r = 30" },
+      ],
+    };
+    const svg = buildGeometrySvg(spec, { stepIndex: 0 });
+    expect(svg).toContain('opacity="0.25"'); // shape 0 dimmed
+    expect(svg).toContain("The big circle is the whole.");
+    expect(svg).toContain("r = 30");
+  });
+
+  it("P3: buildGeometryStepSvgs yields overview + one view per step", () => {
+    const spec = {
+      title: "Squares",
+      shapes: [
+        { type: "circle", center: [40, 60], r: 20 },
+        { type: "circle", center: [160, 120], r: 30 },
+      ],
+      steps: [
+        { caption: "Step one", highlight: [0] },
+        { caption: "Step two", highlight: [1], note: "note" },
+      ],
+    };
+    const views = buildGeometryStepSvgs(spec);
+    expect(views).toHaveLength(3);
+    expect(views[0]!.caption).toBe("Overview");
+    expect(views[1]!.svg).toContain('opacity="0.25"');
+    expect(views[1]!.svg).toContain("Step one");
+    expect(views[2]!.svg).toContain("note");
+  });
+
+  it("P3: geometrySpecToMarkdown embeds a geom-steps fence when steps exist", () => {
+    const md = geometrySpecToMarkdown({
+      title: "Tri",
+      shapes: [{ type: "circle", center: [40, 60], r: 20 }],
+      steps: [{ caption: "Here it is", highlight: [0] }],
+    });
+    expect(md).toContain("```geom-steps");
+    expect(md).toContain('"caption":"Here it is"');
+    // Overview image still first
+    expect(md.indexOf("data:image/svg+xml")).toBeLessThan(md.indexOf("geom-steps"));
+  });
+
+  it("P3: no fence when steps are missing", () => {
+    const md = geometrySpecToMarkdown({
+      shapes: [{ type: "circle", center: [40, 60], r: 20 }],
+    });
+    expect(md).not.toContain("geom-steps");
   });
 });
