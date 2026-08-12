@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseVttToText, parseSrtToText } from "./youtube-transcript";
+import {
+  parseVttToText,
+  parseSrtToText,
+  parseAvailableCaptionLangs,
+  fetchViaAutoCc,
+  fetchYouTubeTranscript,
+} from "./youtube-transcript";
 
 describe("parseVttToText", () => {
   it("extracts narration and drops cue chrome", () => {
@@ -38,4 +44,61 @@ This is a test.
 `;
     expect(parseSrtToText(srt)).toBe("Hello world. This is a test.");
   });
+});
+
+describe("parseAvailableCaptionLangs", () => {
+  it("extracts locale list from youtube-transcript errors", () => {
+    expect(
+      parseAvailableCaptionLangs(
+        "No transcripts are available in en this video. Available languages: ar, nl-NL, en-US, fr",
+      ),
+    ).toEqual(["ar", "nl-NL", "en-US", "fr"]);
+  });
+});
+
+describe("fetchViaAutoCc (live)", () => {
+  it(
+    "pulls English auto-CC when bare en is missing (en-US fallback)",
+    async () => {
+      // Spy in the Huddle — often exposes en-US auto captions, not bare `en`
+      const text = await fetchViaAutoCc("cTQ3Ko9ZKg8");
+      expect(text).toBeTruthy();
+      expect(text!.length).toBeGreaterThan(200);
+      expect(text!.toLowerCase()).toMatch(/attenborough|moon|penguin|earth|ocean|antarctica|bird/);
+    },
+    60_000,
+  );
+
+  it(
+    "pulls auto-CC for NatGeo Lions 101",
+    async () => {
+      const text = await fetchViaAutoCc("OMkEVX23BdM");
+      expect(text).toBeTruthy();
+      expect(text!.toLowerCase()).toContain("lion");
+    },
+    60_000,
+  );
+
+  it(
+    "returns null when the uploader disabled all transcripts",
+    async () => {
+      // Official Iguana vs Snakes clip — YouTube reports transcripts disabled
+      const text = await fetchViaAutoCc("el4CQj-TCbA");
+      expect(text).toBeNull();
+    },
+    60_000,
+  );
+});
+
+describe("fetchYouTubeTranscript (live)", () => {
+  it(
+    "uses auto-cc source for RSA Drive",
+    async () => {
+      const t = await fetchYouTubeTranscript("zDZFcDGpL4U");
+      expect(t).toBeTruthy();
+      expect(t!.text.toLowerCase()).toMatch(/education|motivat|country/);
+      expect(["auto-cc", "cache", "yt-dlp"]).toContain(t!.source);
+    },
+    90_000,
+  );
 });

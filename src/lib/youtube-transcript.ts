@@ -1,6 +1,12 @@
 /**
  * Shared YouTube caption fetcher — BBC Doc Lab + RSA Shorts (+ NatGeo videos).
- * Primary: yt-dlp auto/manual English VTT (youtubetranscript.com HTML is dead).
+ *
+ * Order:
+ *  1. Cache
+ *  2. youtube-transcript (manual EN + auto-CC / ASR, with lang fallbacks)
+ *  3. yt-dlp auto+manual VTT (node JS runtime when available)
+ *  4. Legacy XML mirror (usually dead)
+ *
  * Cache under data/yt-cache/ with 7-day TTL.
  */
 
@@ -9,6 +15,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { YoutubeTranscript } from "youtube-transcript";
 
 const execFileAsync = promisify(execFile);
 
@@ -16,13 +23,16 @@ const CACHE_DIR = "data/yt-cache";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CHARS = 12_000;
 
+/** Preferred English caption locales — auto-CC often lands on en-US, not bare `en`. */
+const EN_LANG_CANDIDATES = ["en", "en-US", "en-GB", "en-orig", "a.en"] as const;
+
 export type YtSegment = { start: number; text: string };
 
 export type YtTranscript = {
   videoId: string;
   text: string;
   segments: YtSegment[];
-  source: "cache" | "yt-dlp" | "api";
+  source: "cache" | "auto-cc" | "yt-dlp" | "api";
 };
 
 function vidHash(videoId: string): string {
@@ -83,7 +93,6 @@ export function parseVttToText(vtt: string): string {
     }
     if (/^\d+$/.test(t)) continue;
     if (/-->/.test(t)) continue;
-    // Drop cue timing tags and <c> wrappers from YouTube auto-captions
     t = t
       .replace(/<\d{2}:\d{2}:\d{2}\.\d{3}>/g, "")
       .replace(/<\/?c[^>]*>/g, "")
@@ -93,7 +102,6 @@ export function parseVttToText(vtt: string): string {
       .replace(/\s+/g, " ")
       .trim();
     if (!t || t.length < 2) continue;
-    // Auto-captions often repeat expanding prefixes — keep the longer line
     const prev = chunks[chunks.length - 1];
     if (prev) {
       if (prev === t) continue;
@@ -120,6 +128,83 @@ export function parseSrtToText(srt: string): string {
   return texts.join(" ").replace(/\s+/g, " ").trim();
 }
 
+/** Parse "Available languages: en, en-US, fr" from youtube-transcript errors. */
+export function parseAvailableCaptionLangs(message: string): string[] {
+  const m = /Available languages:\s*([^\n.]+)/i.exec(message || "");
+  if (!m?.[1]) return [];
+  return m[1]
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function preferEnglishLangs(available: string[]): string[] {
+  const lower = available.map((l) => l.trim()).filter(Boolean);
+  const score = (lang: string) => {
+    const l = lang.toLowerCase();
+    if (l === "en") return 100;
+    if (l === "en-us" || l === "en-gb" || l === "en-orig") return 90;
+    if (l.startsWith("en-") || l.startsWith("a.en")) return 80;
+    if (l.includes("en")) return 40;
+    return 0;
+  };
+  return [...lower].sort((a, b) => score(b) - score(a)).filter((l) => score(l) > 0);
+}
+
+function cuesToPlainText(
+  cues: Array<{ text?: string; offset?: number }>,
+): string {
+  const parts: string[] = [];
+  for (const c of cues) {
+    const t = String(c.text || "")
+      .replace(/\[[^\]]*\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!t) continue;
+    const prev = parts[parts.length - 1];
+    if (prev === t) continue;
+    parts.push(t);
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Fetch English captions preferring auto-CC when manual EN is missing.
+ * Tries common EN locales, then any EN-* reported as available.
+ */
+export async function fetchViaAutoCc(videoId: string): Promise<string | null> {
+  const tried = new Set<string>();
+  const queue: string[] = [...EN_LANG_CANDIDATES];
+
+  while (queue.length > 0) {
+    const lang = queue.shift()!;
+    const key = lang.toLowerCase();
+    if (tried.has(key)) continue;
+    tried.add(key);
+    try {
+      const cues = await YoutubeTranscript.fetchTranscript(videoId, { lang });
+      const text = cuesToPlainText(cues);
+      if (text.length >= 80) return text;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/disabled on this video/i.test(msg)) return null;
+      for (const avail of preferEnglishLangs(parseAvailableCaptionLangs(msg))) {
+        if (!tried.has(avail.toLowerCase())) queue.push(avail);
+      }
+    }
+  }
+
+  // Last try: library default (may pick non-English — reject if no Latin letters)
+  try {
+    const cues = await YoutubeTranscript.fetchTranscript(videoId);
+    const text = cuesToPlainText(cues);
+    if (text.length >= 80 && /[A-Za-z]{3,}/.test(text)) return text;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 function resolveYtDlpBin(): string {
   return process.env.YT_DLP_PATH?.trim() || "yt-dlp";
 }
@@ -128,7 +213,6 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
   const outDir = path.join(await cacheDir(), "tmp");
   await fs.mkdir(outDir, { recursive: true });
   const outBase = path.join(outDir, videoId);
-  // Clean prior artifacts for this id
   try {
     const files = await fs.readdir(outDir);
     await Promise.all(
@@ -141,14 +225,17 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
   }
 
   const bin = resolveYtDlpBin();
+  // Prefer auto-CC; also pull manual tracks. Node JS runtime unlocks more player paths.
   const args = [
     "--skip-download",
     "--write-auto-subs",
     "--write-subs",
     "--sub-langs",
-    "en,en-orig,en-GB,en.*",
+    "en.*,en,en-US,en-GB,en-orig",
     "--sub-format",
     "vtt/best",
+    "--js-runtimes",
+    "node",
     "--no-warnings",
     "--ignore-errors",
     "-o",
@@ -163,11 +250,9 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
       cwd: process.cwd(),
     });
   } catch {
-    // yt-dlp may exit non-zero after a partial success (e.g. one lang 429
-    // while en.vtt already written). Still harvest whatever files exist.
+    // Partial downloads still usable
   }
 
-  // Prefer en*.vtt then any .vtt / .srt for this id
   let names: string[] = [];
   try {
     names = (await fs.readdir(outDir)).filter((f) => f.startsWith(videoId));
@@ -175,9 +260,11 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
     return null;
   }
   if (names.length === 0) return null;
+
   const prefer = (a: string, b: string) => {
     const score = (n: string) => {
       let s = 0;
+      if (/\.en-US(\.|$)/i.test(n)) s += 6;
       if (/\.en(\.|$)/i.test(n) || /\.en-/i.test(n)) s += 4;
       if (n.endsWith(".vtt")) s += 2;
       if (n.endsWith(".srt")) s += 1;
@@ -190,9 +277,11 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
   for (const name of names) {
     try {
       const raw = await fs.readFile(path.join(outDir, name), "utf-8");
-      const text = name.endsWith(".srt") ? parseSrtToText(raw) : parseVttToText(raw);
+      const text = name.endsWith(".srt")
+        ? parseSrtToText(raw)
+        : parseVttToText(raw);
       await fs.unlink(path.join(outDir, name)).catch(() => {});
-      if (text.length >= 80) return text;
+      if (text.length >= 80 && /[A-Za-z]{3,}/.test(text)) return text;
     } catch {
       /* try next */
     }
@@ -200,10 +289,6 @@ async function fetchViaYtDlp(videoId: string): Promise<string | null> {
   return null;
 }
 
-/**
- * Legacy HTML/XML endpoint — usually returns a marketing page now.
- * Kept as a cheap last resort if someone mirrors the old XML shape.
- */
 async function fetchViaLegacyApi(videoId: string): Promise<string | null> {
   try {
     const controller = new AbortController();
@@ -242,8 +327,13 @@ export async function fetchYouTubeTranscript(
   const cached = await readCache(id);
   if (cached) return { ...cached, source: "cache" };
 
-  let text = await fetchViaYtDlp(id);
-  let source: YtTranscript["source"] = "yt-dlp";
+  let text = await fetchViaAutoCc(id);
+  let source: YtTranscript["source"] = "auto-cc";
+
+  if (!text) {
+    text = await fetchViaYtDlp(id);
+    if (text) source = "yt-dlp";
+  }
 
   if (!text) {
     text = await fetchViaLegacyApi(id);
