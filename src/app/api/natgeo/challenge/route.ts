@@ -17,6 +17,7 @@ import {
   type NatGeoChallengeLearner,
 } from "@/lib/entertain/natgeo-challenge";
 import { findNatGeoArticle } from "@/lib/entertain/natgeo-catalog";
+import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,84 +49,100 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Missing slug" }, { status: 400 });
   }
 
-  // Try catalog first, then live scrape
-  let article = findNatGeoArticle(slug);
-  if (!article) {
-    article = await fetchNatGeoArticle(slug);
-  }
+  try {
+    // Try catalog first, then live scrape
+    let article = findNatGeoArticle(slug);
+    if (!article) {
+      article = await fetchNatGeoArticle(slug);
+    }
 
-  if (!article) {
-    return Response.json(
-      { ok: false, error: "Article not found" },
-      { status: 404 },
-    );
-  }
-
-  const learner = body.learner || null;
-  let challenge = buildFallbackNatGeoChallenge(article, learner);
-
-  // Optionally polish with LLM (when article has enough text)
-  const forceFallback =
-    process.env.NATGEO_CHALLENGE_FORCE_FALLBACK === "1" ||
-    process.env.NATGEO_CHALLENGE_FORCE_FALLBACK === "true";
-
-  if (!forceFallback && article.body.length > 400) {
-    let agent: SDKAgent | null = null;
-    try {
-      agent = await Agent.create({
-        apiKey: apiKey(),
-        model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
-        name: "NatGeo Challenge",
-        local: {
-          cwd: path.join(process.cwd(), "tutor-workspace"),
-          settingSources: [],
-        },
-      });
-
-      let full = "";
-      const prompt = natgeoChallengeSystemPrompt(article, learner);
-      const run = await agent.send(
-        { text: prompt },
-        {
-          onDelta: ({ update }) => {
-            if (update.type === "text-delta" && update.text) full += update.text;
-          },
-        },
+    if (!article) {
+      return Response.json(
+        { ok: false, error: "Article not found" },
+        { status: 404 },
       );
-      for await (const ev of run.stream()) {
-        if (req.signal.aborted) break;
-        if (ev.type === "assistant") {
-          for (const block of ev.message.content) {
-            if (
-              block.type === "text" &&
-              block.text &&
-              block.text.length > full.length
-            ) {
-              full = block.text;
+    }
+
+    const learner = body.learner || null;
+    let challenge = buildFallbackNatGeoChallenge(article, learner);
+
+    const forceFallback =
+      process.env.NATGEO_CHALLENGE_FORCE_FALLBACK === "1" ||
+      process.env.NATGEO_CHALLENGE_FORCE_FALLBACK === "true";
+
+    const polish =
+      !forceFallback &&
+      article.body.length > 400 &&
+      canAffordChallengeAgent();
+
+    if (polish) {
+      let agent: SDKAgent | null = null;
+      try {
+        agent = await Agent.create({
+          apiKey: apiKey(),
+          model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
+          name: "NatGeo Challenge",
+          local: {
+            cwd: path.join(process.cwd(), "tutor-workspace"),
+            settingSources: [],
+          },
+        });
+
+        let full = "";
+        const prompt = natgeoChallengeSystemPrompt(article, learner);
+        const run = await agent.send(
+          { text: prompt },
+          {
+            onDelta: ({ update }) => {
+              if (update.type === "text-delta" && update.text) full += update.text;
+            },
+          },
+        );
+        for await (const ev of run.stream()) {
+          if (req.signal.aborted) break;
+          if (ev.type === "assistant") {
+            for (const block of ev.message.content) {
+              if (
+                block.type === "text" &&
+                block.text &&
+                block.text.length > full.length
+              ) {
+                full = block.text;
+              }
             }
           }
         }
-      }
 
-      const grade =
-        typeof learner?.grade === "number" && Number.isFinite(learner.grade)
-          ? Math.round(learner.grade)
-          : 4;
-      const level = challenge.level || "developing";
-      const parsed = parseNatGeoChallengeJson(full, article, level, grade);
-      if (parsed) challenge = parsed;
-    } catch (err) {
-      if (err instanceof CursorAgentError) {
-        /* keep fallback */
-      }
-    } finally {
-      try {
-        agent?.close();
-      } catch {
-        /* ignore */
+        const grade =
+          typeof learner?.grade === "number" && Number.isFinite(learner.grade)
+            ? Math.round(learner.grade)
+            : 4;
+        const level = challenge.level || "developing";
+        const parsed = parseNatGeoChallengeJson(full, article, level, grade);
+        if (parsed) challenge = parsed;
+      } catch (err) {
+        if (!(err instanceof CursorAgentError)) {
+          console.warn("[natgeo/challenge] agent polish failed:", err);
+        }
+      } finally {
+        try {
+          agent?.close();
+        } catch {
+          /* ignore */
+        }
       }
     }
-  }
 
-  return Response.json({ ok: true, challenge });
+    return Response.json({ ok: true, challenge });
+  } catch (err) {
+    console.error("[natgeo/challenge]", err);
+    return Response.json(
+      {
+        ok: false,
+        error:
+          err instanceof Error ? err.message : "Could not build challenge",
+      },
+      { status: 500 },
+    );
+  }
 }

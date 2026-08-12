@@ -13,6 +13,7 @@ import { normalizeLearnerGrade, formatTedDifficultyLabel } from "@/lib/entertain
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { youtubeEmbedUrl } from "@/lib/youtube-urls";
+import { readResponseJson } from "@/lib/api-json";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -55,7 +56,7 @@ export function BbcDocLab() {
   const fetchChallenge = useCallback(async () => {
     if (!selectedClip) return null;
     const res = await fetch("/api/bbc/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: selectedClip.videoId, learner: { grade: normalizeLearnerGrade(grade || undefined), englishLevel } }) });
-    const data = await res.json();
+    const data = await readResponseJson<{ ok?: boolean; error?: string; challenge?: unknown }>(res);
     if (!data.ok) throw new Error(data.error || "Failed");
     return data.challenge;
   }, [selectedClip, grade, englishLevel]);

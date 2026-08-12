@@ -33,7 +33,14 @@ const ROOT = resolve(__dirname, "..");
 const DOT_NEXT = resolve(ROOT, ".next");
 const DOT_NEXT_PREV = resolve(ROOT, ".next.prev");
 
+/** Sidecars stopped to free RAM during the build itself. */
 const PM2_SERVICES_TO_FREE = ["formospeech-tts"];
+/**
+ * App must stop BEFORE `.next` is stashed — otherwise live traffic hits a
+ * missing BUILD_ID and Next returns plain "Internal Server Error" (not JSON),
+ * which Studio labs surface as `Unexpected token 'I'...`.
+ */
+const PM2_APP = "spark-tutor";
 
 let stashed = false;
 let finished = false;
@@ -165,6 +172,29 @@ function stopHeavyServices() {
   }
 }
 
+function stopAppForBuild() {
+  try {
+    execSync(`pm2 stop ${PM2_APP}`, { cwd: ROOT, stdio: "pipe", timeout: 15000 });
+    log(`Stopped PM2 app: ${PM2_APP} (avoid serving stashed/incomplete .next)`);
+    execSync("sleep 1", { stdio: "ignore" });
+  } catch {
+    log(`Warning: could not stop ${PM2_APP}`);
+  }
+}
+
+function restartAppAfterBuild() {
+  try {
+    execSync(`pm2 restart ${PM2_APP}`, {
+      cwd: ROOT,
+      stdio: "pipe",
+      timeout: 60000,
+    });
+    log(`Restarted PM2 app: ${PM2_APP}`);
+  } catch {
+    log(`Warning: could not restart ${PM2_APP}`);
+  }
+}
+
 function restartHeavyServices() {
   for (const svc of PM2_SERVICES_TO_FREE) {
     try {
@@ -184,10 +214,9 @@ function postClean() {
   log("Phase 5: Post-clean");
   gc();
   log(`Final memory: ${freeMB()} MB free`);
-  const cacheDirs = [
-    resolve(DOT_NEXT, "cache"),
-    resolve(DOT_NEXT, "server", "pages"),
-  ];
+  // Only drop webpack/turbopack cache. Keep `.next/server/pages` (incl. 500.html)
+  // — deleting it made Next return plain "Internal Server Error" text on failures.
+  const cacheDirs = [resolve(DOT_NEXT, "cache")];
   for (const dir of cacheDirs) {
     if (existsSync(dir)) {
       try {
@@ -212,15 +241,18 @@ function emergencyRestore(signal) {
 
 process.on("SIGINT", () => {
   emergencyRestore("SIGINT");
+  restartAppAfterBuild();
   process.exit(1);
 });
 process.on("SIGTERM", () => {
   emergencyRestore("SIGTERM");
+  restartAppAfterBuild();
   process.exit(1);
 });
 process.on("uncaughtException", (err) => {
   log(`uncaughtException: ${err.message}`);
   emergencyRestore("uncaughtException");
+  restartAppAfterBuild();
   process.exit(1);
 });
 
@@ -238,6 +270,7 @@ async function main() {
     process.exit(1);
   }
 
+  stopAppForBuild();
   stashLiveNext();
 
   const attempts = [
@@ -256,6 +289,7 @@ async function main() {
     if (ok && commitNewNext()) {
       log(`Build successful (attempt ${i + 1})`);
       postClean();
+      restartAppAfterBuild();
       restartHeavyServices();
       finished = true;
       process.exit(0);
@@ -268,6 +302,7 @@ async function main() {
 
   log("FATAL: All build attempts failed — restoring previous .next");
   restoreLiveNext("all attempts failed");
+  restartAppAfterBuild();
   restartHeavyServices();
   finished = true;
   process.exit(1);
@@ -276,6 +311,7 @@ async function main() {
 main().catch((err) => {
   log(`Unhandled error: ${err.message}`);
   emergencyRestore("unhandledRejection");
+  restartAppAfterBuild();
   restartHeavyServices();
   process.exit(1);
 });

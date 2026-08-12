@@ -10,6 +10,7 @@ import {
   parseRsaChallengeJson,
   type RsaChallengeLearner,
 } from "@/lib/entertain/rsa-challenge";
+import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
 import { fetchYouTubeTranscript } from "@/lib/youtube-transcript";
 
 export const runtime = "nodejs";
@@ -42,65 +43,85 @@ export async function POST(req: Request) {
   if (!video)
     return Response.json({ ok: false, error: "Video not found" }, { status: 404 });
 
-  const learner = body.learner || null;
+  try {
+    const learner = body.learner || null;
 
-  const transcript = await fetchYouTubeTranscript(videoId);
+    const transcript = await fetchYouTubeTranscript(videoId);
+    let challenge = buildFallbackRsaChallenge(video, transcript, learner);
 
-  let challenge = buildFallbackRsaChallenge(video, transcript, learner);
+    const forceFallback =
+      process.env.RSA_CHALLENGE_FORCE_FALLBACK === "1" ||
+      process.env.RSA_CHALLENGE_FORCE_FALLBACK === "true";
+    const polish =
+      !forceFallback && Boolean(transcript) && canAffordChallengeAgent();
 
-  const forceFallback = process.env.RSA_CHALLENGE_FORCE_FALLBACK === "1";
-  if (!forceFallback && transcript) {
-    let agent: SDKAgent | null = null;
-    try {
-      agent = await Agent.create({
-        apiKey: apiKey(),
-        model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
-        name: "RSA Challenge",
-        local: {
-          cwd: path.join(process.cwd(), "tutor-workspace"),
-          settingSources: [],
-        },
-      });
-
-      let full = "";
-      const prompt = rsaChallengeSystemPrompt(video, transcript, learner);
-      const run = await agent.send(
-        { text: prompt },
-        {
-          onDelta: ({ update }) => {
-            if (update.type === "text-delta" && update.text) full += update.text;
+    if (polish) {
+      let agent: SDKAgent | null = null;
+      try {
+        agent = await Agent.create({
+          apiKey: apiKey(),
+          model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
+          name: "RSA Challenge",
+          local: {
+            cwd: path.join(process.cwd(), "tutor-workspace"),
+            settingSources: [],
           },
-        },
-      );
-      for await (const ev of run.stream()) {
-        if (req.signal.aborted) break;
-        if (ev.type === "assistant") {
-          for (const block of ev.message.content) {
-            if (
-              block.type === "text" &&
-              block.text &&
-              block.text.length > full.length
-            )
-              full = block.text;
+        });
+
+        let full = "";
+        const prompt = rsaChallengeSystemPrompt(video, transcript!, learner);
+        const run = await agent.send(
+          { text: prompt },
+          {
+            onDelta: ({ update }) => {
+              if (update.type === "text-delta" && update.text) full += update.text;
+            },
+          },
+        );
+        for await (const ev of run.stream()) {
+          if (req.signal.aborted) break;
+          if (ev.type === "assistant") {
+            for (const block of ev.message.content) {
+              if (
+                block.type === "text" &&
+                block.text &&
+                block.text.length > full.length
+              )
+                full = block.text;
+            }
           }
         }
-      }
 
-      const grade =
-        typeof learner?.grade === "number" && Number.isFinite(learner.grade)
-          ? Math.round(learner.grade)
-          : 7;
-      const level = challenge.level || "developing";
-      const parsed = parseRsaChallengeJson(full, video, level, grade);
-      if (parsed) challenge = parsed;
-    } catch (err) {
-      if (err instanceof CursorAgentError) {
-        /* keep fallback */
+        const grade =
+          typeof learner?.grade === "number" && Number.isFinite(learner.grade)
+            ? Math.round(learner.grade)
+            : 7;
+        const level = challenge.level || "developing";
+        const parsed = parseRsaChallengeJson(full, video, level, grade);
+        if (parsed) challenge = parsed;
+      } catch (err) {
+        if (!(err instanceof CursorAgentError)) {
+          console.warn("[rsa/challenge] agent polish failed:", err);
+        }
+      } finally {
+        try {
+          agent?.close();
+        } catch {
+          /* ignore */
+        }
       }
-    } finally {
-      try { agent?.close(); } catch { /* ignore */ }
     }
-  }
 
-  return Response.json({ ok: true, challenge });
+    return Response.json({ ok: true, challenge });
+  } catch (err) {
+    console.error("[rsa/challenge]", err);
+    return Response.json(
+      {
+        ok: false,
+        error:
+          err instanceof Error ? err.message : "Could not build challenge",
+      },
+      { status: 500 },
+    );
+  }
 }

@@ -10,6 +10,7 @@ import {
   parseBbcChallengeJson,
   type BbcChallengeLearner,
 } from "@/lib/entertain/bbc-challenge";
+import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
 import { fetchYouTubeTranscript } from "@/lib/youtube-transcript";
 
 export const runtime = "nodejs";
@@ -42,67 +43,85 @@ export async function POST(req: Request) {
   if (!clip)
     return Response.json({ ok: false, error: "Clip not found" }, { status: 404 });
 
-  const learner = body.learner || null;
+  try {
+    const learner = body.learner || null;
 
-  // Fetch transcript
-  const transcript = await fetchYouTubeTranscript(videoId);
+    const transcript = await fetchYouTubeTranscript(videoId);
+    let challenge = buildFallbackBbcChallenge(clip, transcript, learner);
 
-  let challenge = buildFallbackBbcChallenge(clip, transcript, learner);
+    const forceFallback =
+      process.env.BBC_CHALLENGE_FORCE_FALLBACK === "1" ||
+      process.env.BBC_CHALLENGE_FORCE_FALLBACK === "true";
+    const polish =
+      !forceFallback && Boolean(transcript) && canAffordChallengeAgent();
 
-  // LLM polish
-  const forceFallback = process.env.BBC_CHALLENGE_FORCE_FALLBACK === "1";
-  if (!forceFallback && transcript) {
-    let agent: SDKAgent | null = null;
-    try {
-      agent = await Agent.create({
-        apiKey: apiKey(),
-        model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
-        name: "BBC Challenge",
-        local: {
-          cwd: path.join(process.cwd(), "tutor-workspace"),
-          settingSources: [],
-        },
-      });
-
-      let full = "";
-      const prompt = bbcChallengeSystemPrompt(clip, transcript, learner);
-      const run = await agent.send(
-        { text: prompt },
-        {
-          onDelta: ({ update }) => {
-            if (update.type === "text-delta" && update.text) full += update.text;
+    if (polish) {
+      let agent: SDKAgent | null = null;
+      try {
+        agent = await Agent.create({
+          apiKey: apiKey(),
+          model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
+          name: "BBC Challenge",
+          local: {
+            cwd: path.join(process.cwd(), "tutor-workspace"),
+            settingSources: [],
           },
-        },
-      );
-      for await (const ev of run.stream()) {
-        if (req.signal.aborted) break;
-        if (ev.type === "assistant") {
-          for (const block of ev.message.content) {
-            if (
-              block.type === "text" &&
-              block.text &&
-              block.text.length > full.length
-            )
-              full = block.text;
+        });
+
+        let full = "";
+        const prompt = bbcChallengeSystemPrompt(clip, transcript!, learner);
+        const run = await agent.send(
+          { text: prompt },
+          {
+            onDelta: ({ update }) => {
+              if (update.type === "text-delta" && update.text) full += update.text;
+            },
+          },
+        );
+        for await (const ev of run.stream()) {
+          if (req.signal.aborted) break;
+          if (ev.type === "assistant") {
+            for (const block of ev.message.content) {
+              if (
+                block.type === "text" &&
+                block.text &&
+                block.text.length > full.length
+              )
+                full = block.text;
+            }
           }
         }
-      }
 
-      const grade =
-        typeof learner?.grade === "number" && Number.isFinite(learner.grade)
-          ? Math.round(learner.grade)
-          : 4;
-      const level = challenge.level || "developing";
-      const parsed = parseBbcChallengeJson(full, clip, level, grade);
-      if (parsed) challenge = parsed;
-    } catch (err) {
-      if (err instanceof CursorAgentError) {
-        /* keep fallback */
+        const grade =
+          typeof learner?.grade === "number" && Number.isFinite(learner.grade)
+            ? Math.round(learner.grade)
+            : 4;
+        const level = challenge.level || "developing";
+        const parsed = parseBbcChallengeJson(full, clip, level, grade);
+        if (parsed) challenge = parsed;
+      } catch (err) {
+        if (!(err instanceof CursorAgentError)) {
+          console.warn("[bbc/challenge] agent polish failed:", err);
+        }
+      } finally {
+        try {
+          agent?.close();
+        } catch {
+          /* ignore */
+        }
       }
-    } finally {
-      try { agent?.close(); } catch { /* ignore */ }
     }
-  }
 
-  return Response.json({ ok: true, challenge });
+    return Response.json({ ok: true, challenge });
+  } catch (err) {
+    console.error("[bbc/challenge]", err);
+    return Response.json(
+      {
+        ok: false,
+        error:
+          err instanceof Error ? err.message : "Could not build challenge",
+      },
+      { status: 500 },
+    );
+  }
 }

@@ -9,6 +9,7 @@ import { normalizeLearnerGrade, formatTedDifficultyLabel } from "@/lib/entertain
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { youtubeEmbedUrl } from "@/lib/youtube-urls";
+import { readResponseJson } from "@/lib/api-json";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
@@ -45,7 +46,9 @@ export function RsaShortsLab() {
   const fetchChallenge = useCallback(async () => {
     if (!selectedVideo) return null;
     const res = await fetch("/api/rsa/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: selectedVideo.videoId, learner: { grade: normalizeLearnerGrade(grade || undefined), englishLevel } }) });
-    const data = await res.json(); if (!data.ok) throw new Error(data.error || "Failed"); return data.challenge;
+    const data = await readResponseJson<{ ok?: boolean; error?: string; challenge?: unknown }>(res);
+    if (!data.ok) throw new Error(data.error || "Failed");
+    return data.challenge;
   }, [selectedVideo, grade, englishLevel]);
 
   const startChallenge = useCallback(async () => {
