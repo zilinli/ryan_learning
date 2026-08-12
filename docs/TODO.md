@@ -37,7 +37,7 @@
 - [x] **JM.3** — `/me` + sidebar Me + peek + Open all
 - [x] **JM.4** — Creation save → append/create today’s journal + snapshot
 - [ ] **JM.5** — Family read-only + On This Day *(later)*
-- [ ] **JM.6** — `apply_changes` → `publish_develop` → `deploy_live`
+- [x] **JM.6** — pushed `5f1c0c2` to develop+master; build + pm2 restart (live 200)
 
 ---
 
