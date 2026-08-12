@@ -7,16 +7,16 @@ import {
 import { findBbcClip } from "./bbc-catalog";
 
 describe("bbc-challenge", () => {
-  const clip = findBbcClip("el4CQj-TCbA");
-  if (!clip) throw new Error("iguana clip not found");
+  const clip = findBbcClip("cTQ3Ko9ZKg8");
+  if (!clip) throw new Error("penguin clip not found");
 
   it("builds fallback challenge with no transcript", () => {
     const challenge = buildFallbackBbcChallenge(clip, null, {
       grade: 4,
       englishLevel: "developing",
     });
-    expect(challenge.videoId).toBe("el4CQj-TCbA");
-    expect(challenge.title).toContain("Iguana");
+    expect(challenge.videoId).toBe("cTQ3Ko9ZKg8");
+    expect(challenge.title).toContain("Penguin");
     expect(challenge.items.length).toBe(5);
     expect(challenge.generatedFromTranscript).toBe(false);
     expect(challenge.grade).toBe(4);
@@ -55,7 +55,7 @@ describe("bbc-challenge", () => {
       grade: 5,
       englishLevel: "developing",
     });
-    expect(prompt).toContain("Iguana");
+    expect(prompt).toContain("Penguin");
     expect(prompt).toContain("Grade 5");
   });
 
@@ -65,7 +65,7 @@ describe("bbc-challenge", () => {
         {
           kind: "observation",
           prompt: "What did you see?",
-          choices: ["Snakes chasing an iguana", "A lion", "A fish", "A bird"],
+          choices: ["Penguins huddling in winter", "A lion", "A fish", "A bird"],
           rubricHint: "Names a specific visual detail",
         },
       ],

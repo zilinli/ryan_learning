@@ -30,7 +30,7 @@ describe("rsa-catalog", () => {
   });
 
   it("findRsaVideo returns video by videoId", () => {
-    const v = findRsaVideo("u6XAPnuFjJc");
+    const v = findRsaVideo("zDZFcDGpL4U");
     expect(v).toBeTruthy();
     expect(v!.title).toContain("Drive");
   });

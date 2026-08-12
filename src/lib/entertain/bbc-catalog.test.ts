@@ -30,9 +30,9 @@ describe("bbc-catalog", () => {
   });
 
   it("findBbcClip returns clip by videoId", () => {
-    const c = findBbcClip("el4CQj-TCbA");
+    const c = findBbcClip("cTQ3Ko9ZKg8");
     expect(c).toBeTruthy();
-    expect(c!.title).toContain("Iguana");
+    expect(c!.title).toContain("Penguin");
   });
 
   it("findBbcClip returns undefined for unknown id", () => {
@@ -48,7 +48,7 @@ describe("bbc-catalog", () => {
   });
 
   it("searchBbcCatalog filters by query", () => {
-    const results = searchBbcCatalog("coral", undefined);
+    const results = searchBbcCatalog("penguin", undefined);
     expect(results.length).toBeGreaterThanOrEqual(1);
   });
 

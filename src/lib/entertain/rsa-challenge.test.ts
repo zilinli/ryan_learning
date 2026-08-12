@@ -7,7 +7,7 @@ import {
 import { findRsaVideo } from "./rsa-catalog";
 
 describe("rsa-challenge", () => {
-  const video = findRsaVideo("u6XAPnuFjJc");
+  const video = findRsaVideo("zDZFcDGpL4U");
   if (!video) throw new Error("Drive video not found");
 
   it("builds fallback challenge with no transcript", () => {
@@ -15,7 +15,7 @@ describe("rsa-challenge", () => {
       grade: 8,
       englishLevel: "confident",
     });
-    expect(challenge.videoId).toBe("u6XAPnuFjJc");
+    expect(challenge.videoId).toBe("zDZFcDGpL4U");
     expect(challenge.title).toContain("Drive");
     expect(challenge.items.length).toBe(4);
     expect(challenge.generatedFromTranscript).toBe(false);

@@ -1,7 +1,7 @@
 /**
  * Curated RSA Shorts & Animates catalog for RSA Lab.
  * Sourced from the official RSA YouTube channel (@theRSAorg).
- * All videos have professional manual captions.
+ * Only videos with usable English captions (manual or auto-CC).
  *
  * Challenge model reuses TED's literal/structure/critique/retell pattern
  * since RSA content is argumentative/idea-driven.
@@ -177,28 +177,6 @@ export const RSA_CATALOG: RsaVideo[] = [
     gradeMin: 6,
     gradeMax: 11,
     blurb: "The best teachers don't just deliver content — they inspire curiosity. What the research says about great teaching.",
-  },
-  {
-    videoId: "2aCTK9R4Y9k",
-    title: "Why Creativity Matters",
-    speaker: "Sir Ken Robinson",
-    series: "Shorts",
-    topic: "creativity",
-    durationSec: 320,
-    gradeMin: 6,
-    gradeMax: 11,
-    blurb: "Schools kill creativity — but they don't have to. Ken Robinson's powerful argument for rethinking education.",
-  },
-  {
-    videoId: "3-LNTO21FQQ",
-    title: "The Feedback Loop of Learning",
-    speaker: "Various",
-    series: "Shorts",
-    topic: "education",
-    durationSec: 280,
-    gradeMin: 6,
-    gradeMax: 11,
-    blurb: "Effective feedback is specific, timely, and focused on the task — not the person. How to give and receive it.",
   },
   {
     videoId: "AfTU_796XaM",

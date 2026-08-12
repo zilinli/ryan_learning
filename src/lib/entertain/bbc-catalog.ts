@@ -1,7 +1,8 @@
 /**
  * Curated BBC documentary clip catalog for BBC Doc Lab.
  * Sourced from official BBC YouTube channels (BBC Earth, BBC, BBC Ideas).
- * All clips have manual captions suitable for transcript extraction.
+ * Only clips with usable English captions (manual or auto-CC) — required for
+ * transcript-grounded challenges.
  */
 
 export type BbcTopic =
@@ -30,17 +31,6 @@ export function bbcVideoUrl(videoId: string): string {
 
 export const BBC_CATALOG: BbcClip[] = [
   // ── BBC Earth: Planet Earth & Blue Planet ──
-  {
-    videoId: "el4CQj-TCbA",
-    title: "Iguana vs Snakes — Planet Earth II",
-    series: "Planet Earth II",
-    topic: "nature",
-    durationSec: 267,
-    gradeMin: 3,
-    gradeMax: 8,
-    blurb: "A hatchling iguana races across a beach — chased by dozens of racer snakes. One of the most intense chase scenes ever filmed.",
-    channel: "BBC Earth",
-  },
   {
     videoId: "cTQ3Ko9ZKg8",
     title: "Penguins: Spy in the Huddle — Emperor Penguins",
@@ -166,17 +156,6 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Ideas: Culture & Society ──
   {
-    videoId: "nMAzchVWTis",
-    title: "What Is Cultural Appropriation?",
-    series: "BBC Ideas",
-    topic: "culture",
-    durationSec: 270,
-    gradeMin: 7,
-    gradeMax: 12,
-    blurb: "Where is the line between cultural appreciation and appropriation? A nuanced look at a complex question.",
-    channel: "BBC Ideas",
-  },
-  {
     videoId: "3uzucyoUe6Q",
     title: "The History of Tea",
     series: "BBC Ideas",
@@ -199,29 +178,7 @@ export const BBC_CATALOG: BbcClip[] = [
     blurb: "From the forest floor to the canopy, discover how the Amazon creates its own weather and sustains millions of species.",
     channel: "BBC Earth",
   },
-  {
-    videoId: "ETfLn6YbJCA",
-    title: "How Coral Reefs Form",
-    series: "Blue Planet II",
-    topic: "geography",
-    durationSec: 200,
-    gradeMin: 4,
-    gradeMax: 9,
-    blurb: "Coral reefs take thousands of years to form but can be destroyed in decades. How do these underwater cities grow?",
-    channel: "BBC Earth",
-  },
   // ── BBC Ideas: Technology ──
-  {
-    videoId: "FVE3VlwcFaY",
-    title: "How Does AI Actually Work?",
-    series: "BBC Ideas",
-    topic: "technology",
-    durationSec: 290,
-    gradeMin: 6,
-    gradeMax: 12,
-    blurb: "Artificial intelligence is everywhere — but how does machine learning actually work? A clear, visual explanation.",
-    channel: "BBC Ideas",
-  },
   {
     videoId: "d_FEaFgJyfA",
     title: "The Internet: Under the Sea",
