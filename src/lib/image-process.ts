@@ -16,6 +16,52 @@ function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
+/** Map a pointer into 0–1 coords relative to an element's bounding box. */
+export function clientToCropNorm(
+  bounds: { left: number; top: number; width: number; height: number },
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
+  if (!bounds.width || !bounds.height) return { x: 0, y: 0 };
+  return {
+    x: clamp01((clientX - bounds.left) / bounds.width),
+    y: clamp01((clientY - bounds.top) / bounds.height),
+  };
+}
+
+/** Build a normalized rect from drag start → current point (min edge 0.04). */
+export function rectFromDrag(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  minSize = 0.04,
+): CropRectNorm {
+  const w = Math.max(minSize, Math.abs(endX - startX));
+  const h = Math.max(minSize, Math.abs(endY - startY));
+  const x = Math.min(startX, endX);
+  const y = Math.min(startY, endY);
+  return {
+    x: Math.max(0, Math.min(1 - w, x)),
+    y: Math.max(0, Math.min(1 - h, y)),
+    w: Math.min(1, w),
+    h: Math.min(1, h),
+  };
+}
+
+/** Tiny or near-full selection → skip crop, just compress. */
+export function isNearFullFrameCrop(rect: CropRectNorm): boolean {
+  const x = clamp01(rect.x);
+  const y = clamp01(rect.y);
+  const w = clamp01(rect.w);
+  const h = clamp01(rect.h);
+  return (
+    w < 0.05 ||
+    h < 0.05 ||
+    (x <= 0.02 && y <= 0.02 && w >= 0.96 && h >= 0.96)
+  );
+}
+
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -33,8 +79,9 @@ export async function compressImageDataUrl(
   dataUrl: string,
   mimeHint = "image/jpeg",
 ): Promise<{ dataUrl: string; mimeType: string; data: string }> {
-  // Skip tiny images
-  const approxBytes = Math.floor((dataUrl.length - (dataUrl.indexOf(",") + 1)) * 0.75);
+  const approxBytes = Math.floor(
+    (dataUrl.length - (dataUrl.indexOf(",") + 1)) * 0.75,
+  );
   try {
     const img = await loadImage(dataUrl);
     let { width, height } = img;
@@ -55,7 +102,6 @@ export async function compressImageDataUrl(
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
 
-    // Prefer JPEG for photos; keep PNG only for tiny graphics with alpha needs
     const wantPng = mimeHint === "image/png" && approxBytes < 400_000;
     const mimeType = wantPng ? "image/png" : "image/jpeg";
     const out = wantPng
@@ -88,8 +134,7 @@ export async function cropImageDataUrl(
   const y = clamp01(rect.y);
   const w = clamp01(rect.w);
   const h = clamp01(rect.h);
-  // Near-full page or invalid → just compress
-  if (w < 0.05 || h < 0.05 || (x <= 0.02 && y <= 0.02 && w >= 0.96 && h >= 0.96)) {
+  if (isNearFullFrameCrop({ x, y, w, h })) {
     return compressImageDataUrl(dataUrl, mimeHint);
   }
 

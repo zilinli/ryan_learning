@@ -67,6 +67,15 @@
 - [x] **AUDIT8.5** — `/parent` → `/family` (TTS Listen digest deferred — edit budget)
 - [x] **AUDIT8.6** — Photo crop (`cropImageDataUrl` + modal) after camera
 - [x] **AUDIT8.7** — Code Agent safe suggestions / PIN for destructive (keep agent) — [ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)
+
+## 📷 CROP-MOBILE — Homework photo crop on phones (2026-08-12)
+
+> Design: [subsystems/photo-crop-mobile.md](subsystems/photo-crop-mobile.md)
+
+- [x] **CROP-M.1** — Export `clientToCropNorm` / `rectFromDrag` / `isNearFullFrameCrop` in `image-process.ts`
+- [x] **CROP-M.2** — `PhotoCropModal`: `dvh` + safe-area + `min-h-0` stage; `block max-h-full` img; body scroll lock
+- [x] **CROP-M.3** — Unit tests `image-process-crop.test.ts`
+- [ ] **CROP-M.4** — `run_tests` → `apply_changes` → `publish_develop` → `deploy_live`
 - [x] **AUDIT8.8** — Voice menu Core/More lazy groups (no language removal)
 - [ ] **AUDIT8.9** — `run_tests` on touched files → `apply_changes` → `publish_develop` → `deploy_live`
 - [x] **TODO-CLEAN.1** — Wire TEO.5 dialect-feedback `engine`+`original` from Composer/VoiceControls

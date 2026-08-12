@@ -91,6 +91,7 @@ flowchart TB
 | **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** | 2026-08-11 UX竞品报告 — wait phases / step chips / persona; Ello ASR deferred |
 | **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** | 2026-08-11 v4 深度分析 — Studio↔BKT outcome + printable Learning Portfolio (AUD.6b) |
 | **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** | 2026-08 产品审计路线图 — Coach SM / parent / FSRS-lite / crop；**多语言+Code Agent 锁定保留** |
+| **[subsystems/photo-crop-mobile.md](subsystems/photo-crop-mobile.md)** | 📷 Homework photo crop — mobile `dvh`/safe-area layout + overlay alignment |
 | **[subsystems/ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)** | AUDIT8.7/8.8 — Code Agent safe chips + PIN for destructive; voice menu Core/More (no language removal) |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |

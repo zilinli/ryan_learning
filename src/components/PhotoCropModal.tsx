@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  clientToCropNorm,
   compressImageDataUrl,
   cropImageDataUrl,
+  rectFromDrag,
   type CropRectNorm,
 } from "@/lib/image-process";
 
@@ -23,6 +25,7 @@ type Props = {
 /**
  * After camera/gallery — drag a rectangle to send only the question region.
  * "整页" keeps the full compressed photo.
+ * Mobile: stage uses dvh + safe-area so the preview fits above actions.
  */
 export function PhotoCropModal({
   open,
@@ -39,10 +42,8 @@ export function PhotoCropModal({
     h: 0.8,
   });
   const drag = useRef<{
-    mode: "new" | "move";
     startX: number;
     startY: number;
-    orig: CropRectNorm;
   } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -51,42 +52,34 @@ export function PhotoCropModal({
     setRect({ x: 0.08, y: 0.08, w: 0.84, h: 0.84 });
   }, [open, dataUrl]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const clientToNorm = useCallback((clientX: number, clientY: number) => {
     const el = imgRef.current;
     if (!el) return { x: 0, y: 0 };
-    const r = el.getBoundingClientRect();
-    return {
-      x: Math.max(0, Math.min(1, (clientX - r.left) / r.width)),
-      y: Math.max(0, Math.min(1, (clientY - r.top) / r.height)),
-    };
+    return clientToCropNorm(el.getBoundingClientRect(), clientX, clientY);
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const p = clientToNorm(e.clientX, e.clientY);
-    drag.current = {
-      mode: "new",
-      startX: p.x,
-      startY: p.y,
-      orig: rect,
-    };
+    drag.current = { startX: p.x, startY: p.y };
     setRect({ x: p.x, y: p.y, w: 0.02, h: 0.02 });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
+    e.preventDefault();
     const p = clientToNorm(e.clientX, e.clientY);
-    const { startX, startY } = drag.current;
-    const x = Math.min(startX, p.x);
-    const y = Math.min(startY, p.y);
-    const w = Math.max(0.04, Math.abs(p.x - startX));
-    const h = Math.max(0.04, Math.abs(p.y - startY));
-    setRect({
-      x: Math.max(0, Math.min(1 - w, x)),
-      y: Math.max(0, Math.min(1 - h, y)),
-      w: Math.min(1, w),
-      h: Math.min(1, h),
-    });
+    setRect(rectFromDrag(drag.current.startX, drag.current.startY, p.x, p.y));
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -114,34 +107,39 @@ export function PhotoCropModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex flex-col bg-black/80"
+      className="fixed inset-0 z-[80] flex h-dvh max-h-dvh flex-col bg-black/80"
       role="dialog"
       aria-modal="true"
       aria-label="Crop homework photo"
     >
-      <div className="flex items-center justify-between gap-2 px-3 py-3 text-white">
+      <div className="safe-top flex shrink-0 items-center justify-between gap-2 px-3 py-3 text-white">
         <p className="text-sm font-medium">框选要问的题目</p>
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-10 rounded-lg px-3 text-sm opacity-90"
+          className="min-h-11 rounded-lg px-3 text-sm opacity-90"
         >
           Cancel
         </button>
       </div>
-      <div className="relative mx-auto flex min-h-0 flex-1 items-center justify-center px-3 pb-3">
+      {/*
+        Stage must shrink (min-h-0) so the image never uses a fixed 70vh that
+        overflows under the action row on phones with URL-bar / home indicator.
+      */}
+      <div className="relative mx-auto flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-3">
         <div
           className="relative max-h-full max-w-full touch-none select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef}
             src={dataUrl}
             alt="Homework to crop"
-            className="max-h-[70vh] max-w-[min(100vw,40rem)] object-contain"
+            className="block max-h-full max-w-full object-contain"
             draggable={false}
           />
           <div
@@ -155,7 +153,7 @@ export function PhotoCropModal({
           />
         </div>
       </div>
-      <div className="flex flex-wrap justify-center gap-2 px-3 pb-6">
+      <div className="safe-bottom flex shrink-0 flex-wrap justify-center gap-2 px-3 pt-2">
         <button
           type="button"
           disabled={busy}
