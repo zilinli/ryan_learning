@@ -7,7 +7,7 @@ import {
 import { findBbcClip } from "./bbc-catalog";
 
 describe("bbc-challenge", () => {
-  const clip = findBbcClip("c8gDn2QxqVQ");
+  const clip = findBbcClip("el4CQj-TCbA");
   if (!clip) throw new Error("iguana clip not found");
 
   it("builds fallback challenge with no transcript", () => {
@@ -15,7 +15,7 @@ describe("bbc-challenge", () => {
       grade: 4,
       englishLevel: "developing",
     });
-    expect(challenge.videoId).toBe("c8gDn2QxqVQ");
+    expect(challenge.videoId).toBe("el4CQj-TCbA");
     expect(challenge.title).toContain("Iguana");
     expect(challenge.items.length).toBe(5);
     expect(challenge.generatedFromTranscript).toBe(false);

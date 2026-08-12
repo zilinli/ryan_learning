@@ -30,7 +30,7 @@ describe("bbc-catalog", () => {
   });
 
   it("findBbcClip returns clip by videoId", () => {
-    const c = findBbcClip("c8gDn2QxqVQ");
+    const c = findBbcClip("el4CQj-TCbA");
     expect(c).toBeTruthy();
     expect(c!.title).toContain("Iguana");
   });
