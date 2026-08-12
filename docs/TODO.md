@@ -19,7 +19,24 @@
 > UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips + Slice A–D)
 > v4 deep analysis 2026-08: **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** (Studio BKT outcome + printable portfolio)
 > Product audit 2026-08: **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** (**多语言 + Code Agent 锁定保留**)
-> TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**
+> TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**  
+> Journal + Me hub + Stage styles (**design, awaiting confirm**): **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**
+
+---
+
+## 📓 JM — Journal + Me hub + Stage styles (2026-08-12) — DESIGN ONLY
+
+> **Design:** [subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)  
+> **Status:** awaiting C1–C7 confirmation. **Do not implement** until product replies (defaults OK or deltas).  
+> **Goal:** Journal = New + history (Day One-lite); Creations auto-write into today’s journal; Stage styles in Stage with Structure-suggested default.
+
+- [x] **JM.0a** — Spec drafted + revised (Structure default style; New/history; Creation→journal)
+- [ ] **JM.0b** — Product confirms C1–C7
+- [ ] **JM.1** — Stage styles + Structure `suggestedStyle` default + pad genre removed *(after confirm)*
+- [ ] **JM.2** — Journal store/API + New + history list + calendar + `journal` type *(after confirm)*
+- [ ] **JM.3** — `/me` + sidebar + peek + Open all *(after confirm)*
+- [ ] **JM.4** — Creation save → append/create today’s journal + snapshot *(after confirm)*
+- [ ] **JM.5** — Family read-only + On This Day *(after confirm)*
 
 ---
 
@@ -74,7 +91,7 @@
 
 - [x] **WS-PAD.1** — `languagetool.ts` + `POST /api/writing-studio/grammar-check` (env URL + local fallback)
 - [x] **WS-PAD.2** — `WritingPadHighlights` grammar matches + one-click replace; BASIS `scoreGrammar` uses match count
-- [x] **WS-PAD.3** — Writing type selector; mood/genre only for Lyrics/Poetry; Structure CTA adapts
+- [x] **WS-PAD.3** — Writing type selector; mood/genre only for Lyrics/Poetry; Structure CTA adapts *(genre → Stage is JM.1, not this slice)*
 - [x] **WS-PAD.4** — Desktop Feedback + collapsible Stage; mobile Write/Feedback/Stage tabs
 - [x] **WS-PAD.5** — Live word/sentence count; desktop errors; coach panel auto-open weak dims
 - [x] **WS-PAD.6** — Unit tests + `run_tests`

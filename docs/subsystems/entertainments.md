@@ -339,6 +339,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Song fallback:** Bailian Fun-Music → Volc GenSong (prepaid/postpaid). Volc often returns `ServerIpLimit` on non-CN egress.
 - Legacy: `POST /api/writing-studio/generate` still works for music-only.
 - Unconfigured: lyrics-only drafts still save; generate returns 503.
+- **Planned (design only):** mood/genre moves into **Stage**. **Structure** returns lyrics/prompt **and** a `suggestedStyle` (student can change before Generate). Journal = New + history; My Creations auto-append to that day’s journal. See [journal-and-me-hub.md](journal-and-me-hub.md). Confirm C1–C7 before code.
 
 ### 6.5 My Creations
 

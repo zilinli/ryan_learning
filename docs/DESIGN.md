@@ -102,6 +102,7 @@ flowchart TB
 | **[subsystems/ted-challenge-inline-discuss.md](subsystems/ted-challenge-inline-discuss.md)** | TED Submit & discuss — **inline** Lab chat (no homepage hop) |
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |
 | **[subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)** | ✍️ Writing Pad P0 — LanguageTool grammar, Feedback/Stage layout, writing type |
+| **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)** | 📓 **Awaiting confirm** — per-account Journal + `/me` hub + Stage styles (Hip-hop etc. in Stage) |
 | **[subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)** | Writing Pad → music/image/video — **adapt** language, don’t copy |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |

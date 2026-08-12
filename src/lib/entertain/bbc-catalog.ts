@@ -31,7 +31,7 @@ export function bbcVideoUrl(videoId: string): string {
 export const BBC_CATALOG: BbcClip[] = [
   // ── BBC Earth: Planet Earth & Blue Planet ──
   {
-    videoId: "c8gDn2QxqVQ",
+    videoId: "EF8C4v7JIbA",
     title: "Iguana vs Snakes — Planet Earth II",
     series: "Planet Earth II",
     topic: "nature",
@@ -42,7 +42,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "w4hKt1Odqes",
+    videoId: "cTQ3Ko9ZKg8",
     title: "Penguins: Spy in the Huddle — Emperor Penguins",
     series: "Spy in the Wild",
     topic: "nature",
@@ -53,7 +53,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "TkKa4qgGtMM",
+    videoId: "o767PuYbEXg",
     title: "Octopus vs Seabird — Blue Planet II",
     series: "Blue Planet II",
     topic: "nature",
@@ -64,7 +64,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "MfGxQ6LBtNg",
+    videoId: "Qzxy3GtSzt0",
     title: "Dolphins Beach Hunting — The Hunt",
     series: "The Hunt",
     topic: "nature",
@@ -75,7 +75,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "JgPvaFZqK_w",
+    videoId: "6Osj24S1k1U",
     title: "Humpback Whales Bubble-Net Feeding",
     series: "Seven Worlds One Planet",
     topic: "nature",
@@ -86,7 +86,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "GCi_FSu4HMM",
+    videoId: "pkhE14Rou-E",
     title: "Lions Attack a Buffalo — Dynasties",
     series: "Dynasties",
     topic: "nature",
@@ -97,7 +97,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "2xP7GRxkQ4w",
+    videoId: "MfstYSUscBc",
     title: "Cuttlefish Hypnotises Crab — Blue Planet II",
     series: "Blue Planet II",
     topic: "nature",
@@ -109,7 +109,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Earth: Science & Technology ──
   {
-    videoId: "z7VzJLLrKQc",
+    videoId: "N8JD_P2J24g",
     title: "Why Do We Dream?",
     series: "BBC Ideas",
     topic: "science",
@@ -120,7 +120,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Ideas",
   },
   {
-    videoId: "R98ne7nK_GU",
+    videoId: "ebeNeQFUMa0",
     title: "How Do Bees Make Honey?",
     series: "BBC Earth Unplugged",
     topic: "science",
@@ -131,7 +131,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "a9_4NqHYF9c",
+    videoId: "a7XuXi3mqYM",
     title: "Earth's Magnetic Field Is Flipping",
     series: "BBC Ideas",
     topic: "science",
@@ -143,7 +143,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Earth: History ──
   {
-    videoId: "fCh1uZzOEO8",
+    videoId: "FwOoC0QdeG4",
     title: "How the Pyramids Were Built",
     series: "BBC Explore",
     topic: "history",
@@ -154,7 +154,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC",
   },
   {
-    videoId: "V9BQtT83bw0",
+    videoId: "G7L4YzGAvMA",
     title: "The Lost City of Petra",
     series: "BBC Travel Show",
     topic: "history",
@@ -166,7 +166,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Ideas: Culture & Society ──
   {
-    videoId: "sAxWydLEh58",
+    videoId: "nMAzchVWTis",
     title: "What Is Cultural Appropriation?",
     series: "BBC Ideas",
     topic: "culture",
@@ -177,7 +177,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Ideas",
   },
   {
-    videoId: "i7XhROZEmx8",
+    videoId: "3uzucyoUe6Q",
     title: "The History of Tea",
     series: "BBC Ideas",
     topic: "culture",
@@ -189,7 +189,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Earth: Geography ──
   {
-    videoId: "k1LqLyStb9Y",
+    videoId: "tqlC_JGPSlk",
     title: "The Amazon: Lungs of the Earth",
     series: "BBC Earth",
     topic: "geography",
@@ -200,7 +200,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "RfDgfH0BwK8",
+    videoId: "ETfLn6YbJCA",
     title: "How Coral Reefs Form",
     series: "Blue Planet II",
     topic: "geography",
@@ -212,7 +212,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC Ideas: Technology ──
   {
-    videoId: "FXi1mOmjFhE",
+    videoId: "FVE3VlwcFaY",
     title: "How Does AI Actually Work?",
     series: "BBC Ideas",
     topic: "technology",
@@ -223,7 +223,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Ideas",
   },
   {
-    videoId: "xHx7sZiGDhw",
+    videoId: "d_FEaFgJyfA",
     title: "The Internet: Under the Sea",
     series: "BBC Click",
     topic: "technology",
@@ -235,7 +235,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── More Nature Clips ──
   {
-    videoId: "B91omJpD12o",
+    videoId: "ja4GNdU2vYc",
     title: "Fire Ants Create Living Raft",
     series: "BBC Earth",
     topic: "nature",
@@ -246,7 +246,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "h0P3Y1sh8LY",
+    videoId: "Uj0EVT-Ekog",
     title: "Snow Leopards: Ghosts of the Mountain",
     series: "Planet Earth",
     topic: "nature",
@@ -257,7 +257,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "EXt5PjKML3Y",
+    videoId: "WCcLMNcWZOc",
     title: "How the Moon Controls Ocean Tides",
     series: "BBC Earth Lab",
     topic: "science",
@@ -269,7 +269,7 @@ export const BBC_CATALOG: BbcClip[] = [
   },
   // ── BBC: History & Discovery ──
   {
-    videoId: "LtmyB2B1FdQ",
+    videoId: "DW-BSDZ7iqc",
     title: "The Rosetta Stone: Key to Hieroglyphics",
     series: "BBC Explore",
     topic: "history",
@@ -280,7 +280,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC",
   },
   {
-    videoId: "cJtjyKJV-oc",
+    videoId: "fJ6emHEBAeo",
     title: "How GPS Actually Works",
     series: "BBC Earth Lab",
     topic: "technology",
@@ -291,7 +291,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "C26bYN53eIo",
+    videoId: "zut9g6z7KIc",
     title: "Antarctica: The Frozen Continent",
     series: "Frozen Planet",
     topic: "geography",
@@ -302,7 +302,7 @@ export const BBC_CATALOG: BbcClip[] = [
     channel: "BBC Earth",
   },
   {
-    videoId: "cu2Z8kHSAEw",
+    videoId: "EUtx6_fDXMY",
     title: "The Science of Lightning",
     series: "BBC Earth Lab",
     topic: "science",
