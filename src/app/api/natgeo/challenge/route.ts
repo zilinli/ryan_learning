@@ -16,8 +16,9 @@ import {
   parseNatGeoChallengeJson,
   type NatGeoChallengeLearner,
 } from "@/lib/entertain/natgeo-challenge";
-import { findNatGeoArticle } from "@/lib/entertain/natgeo-catalog";
+import { findNatGeoArticle, type NatGeoArticle } from "@/lib/entertain/natgeo-catalog";
 import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
+import { fetchYouTubeTranscript } from "@/lib/youtube-transcript";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +65,23 @@ export async function POST(req: Request) {
     }
 
     const learner = body.learner || null;
-    let challenge = buildFallbackNatGeoChallenge(article, learner);
+
+    // Prefer article + YouTube narration when the catalog entry has a video.
+    let sourceArticle: NatGeoArticle = article;
+    if (article.videoId) {
+      const yt = await fetchYouTubeTranscript(article.videoId);
+      if (yt?.text) {
+        sourceArticle = {
+          ...article,
+          body: [article.body, "Video narration (captions):", yt.text]
+            .filter(Boolean)
+            .join("\n\n")
+            .slice(0, 12_000),
+        };
+      }
+    }
+
+    let challenge = buildFallbackNatGeoChallenge(sourceArticle, learner);
 
     const forceFallback =
       process.env.NATGEO_CHALLENGE_FORCE_FALLBACK === "1" ||
@@ -72,7 +89,7 @@ export async function POST(req: Request) {
 
     const polish =
       !forceFallback &&
-      article.body.length > 400 &&
+      sourceArticle.body.length > 400 &&
       canAffordChallengeAgent();
 
     if (polish) {
@@ -89,7 +106,7 @@ export async function POST(req: Request) {
         });
 
         let full = "";
-        const prompt = natgeoChallengeSystemPrompt(article, learner);
+        const prompt = natgeoChallengeSystemPrompt(sourceArticle, learner);
         const run = await agent.send(
           { text: prompt },
           {

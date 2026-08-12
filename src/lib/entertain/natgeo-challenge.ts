@@ -248,14 +248,16 @@ export function natgeoChallengeSystemPrompt(
     bandDesc,
     `The student is in grade ${grade}.`,
     "",
-    "Create 5 questions from the following article. Each question must have 4 answer choices with exactly 1 correct answer listed first. Include a rubric hint for each.",
+    "Create 5 questions from the following article (and video narration/captions when present).",
+    "Ground every question in that source text — do not invent facts.",
+    "Each question must have 4 answer choices with exactly 1 correct answer listed first. Include a rubric hint for each.",
     "Kinds: vocabulary, main-idea, detail, inference, connection",
     "",
     "Return ONLY a JSON object (no markdown fences):",
     `{ "items": [{ "kind": "vocabulary|main-idea|detail|inference|connection", "prompt": "...", "choices": ["correct","d1","d2","d3"], "rubricHint": "..." }] }`,
     "",
     "Article title: " + article.title,
-    "Article body:",
+    "Source text:",
     article.body.slice(0, 8000),
   ].join("\n");
 }

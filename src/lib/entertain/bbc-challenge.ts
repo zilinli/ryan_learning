@@ -128,18 +128,33 @@ function kindRubrics(
   };
 }
 
+/** Sample caption sentences across the clip (not only the opening lines). */
 function bandChoices(text: string): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
-    .filter((s) => s.length > 20)
-    .slice(0, 8)
+    .filter((s) => s.length > 25)
     .map((s) => s.trim().slice(0, 150));
-  if (sentences.length < 4) {
-    while (sentences.length < 4)
-      sentences.push("A detail related to the documentary.");
+  if (sentences.length === 0) {
+    return [
+      "A detail related to the documentary.",
+      "Another detail from the footage.",
+      "A claim not shown in the clip.",
+      "An unrelated science fact.",
+    ];
   }
-  return [sentences[0]!, ...sentences.slice(1, 4)];
+  if (sentences.length <= 4) {
+    const out = [...sentences];
+    while (out.length < 4) out.push("A detail related to the documentary.");
+    return out;
+  }
+  const picks = [
+    0,
+    Math.floor(sentences.length / 3),
+    Math.floor((2 * sentences.length) / 3),
+    sentences.length - 1,
+  ];
+  return picks.map((i) => sentences[i]!);
 }
 
 export function buildFallbackBbcChallenge(
@@ -237,8 +252,10 @@ export function bbcChallengeSystemPrompt(
     bandDesc,
     `Grade ${grade}.`,
     "",
-    "Create 5 questions from this BBC documentary clip transcript. Each with 4 answer choices, 1 correct listed first. Include a rubric hint.",
+    "Create 5 questions grounded ONLY in the documentary captions below.",
+    "Each with 4 answer choices, 1 correct listed first. Include a rubric hint.",
     "Kinds: observation, explanation, sequence, vocabulary, connection",
+    "Prefer concrete details from the captions; avoid generic questions that fit any wildlife clip.",
     "",
     "Return ONLY JSON (no fences):",
     `{ "items": [{ "kind": "observation|explanation|sequence|vocabulary|connection", "prompt": "...", "choices": ["A correct", "B", "C", "D"], "rubricHint": "..." }] }`,
@@ -246,8 +263,8 @@ export function bbcChallengeSystemPrompt(
     `Title: ${clip.title}`,
     `Series: ${clip.series}`,
     transcript?.text
-      ? `Transcript:\n${transcript.text.slice(0, 6000)}`
-      : `Blurb: ${clip.blurb}`,
+      ? `Transcript (captions):\n${transcript.text.slice(0, 6000)}`
+      : `Blurb (no captions available):\n${clip.blurb}`,
   ].join("\n");
 }
 

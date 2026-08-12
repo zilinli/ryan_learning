@@ -112,18 +112,33 @@ function rsaRubrics(
   };
 }
 
+/** Sample sentences from start / early-mid / late-mid / end of caption text. */
 function rsaChoices(text: string): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
-    .filter((s) => s.length > 20)
-    .slice(0, 8)
+    .filter((s) => s.length > 25)
     .map((s) => s.trim().slice(0, 150));
-  if (sentences.length < 4) {
-    while (sentences.length < 4)
-      sentences.push("An idea related to the talk.");
+  if (sentences.length === 0) {
+    return [
+      "An idea related to the talk.",
+      "A supporting detail from the talk.",
+      "A contrasting idea not in the talk.",
+      "An unrelated classroom fact.",
+    ];
   }
-  return [sentences[0]!, ...sentences.slice(1, 4)];
+  if (sentences.length <= 4) {
+    const out = [...sentences];
+    while (out.length < 4) out.push("An idea related to the talk.");
+    return out;
+  }
+  const picks = [
+    0,
+    Math.floor(sentences.length / 3),
+    Math.floor((2 * sentences.length) / 3),
+    sentences.length - 1,
+  ];
+  return picks.map((i) => sentences[i]!);
 }
 
 export function buildFallbackRsaChallenge(
@@ -188,8 +203,10 @@ export function rsaChallengeSystemPrompt(
     bandDesc,
     `Grade ${grade}.`,
     "",
-    "Create 4 questions. Each with 4 answer choices, 1 correct listed first. Include a rubric hint.",
+    "Create 4 questions grounded ONLY in the transcript below (not the title alone).",
+    "Each with 4 answer choices, 1 correct listed first. Include a rubric hint.",
     "Kinds: literal (main claim), structure (how argument is built), critique (evaluate), retell (summarize).",
+    "Prefer concrete wording from the captions; avoid generic template questions.",
     "",
     "Return ONLY JSON (no fences):",
     `{ "items": [{ "kind": "literal|structure|critique|retell", "prompt": "...", "choices": ["correct","d1","d2","d3"], "rubricHint": "..." }] }`,
@@ -197,8 +214,8 @@ export function rsaChallengeSystemPrompt(
     `Talk: ${video.title}`,
     `Speaker: ${video.speaker}`,
     transcript?.text
-      ? `Transcript:\n${transcript.text.slice(0, 6000)}`
-      : `Description: ${video.blurb}`,
+      ? `Transcript (captions):\n${transcript.text.slice(0, 6000)}`
+      : `Description (no captions available):\n${video.blurb}`,
   ].join("\n");
 }
 

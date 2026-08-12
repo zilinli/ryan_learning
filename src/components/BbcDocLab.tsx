@@ -121,7 +121,7 @@ export function BbcDocLab() {
         </div>
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <button type="button" disabled={!challengeReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${challengeReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Building challenge..." : challengeReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
+            <button type="button" disabled={!challengeReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${challengeReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Fetching captions & building…" : challengeReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
             <button type="button" onClick={() => setChallengeReady(true)} className="min-h-11 w-full rounded-xl border border-white/20 px-4 text-sm transition hover:border-[#6db8a8] sm:w-auto">I've listened enough — unlock now</button>
           </div>
           {!challengeReady && <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[#a89f92]">Challenge unlocks after ~45s, or tap unlock now.</p>}

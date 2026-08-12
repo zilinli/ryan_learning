@@ -11,6 +11,7 @@ import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 import { findTedTalk, parseTedSlug, type TedTalk } from "@/lib/entertain/ted-catalog";
 import { fetchTedTranscript } from "@/lib/entertain/ted-transcript";
+import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
 import {
   buildFallbackChallenge,
   challengeSystemPrompt,
@@ -63,75 +64,96 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Invalid slug" }, { status: 400 });
   }
 
-  const learner = body.learner || null;
-  const level = resolveTedChallengeLevel(learner);
-  const talk = talkOrStub(slug);
-  const { text } = await fetchTedTranscript(slug);
-  let challenge = buildFallbackChallenge(talk, text, learner);
+  try {
+    const learner = body.learner || null;
+    const level = resolveTedChallengeLevel(learner);
+    const talk = talkOrStub(slug);
+    const { text } = await fetchTedTranscript(slug);
+    let challenge = buildFallbackChallenge(talk, text, learner);
 
-  const forceFallback =
-    process.env.TED_CHALLENGE_FORCE_FALLBACK === "1" ||
-    process.env.TED_CHALLENGE_FORCE_FALLBACK === "true";
+    const forceFallback =
+      process.env.TED_CHALLENGE_FORCE_FALLBACK === "1" ||
+      process.env.TED_CHALLENGE_FORCE_FALLBACK === "true";
 
-  if (!forceFallback && text.length > 400) {
-    let agent: SDKAgent | null = null;
-    try {
-      agent = await Agent.create({
-        apiKey: apiKey(),
-        model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
-        name: "TED Challenge",
-        local: {
-          cwd: path.join(process.cwd(), "tutor-workspace"),
-          settingSources: [],
-        },
-      });
+    const polish =
+      !forceFallback && text.length > 400 && canAffordChallengeAgent();
 
-      let full = "";
-      const prompt = [
-        challengeSystemPrompt(talk, learner),
-        "",
-        "Transcript excerpt (for crafting questions — do not quote huge blocks):",
-        text.slice(0, 6000),
-      ].join("\n");
-
-      const run = await agent.send(
-        { text: prompt },
-        {
-          onDelta: ({ update }) => {
-            if (update.type === "text-delta" && update.text) full += update.text;
+    if (polish) {
+      let agent: SDKAgent | null = null;
+      try {
+        agent = await Agent.create({
+          apiKey: apiKey(),
+          model: { id: process.env.CURSOR_MODEL?.trim() || "auto" },
+          name: "TED Challenge",
+          local: {
+            cwd: path.join(process.cwd(), "tutor-workspace"),
+            settingSources: [],
           },
-        },
-      );
+        });
 
-      for await (const ev of run.stream()) {
-        if (req.signal.aborted) break;
-        if (ev.type === "assistant") {
-          for (const block of ev.message.content) {
-            if (
-              block.type === "text" &&
-              block.text &&
-              block.text.length > full.length
-            ) {
-              full = block.text;
+        let full = "";
+        const prompt = [
+          challengeSystemPrompt(talk, learner),
+          "",
+          "Ground every question in this transcript. Prefer concrete claims from the talk.",
+          "Transcript excerpt (for crafting questions — do not quote huge blocks):",
+          text.slice(0, 6000),
+        ].join("\n");
+
+        const run = await agent.send(
+          { text: prompt },
+          {
+            onDelta: ({ update }) => {
+              if (update.type === "text-delta" && update.text) full += update.text;
+            },
+          },
+        );
+
+        for await (const ev of run.stream()) {
+          if (req.signal.aborted) break;
+          if (ev.type === "assistant") {
+            for (const block of ev.message.content) {
+              if (
+                block.type === "text" &&
+                block.text &&
+                block.text.length > full.length
+              ) {
+                full = block.text;
+              }
             }
           }
         }
-      }
 
-      const parsed = parseChallengeJson(full, talk, level, normalizeLearnerGrade(learner?.grade));
-      if (parsed) challenge = parsed;
-    } catch (err) {
-      if (err instanceof CursorAgentError) {
-        /* keep fallback */
-      }
-    } finally {
-      try {
-        agent?.close();
-      } catch {
-        /* ignore */
+        const parsed = parseChallengeJson(
+          full,
+          talk,
+          level,
+          normalizeLearnerGrade(learner?.grade),
+        );
+        if (parsed) challenge = parsed;
+      } catch (err) {
+        if (!(err instanceof CursorAgentError)) {
+          console.warn("[ted/challenge] agent polish failed:", err);
+        }
+      } finally {
+        try {
+          agent?.close();
+        } catch {
+          /* ignore */
+        }
       }
     }
-  }
 
-  return Response.json({ ok: true, challenge });
+    return Response.json({ ok: true, challenge });
+  } catch (err) {
+    console.error("[ted/challenge]", err);
+    return Response.json(
+      {
+        ok: false,
+        error:
+          err instanceof Error ? err.message : "Could not build challenge",
+      },
+      { status: 500 },
+    );
+  }
 }

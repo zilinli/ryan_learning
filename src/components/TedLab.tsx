@@ -627,7 +627,7 @@ export function TedLab() {
               }`}
             >
               {loadingChallenge
-                ? "Building challenge…"
+                ? "Fetching transcript & building…"
                 : challengeReady
                   ? "Ready for challenge"
                   : "Ready for challenge (soon)"}
