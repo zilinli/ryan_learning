@@ -480,8 +480,9 @@ Please do **not** commit secrets (`.env.local`, API keys, unlocked credential bl
 
 ## License
 
+Licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE).
+
 Open source on GitHub: **[zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)**.
-Add a root `LICENSE` file if you want an explicit OSI license for downstream use.
 
 ---
 
