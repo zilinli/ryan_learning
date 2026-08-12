@@ -130,12 +130,20 @@ export function JournalTimeline({
               {name} · related records, newest first
             </p>
           </div>
-          <a
-            href="/me"
-            className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem] text-[var(--ink)]"
-          >
-            Back to Me
-          </a>
+          <div className="flex gap-2">
+            <a
+              href="/"
+              className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem] text-[var(--ink)]"
+            >
+              Chat
+            </a>
+            <a
+              href="/me"
+              className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem] text-[var(--ink)]"
+            >
+              Me
+            </a>
+          </div>
         </header>
       ) : (
         <div className="mb-2 flex items-center justify-between gap-2">
