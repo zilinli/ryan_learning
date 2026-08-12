@@ -33,6 +33,7 @@ export function useLabCatalogSearch<T>({
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchGenRef = useRef(0);
   const skipDebouncedSearchRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const runSearch = useCallback(
     async (opts?: { page?: number; append?: boolean }) => {
@@ -154,6 +155,11 @@ export function useLabCatalogSearch<T>({
   useEffect(() => {
     if (skipDebouncedSearchRef.current) {
       skipDebouncedSearchRef.current = false;
+      return;
+    }
+    // Skip auto-search on initial mount — items already populated from localSearch
+    if (!mountedRef.current) {
+      mountedRef.current = true;
       return;
     }
     const timer = window.setTimeout(() => {
