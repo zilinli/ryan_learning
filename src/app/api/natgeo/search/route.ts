@@ -60,7 +60,9 @@ export async function GET(req: Request) {
     });
     let articles = batch.articles;
     if (g != null) {
-      articles = articles.filter((a) => a.gradeMin <= g && a.gradeMax >= g);
+      const filtered = articles.filter((a) => a.gradeMin <= g && a.gradeMax >= g);
+      if (filtered.length > 0) articles = filtered;
+      // else: keep all — never return empty from refresh
     }
     return Response.json({
       ok: true,
@@ -97,7 +99,9 @@ export async function GET(req: Request) {
 
   let articles = result.articles;
   if (g != null) {
-    articles = articles.filter((a) => a.gradeMin <= g && a.gradeMax >= g);
+    const filtered = articles.filter((a) => a.gradeMin <= g && a.gradeMax >= g);
+    if (filtered.length > 0) articles = filtered;
+    // else: keep all — never return empty
   }
 
   return Response.json({

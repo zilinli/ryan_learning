@@ -54,7 +54,9 @@ export async function GET(req: Request) {
     });
     let clips = batch.clips;
     if (g != null) {
-      clips = clips.filter((c) => c.gradeMin <= g && c.gradeMax >= g);
+      const filtered = clips.filter((c) => c.gradeMin <= g && c.gradeMax >= g);
+      if (filtered.length > 0) clips = filtered;
+      // else: keep all — never return empty from refresh
     }
     return Response.json({
       ok: true,
@@ -81,7 +83,9 @@ export async function GET(req: Request) {
 
   let clips = result.clips;
   if (g != null) {
-    clips = clips.filter((c) => c.gradeMin <= g && c.gradeMax >= g);
+    const filtered = clips.filter((c) => c.gradeMin <= g && c.gradeMax >= g);
+    if (filtered.length > 0) clips = filtered;
+    // else: keep all — never return empty
   }
 
   return Response.json({

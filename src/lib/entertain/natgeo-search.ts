@@ -154,20 +154,32 @@ export async function refreshNatGeoBatch(opts: {
       ? [...NATGEO_CATALOG]
       : NATGEO_CATALOG.filter((a) => a.topic === topic);
 
-  // Shuffle then cycle through catalog — preserves curated videoId entries
-  const shuf = [...pool].sort(() => Math.random() - 0.5);
-  const offset = (Number(opts.cursor) || 0) % Math.max(1, shuf.length);
-  const cycled = [...shuf.slice(offset), ...shuf.slice(0, offset)];
+  // Shuffle, but keep articles with videoId first in each batch
+  const withVideo = shuffle([...pool.filter((a) => a.videoId)]);
+  const withoutVideo = shuffle([...pool.filter((a) => !a.videoId)]);
+  const sorted = [...withVideo, ...withoutVideo];
+
+  const offset = (Number(opts.cursor) || 0) % Math.max(1, sorted.length);
+  const cycled = [...sorted.slice(offset), ...sorted.slice(0, offset)];
   const articles = cycled.slice(0, pageSize);
 
   return {
     articles,
     page: 0,
-    nbPages: Math.max(1, Math.ceil(shuf.length / pageSize)),
-    nbHits: shuf.length,
+    nbPages: Math.max(1, Math.ceil(pool.length / pageSize)),
+    nbHits: pool.length,
     query: "",
     source: "curated-fallback",
-    cursor: String((offset + pageSize) % shuf.length),
+    cursor: String((offset + pageSize) % sorted.length),
     hasNextPage: true,
   };
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
 }
