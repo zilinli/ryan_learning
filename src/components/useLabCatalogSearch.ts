@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type ListSource = "loading" | "live" | "curated-fallback";
 
@@ -35,6 +35,16 @@ export function useLabCatalogSearch<T>({
   const skipDebouncedSearchRef = useRef(false);
   const mountedRef = useRef(false);
 
+  // Stabilize the inline localSearch / topic refs so they don't retrigger effects
+  const localSearchRef = useRef(localSearch);
+  localSearchRef.current = localSearch;
+  const topicRef = useRef(topic);
+  topicRef.current = topic;
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const gradeRef = useRef(grade);
+  gradeRef.current = grade;
+
   const runSearch = useCallback(
     async (opts?: { page?: number; append?: boolean }) => {
       const nextPage = opts?.page ?? 0;
@@ -48,13 +58,13 @@ export function useLabCatalogSearch<T>({
       try {
         const params = new URLSearchParams({
           mode: "search",
-          q: query.trim(),
-          topic,
+          q: queryRef.current.trim(),
+          topic: topicRef.current,
           page: String(nextPage),
           pageSize: "18",
         });
-        if (typeof grade === "number" && Number.isFinite(grade)) {
-          params.set("grade", String(grade));
+        if (typeof gradeRef.current === "number" && Number.isFinite(gradeRef.current)) {
+          params.set("grade", String(gradeRef.current));
         }
         const res = await fetch(`${apiPath}?${params}`, { signal: ac.signal });
         const data = (await res.json()) as Record<string, unknown> & {
@@ -80,9 +90,9 @@ export function useLabCatalogSearch<T>({
       } catch (e) {
         if (ac.signal.aborted) return;
         if (gen !== searchGenRef.current) return;
-        const local = localSearch(
-          query,
-          topic === "all" ? undefined : topic,
+        const local = localSearchRef.current(
+          queryRef.current,
+          topicRef.current === "all" ? undefined : topicRef.current,
         );
         setItems(local.slice(0, 18));
         setPage(0);
@@ -99,7 +109,8 @@ export function useLabCatalogSearch<T>({
         if (gen === searchGenRef.current) setListBusy(false);
       }
     },
-    [apiPath, resultKey, query, topic, grade, localSearch],
+    // runSearch deps: ONLY stable values — read current query/topic/grade via refs
+    [apiPath, resultKey],
   );
 
   const refreshBatch = useCallback(async () => {
@@ -109,18 +120,18 @@ export function useLabCatalogSearch<T>({
     const gen = ++searchGenRef.current;
     setListBusy(true);
     setListSource("loading");
-    if (query.trim()) {
+    if (queryRef.current.trim()) {
       skipDebouncedSearchRef.current = true;
       setQuery("");
     }
     try {
       const params = new URLSearchParams({
         mode: "refresh",
-        topic,
+        topic: topicRef.current,
         pageSize: "18",
       });
-      if (typeof grade === "number" && Number.isFinite(grade)) {
-        params.set("grade", String(grade));
+      if (typeof gradeRef.current === "number" && Number.isFinite(gradeRef.current)) {
+        params.set("grade", String(gradeRef.current));
       }
       if (cursor) params.set("cursor", cursor);
       const res = await fetch(`${apiPath}?${params}`, { signal: ac.signal });
@@ -150,8 +161,10 @@ export function useLabCatalogSearch<T>({
     } finally {
       if (gen === searchGenRef.current) setListBusy(false);
     }
-  }, [apiPath, resultKey, cursor, query, topic, grade]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiPath, resultKey, cursor]);
 
+  // Debounced search: only fires when query or topic changes (NOT when runSearch/localSearch ref changes)
   useEffect(() => {
     if (skipDebouncedSearchRef.current) {
       skipDebouncedSearchRef.current = false;
@@ -166,7 +179,9 @@ export function useLabCatalogSearch<T>({
       void runSearch({ page: 0, append: false });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [query, topic, runSearch]);
+    // Only depend on query and topic — runSearch is stable (depends only on apiPath, resultKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, topic]);
 
   useEffect(() => {
     return () => searchAbortRef.current?.abort();
