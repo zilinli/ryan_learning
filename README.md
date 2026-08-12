@@ -2,7 +2,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/license-see%20repo-lightgrey)](https://github.com/zilinli/ryan_learning)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **Spark** is a Socratic AI tutor for international-school students (K-12, grade-agnostic). Built around BASIS Grade 4 learner **Ryan** as the default account, with multi-account support for siblings and classrooms. It guides step by step — it does **not** dump final answers first.
 
