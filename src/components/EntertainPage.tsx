@@ -51,27 +51,12 @@ type StudioDest = {
 };
 
 const STUDIO: StudioDest[] = [
+  // ── Watch / Read / Think ──
   {
     id: "ted-lab",
     title: "TED Lab",
     kicker: "Listen",
     desc: "Watch a talk. Then argue with it.",
-    cta: "Open lab",
-    tone: "cinema",
-  },
-  {
-    id: "writing-studio",
-    title: "Writing Studio",
-    kicker: "Create",
-    desc: "Draft, coach, then stage song · image · video.",
-    cta: "Open pad",
-    tone: "write",
-  },
-  {
-    id: "natgeo-lab",
-    title: "NatGeo Lab",
-    kicker: "Read",
-    desc: "Explore articles, then answer reading challenges.",
     cta: "Open lab",
     tone: "cinema",
   },
@@ -84,12 +69,29 @@ const STUDIO: StudioDest[] = [
     tone: "cinema",
   },
   {
+    id: "natgeo-lab",
+    title: "NatGeo Lab",
+    kicker: "Read",
+    desc: "Explore articles, then answer reading challenges.",
+    cta: "Open lab",
+    tone: "cinema",
+  },
+  {
     id: "rsa-lab",
     title: "RSA Lab",
     kicker: "Think",
     desc: "Animated talks on psychology, education, and big ideas.",
     cta: "Open lab",
     tone: "cinema",
+  },
+  // ── Create / Keep ──
+  {
+    id: "writing-studio",
+    title: "Writing Studio",
+    kicker: "Create",
+    desc: "Draft, coach, then stage song · image · video.",
+    cta: "Open pad",
+    tone: "write",
   },
   {
     id: "creations",
