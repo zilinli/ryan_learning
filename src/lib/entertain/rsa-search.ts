@@ -13,8 +13,6 @@ const UA = "Mozilla/5.0 (compatible; SparkTutor/1.0)";
 
 function ytDlpBin(): string { return process.env.YT_DLP_PATH?.trim() || "yt-dlp"; }
 
-const RSA_CHANNEL = { label: "RSA", url: "https://www.youtube.com/@theRSAorg/videos" } as const;
-
 export type RsaSearchSource = "youtube-live" | "curated-fallback";
 
 export type RsaSearchResult = {
@@ -72,16 +70,6 @@ async function ytSearch(query: string, n: number): Promise<YtEntry[]> {
   } catch { return []; }
 }
 
-async function ytChannel(start: number, count: number): Promise<YtEntry[]> {
-  const args = ["--flat-playlist","--dump-json","--no-warnings","--playlist-start",String(start),"--playlist-end",String(start+count-1),"--user-agent",UA,RSA_CHANNEL.url];
-  try {
-    const { stdout } = await execFileAsync(ytDlpBin(), args, { timeout: 25_000, maxBuffer: 8 * 1024 * 1024 });
-    const out: YtEntry[] = [];
-    for (const line of stdout.split("\n")) { const e = parseE(line); if (e?.id) out.push(e); }
-    return out;
-  } catch { return []; }
-}
-
 // ── Curated fallback ──
 
 function curatedFb(query: string, topic: RsaTopic|"all", page: number, ps: number): RsaSearchResult {
@@ -117,13 +105,19 @@ export async function refreshRsaBatch(opts: {
   cursor?: string|null; pageSize?: number; signal?: AbortSignal;
 }): Promise<RsaSearchResult> {
   const ps = Math.max(6,Math.min(24,opts.pageSize??18));
-  const s = Math.max(1, Number(opts.cursor)||1);
-  const batch = Math.min(40, ps*2);
-  const entries = await ytChannel(s, batch);
-  if (!entries.length) {
-    const shuf = [...RSA_CATALOG].sort(()=>Math.random()-0.5);
-    return { videos: shuf.slice(0,ps), page:0, nbPages:1, nbHits:shuf.length, query:"", source:"curated-fallback", cursor: "1", hasNextPage: true };
-  }
-  const videos = entries.map(e2video).slice(0,ps);
-  return { videos, page:0, nbPages:2, nbHits:videos.length, query:"", source:"youtube-live", cursor: String(s+batch), hasNextPage: true };
+  const shuf = [...RSA_CATALOG].sort(()=>Math.random()-0.5);
+  // Cycle through catalog — never empty, always has curated videos
+  const all = shuf.length > 0 ? shuf : [...RSA_CATALOG];
+  const start = (Number(opts.cursor) || 0) % Math.max(1, all.length);
+  const batch = [...all.slice(start), ...all.slice(0, start)].slice(0, ps);
+  return {
+    videos: batch,
+    page: 0,
+    nbPages: Math.max(1, Math.ceil(all.length / ps)),
+    nbHits: all.length,
+    query: "",
+    source: "curated-fallback",
+    cursor: String((start + ps) % all.length),
+    hasNextPage: true,
+  };
 }

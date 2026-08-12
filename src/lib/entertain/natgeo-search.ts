@@ -148,52 +148,26 @@ export async function refreshNatGeoBatch(opts: {
 }): Promise<NatGeoSearchResult> {
   const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
   const topic = opts.topic || "all";
-  const offset = Math.max(0, Number(opts.cursor) || 0);
 
-  let pool =
+  const pool =
     topic === "all"
       ? [...NATGEO_CATALOG]
       : NATGEO_CATALOG.filter((a) => a.topic === topic);
 
-  const rotateBy = pool.length ? offset % pool.length : 0;
-  pool = [...pool.slice(rotateBy), ...pool.slice(0, rotateBy)];
+  // Shuffle then cycle through catalog — preserves curated videoId entries
+  const shuf = [...pool].sort(() => Math.random() - 0.5);
+  const offset = (Number(opts.cursor) || 0) % Math.max(1, shuf.length);
+  const cycled = [...shuf.slice(offset), ...shuf.slice(0, offset)];
+  const articles = cycled.slice(0, pageSize);
 
-  if (offset >= pool.length) {
-    try {
-      const res = await fetch("https://kids.nationalgeographic.com/animals", {
-        signal: opts.signal ?? AbortSignal.timeout(12_000),
-        headers: { "User-Agent": UA },
-      });
-      if (res.ok) {
-        const html = await res.text();
-        const slugs: string[] = [];
-        const re = /\/animals\/article\/([a-z0-9-]+)/gi;
-        let m;
-        while ((m = re.exec(html))) slugs.push(m[1]!);
-        const seen = new Set(pool.map((a) => a.slug));
-        for (const slug of slugs.slice(0, 12)) {
-          if (seen.has(slug)) continue;
-          const article = await fetchNatGeoArticle(slug);
-          if (article) {
-            pool.push(article);
-            seen.add(slug);
-          }
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const articles = pool.slice(0, pageSize);
   return {
     articles,
     page: 0,
-    nbPages: 2,
-    nbHits: pool.length,
+    nbPages: Math.max(1, Math.ceil(shuf.length / pageSize)),
+    nbHits: shuf.length,
     query: "",
-    source: offset >= NATGEO_CATALOG.length ? "natgeo-live" : "curated-fallback",
-    cursor: String(offset + pageSize),
-    hasNextPage: pool.length > pageSize,
+    source: "curated-fallback",
+    cursor: String((offset + pageSize) % shuf.length),
+    hasNextPage: true,
   };
 }
