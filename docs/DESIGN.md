@@ -97,6 +97,7 @@ flowchart TB
 | **[subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)** | TED Challenge voice → text via MicTranscribeButton |
 | **[subsystems/ted-challenge-prompt-listen.md](subsystems/ted-challenge-prompt-listen.md)** | TED Challenge prompt **Listen** (English TTS, Ryan hard-lock; Auto Listen) |
 | **[subsystems/ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive-difficulty.md)** | TED Challenge difficulty from **grade number (G4 grain)** + English level |
+| **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)** | TED Lab **video list** sorted by grade + age fit (not TED newest) |
 | **[subsystems/ted-challenge-hybrid-mcq.md](subsystems/ted-challenge-hybrid-mcq.md)** | TED Challenge per-item **MCQ (single/multi) + essay** hybrid |
 | **[subsystems/ted-challenge-inline-discuss.md](subsystems/ted-challenge-inline-discuss.md)** | TED Submit & discuss — **inline** Lab chat (no homepage hop) |
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |

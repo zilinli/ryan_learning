@@ -19,6 +19,7 @@
 > UX competitor report 2026-08: **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** (wait phases + step chips + Slice A–D)
 > v4 deep analysis 2026-08: **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** (Studio BKT outcome + printable portfolio)
 > Product audit 2026-08: **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** (**多语言 + Code Agent 锁定保留**)
+> TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**
 
 ---
 
@@ -41,6 +42,17 @@
 - [ ] **TODO-CLEAN.2** — Release pending slices already coded (ENT-INLINE.5 / WS-PAD.7 / ENT-TED-L.6) with AUDIT8.9 deploy
 
 ---
+
+## 📋 ENT-TED-FIT — TED video list sorted by grade + age (2026-08-12)
+
+> **Design:** [subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)  
+> **Goal:** Browse/search list ranks talks by student grade & age fit (short/TED-Ed first for G4; mature talks sink).
+
+- [x] **ENT-TED-FIT.1** — `ted-fit.ts`: audience map, infer, score, sort, `searchTedCatalogForLearner`
+- [x] **ENT-TED-FIT.2** — Wire search API + TedLab (`grade`/`age`); empty-q curated-first merge
+- [x] **ENT-TED-FIT.3** — Unit TF1–TF8 + search route; `run_tests`
+- [ ] **ENT-TED-FIT.4** — apply_changes → publish_develop → deploy_live
+- [ ] **ENT-TED-FIT.5** — Manual TM-F1–TM-F4 on live Lab
 
 ## 🎧 ENT-TED-INLINE — TED discuss stays on Lab + Writing structure adapt (2026-08-11)
 

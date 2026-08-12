@@ -4,7 +4,12 @@
  */
 
 import type { TedTalk, TedTopic } from "./ted-catalog";
-import { searchTedCatalog, TED_CATALOG } from "./ted-catalog";
+import {
+  mergeTedBrowseForLearner,
+  searchTedCatalogForLearner,
+  sortTedTalksByLearnerFit,
+  type TedLearnerFit,
+} from "./ted-fit";
 
 const TED_SEARCH_URL = "https://www.ted.com/api/search";
 const TED_GRAPHQL_URL = "https://www.ted.com/graphql";
@@ -108,8 +113,9 @@ function curatedFallback(
   topic: TedTopic | "all",
   page: number,
   pageSize: number,
+  learner?: TedLearnerFit | null,
 ): TedSearchResult {
-  const all = searchTedCatalog(query, topic);
+  const all = searchTedCatalogForLearner(query, topic, learner);
   const start = Math.max(0, page) * pageSize;
   const talks = all.slice(start, start + pageSize);
   const nbPages = Math.max(1, Math.ceil(all.length / pageSize));
@@ -135,11 +141,13 @@ export async function searchTedLive(opts: {
   page?: number;
   pageSize?: number;
   signal?: AbortSignal;
+  learner?: TedLearnerFit | null;
 }): Promise<TedSearchResult> {
   const query = String(opts.query || "").trim().slice(0, 120);
   const topic = opts.topic || "all";
   const page = Math.max(0, Math.min(200, opts.page ?? 0));
   const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
+  const learner = opts.learner || null;
 
   const params: Record<string, unknown> = {
     query,
@@ -181,10 +189,14 @@ export async function searchTedLive(opts: {
       .filter((t): t is TedTalk => Boolean(t));
     if (!talks.length && query) {
       // Rare empty page — still prefer curated over lying about live hits
-      return curatedFallback(query, topic, page, pageSize);
+      return curatedFallback(query, topic, page, pageSize, learner);
     }
+    const ranked =
+      !query && page === 0
+        ? mergeTedBrowseForLearner(talks, learner, topic).slice(0, pageSize)
+        : sortTedTalksByLearnerFit(talks, learner);
     return {
-      talks,
+      talks: ranked,
       page: block.page ?? page,
       nbPages: Math.max(1, block.nbPages ?? 1),
       nbHits: block.nbHits ?? talks.length,
@@ -194,7 +206,7 @@ export async function searchTedLive(opts: {
       officialBrowseUrl: officialTedBrowseUrl(),
     };
   } catch {
-    return curatedFallback(query, topic, page, pageSize);
+    return curatedFallback(query, topic, page, pageSize, learner);
   }
 }
 
@@ -205,6 +217,7 @@ export async function browseTedNewest(opts: {
   after?: string | null;
   first?: number;
   signal?: AbortSignal;
+  learner?: TedLearnerFit | null;
 }): Promise<{
   talks: TedTalk[];
   endCursor: string | null;
@@ -212,6 +225,7 @@ export async function browseTedNewest(opts: {
   source: TedSearchSource;
 }> {
   const first = Math.max(6, Math.min(24, opts.first ?? 18));
+  const learner = opts.learner || null;
   const query = `
     query($first: Int, $after: String) {
       videos(first: $first, after: $after) {
@@ -287,16 +301,15 @@ export async function browseTedNewest(opts: {
     }
     if (!talks.length) throw new Error("empty graphql page");
     return {
-      talks,
+      talks: sortTedTalksByLearnerFit(talks, learner),
       endCursor: data.data?.videos?.pageInfo?.endCursor || null,
       hasNextPage: Boolean(data.data?.videos?.pageInfo?.hasNextPage),
       source: "ted-live",
     };
   } catch {
-    // Shuffle curated as local "refresh"
-    const shuffled = [...TED_CATALOG].sort(() => Math.random() - 0.5);
+    const ranked = searchTedCatalogForLearner("", "all", learner);
     return {
-      talks: shuffled.slice(0, first),
+      talks: ranked.slice(0, first),
       endCursor: null,
       hasNextPage: false,
       source: "curated-fallback",

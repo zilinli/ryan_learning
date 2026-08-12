@@ -280,6 +280,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 ### 6.2 TED Lab
 
 - **Live catalog:** `GET /api/ted/search` → TED.com InstantSearch proxy (`/api/search`) — full catalog (~7k+), topic facets, pagination. Curated `ted-catalog.ts` is offline fallback only.
+- **Grade/age list sort:** empty browse puts curated fit first, then live; search/refresh re-rank the page. Never hide talks. See [ted-lab-learner-fit-sort.md](./ted-lab-learner-fit-sort.md).
 - **Refresh batch:** `mode=refresh` uses TED GraphQL `videos` cursor for a rotating newest pool.
 - **Official TED entries:** “Browse TED.com”, “Open this search on TED”, per-row “Official TED page”, watch “Open on TED.com”.
 - **Play:** official TED iframe only (`embed.ted.com`) — TED usage policy forbids scraping video files. Paste `ted.com/talks/{slug}` URL also works.

@@ -18,6 +18,9 @@ export type TedTalk = {
   durationSec: number;
   topics: TedTopic[];
   blurb: string;
+  /** Recommended grade window after list-fit (optional on raw catalog). */
+  gradeMin?: number;
+  gradeMax?: number;
 };
 
 export function tedTalkUrl(slug: string): string {

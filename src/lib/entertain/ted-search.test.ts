@@ -106,6 +106,41 @@ describe("searchTedLive", () => {
     expect(r.talks.length).toBeGreaterThan(0);
     expect(r.talks.some((t) => t.slug.includes("grit"))).toBe(true);
   });
+
+  it("empty browse for G4 puts TED-Ed riddle before unmatched long live hit", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({
+        results: [
+          {
+            query: "",
+            page: 0,
+            nbPages: 4,
+            nbHits: 80,
+            hits: [
+              {
+                slug: "brand_new_adult_conference_talk",
+                title: "A dense policy lecture",
+                speakers: "Adult",
+                duration: 1400,
+              },
+            ],
+          },
+        ],
+      }),
+    ) as typeof fetch;
+
+    const r = await searchTedLive({
+      query: "",
+      page: 0,
+      learner: { grade: 4, age: 9 },
+    });
+    expect(r.source).toBe("ted-live");
+    expect(r.talks[0]?.slug).toContain("gendler");
+    const adultIdx = r.talks.findIndex(
+      (t) => t.slug === "brand_new_adult_conference_talk",
+    );
+    expect(adultIdx === -1 || adultIdx > 5).toBe(true);
+  });
 });
 
 describe("browseTedNewest", () => {

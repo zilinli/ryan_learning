@@ -35,7 +35,9 @@ describe("GET /api/ted/search", () => {
 
     const { GET } = await import("./route");
     const res = await GET(
-      new Request("http://localhost/api/ted/search?q=demo&page=0"),
+      new Request(
+        "http://localhost/api/ted/search?q=demo&page=0&grade=4&age=9",
+      ),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -43,6 +45,11 @@ describe("GET /api/ted/search", () => {
     expect(data.source).toBe("ted-live");
     expect(data.talks[0].slug).toBe("demo_talk");
     expect(data.nbHits).toBe(40);
+    expect(tedSearch.searchTedLive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        learner: { grade: 4, age: 9 },
+      }),
+    );
   });
 
   it("refresh mode uses browseTedNewest", async () => {
@@ -64,12 +71,19 @@ describe("GET /api/ted/search", () => {
 
     const { GET } = await import("./route");
     const res = await GET(
-      new Request("http://localhost/api/ted/search?mode=refresh"),
+      new Request(
+        "http://localhost/api/ted/search?mode=refresh&grade=11&age=16",
+      ),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.mode).toBe("refresh");
     expect(data.endCursor).toBe("12");
     expect(data.talks[0].slug).toBe("new_one");
+    expect(tedSearch.browseTedNewest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        learner: { grade: 11, age: 16 },
+      }),
+    );
   });
 });

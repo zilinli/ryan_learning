@@ -6,10 +6,15 @@ import {
   tedEmbedUrl,
   tedTalkUrl,
   parseTedSlug,
-  searchTedCatalog,
   type TedTalk,
   type TedTopic,
 } from "@/lib/entertain/ted-catalog";
+import {
+  formatTedAudienceChip,
+  formatTedFitSortCaption,
+  searchTedCatalogForLearner,
+  uniqueTedTalks,
+} from "@/lib/entertain/ted-fit";
 import {
   appendVoiceTranscript,
   challengePromptSpeechText,
@@ -95,7 +100,7 @@ export function TedLab() {
   const promptListenTokenRef = useRef(0);
 
   const [results, setResults] = useState<TedTalk[]>(() =>
-    searchTedCatalog("", "all").slice(0, 18),
+    searchTedCatalogForLearner("", "all", { grade: 4, age: 9 }).slice(0, 18),
   );
   const [listSource, setListSource] = useState<ListSource>("loading");
   const [listBusy, setListBusy] = useState(false);
@@ -256,6 +261,12 @@ export function TedLab() {
           page: String(nextPage),
           pageSize: "18",
         });
+        if (typeof grade === "number" && Number.isFinite(grade)) {
+          params.set("grade", String(grade));
+        }
+        if (typeof age === "number" && Number.isFinite(age)) {
+          params.set("age", String(age));
+        }
         const res = await fetch(`/api/ted/search?${params}`, {
           signal: ac.signal,
         });
@@ -274,7 +285,9 @@ export function TedLab() {
         if (!res.ok || !data.ok || !data.talks) {
           throw new Error(data.error || "Search failed");
         }
-        setResults((prev) => (append ? [...prev, ...data.talks!] : data.talks!));
+        setResults((prev) =>
+          uniqueTedTalks(append ? [...prev, ...data.talks!] : data.talks!),
+        );
         setPage(data.page ?? nextPage);
         setNbPages(Math.max(1, data.nbPages ?? 1));
         setNbHits(data.nbHits ?? data.talks.length);
@@ -289,7 +302,7 @@ export function TedLab() {
       } catch (e) {
         if (ac.signal.aborted) return;
         if (gen !== searchGenRef.current) return;
-        const local = searchTedCatalog(query, topic);
+        const local = searchTedCatalogForLearner(query, topic, { grade, age });
         setResults(local.slice(0, 18));
         setPage(0);
         setNbPages(Math.max(1, Math.ceil(local.length / 18)));
@@ -305,7 +318,7 @@ export function TedLab() {
         if (gen === searchGenRef.current) setListBusy(false);
       }
     },
-    [query, topic],
+    [query, topic, grade, age],
   );
 
   const refreshBatch = useCallback(async () => {
@@ -324,6 +337,12 @@ export function TedLab() {
         mode: "refresh",
         pageSize: "18",
       });
+      if (typeof grade === "number" && Number.isFinite(grade)) {
+        params.set("grade", String(grade));
+      }
+      if (typeof age === "number" && Number.isFinite(age)) {
+        params.set("age", String(age));
+      }
       // Chain GraphQL pages while browsing newest
       if (endCursor) params.set("after", endCursor);
       const res = await fetch(`/api/ted/search?${params}`, { signal: ac.signal });
@@ -362,7 +381,7 @@ export function TedLab() {
     } finally {
       if (gen === searchGenRef.current) setListBusy(false);
     }
-  }, [endCursor, query]);
+  }, [endCursor, query, grade, age]);
 
   // Debounced live search whenever query/topic change
   useEffect(() => {
@@ -878,21 +897,22 @@ export function TedLab() {
           Watch a talk. Then argue with it.
         </h2>
         <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
-          Search the full TED catalog live. Challenge difficulty follows your
-          grade
+          Search the full TED catalog live. The list is sorted for your grade
+          and age
           {gradeKnown ? (
             <>
               {" "}
               (
               <span className="font-semibold text-[#6db8a8]">
-                {difficultyLabel}
+                {formatTedFitSortCaption({ grade, age })}
               </span>
               )
             </>
           ) : (
             <> (set grade on Account)</>
           )}
-          , English level, and age — not one-size quizzes.
+          . Challenge difficulty follows {difficultyLabel} — not one-size
+          quizzes.
         </p>
         <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
           Tracking for {accountName}
@@ -953,8 +973,8 @@ export function TedLab() {
           {listSource === "loading"
             ? "Searching TED…"
             : listSource === "ted-live"
-              ? `TED live · ${nbHits.toLocaleString()} talks · page ${page + 1}/${nbPages}`
-              : `Curated backup · ${nbHits} talks`}
+              ? `${formatTedFitSortCaption({ grade, age })} · TED live · ${nbHits.toLocaleString()} talks · page ${page + 1}/${nbPages}`
+              : `${formatTedFitSortCaption({ grade, age })} · curated backup · ${nbHits} talks`}
         </p>
         <div className="flex gap-2">
           <input
@@ -985,6 +1005,8 @@ export function TedLab() {
                   <div className="mt-0.5 text-xs text-[#a89f92]">
                     {t.speaker}
                     {formatDuration(t.durationSec)}
+                    {" · "}
+                    {formatTedAudienceChip(t)}
                   </div>
                   <p className="mt-2 text-[12px] leading-snug text-[#c4b8a8]">
                     {t.blurb}

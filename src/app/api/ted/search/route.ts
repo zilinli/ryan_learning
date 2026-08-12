@@ -1,12 +1,14 @@
 /**
  * GET /api/ted/search
- * Query: q?, topic?, page?, pageSize?, mode?=search|refresh
+ * Query: q?, topic?, page?, pageSize?, mode?=search|refresh, grade?, age?
  *
  * Live TED InstantSearch proxy (+ curated fallback). Metadata only.
+ * Results are re-ranked by learner grade/age fit (never hidden).
  */
 
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 import type { TedTopic } from "@/lib/entertain/ted-catalog";
+import { parseTedLearnerFit } from "@/lib/entertain/ted-fit";
 import {
   browseTedNewest,
   officialTedBrowseUrl,
@@ -51,12 +53,17 @@ export async function GET(req: Request) {
     Math.min(24, Number(url.searchParams.get("pageSize") || 18) || 18),
   );
   const after = url.searchParams.get("after");
+  const learner = parseTedLearnerFit({
+    grade: url.searchParams.get("grade"),
+    age: url.searchParams.get("age"),
+  });
 
   if (mode === "refresh") {
     const browse = await browseTedNewest({
       after,
       first: pageSize,
       signal: req.signal,
+      learner,
     });
     return Response.json({
       ok: true,
@@ -80,6 +87,7 @@ export async function GET(req: Request) {
     page,
     pageSize,
     signal: req.signal,
+    learner,
   });
 
   return Response.json({
