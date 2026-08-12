@@ -251,7 +251,7 @@ export function HistorySidebar({
         {/* Row: Studio · learning + Entertainments */}
         <div className="mb-2 grid grid-cols-2 gap-1.5">
           <a
-            href="/entertain?hub=studio"
+            href="/studio"
             className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Studio · learning"
           >

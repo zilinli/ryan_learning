@@ -81,7 +81,7 @@ export function MeHome() {
             Made
           </p>
           <a
-            href="/entertain?hub=studio&game=creations"
+            href="/studio?game=creations"
             className="text-[12px] font-semibold text-[var(--teal)]"
           >
             My Creations

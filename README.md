@@ -40,7 +40,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/entertain?hub=studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
+- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
 
 ### Dictionary / Translation (`/dict`)
 
@@ -67,8 +67,8 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 | Route | Content |
 |-------|---------|
-| `/entertain?hub=studio` | **Studio · learning** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
-| `/entertain` | **Entertainments** — board / arcade / logic games only |
+| `/studio` | **Studio · learning** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
+| `/entertain` | **Entertainments** — board / arcade / logic games only (`?hub=studio` redirects to `/studio`) |
 
 **Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED, NatGeo, BBC, RSA answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
 

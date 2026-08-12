@@ -14,7 +14,7 @@ import {
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
 function studioUrl(journalId: string): string {
-  return `/entertain?hub=studio&game=writing-studio&journal=${encodeURIComponent(journalId)}`;
+  return `/studio?game=writing-studio&journal=${encodeURIComponent(journalId)}`;
 }
 
 function madeLabel(m: JournalMadeBlock): string {
@@ -302,7 +302,7 @@ function TimelineDayBlock({ day }: { day: TimelineDay }) {
               />
             ) : null}
             <a
-              href="/entertain?hub=studio&game=creations"
+              href="/studio?game=creations"
               className="mt-2 inline-block text-[11px] font-semibold text-[var(--teal)]"
             >
               Open in My Creations

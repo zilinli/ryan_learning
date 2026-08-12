@@ -128,9 +128,9 @@ function readHubFromLocation(): HubMode {
   if (typeof window === "undefined") return "games";
   try {
     const q = new URLSearchParams(window.location.search);
-    return q.get("hub") === "studio" ? "studio" : "game";
+    return q.get("hub") === "studio" ? "studio" : "games";
   } catch {
-    return "game";
+    return "games";
   }
 }
 
@@ -147,14 +147,14 @@ function readGameFromLocation(): GameId | null {
   }
 }
 
-export function EntertainPage() {
-  const [hub, setHub] = useState<HubMode>("game");
+export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
+  const [hub, setHub] = useState<HubMode>(forcedHub ?? "games");
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
 
   useEffect(() => {
-    setHub(readHubFromLocation());
+    setHub(forcedHub ?? readHubFromLocation());
     setActiveGame(readGameFromLocation());
-  }, []);
+  }, [forcedHub]);
 
   const handleBack = useCallback(() => {
     setActiveGame(null);

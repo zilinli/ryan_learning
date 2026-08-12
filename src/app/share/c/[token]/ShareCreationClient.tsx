@@ -138,7 +138,7 @@ export function ShareCreationClient({ token }: { token: string }) {
                 {copied ? "Copied!" : "Copy link"}
               </button>
               <Link
-                href="/entertain?hub=studio"
+                href="/studio"
                 className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-4 text-sm text-[#c4d4c8]"
               >
                 Open Studio

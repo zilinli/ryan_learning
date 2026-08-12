@@ -1,7 +1,7 @@
 # Entertainments · Engine Design & Test Plan
 
 > Version 0.8 · 2026-08-11  
-> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski; **Studio · learning** (`?hub=studio`) — TED Lab / Writing Studio / My Creations
+> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski; **Studio · learning** (`/studio`) — TED Lab / Writing Studio / My Creations
 
 ---
 
@@ -265,7 +265,7 @@ npm test -- src/lib/entertain
 
 ### 6.1 Product shape
 
-**Studio · learning** is a separate hub (`/entertain?hub=studio`), not nested under Entertainments games:
+**Studio · learning** is a separate hub (`/studio`), not nested under Entertainments games. Legacy `/entertain?hub=studio` redirects to `/studio`.
 
 | Card | Id | One-liner |
 |------|-----|-----------|

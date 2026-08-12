@@ -167,7 +167,7 @@ Me hub keeps a **7-day strip + last 3 rows** and **Open all → Journal home**. 
 Opening an entry:
 
 ```
-/entertain?hub=studio&game=writing-studio&journal=je_<id>
+/studio?game=writing-studio&journal=je_<id>
 ```
 
 or new day:

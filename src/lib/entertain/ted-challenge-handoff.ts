@@ -239,7 +239,7 @@ export function clearTedChallengeResume(): void {
 }
 
 export function tedLabResumeHref(): string {
-  return "/entertain?hub=studio&game=ted-lab";
+  return "/studio?game=ted-lab";
 }
 
 /** Build kickoff + resume payloads after a successful submit. */
