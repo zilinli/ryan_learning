@@ -24,6 +24,8 @@ export type NatGeoArticle = {
   imageUrl: string;
   /** Full article body (~500-1500 words). */
   body: string;
+  /** YouTube video ID for companion video (Nat Geo Kids / Nat Geo Wild). */
+  videoId?: string;
 };
 
 export function natgeoArticleUrl(slug: string): string {
@@ -61,6 +63,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "animals",
     blurb: "The king of the savanna — learn how lions hunt, live in prides, and raise their cubs.",
     imageUrl: "https://kids.nationalgeographic.com/animals/mammals/facts/lion",
+    videoId: "rkFgPP4_T4k", // Nat Geo Wild: Lions 101
     body: [
       "Lions are the only big cats that live in groups called prides. A pride is made up of mostly related females, their cubs, and one or two adult males. The females do most of the hunting, working together to bring down large animals like zebras and wildebeests.",
       "A male lion's roar can be heard up to 8 kilometers away. Lions use their roars to mark their territory and communicate with other members of their pride. Each lion's roar is slightly different, like a fingerprint.",
@@ -91,6 +94,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "animals",
     blurb: "One of the ocean's most powerful predators — separate facts from fears about the great white shark.",
     imageUrl: "https://kids.nationalgeographic.com/animals/fish/facts/great-white-shark",
+    videoId: "oiQrXgA9MQs", // Nat Geo Wild: Sharks 101
     body: [
       "Great white sharks are the largest predatory fish on Earth. They can grow up to 6 meters long and weigh over 2,000 kilograms. Despite their fearsome reputation, shark attacks on humans are extremely rare — you are more likely to be struck by lightning.",
       "A great white shark has about 300 sharp, triangular teeth arranged in several rows. When a tooth falls out, a new one moves forward to replace it within days. Over a lifetime, a single shark may grow and lose thousands of teeth.",
@@ -121,6 +125,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "science",
     blurb: "What makes a mountain explode? Explore the science of magma, lava, and Earth's fiery vents.",
     imageUrl: "https://kids.nationalgeographic.com/science/article/volcanoes",
+    videoId: "R_LGwA5dNyE", // Nat Geo: Volcanoes 101
     body: [
       "A volcano is an opening in the Earth's surface where molten rock, ash, and gases escape from deep underground. The word volcano comes from Vulcan, the ancient Roman god of fire. There are about 1,500 active volcanoes around the world today.",
       "Deep beneath the Earth's crust, temperatures are so hot that rock melts into a liquid called magma. Because magma is lighter than the solid rock around it, it rises toward the surface and collects in chambers. When pressure builds up enough, the magma erupts through a vent or crack.",
@@ -136,6 +141,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "space",
     blurb: "A tour of our cosmic neighborhood — from the blazing Sun to icy Pluto and beyond.",
     imageUrl: "https://kids.nationalgeographic.com/space/article/solar-system",
+    videoId: "libKVRa01L8", // Nat Geo: Solar System 101
     body: [
       "Our solar system is a collection of eight planets, their moons, asteroids, comets, and one star — the Sun. It formed about 4.6 billion years ago from a giant cloud of gas and dust. The Sun contains more than 99 percent of all the matter in the solar system.",
       "The four inner planets — Mercury, Venus, Earth, and Mars — are rocky and relatively small. Mercury is the closest to the Sun and has almost no atmosphere. Venus is the hottest, with surface temperatures hot enough to melt lead. Mars has the largest volcano in the solar system, Olympus Mons.",
@@ -151,6 +157,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "nature",
     blurb: "The world's largest rainforest is home to millions of species — and it produces 20 percent of Earth's oxygen.",
     imageUrl: "https://kids.nationalgeographic.com/nature/article/amazon-rainforest",
+    videoId: "JEsV5rVNbp0", // Nat Geo: Rainforests 101
     body: [
       "The Amazon rainforest is the largest tropical rainforest on Earth. It covers about 5.5 million square kilometers across nine countries in South America, with most of it in Brazil. The Amazon is so big that if it were a country, it would be the seventh largest in the world.",
       "The Amazon is incredibly rich in wildlife. Scientists estimate that one in every ten known species on Earth lives in the Amazon. This includes about 2.5 million species of insects, 40,000 species of plants, and over 1,300 species of birds. New species are still being discovered every year.",
@@ -167,6 +174,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "history",
     blurb: "Pyramids, pharaohs, and mummies — discover the civilization that thrived along the Nile 5,000 years ago.",
     imageUrl: "https://kids.nationalgeographic.com/history/article/ancient-egypt",
+    videoId: "hO1tzmhXZ2A", // Nat Geo: Ancient Egypt 101
     body: [
       "Ancient Egypt was one of the world's greatest civilizations. It lasted for over 3,000 years along the banks of the Nile River in northeastern Africa. The Nile was the heart of Egyptian life — it provided water for drinking, farming, and transportation through the desert.",
       "The Egyptians are famous for their pyramids, especially the Great Pyramid of Giza. Built around 4,500 years ago, it was the tallest human-made structure on Earth for nearly 4,000 years. The pyramid was built using over 2 million stone blocks, each weighing about as much as a car.",
@@ -182,6 +190,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "geography",
     blurb: "Standing 8,849 meters tall, Everest is the highest point on Earth — and one of the most dangerous places to visit.",
     imageUrl: "https://kids.nationalgeographic.com/geography/article/mount-everest",
+    videoId: "uyTP6xGTRKU", // Nat Geo: Mount Everest
     body: [
       "Mount Everest is the tallest mountain on Earth above sea level, standing at 8,849 meters (29,032 feet). It sits on the border between Nepal and Tibet, part of the Himalayan mountain range. The mountain was formed about 60 million years ago when the Indian tectonic plate crashed into the Asian plate.",
       "Everest is named after George Everest, a British surveyor who led the team that first measured the mountain in 1841. In Nepal, the mountain is called Sagarmatha, which means goddess of the sky. In Tibet, it is known as Chomolungma, meaning mother goddess of the world.",
@@ -227,6 +236,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "space",
     blurb: "NASA's rovers are searching the Red Planet for signs of ancient water — and maybe ancient life.",
     imageUrl: "https://kids.nationalgeographic.com/space/article/mars-exploration",
+    videoId: "D8pnmwOXhoY", // Nat Geo: Mars 101
     body: [
       "Mars is the fourth planet from the Sun and our nearest neighbor in space after Venus. It is called the Red Planet because its surface is covered in iron oxide — basically rust. A day on Mars is almost exactly the same length as a day on Earth, about 24 hours and 37 minutes.",
       "Scientists have sent many robots to explore Mars because sending humans is much more difficult and dangerous. The most famous Mars rovers are Spirit, Opportunity, Curiosity, and Perseverance. These rovers are like moving science labs — they drill into rocks, take photographs, and test the atmosphere.",
@@ -242,6 +252,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "nature",
     blurb: "Coral reefs are like underwater cities, home to a quarter of all ocean life — and they are in danger.",
     imageUrl: "https://kids.nationalgeographic.com/nature/article/coral-reefs",
+    videoId: "60jof35WuAo", // Nat Geo: Coral Reefs 101
     body: [
       "Coral reefs are often called the rainforests of the sea because they support more species per square meter than any other marine environment. Although they cover less than 1 percent of the ocean floor, coral reefs are home to about 25 percent of all marine species.",
       "Corals are actually tiny animals called polyps. Each polyp has a mouth surrounded by tentacles, and it builds a hard limestone skeleton around itself. Millions of polyps living together create a coral colony. When many colonies grow side by side over thousands of years, they form a reef.",
@@ -257,6 +268,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "history",
     blurb: "They ruled the Earth for 165 million years — then vanished. What do we really know about dinosaurs?",
     imageUrl: "https://kids.nationalgeographic.com/history/article/dinosaur-facts",
+    videoId: "eCtHYVKHa28", // Nat Geo Kids: Dino Road Trip
     body: [
       "Dinosaurs lived on Earth for about 165 million years — from about 230 million years ago until 65 million years ago. To give you some perspective, modern humans have only existed for about 300,000 years. Dinosaurs were one of the most successful groups of animals in Earth's history.",
       "Not all dinosaurs were giants. While some, like Argentinosaurus, grew over 30 meters long and weighed as much as 10 elephants, others were as small as chickens. Compsognathus was only about the size of a turkey. The smallest known dinosaur, Oculudentavis, was tinier than a hummingbird.",
@@ -272,6 +284,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "science",
     blurb: "Three pounds of jelly-like tissue that can imagine galaxies, compose music, and solve puzzles.",
     imageUrl: "https://kids.nationalgeographic.com/science/article/human-brain",
+    videoId: "pRFXSjkpKWA", // Nat Geo: Brain 101
     body: [
       "Your brain is the most complex object in the known universe. It weighs about 1.4 kilograms, looks like a wrinkled walnut, and is made up of about 86 billion cells called neurons. Each neuron can connect with thousands of other neurons, creating trillions of connections.",
       "The brain uses about 20 percent of the body's energy, even though it makes up only 2 percent of body weight. When you sleep, the brain stays very active — it cleans out waste products, processes memories, and practices skills you learned during the day. This is why getting enough sleep helps you learn better.",
@@ -317,6 +330,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "animals",
     blurb: "Zero to 60 mph in three seconds — the cheetah is built for speed, but that's not its only secret.",
     imageUrl: "https://kids.nationalgeographic.com/animals/mammals/facts/cheetah",
+    videoId: "MZRXsbR3rYM", // Nat Geo Wild: Cheetahs 101
     body: [
       "The cheetah is the fastest land animal on Earth. It can accelerate from 0 to 100 kilometers per hour in just three seconds — faster than most sports cars. At top speed, a cheetah can reach 120 kilometers per hour, but only for short bursts of about 30 seconds.",
       "Everything about a cheetah's body is designed for speed. Its flexible spine acts like a spring, stretching and contracting with each stride. Its long tail works like a rudder, helping it steer at high speed. Its large nostrils and lungs pull in huge amounts of oxygen during a sprint. Even its claws are special — unlike other cats, cheetah claws are semi-retractable, acting like the spikes on running shoes for better grip.",
@@ -332,6 +346,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "space",
     blurb: "Gravity so strong that even light cannot escape — what are black holes and how do they form?",
     imageUrl: "https://kids.nationalgeographic.com/space/article/black-holes",
+    videoId: "kOEDG3j1bjs", // Nat Geo: Black Holes 101
     body: [
       "A black hole is a place in space where gravity pulls so strongly that nothing — not even light — can escape. The boundary of a black hole is called the event horizon. Once something crosses the event horizon, it is gone forever. We cannot see black holes directly, but scientists can detect their effects on nearby stars and gas.",
       "Black holes form when very massive stars run out of fuel and collapse under their own gravity. If the star is at least 20 times the mass of our Sun, this collapse crushes the star's core into an infinitely dense point called a singularity. The gravity around the singularity is so intense that space and time as we know them break down.",
@@ -407,6 +422,7 @@ export const NATGEO_CATALOG: NatGeoArticle[] = [
     topic: "animals",
     blurb: "They have no brain, no heart, and no bones — yet jellyfish have survived on Earth for over 500 million years.",
     imageUrl: "https://kids.nationalgeographic.com/animals/invertebrates/facts/jellyfish",
+    videoId: "PUoA5j1kKDE", // Nat Geo: Jellyfish 101
     body: [
       "Jellyfish are some of the most ancient animals on Earth — they have been drifting through the oceans for more than 500 million years, long before the dinosaurs or even trees existed. Despite their name, jellyfish are not fish at all. They are invertebrates, animals without backbones, related to corals and sea anemones.",
       "A jellyfish's body is about 95 percent water. They have no brain, no heart, no bones, and no blood. Instead, they have a simple nerve net that detects touch, temperature, and light. Oxygen is absorbed directly through their thin skin, so they don't need lungs or gills. For an animal so simple in design, jellyfish are remarkably successful.",

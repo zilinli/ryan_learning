@@ -1098,7 +1098,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 ## ✅ Phase 7: Code Agent Reliability — done
 
 > **Design:** [code-agent-reliability-design.md](code-agent-reliability-design.md)  
-> **Spec:** [subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)
+> **Spec:** [subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)  
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
@@ -1113,7 +1113,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 
 ## ✅ Phase 8: Code Agent Mini Window UI — done
 
-> **Design:** [subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)
+> **Design:** [subsystems/code-agent-mini-window.md](subsystems/code-agent-mini-window.md)  
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
@@ -1142,7 +1142,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 
 ## ✅ Phase 9: STT Service Reliability — done
 
-> **Design:** [subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)
+> **Design:** [subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)  
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
@@ -1157,7 +1157,7 @@ Design: [ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive
 
 ## 🟡 Phase 10: Reliability Tests — unit done; integration/E2E/CI remain
 
-> **Design:** [code-agent-test-design.md](code-agent-test-design.md)
+> **Design:** [code-agent-test-design.md](code-agent-test-design.md)  
 
 ### ✅ 10.1 Unit Tests
 
