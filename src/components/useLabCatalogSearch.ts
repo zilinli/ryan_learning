@@ -20,14 +20,14 @@ export function useLabCatalogSearch<T>({
   grade,
 }: LabSearchOpts<T>) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<T[]>([]);
+  const [items, setItems] = useState<T[]>(() => localSearch("", undefined).slice(0, 18));
   const [listBusy, setListBusy] = useState(false);
   const [listSource, setListSource] = useState<ListSource>("curated-fallback");
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
-  const [nbPages, setNbPages] = useState(1);
-  const [nbHits, setNbHits] = useState(0);
-  const [hasNextPage, setHasNextPage] = useState(false);
+  const [nbPages, setNbPages] = useState(() => Math.max(1, Math.ceil(localSearch("", undefined).length / 18)));
+  const [nbHits, setNbHits] = useState(() => localSearch("", undefined).length);
+  const [hasNextPage, setHasNextPage] = useState(() => localSearch("", undefined).length > 18);
   const [cursor, setCursor] = useState<string | null>(null);
 
   const searchAbortRef = useRef<AbortController | null>(null);

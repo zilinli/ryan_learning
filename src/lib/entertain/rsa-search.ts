@@ -100,24 +100,17 @@ export async function searchRsaLive(opts: {
   const pg = Math.max(0,Math.min(50,opts.page??0));
   const ps = Math.max(6,Math.min(24,opts.pageSize??18));
 
-  if (q) {
-    const entries = await ytSearch(q, Math.min(24, ps*2));
-    if (!entries.length) return curatedFb(q,topic,pg,ps);
-    let videos = entries.map(e2video);
-    if (topic!=="all") videos = videos.filter(v => v.topic===topic);
-    if (!videos.length) return curatedFb(q,topic,pg,ps);
-    const paged = videos.slice(0,ps);
-    return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(1+ps), hasNextPage: videos.length>ps };
-  }
+  // Empty query: always show curated catalog first (instant)
+  if (!q) return curatedFb("",topic,pg,ps);
 
-  const batch = Math.min(40, ps*2);
-  const start = 1 + pg * batch;
-  const entries = await ytChannel(start, batch);
+  // Query-based: use yt-dlp YouTube search, fallback to curated
+  const entries = await ytSearch(q, Math.min(24, ps*2));
   if (!entries.length) return curatedFb(q,topic,pg,ps);
   let videos = entries.map(e2video);
   if (topic!=="all") videos = videos.filter(v => v.topic===topic);
+  if (!videos.length) return curatedFb(q,topic,pg,ps);
   const paged = videos.slice(0,ps);
-  return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(start+batch), hasNextPage: videos.length>ps };
+  return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(1+ps), hasNextPage: videos.length>ps };
 }
 
 export async function refreshRsaBatch(opts: {

@@ -110,35 +110,20 @@ export async function searchBbcLive(opts: {
   const pg = Math.max(0,Math.min(50,opts.page??0));
   const ps = Math.max(6,Math.min(24,opts.pageSize??18));
 
-  // Query-based: use yt-dlp YouTube search
-  if (q) {
-    const entries = await ytSearch(q, Math.min(24, ps*2));
-    if (!entries.length) return curatedFb(q,topic,pg,ps);
-    let clips = entries.map(e => {
-      const ch = (e.channel||e.uploader||"").includes("BBC") ? (e.channel||e.uploader||"BBC") : "BBC";
-      return e2clip(e, ch);
-    });
-    if (topic!=="all") clips = clips.filter(c => c.topic===topic);
-    if (!clips.length) return curatedFb(q,topic,pg,ps);
-    const paged = clips.slice(0,ps);
-    return { clips: paged, page: pg, nbPages: pg+2, nbHits: clips.length, query: q, source: "youtube-live", cursor: enc(0,1+ps), hasNextPage: clips.length>ps };
-  }
+  // Empty query: always show curated catalog first (instant)
+  if (!q) return curatedFb("",topic,pg,ps);
 
-  // Empty query: list BBC channels (rotating)
-  const batch = Math.min(36, ps*3);
-  const start = 1 + pg * batch;
-  const perCh = Math.ceil(batch / BBC_CHANNELS.length);
-  const allE: YtEntry[] = [];
-  let lbl = "BBC";
-  for (const ch of BBC_CHANNELS) {
-    const r = await ytChannel(ch.url, ch.label, start, perCh);
-    lbl = r.label; allE.push(...r.entries);
-  }
-  if (!allE.length) return curatedFb(q,topic,pg,ps);
-  let clips = allE.map(e => e2clip(e, lbl));
+  // Query-based: use yt-dlp YouTube search, fallback to curated
+  const entries = await ytSearch(q, Math.min(24, ps*2));
+  if (!entries.length) return curatedFb(q,topic,pg,ps);
+  let clips = entries.map(e => {
+    const ch = (e.channel||e.uploader||"").includes("BBC") ? (e.channel||e.uploader||"BBC") : "BBC";
+    return e2clip(e, ch);
+  });
   if (topic!=="all") clips = clips.filter(c => c.topic===topic);
+  if (!clips.length) return curatedFb(q,topic,pg,ps);
   const paged = clips.slice(0,ps);
-  return { clips: paged, page: pg, nbPages: pg+2, nbHits: clips.length, query: q, source: "youtube-live", cursor: enc(0,start+batch), hasNextPage: clips.length>ps };
+  return { clips: paged, page: pg, nbPages: pg+2, nbHits: clips.length, query: q, source: "youtube-live", cursor: enc(0,1+ps), hasNextPage: clips.length>ps };
 }
 
 export async function refreshBbcBatch(opts: {
