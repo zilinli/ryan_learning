@@ -10,6 +10,7 @@ import { checkApiRateLimit } from "@/lib/api-rate-limit";
 import {
   deapiGenerateImage,
   deapiGenerateVideo,
+  estimateVideoDurationSec,
   isDeapiConfigured,
 } from "@/lib/deapi-client";
 import {
@@ -244,7 +245,14 @@ export async function POST(req: Request) {
   const gen =
     kind === "image"
       ? await deapiGenerateImage({ prompt })
-      : await deapiGenerateVideo({ prompt });
+      : await deapiGenerateVideo({
+          prompt,
+          durationSec:
+            typeof body.durationSec === "number" &&
+            Number.isFinite(body.durationSec)
+              ? body.durationSec
+              : estimateVideoDurationSec(prompt),
+        });
 
   if (gen.status === "unconfigured") {
     return Response.json(

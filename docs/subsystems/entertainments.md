@@ -339,6 +339,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
   - `POST /api/v2/videos/generations` (txt2video)
   - Jobs polled at `GET /api/v2/jobs/{request_id}` (send a normal User-Agent; Cloudflare blocks bare script UAs).
 - **Unified route:** `POST /api/studio/generate` with `{ kind: "music"|"image"|"video", ... }`.
+- **Video length:** estimated from prompt beats/camera moves (`estimateVideoDurationSec`); short clips use LTX (~4s max), multi-beat scenes prefer LTX-2 (up to ~10s). Not a fixed 4s.
 - **Song fallback:** Bailian Fun-Music → Volc GenSong (prepaid/postpaid). Volc often returns `ServerIpLimit` on non-CN egress.
 - Legacy: `POST /api/writing-studio/generate` still works for music-only.
 - Unconfigured: lyrics-only drafts still save; generate returns 503.

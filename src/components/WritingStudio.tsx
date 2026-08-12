@@ -8,6 +8,7 @@ import {
   buildVisualPrompt,
   looksLikeLyricStructure,
 } from "@/lib/entertain/studio-structure";
+import { estimateVideoDurationSec } from "@/lib/deapi-client";
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
 import type { BasisCoachReport, WritingType } from "@/lib/entertain/basis-writing";
@@ -1455,7 +1456,12 @@ export function WritingStudio() {
                   ? "Generate song"
                   : stageKind === "image"
                     ? "Generate image"
-                    : "Generate video"}
+                    : `Generate video (~${estimateVideoDurationSec(
+                        buildVisualPrompt(lyrics, caption) ||
+                          lyrics ||
+                          caption ||
+                          "scene",
+                      )}s)`}
             </button>
           </div>
           {status && <p className="mt-3 text-sm text-[#8fb896]">{status}</p>}

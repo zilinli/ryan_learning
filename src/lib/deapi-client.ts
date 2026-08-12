@@ -117,12 +117,12 @@ export function estimateMusicDurationSec(lyrics: string): number {
 
 /**
  * Estimate target video length (seconds) from prompt richness.
- * Actual length is still limited by model frames/fps.
+ * Tuned for deAPI txt2video (~2–10s depending on model frames/fps).
  */
 export function estimateVideoDurationSec(prompt: string): number {
   const words = countWords(prompt);
   const beats = prompt
-    .split(/[.!?。！？;；\n]+/)
+    .split(/[.!?。！？;；|/\n]+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 6);
   const moves =
@@ -131,12 +131,57 @@ export function estimateVideoDurationSec(prompt: string): number {
         /\b(pan|push(?:-in)?|track(?:ing)?|dolly|zoom|cut|then|after|next|follow|镜头|推进|拉远|然后|接着|切换)\b/gi,
       ) || []
     ).length;
+  // Short single-beat clips stay brief; multi-beat / camera moves stretch longer.
   const raw =
-    2.5 +
-    beats.length * 0.9 +
-    moves * 1.1 +
-    Math.min(words / 35, 5);
-  return Math.round(clamp(raw, 2, 30) * 10) / 10;
+    2.2 +
+    Math.max(0, beats.length - 1) * 1.45 +
+    moves * 0.85 +
+    Math.min(words / 28, 3.5);
+  return Math.round(clamp(raw, 2, 10) * 10) / 10;
+}
+
+/** True if the catalog entry is usable for text→video. */
+export function isTxt2VideoModel(m: DeapiModelInfo): boolean {
+  const types = m.inference_types;
+  if (Array.isArray(types) && types.length > 0) {
+    return types.includes("txt2video");
+  }
+  const lim = m.info?.limits;
+  return typeof lim?.max_frames === "number" && Number(lim.max_frames) > 0;
+}
+
+/** Longest clip a model can produce (frames / min fps). */
+export function modelMaxDurationSec(m: DeapiModelInfo): number {
+  const lim = (m.info?.limits || {}) as Record<string, unknown>;
+  const maxFrames = pickNum(lim, "max_frames", 0);
+  if (maxFrames < 1) return 0;
+  const minFps = pickNum(lim, "min_fps", 24);
+  return Math.round((maxFrames / Math.max(1, minFps)) * 10) / 10;
+}
+
+/**
+ * Prefer a model that can cover the content-based target length.
+ * Short clips → cheaper short-max models; rich prompts → longer-capable LTX-2.
+ */
+export function pickBestVideoModel(
+  models: DeapiModelInfo[],
+  wantSec: number,
+  preferred?: string,
+): DeapiModelInfo | null {
+  const vids = models.filter(isTxt2VideoModel).filter((m) => modelMaxDurationSec(m) > 0);
+  if (!vids.length) return null;
+  if (preferred) {
+    const hit = vids.find((m) => m.slug === preferred);
+    if (hit) return hit;
+  }
+  const target = Math.max(2, wantSec);
+  const covering = vids.filter((m) => modelMaxDurationSec(m) + 0.05 >= target);
+  if (covering.length) {
+    covering.sort((a, b) => modelMaxDurationSec(a) - modelMaxDurationSec(b));
+    return covering[0] || null;
+  }
+  vids.sort((a, b) => modelMaxDurationSec(b) - modelMaxDurationSec(a));
+  return vids[0] || null;
 }
 
 async function readJson(
@@ -196,7 +241,15 @@ export async function deapiListModels(
         return { ok: false, models, error: extractError(body, res.status) };
       }
       const data = (body.data as DeapiModelInfo[]) || [];
-      models.push(...data);
+      // API filter is unreliable — keep only rows that advertise this inference type
+      // (or have no types listed, for older payloads).
+      models.push(
+        ...data.filter((m) => {
+          const types = m.inference_types;
+          if (!Array.isArray(types) || types.length === 0) return true;
+          return types.includes(inferenceType);
+        }),
+      );
       const meta = body.meta as { current_page?: number; last_page?: number } | undefined;
       const last = meta?.last_page ?? page;
       const cur = meta?.current_page ?? page;
@@ -234,6 +287,9 @@ export async function deapiPickModel(
   if (envPref) {
     const hit = listed.models.find((m) => m.slug === envPref);
     if (hit) return hit;
+  }
+  if (inferenceType === "txt2video") {
+    return pickBestVideoModel(listed.models, 4, undefined);
   }
   // Prefer turbo / cheaper for music & image
   const turbo = listed.models.find((m) =>
@@ -571,7 +627,28 @@ export async function deapiGenerateVideo(
       error: "DEAPI_API_KEY not set",
     };
   }
-  const modelInfo = await deapiPickModel("txt2video", input.model);
+  const prompt = input.prompt.trim().slice(0, 4000);
+  if (prompt.length < 3) {
+    return { ok: false, status: "error", error: "Prompt too short" };
+  }
+
+  const wantSec =
+    typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
+      ? input.durationSec
+      : estimateVideoDurationSec(prompt);
+
+  // Content-first model pick: short prompts stay on ~4s LTX; multi-beat → LTX-2 (~10s).
+  let modelInfo: DeapiModelInfo | null = null;
+  if (input.model?.trim()) {
+    modelInfo = await deapiPickModel("txt2video", input.model);
+  } else {
+    const listed = await deapiListModels("txt2video");
+    modelInfo = pickBestVideoModel(
+      listed.models,
+      wantSec,
+      process.env.DEAPI_VIDEO_MODEL?.trim(),
+    );
+  }
   if (!modelInfo) {
     return {
       ok: false,
@@ -599,21 +676,17 @@ export async function deapiGenerateVideo(
   const defSteps =
     typeof defaults.steps === "number" ? defaults.steps : minSteps;
 
-  const prompt = input.prompt.trim().slice(0, 4000);
-  if (prompt.length < 3) {
-    return { ok: false, status: "error", error: "Prompt too short" };
-  }
-
-  const fps = clamp(Math.round(input.fps ?? defFps), minFps, maxFps);
+  // Prefer lowest allowed fps when stretching toward wantSec (more seconds per frame budget).
+  const fps = clamp(
+    Math.round(input.fps ?? (wantSec > 4 ? minFps : defFps)),
+    minFps,
+    maxFps,
+  );
   let frames: number;
   if (typeof input.frames === "number" && Number.isFinite(input.frames)) {
     frames = clamp(Math.round(input.frames), minFrames, maxFrames);
   } else {
-    const wantSec =
-      typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
-        ? input.durationSec
-        : estimateVideoDurationSec(prompt);
-    // Prefer content-based length; never sit on a fixed short default
+    // Content-based length — never force the model default (often fixed 120 ≈ 4s).
     frames = clamp(Math.round(wantSec * fps), minFrames, maxFrames);
   }
   const durationSec = Math.round((frames / fps) * 10) / 10;
