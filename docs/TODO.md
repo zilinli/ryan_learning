@@ -33,7 +33,7 @@
 - [x] **UX-IA.2** — `TutorShell` split: extract session hook; thinner shell JSX
 - [x] **UX-IA.3** — Family first-visit dismissible guidance (PIN → chat → Progress/Messages)
 - [x] **UX-IA.4** — BBC/RSA/NatGeo: API search + Refresh batch (TED parity; caption gate for YT)
-- [ ] **UX-IA.5** — Tests + README + push develop/master
+- [x] **UX-IA.5** — Tests + README + push develop/master
 
 ---
 
