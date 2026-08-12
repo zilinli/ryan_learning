@@ -5,13 +5,13 @@ import type { GameId } from "@/lib/entertain/types";
 import { ChessGame } from "./ChessGame";
 import { XiangqiGame } from "./XiangqiGame";
 import { GoGame } from "./GoGame";
-import { GomokuGame } from "./GomokuGame";
-import { UtttGame } from "./UtttGame";
 import { TetrisGame } from "./TetrisGame";
-import { SnakeGame } from "./SnakeGame";
 import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
+import { FractionForgeGame } from "./FractionForgeGame";
+import { TimelineDetectiveGame } from "./TimelineDetectiveGame";
+import { EcoTowerGame } from "./EcoTowerGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
@@ -29,13 +29,15 @@ interface GameInfo {
 }
 
 const GAMES: GameInfo[] = [
+  // ── Learning Games (prominent, first) ──
+  { id: "fraction-forge", title: "Fraction Forge", desc: "Craft gear with fractions — visual bars, adaptive difficulty", icon: "⚒", category: "Learning Games" },
+  { id: "timeline-detective", title: "Timeline Detective", desc: "Solve history mysteries — sort events, cite evidence", icon: "🔍", category: "Learning Games" },
+  { id: "eco-tower", title: "Eco Tower", desc: "Build an ecosystem — food chains, energy flow, disasters", icon: "🌿", category: "Learning Games" },
+  // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
   { id: "go", title: "Go", desc: "围棋 9×9 — local AI, 3 levels", icon: "⚫", category: "Board Games" },
-  { id: "gomoku", title: "Gomoku", desc: "五子棋 — pattern AI, 3 levels", icon: "❺", category: "Board Games" },
-  { id: "uttt", title: "Ultimate TTT", desc: "9 boards — local AI, 3 levels", icon: "⊞", category: "Board Games" },
   { id: "blocks", title: "Blocks", desc: "Falling blocks — clear lines", icon: "▦", category: "Arcade" },
-  { id: "snake", title: "Snake", desc: "Grow and avoid the walls", icon: "◎", category: "Arcade" },
   { id: "sudoku", title: "Sudoku", desc: "Classic number placement puzzle", icon: "9", category: "Logic Puzzles" },
   { id: "sokoban", title: "Sokoban", desc: "Push boxes to targets", icon: "📦", category: "Logic Puzzles" },
   { id: "klotski", title: "Klotski", desc: "华容道 — free Cao Cao", icon: "曹", category: "Logic Puzzles" },
@@ -107,13 +109,13 @@ const TITLES: Record<GameId, string> = {
   chess: "Chess",
   xiangqi: "Chinese Chess · 象棋",
   go: "Go · 围棋",
-  gomoku: "Gomoku · 五子棋",
-  uttt: "Ultimate Tic-Tac-Toe",
   blocks: "Blocks",
-  snake: "Snake",
   sudoku: "Sudoku",
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
+  "fraction-forge": "Fraction Forge",
+  "timeline-detective": "Timeline Detective",
+  "eco-tower": "Eco Tower",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",
@@ -174,6 +176,10 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
     }
   }, []);
 
+  const learningGames = useMemo(
+    () => GAMES.filter((g) => g.category === "Learning Games"),
+    [],
+  );
   const boardGames = useMemo(
     () => GAMES.filter((g) => g.category === "Board Games"),
     [],
@@ -194,10 +200,7 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "chess" && <ChessGame />}
         {activeGame === "xiangqi" && <XiangqiGame />}
         {activeGame === "go" && <GoGame />}
-        {activeGame === "gomoku" && <GomokuGame />}
-        {activeGame === "uttt" && <UtttGame />}
         {activeGame === "blocks" && <TetrisGame />}
-        {activeGame === "snake" && <SnakeGame />}
         {activeGame === "sudoku" && <SudokuGame />}
         {activeGame === "sokoban" && <SokobanGame />}
         {activeGame === "klotski" && <KlotskiGame />}
@@ -207,6 +210,9 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "bbc-lab" && <BbcDocLab />}
         {activeGame === "rsa-lab" && <RsaShortsLab />}
         {activeGame === "creations" && <CreationsLibrary />}
+        {activeGame === "fraction-forge" && <FractionForgeGame />}
+        {activeGame === "timeline-detective" && <TimelineDetectiveGame />}
+        {activeGame === "eco-tower" && <EcoTowerGame />}
       </div>
     );
   }
@@ -223,19 +229,24 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
           Games
         </h1>
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
-          Board games · arcade · puzzles
+          Learning games · board games · puzzles
         </p>
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-6">
-        <div className="mx-auto max-w-2xl space-y-8">
+        <div className="mx-auto max-w-3xl space-y-8">
+
+          {/* ── Learning Games (prominent, first section) ── */}
           <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-              Board Games
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {boardGames.map((game) => (
-                <GameCard
+            <div className="mb-4 flex items-baseline gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--teal)]">
+                Learning Games
+              </h2>
+              <span className="text-[11px] text-[var(--ink-muted)]">Practice with purpose</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+              {learningGames.map((game) => (
+                <LearningGameCard
                   key={game.id}
                   game={game}
                   onSelect={() => openGame(game.id)}
@@ -244,38 +255,70 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
             </div>
           </section>
 
+          {/* ── Logic & Fun (secondary) ── */}
           <section>
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-              Arcade
+              Logic &amp; Fun
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {arcade.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  onSelect={() => openGame(game.id)}
-                />
-              ))}
-            </div>
-          </section>
 
-          <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
-              Logic Puzzles
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {puzzles.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  onSelect={() => openGame(game.id)}
-                />
-              ))}
+            <div className="space-y-6">
+              {boardGames.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-[12px] font-medium text-[var(--ink-muted)]">Board Games</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                    {boardGames.map((game) => (
+                      <GameCard key={game.id} game={game} onSelect={() => openGame(game.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {arcade.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-[12px] font-medium text-[var(--ink-muted)]">Arcade</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                    {arcade.map((game) => (
+                      <GameCard key={game.id} game={game} onSelect={() => openGame(game.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {puzzles.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-[12px] font-medium text-[var(--ink-muted)]">Logic Puzzles</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                    {puzzles.map((game) => (
+                      <GameCard key={game.id} game={game} onSelect={() => openGame(game.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </div>
       </div>
     </div>
+  );
+}
+
+function LearningGameCard({ game, onSelect }: { game: GameInfo; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-[var(--teal)]/30 bg-[var(--teal)]/5 p-4 text-left transition hover:border-[var(--teal)]/55 hover:bg-[var(--teal)]/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+    >
+      <span className="mb-2 text-2xl" aria-hidden>
+        {game.icon}
+      </span>
+      <span className="text-sm font-semibold text-[var(--ink)]">{game.title}</span>
+      <span className="mt-1 text-xs leading-relaxed text-[var(--ink-muted)]">{game.desc}</span>
+      <span className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)] opacity-70 transition group-hover:opacity-100">
+        Play now
+        <span className="ml-1 inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+      </span>
+    </button>
   );
 }
 

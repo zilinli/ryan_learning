@@ -2,10 +2,7 @@ export type GameId =
   | "chess"
   | "xiangqi"
   | "go"
-  | "gomoku"
-  | "uttt"
   | "blocks"
-  | "snake"
   | "sudoku"
   | "sokoban"
   | "klotski"
@@ -14,7 +11,10 @@ export type GameId =
   | "natgeo-lab"
   | "bbc-lab"
   | "rsa-lab"
-  | "creations";
+  | "creations"
+  | "fraction-forge"
+  | "timeline-detective"
+  | "eco-tower";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 
