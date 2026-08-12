@@ -24,6 +24,27 @@
 
 ---
 
+## 🎯 SPARK-ROADMAP — 竞品调研路线图 P0→P3（2026-08-13）
+
+> **基准报告:** `/root/AI教学产品调研与Spark分析报告.md` §9 三阶段路线图  
+> **Plan:** `.cursor/plans/spark-research-roadmap_a9ae02ea.plan.md`（不改动 plan 文件本身）  
+> **目标:** 体验激活 → 优等生挑战性 → 趣味与家庭 → 几何交互可视化（stretch）
+
+- [x] **SPARK-R.0** — Me 时间线删除单条记录（Wrote/Empty day 卡 + Related 创作块；`removeJournalMadeBlock` + DELETE `creationId` + 两击确认 `DeleteChip`）
+- [x] **SPARK-R.1 (P0-opener)** — 开场卡「再给我一题/拍作业」+ `challengeLine` 高阶提示 + `rotateSessionOpener`
+- [x] **SPARK-R.2 (P0-fastpath)** — `local-facts.ts` 单位换算/路程公式/平方立方/百分比口算 + 接入 `useTutorSession`
+- [x] **SPARK-R.3 (P0-dots)** — `SkillDots` 成长可视化挂到 `MeHome`
+- [x] **SPARK-R.4 (P1-challenge)** — `challenge-mode.ts` + 开场卡 Challenge me! 入口 + 连对升档
+- [x] **SPARK-R.5 (P1-whatif)** — 回复「继续深挖」：换方法/边界/跨学科（`buildDeepDivePrompt` + `DeepDiveControl`）
+- [x] **SPARK-R.6 (P1-wrongbook)** — `wrong-answer-store` + 错题本 UI + 重做 3 题/组卷 + 开场卡复习入口
+- [x] **SPARK-R.7 (P2-feynman)** — `feynman-task.ts` 每周「讲给家人听」任务 + 家长周报项 + Family 页面卡片
+- [x] **SPARK-R.8 (P2-weekgoal)** — `weekly-goal.ts` 本周掌握 3 个新技能短周期目标 + `WeeklyGoalCard`
+- [x] **SPARK-R.9 (P2-report)** — 家长周报「本周最大突破」成长叙事（`recentWins` + session digests）
+- [x] **SPARK-R.10 (P2-voice)** — `ReadAlongPractice` 读一段给我听：TTS 范读 → 录音 STT → 朗读准确率反馈
+- [x] **SPARK-R.11 (P3-geometry)** — 几何步骤高亮：`GeometryStep` + `buildGeometrySvg(opts.stepIndex)` 变暗 + 量标注 callout + ```` ```geom-steps ```` 交互播放器 `GeometryStepPlayer`
+
+---
+
 ## 🧭 UX-IA — Family platform IA + Lab search refresh (2026-08-12)
 
 > **North star:** [DESIGN.md](DESIGN.md) § Family Learning Platform (2026-08 update)  

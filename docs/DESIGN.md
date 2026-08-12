@@ -105,6 +105,7 @@ flowchart TB
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |
 | **[subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)** | ✍️ Writing Pad P0 — LanguageTool grammar, Feedback/Stage layout, writing type |
 | **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)** | 📓 Journal Timeline (`/me`, `/me/journal`) + Stage styles (Structure suggests Hip-hop etc.) |
+| **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md)** | 🗺 竞品调研路线图 P0→P3：开场卡/快速路径/SkillDots → Challenge/深挖/错题本 → Feynman/周目标/突破叙事/朗读 → 几何步骤高亮 |
 | **[subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)** | Writing Pad → music/image/video — **adapt** language, don’t copy |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |
