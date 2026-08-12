@@ -301,7 +301,29 @@ export function FamilyControlsPage() {
                 value:
                   report.kpis.idleDays == null ? "—" : report.kpis.idleDays,
               },
-            ].map((k) => (
+            ].concat((() => {
+              // Today's focus — read from session-timer localStorage (optional, non-breaking)
+              let focusStr = "—";
+              try {
+                const today = new Date();
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, "0");
+                const d = String(today.getDate()).padStart(2, "0");
+                const key = `spark.focusDaily.${y}-${m}-${d}`;
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  const ms = Number(parsed?.totalMs) || 0;
+                  if (ms > 30_000) {
+                    const mins = Math.round(ms / 60_000);
+                    focusStr = mins < 1 ? "<1m" : mins >= 60
+                      ? `${Math.floor(mins / 60)}h ${mins % 60}m`
+                      : `${mins}m`;
+                  }
+                }
+              } catch { /* ignore */ }
+              return [{ label: "Today's focus", value: focusStr }];
+            })()).map((k) => (
               <div
                 key={k.label}
                 className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-3"

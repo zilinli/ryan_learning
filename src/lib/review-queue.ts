@@ -9,6 +9,7 @@ import {
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
+import { getSkillDef } from "./skill-catalog";
 
 const DAY_MS = 86_400_000;
 const LN_0_9 = Math.log(0.9);
@@ -22,6 +23,8 @@ export type ReviewQueueItem = {
   /** Difficulty 1–10 mapped from BKT pKnown */
   difficulty: number;
   daysSinceReview: number;
+  /** Subject from the skill catalog (for diversity balancing) */
+  subject?: string;
 };
 
 /** R = exp(ln(0.9) * t / S) — FSRS-style forgetting curve. */
@@ -53,6 +56,7 @@ export function skillReviewMetrics(
     stability,
     difficulty: difficultyFromMastery(skill.pKnown),
     daysSinceReview,
+    subject: getSkillDef(skill.id)?.subject,
   };
 }
 
@@ -95,7 +99,29 @@ export function buildDailyReviewQueue(
         b.daysSinceReview - a.daysSinceReview,
     );
 
-  return scored.slice(0, limit);
+  const topN = scored.slice(0, limit);
+
+  // Subject diversity: if >60% of topN is one subject, replace the last item
+  // with the next-most-urgent skill from a different subject.
+  if (topN.length >= 3) {
+    const subjectCounts = new Map<string, number>();
+    for (const item of topN) {
+      const s = item.subject || "general";
+      subjectCounts.set(s, (subjectCounts.get(s) || 0) + 1);
+    }
+    const dominantRatio = Math.max(...subjectCounts.values()) / topN.length;
+    if (dominantRatio > 0.6) {
+      const rest = scored.slice(limit);
+      const dominantSubject = [...subjectCounts.entries()]
+        .sort((a, b) => b[1] - a[1])[0]![0];
+      const alt = rest.find((item) => (item.subject || "general") !== dominantSubject);
+      if (alt) {
+        topN[topN.length - 1] = alt;
+      }
+    }
+  }
+
+  return topN;
 }
 
 /** One-line student/parent cue for the queue. */

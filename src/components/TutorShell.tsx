@@ -41,6 +41,7 @@ export function TutorShell() {
     handleSwitchAccount, startNewSession, selectConversation, deleteConversation, handleSend,
     setSpeakApi, stopSpeakAll, handleOpenCodeAgent,
     setPracticeOffer, setSessionOpener,
+    breakNudge, handleDismissBreakNudge,
   } = useTutorSession();
 
   if (!ready || !store) {
@@ -264,6 +265,8 @@ export function TutorShell() {
             onStopSpeak={() => {
               stopSpeakAll();
             }}
+            breakNudge={breakNudge}
+            onDismissBreakNudge={handleDismissBreakNudge}
           />
         </main>
 

@@ -483,9 +483,10 @@ export function buildTutorPrompt(params: {
         '{"total":N,"current":1,"items":[{"id":1,"label":"Q1","status":"active"},{"id":2,"label":"Q2","status":"pending"}]}',
         "~~~",
         "4) status values: pending | active | done | skipped. Keep exactly one active — never two actives.",
-        "5) After the student finishes or skips an item, bump current, update statuses, re-emit the fence.",
-        "6) When all done: one short celebration + weak-skill summary — still no mega answer dump.",
-        "7) If the page has ONLY ONE question/item: do NOT emit a worksheet-plan fence.",
+        '5) (optional) If you can tell the subject from the content, add "subject":"math"|"science"|"ela"|"humanities"|"language" to the plan JSON.',
+        "6) After the student finishes or skips an item, bump current, update statuses, re-emit the fence.",
+        "7) When all done: one short celebration + weak-skill summary — still no mega answer dump.",
+        "8) If the page has ONLY ONE question/item: do NOT emit a worksheet-plan fence.",
       ].join("\n")
     : [
         "",

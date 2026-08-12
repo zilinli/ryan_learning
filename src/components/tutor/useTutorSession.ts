@@ -132,6 +132,16 @@ import {
   upsertActive,
 } from "./tutor-session-utils";
 
+import {
+  commitSessionFocus,
+  dismissBreakNudge,
+  getSessionElapsedMs,
+  pauseSessionTimer,
+  resumeSessionTimer,
+  shouldShowBreakNudge,
+  startSessionTimer,
+} from "@/lib/session-timer";
+
 export function useTutorSession() {
   const [ready, setReady] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
@@ -169,6 +179,10 @@ export function useTutorSession() {
     coherent: boolean;
   } | null>(null);
   const [dailyBlurb, setDailyBlurb] = useState<string | null>(null);
+  const [breakNudge, setBreakNudge] = useState<{
+    minutes: number;
+    dismissed: boolean;
+  } | null>(null);
   const [emotionLine, setEmotionLine] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
@@ -600,6 +614,31 @@ export function useTutorSession() {
     };
   }, [ready, learningMemory]);
 
+  // Visibility: pause/resume session timer + poll break nudge
+  useEffect(() => {
+    if (!ready) return;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        pauseSessionTimer();
+      } else {
+        resumeSessionTimer();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    // Poll break nudge every 10s while active
+    const nudgeTimer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      if (shouldShowBreakNudge()) {
+        const mins = Math.round(getSessionElapsedMs() / 60_000);
+        setBreakNudge({ minutes: mins, dismissed: false });
+      }
+    }, 10_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(nudgeTimer);
+    };
+  }, [ready]);
+
   // A2.h.4 — missed-close recovery once store is ready
   useEffect(() => {
     if (!ready || !store) return;
@@ -660,10 +699,16 @@ export function useTutorSession() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
 
+  const handleDismissBreakNudge = useCallback(() => {
+    dismissBreakNudge();
+    setBreakNudge(null);
+  }, []);
+
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
 
   const handleSwitchAccount = (id: string) => {
     if (id === accountId || busy) return;
+    commitSessionFocus();
     // Prevent in-flight init photo vault from overwriting the new account's store
     accountIdRef.current = id;
     // Save current state
@@ -715,6 +760,9 @@ export function useTutorSession() {
 
   const startNewSession = () => {
     if (!store || busy) return;
+
+    // Commit current focus time before switching sessions
+    commitSessionFocus();
 
     // Generate a digest for the session we're leaving (if it has meaningful messages)
     const prevActive = getActiveConversation(store);
@@ -846,6 +894,7 @@ export function useTutorSession() {
 
   const selectConversation = (id: string) => {
     if (!store || busy || id === store.activeId) return;
+    commitSessionFocus();
     stopSpeakAll();
     const mem = learningMemory || loadLearningMemory(accountId);
     const leaving = getActiveConversation(store);
@@ -914,6 +963,9 @@ export function useTutorSession() {
     attachments: ClientAttachment[];
   }) => {
     if (busy || !store || !sessionId) return;
+
+    // Start focus timer on first message of the session
+    startSessionTimer();
 
     // UX-RPT.7 — narrow local recall (no Agent) for pure arithmetic facts
     const recall =
@@ -1233,5 +1285,6 @@ export function useTutorSession() {
     handleSwitchAccount, startNewSession, selectConversation, deleteConversation, handleSend,
     setSpeakApi, stopSpeakAll, handleOpenCodeAgent, setKeyMissing,
     setPracticeOffer, setSessionOpener, setStore,
+    breakNudge, handleDismissBreakNudge,
   };
 }

@@ -52,6 +52,9 @@ type Props = {
   /** Soft emotion line after a turn */
   emotionLine?: string | null;
   onDismissEmotionLine?: () => void;
+  /** Focus timer break nudge */
+  breakNudge?: { minutes: number; dismissed: boolean } | null;
+  onDismissBreakNudge?: () => void;
   /** One-click replay for a finished message */
   onSpeakMessage?: (messageId: string, text: string) => void;
   /** Stop current replay / TTS */
@@ -138,6 +141,8 @@ export function ChatThread({
   onSpeakMessage,
   onStopSpeak,
   speakingMessageId,
+  breakNudge,
+  onDismissBreakNudge,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -381,6 +386,33 @@ export function ChatThread({
           </div>
         ) : null}
 
+        {breakNudge && !breakNudge.dismissed ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--coral)]/40 bg-[var(--coral)]/8 px-4 py-3 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--coral)]">
+              Focus check
+            </p>
+            <p className="mt-1 text-sm text-[var(--ink)]">
+              You've been focused for about {breakNudge.minutes} minutes — want to take a short break?
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onDismissBreakNudge}
+                className="min-h-11 rounded-xl border border-[var(--coral)]/40 px-3 text-sm font-medium text-[var(--coral)]"
+              >
+                Quick break (5 min)
+              </button>
+              <button
+                type="button"
+                onClick={onDismissBreakNudge}
+                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink-muted)]"
+              >
+                Keep going
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {practiceOffer && practiceOffer.targets.length > 0 ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--teal)]/50 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
@@ -432,24 +464,42 @@ export function ChatThread({
             <p className="mt-1 text-sm font-medium text-[var(--ink)]">
               {sessionOpener.line}
             </p>
+            {sessionOpener.practiceTargets && sessionOpener.practiceTargets.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[sessionOpener.label, ...sessionOpener.practiceTargets.map((t) => t.label)].map(
+                  (lbl, i) => (
+                    <span
+                      key={i}
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                        i === 0
+                          ? "border-[var(--teal)]/50 bg-[var(--teal)]/10 text-[var(--teal)]"
+                          : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)]"
+                      }`}
+                    >
+                      {lbl}
+                    </span>
+                  ),
+                )}
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={onOpenerTry}
                 className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
               >
-                Continue
+                Start 3 quick questions
               </button>
               <button
                 type="button"
                 onClick={onSnapHomework}
                 className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
               >
-                Something else
+                Not now — snap homework instead
               </button>
             </div>
             <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
-              Continue opens “{sessionOpener.label}”. Something else → snap homework.
+              Quick warm-up on “{sessionOpener.label}”. “Not now” → snap homework.
             </p>
           </div>
         ) : null}

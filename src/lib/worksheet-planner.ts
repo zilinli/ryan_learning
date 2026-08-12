@@ -3,6 +3,8 @@
  * Agent emits ~~~worksheet-plan fences; client parses, strips, and shows progress.
  */
 
+import type { SubjectKey } from "./dashboard-stats";
+
 export type WorksheetItemStatus = "pending" | "active" | "done" | "skipped";
 
 export type WorksheetItem = {
@@ -17,6 +19,8 @@ export type WorksheetPlan = {
   items: WorksheetItem[];
   source: "agent";
   updatedAt: number;
+  /** Inferred subject for this worksheet (lightweight heuristic from question labels) */
+  subject?: SubjectKey;
 };
 
 const FENCE_RE =
@@ -39,6 +43,23 @@ function normalizeStatus(raw: unknown): WorksheetItemStatus {
 function clampInt(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   return Math.min(max, Math.max(min, Math.floor(n)));
+}
+
+/** Lightweight subject inference from question labels (keyword heuristics). */
+function inferSubjectFromLabels(labels: string[]): SubjectKey | undefined {
+  if (!labels.length) return undefined;
+  const joined = labels.join(" ").toLowerCase();
+  const hints: [RegExp, SubjectKey][] = [
+    [/\b(solve|x\s*=|equation|algebra|graph|slope|y-intercept|slope|polynomial|quadratic|integral|derivative|geometry|angle|triangle|circle|volume|area|perimeter|probability|statistics|mean|median|function|vector|matrix|logarithm|exponent|trigonomet)\b/i, "math"],
+    [/\b(gravity|force|energy|atom|molecule|cell|organism|photosynthesis|evolution|dna|gene|ecosystem|climate|weather|element|compound|acid|reaction|physics|chemistry|biology|scientific|experiment|hypothesis|law of|newton|motion|velocity|acceleration|wave|electric|magnetic|nuclear)\b/i, "science"],
+    [/\b(essay|paragraph|thesis|claim|evidence|cite|quote|passage|chapter|theme|character|plot|setting|author|poem|metaphor|simile|symbol|tone|mood|summary|infer|context|clue|vocabulary|define|grammar|spelling|punctuation|sentence|clause|writing prompt|reading comprehension)\b/i, "ela"],
+    [/\b(history|civilization|war|revolution|government|economy|trade|culture|geography|map|country|continent|empire|colony|president|king|ancient|medieval|modern|timeline|primary source|civics|constitution|rights|amendment|democracy|political)\b/i, "humanities"],
+    [/\b(翻译|translate|vocabulary|grammar|tense|verb|noun|adjective|conversation|dialogue|accent|pronunciation|pinyin|stroke|character|中文|espa.ol|francais|deutsch)\b/i, "language"],
+  ];
+  for (const [regex, subject] of hints) {
+    if (regex.test(joined)) return subject;
+  }
+  return undefined;
 }
 
 /** Parse a single JSON body into a plan, or null if invalid. */
@@ -87,12 +108,26 @@ export function planFromJson(
     if (active) current = active.id;
   }
 
+  // Try agent-provided subject first, then heuristic from question labels
+  let subject: SubjectKey | undefined;
+  if (
+    typeof o.subject === "string" &&
+    ["math", "science", "ela", "humanities", "language", "general"].includes(
+      o.subject,
+    )
+  ) {
+    subject = o.subject as SubjectKey;
+  } else {
+    subject = inferSubjectFromLabels(items.map((i) => i.label));
+  }
+
   return {
     total: resolvedTotal,
     current,
     items,
     source: "agent",
     updatedAt: now,
+    subject,
   };
 }
 

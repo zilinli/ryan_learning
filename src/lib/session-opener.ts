@@ -15,12 +15,15 @@ import {
   isSoftIdle,
   softReturnOpenerLine,
 } from "./idle-nudge";
+import { pickPracticeTargets, type PracticeTarget } from "./session-practice";
 
 export type SessionOpener = {
   skillId: string;
   label: string;
   kind: "review" | "zpd" | "recurring" | "return" | "practice";
   line: string;
+  /** Up to 2 extra related skills for the short-practice card */
+  practiceTargets?: PracticeTarget[];
 };
 
 const DATE_KEY_PREFIX = "spark.opener.date.";
@@ -90,7 +93,24 @@ export function buildSessionOpener(
     kind === "recurring"
       ? `${skill.label} has been tricky the last few days — warm up, or snap homework first?`
       : `Today fits ${skill.label} — or snap homework first?`;
-  return { skillId: skill.id, label: skill.label, kind, line };
+
+  // Build additional practice targets for the clickable card
+  const targets: PracticeTarget[] = [];
+  if (kind === "review" || kind === "zpd") {
+    // Select 2 extra warm-up skills (different from the main skill)
+    const extras = pickPracticeTargets(mem, 4).filter(
+      (t) => t.skillId !== skill.id,
+    );
+    targets.push(...extras.slice(0, 2));
+  }
+
+  return {
+    skillId: skill.id,
+    label: skill.label,
+    kind,
+    line,
+    practiceTargets: targets.length > 0 ? targets : undefined,
+  };
 }
 
 export function buildOpenerKickoffMessage(opener: SessionOpener): string {
