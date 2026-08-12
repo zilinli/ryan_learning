@@ -1755,8 +1755,10 @@ export function TutorShell() {
       {/* ── Messages overlay for student ── */}
       {messagesOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-12 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setMessagesOpen(false); }}>
-          <div className="m-4 w-full max-w-lg max-h-[80dvh] overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--bg0)] p-6 shadow-2xl">
-            <MessageList accountId={accountId} onClose={() => setMessagesOpen(false)} />
+          <div className="m-4 flex w-full max-w-lg max-h-[85dvh] flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg0)] p-6 shadow-2xl">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <MessageList accountId={accountId} onClose={() => setMessagesOpen(false)} />
+            </div>
           </div>
         </div>
       )}

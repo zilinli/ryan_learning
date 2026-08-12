@@ -101,3 +101,15 @@ export async function unreadCount(accountId: string): Promise<number> {
   const store = await loadMessages(accountId);
   return store.messages.filter((m) => !m.publicReadAt).length;
 }
+
+export async function deleteMessage(
+  accountId: string,
+  messageId: string,
+): Promise<boolean> {
+  const store = await loadMessages(accountId);
+  const next = store.messages.filter((m) => m.id !== messageId);
+  if (next.length === store.messages.length) return false;
+  store.messages = next;
+  await saveMessages(accountId, store);
+  return true;
+}
