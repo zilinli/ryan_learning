@@ -57,6 +57,8 @@ yarn-error.log*
 /data/dialect-feedback.jsonl
 /data/tts-cache/
 /data/ted-cache/
+/data/yt-cache/
+/data/natgeo-cache/
 /vendor/taiwanese-hakka-tts/
 /.venv-formospeech/
 
