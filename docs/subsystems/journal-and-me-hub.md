@@ -1,7 +1,7 @@
 # Journal + Me hub + Stage styles — product design
 
-> 2026-08-12 · **Design only** — no implementation until product confirms the defaults below.  
-> Status: **awaiting confirmation** · revised: Structure→default Stage style; journal = New + history; Creations auto-journal
+> 2026-08-12 · **Confirmed for build** (C1–C7 + Facebook Timeline).  
+> Status: **implementing JM.1–JM.4** · Timeline = one chronological spine of related records
 
 This spec covers three linked decisions:
 
@@ -23,7 +23,35 @@ This spec covers three linked decisions:
 | C6 | Scope v1 | **Me + Journal (New/history) + Stage styles + Creation→journal** | Full Day One clone (maps, streaks, multi-notebook) |
 | C7 | Creation → journal | **Every new My Creation auto-writes into that day’s journal** (append if today already has an entry) | Stage media only; or ask each time |
 
-Reply with “defaults OK” or change C1–C7. After that we implement.
+**Locked 2026-08-12:** product OK on C1–C7; journal UI follows **Facebook Timeline** (below), not a blog dump.
+
+---
+
+## 0.1 Facebook Timeline → Spark (research lock)
+
+Facebook Timeline (2011 profile; later a single column) is the right metaphor for “related records,” not a social wall.
+
+| Facebook | Spark take | Explicitly not |
+|----------|------------|----------------|
+| One **chronological spine** of mixed story types | Journal home **is** the Timeline | Separate apps with no spine |
+| **Related stories clustered** (album / same-day) | Same **day** = one cluster: prose + Made (song/TED/…) as related cards | One row per blob with no grouping |
+| Year/month **jump** (sticky scrubber) | Desktop: sticky year → month; mobile: chip row | Two-column 2011 magazine |
+| “Share something” / add life event | **+ New** / Write today / backdate | Cover photo, friends box |
+| Highlights vs All | v1 = **All stories** | Highlights algorithm |
+| Public wall + likes/comments | **Private** (C3) | Class feed, reactions |
+| Auto-import from apps | **My Creations → that day’s cluster** (C7) | Every chat token |
+
+Zuckerberg: Timeline is “the story of your life.” Spark Timeline is **this student’s story of making and writing** — still kid-private.
+
+```
+        │  Aug 2026                    [2026 ▾]
+   ●────│  12 Wed
+        │    Wrote  What I noticed on the way home
+        │    related ♪ Hold the light · Hip-hop
+        │    related TED Why we sleep
+   ●────│  11 Tue
+        │    Made  Watercolor · bus window
+```
 
 ---
 
@@ -444,7 +472,26 @@ JM.1 can ship alone if Me/journal is deferred.
 
 ---
 
-## 12. Open questions (optional)
+## 12. Test design
+
+### Unit
+- `stage-styles.test.ts` — Hip-hop/Ballad/Indie suggestion; legacy `Hip-hop sketch` → Hip-hop; image/video defaults.
+- `journal-store.test.ts` — create; append Creation to today; second Creation appends related block (no second empty day); delete journal leaves creations.
+- `journal-timeline.test.ts` — same-day entries cluster; month jump list; newest day first.
+
+### Integration
+- `POST /api/journal` then `GET` lists the entry.
+- `POST /api/creations` song → today’s journal has a Made block.
+- Structure coach JSON includes `suggestedStyle`.
+
+### Manual
+- New → Studio → Save → Timeline shows the day + related song after Generate.
+- Me peek → Open all → year/month jump.
+- Style dropdown on Stage after Structure; change Hip-hop → Generate uses new style.
+
+---
+
+## 13. Open questions (optional)
 
 - Default Me vs Chat after account switch? **Recommend stay on current page.**
 - Chinese UI copy for Journal (“日记” vs “Journal”)? **Recommend bilingual label: Journal · 日记**

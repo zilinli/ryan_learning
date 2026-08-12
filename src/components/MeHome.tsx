@@ -1,0 +1,147 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { loadConversations } from "@/lib/storage";
+import { journalPromptForGrade } from "@/lib/entertain/journal-model";
+import { useActiveStudioAccount } from "./StudioAccountBar";
+import { JournalTimeline } from "./JournalTimeline";
+import type { CreationItem } from "@/lib/entertain/creations-store";
+
+export function MeHome() {
+  const acct = useActiveStudioAccount();
+  const [creations, setCreations] = useState<CreationItem[]>([]);
+  const chats = useMemo(
+    () =>
+      loadConversations(acct.accountId)
+        .conversations.slice()
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, 3),
+    [acct.accountId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(
+      `/api/creations?accountId=${encodeURIComponent(acct.accountId)}`,
+    )
+      .then((r) => r.json())
+      .then((data: { items?: CreationItem[] }) => {
+        if (!cancelled) setCreations((data.items || []).slice(0, 4));
+      })
+      .catch(() => {
+        if (!cancelled) setCreations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [acct.accountId]);
+
+  const prompt = journalPromptForGrade(acct.grade);
+
+  return (
+    <div className="mx-auto min-h-dvh max-w-xl px-4 py-6 text-[var(--ink)]">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Me
+          </p>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+            {acct.name}
+            {acct.grade ? (
+              <span className="ml-2 text-lg font-normal text-[var(--ink-muted)]">
+                G{acct.grade}
+              </span>
+            ) : null}
+          </h1>
+          <p className="mt-1 text-[13px] text-[var(--ink-muted)]">{prompt}</p>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href="/account"
+            className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem]"
+          >
+            Account
+          </a>
+          <a
+            href="/"
+            className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem]"
+          >
+            Chat
+          </a>
+        </div>
+      </header>
+
+      <section className="mb-6">
+        <JournalTimeline peek />
+      </section>
+
+      <section className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+            Made
+          </p>
+          <a
+            href="/entertain?hub=studio&game=creations"
+            className="text-[12px] font-semibold text-[var(--teal)]"
+          >
+            My Creations
+          </a>
+        </div>
+        {creations.length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">No creations yet.</p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-2">
+            {creations.map((c) => (
+              <li
+                key={c.id}
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-2.5"
+              >
+                <p className="text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">
+                  {c.type.replace("_", " ")}
+                </p>
+                <p className="truncate text-sm font-medium">{c.title}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
+            Chats
+          </p>
+          <a href="/" className="text-[12px] font-semibold text-[var(--teal)]">
+            All chats
+          </a>
+        </div>
+        {chats.length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">No chats on this device yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {chats.map((c) => (
+              <li key={c.sessionId}>
+                <a
+                  href={`/?session=${encodeURIComponent(c.sessionId)}`}
+                  className="block rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
+                >
+                  {c.title || "Untitled chat"}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <a
+          href="/dashboard"
+          className="flex min-h-12 items-center justify-between rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 text-sm font-medium"
+        >
+          Learning dashboard
+          <span className="text-[var(--ink-muted)]">→</span>
+        </a>
+      </section>
+    </div>
+  );
+}

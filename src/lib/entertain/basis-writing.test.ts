@@ -80,5 +80,6 @@ describe("basis-writing", () => {
     expect(structureCtaLabel("narrative", "music")).toBe("Structure essay");
     expect(structureCtaLabel("lyrics", "music")).toBe("Turn into lyrics");
     expect(structureCtaLabel("free", "image")).toBe("Structure for image");
+    expect(structureCtaLabel("journal", "music")).toBe("Stage this day");
   });
 });

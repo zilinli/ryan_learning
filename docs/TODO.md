@@ -20,23 +20,24 @@
 > v4 deep analysis 2026-08: **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** (Studio BKT outcome + printable portfolio)
 > Product audit 2026-08: **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** (**多语言 + Code Agent 锁定保留**)
 > TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**  
-> Journal + Me hub + Stage styles (**design, awaiting confirm**): **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**
+> Journal Timeline + Me hub + Stage styles: **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**
 
 ---
 
 ## 📓 JM — Journal + Me hub + Stage styles (2026-08-12) — DESIGN ONLY
 
 > **Design:** [subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)  
-> **Status:** awaiting C1–C7 confirmation. **Do not implement** until product replies (defaults OK or deltas).  
-> **Goal:** Journal = New + history (Day One-lite); Creations auto-write into today’s journal; Stage styles in Stage with Structure-suggested default.
+> **Status:** JM.1–JM.4 implemented (Facebook Timeline). JM.5 later.  
+> **Goal:** Journal = New + Timeline of related records; Creations auto-write into today’s journal; Stage styles in Stage with Structure-suggested default.
 
 - [x] **JM.0a** — Spec drafted + revised (Structure default style; New/history; Creation→journal)
-- [ ] **JM.0b** — Product confirms C1–C7
-- [ ] **JM.1** — Stage styles + Structure `suggestedStyle` default + pad genre removed *(after confirm)*
-- [ ] **JM.2** — Journal store/API + New + history list + calendar + `journal` type *(after confirm)*
-- [ ] **JM.3** — `/me` + sidebar + peek + Open all *(after confirm)*
-- [ ] **JM.4** — Creation save → append/create today’s journal + snapshot *(after confirm)*
-- [ ] **JM.5** — Family read-only + On This Day *(after confirm)*
+- [x] **JM.0b** — Product confirms C1–C7 + Facebook Timeline spine (2026-08-12)
+- [x] **JM.1** — Stage styles + Structure `suggestedStyle` default + pad genre removed
+- [x] **JM.2** — Journal store/API + New + Timeline history + `journal` type
+- [x] **JM.3** — `/me` + sidebar Me + peek + Open all
+- [x] **JM.4** — Creation save → append/create today’s journal + snapshot
+- [ ] **JM.5** — Family read-only + On This Day *(later)*
+- [ ] **JM.6** — `apply_changes` → `publish_develop` → `deploy_live`
 
 ---
 

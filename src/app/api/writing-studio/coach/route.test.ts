@@ -137,6 +137,7 @@ describe("POST /api/writing-studio/coach — local fallback", () => {
     expect(data.lyrics).toMatch(/\[Verse\]/);
     expect(data.lyrics).toMatch(/\[Chorus\]/);
     expect(data.caption).toMatch(/Ballad/i);
+    expect(data.suggestedStyle).toBeTruthy();
   });
 
   it("structure image returns visual prompt without lyric tags", async () => {

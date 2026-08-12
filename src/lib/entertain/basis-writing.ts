@@ -8,6 +8,7 @@ export type BasisDimensionId = "topic" | "detail" | "vocab" | "grammar";
 
 /** Student writing genre — separate from Stage music mood. */
 export type WritingType =
+  | "journal"
   | "narrative"
   | "persuasive"
   | "descriptive"
@@ -17,6 +18,7 @@ export type WritingType =
   | "free";
 
 export const WRITING_TYPES: Array<{ id: WritingType; label: string }> = [
+  { id: "journal", label: "Journal" },
   { id: "narrative", label: "Narrative" },
   { id: "persuasive", label: "Persuasive" },
   { id: "descriptive", label: "Descriptive" },
@@ -38,6 +40,7 @@ export function structureCtaLabel(
   if (stageKind === "video") return "Structure for video";
   if (writingType === "lyrics") return "Turn into lyrics";
   if (writingType === "poetry") return "Shape as poem";
+  if (writingType === "journal") return "Stage this day";
   if (writingType === "free") return "Structure for stage";
   return "Structure essay";
 }

@@ -16,21 +16,32 @@ const storeFile = path.join(
   TEST_ACCT,
   "creations.json",
 );
+const journalFile = path.join(
+  process.cwd(),
+  "data",
+  "accounts",
+  TEST_ACCT,
+  "journal.json",
+);
 
 describe("creations-store", () => {
   beforeEach(async () => {
-    try {
-      await fs.unlink(storeFile);
-    } catch {
-      /* ok */
+    for (const f of [storeFile, journalFile]) {
+      try {
+        await fs.unlink(f);
+      } catch {
+        /* ok */
+      }
     }
   });
 
   afterEach(async () => {
-    try {
-      await fs.unlink(storeFile);
-    } catch {
-      /* ok */
+    for (const f of [storeFile, journalFile]) {
+      try {
+        await fs.unlink(f);
+      } catch {
+        /* ok */
+      }
     }
   });
 

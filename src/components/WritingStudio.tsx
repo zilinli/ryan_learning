@@ -15,8 +15,13 @@ import {
   draftStats,
   structureCtaLabel,
   WRITING_TYPES,
-  writingTypeUsesMood,
 } from "@/lib/entertain/basis-writing";
+import {
+  normalizeStageStyle,
+  styleCaptionSeed,
+  stylesForTarget,
+  type StageStyleTarget,
+} from "@/lib/entertain/stage-styles";
 import {
   buildWritingFixIssues,
   nextOpenFix,
@@ -36,7 +41,6 @@ import { WritingFixDialogue } from "./WritingFixDialogue";
 import { WritingMentorDialogue } from "./WritingMentorDialogue";
 import { WritingPadHighlights } from "./WritingPadHighlights";
 
-const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 type StageKind = "music" | "image" | "video";
 type MobileTab = "write" | "feedback" | "stage";
 const STAGE_EXPANDED_KEY = "spark.ws.stageExpanded";
@@ -78,7 +82,10 @@ export function WritingStudio() {
   const { accountId, name: accountName } = useActiveStudioAccount();
   const [draft, setDraft] = useState("");
   const [writingType, setWritingType] = useState<WritingType>("narrative");
-  const [genre, setGenre] = useState<(typeof GENRES)[number]>("Indie");
+  const [genre, setGenre] = useState("Indie");
+  const [journalId, setJournalId] = useState<string | null>(null);
+  const [journalDate, setJournalDate] = useState<string | null>(null);
+  const [journalSaving, setJournalSaving] = useState(false);
   const [coach, setCoach] = useState<string | null>(null);
   const [coachReport, setCoachReport] = useState<BasisCoachReport | null>(null);
   const [fixIssues, setFixIssues] = useState<WritingFixIssue[]>([]);
@@ -121,6 +128,9 @@ export function WritingStudio() {
   const accountIdRef = useRef(accountId);
   const stageKindRef = useRef(stageKind);
   const padTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const captionTouchedRef = useRef(false);
+  const captionRef = useRef(caption);
+  const journalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -128,6 +138,9 @@ export function WritingStudio() {
   useEffect(() => {
     genreRef.current = genre;
   }, [genre]);
+  useEffect(() => {
+    captionRef.current = caption;
+  }, [caption]);
   useEffect(() => {
     writingTypeRef.current = writingType;
   }, [writingType]);
@@ -139,6 +152,10 @@ export function WritingStudio() {
   }, [accountId]);
   useEffect(() => {
     stageKindRef.current = stageKind;
+    setGenre((prev) => {
+      const list = stylesForTarget(stageKind);
+      return list.includes(prev) ? prev : normalizeStageStyle(stageKind, prev);
+    });
   }, [stageKind]);
   useEffect(() => {
     mentorUserActiveRef.current = mentorUserActive;
@@ -168,6 +185,74 @@ export function WritingStudio() {
       /* ignore */
     }
   }, [stageExpanded]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const jid = q.get("journal") || "";
+    const wt = q.get("writingType") || "";
+    if (wt === "journal") setWritingType("journal");
+    if (!jid) return;
+    let cancelled = false;
+    void fetch(
+      `/api/journal?accountId=${encodeURIComponent(accountId)}&id=${encodeURIComponent(jid)}`,
+    )
+      .then((r) => r.json())
+      .then((data: { item?: { id: string; body?: string; date?: string; title?: string } }) => {
+        if (cancelled || !data.item) return;
+        setJournalId(data.item.id);
+        setJournalDate(data.item.date || null);
+        setWritingType("journal");
+        if (data.item.body) setDraft(data.item.body);
+        if (data.item.title && !titleRef.current.trim()) {
+          setTitle(data.item.title);
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // accountId only — don't re-fetch on every title change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  const saveJournal = useCallback(
+    async (body: string) => {
+      if (!journalId) return;
+      setJournalSaving(true);
+      try {
+        await fetch("/api/journal", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accountId: accountIdRef.current,
+            id: journalId,
+            body,
+            title: titleRef.current.trim() || undefined,
+            date: journalDate || undefined,
+          }),
+        });
+      } catch {
+        /* ignore autosave */
+      } finally {
+        setJournalSaving(false);
+      }
+    },
+    [journalId, journalDate],
+  );
+
+  useEffect(() => {
+    if (!journalId) return;
+    if (journalTimerRef.current) clearTimeout(journalTimerRef.current);
+    journalTimerRef.current = setTimeout(() => {
+      void saveJournal(draft);
+    }, 2000);
+    return () => {
+      if (journalTimerRef.current) clearTimeout(journalTimerRef.current);
+    };
+  }, [draft, journalId, saveJournal]);
 
   // Debounced grammar check (~800ms)
   useEffect(() => {
@@ -503,6 +588,7 @@ export function WritingStudio() {
         caption?: string;
         prompt?: string;
         target?: string;
+        suggestedStyle?: string;
         error?: string;
       };
       const bodyText = String(data.body || data.lyrics || "").trim();
@@ -516,13 +602,20 @@ export function WritingStudio() {
           "Structure still looks like lyrics — try Structure again for Image/Video",
         );
       }
-      setLyrics(bodyText);
-      setCaption(
-        data.caption ||
-          (stageKind === "music"
-            ? `${genre} mood`
-            : String(data.prompt || "").slice(0, 500) || `${genre} visual mood`),
+      const suggested = normalizeStageStyle(
+        stageKind as StageStyleTarget,
+        data.suggestedStyle || genre,
       );
+      setGenre(suggested);
+      setLyrics(bodyText);
+      const nextCaption = captionTouchedRef.current
+        ? captionRef.current
+        : data.caption ||
+          styleCaptionSeed(stageKind, suggested, gender) ||
+          (stageKind === "music"
+            ? `${suggested} mood`
+            : String(data.prompt || "").slice(0, 500) || `${suggested} visual mood`);
+      setCaption(nextCaption);
       if (!title.trim()) {
         const fallbackTitle =
           stageKind === "music"
@@ -733,7 +826,7 @@ export function WritingStudio() {
   const activeFix = nextOpenFix(fixIssues);
   const openFixCount = remainingFixCount(fixIssues);
   const liveStats = draftStats(draft);
-  const showMood = writingTypeUsesMood(writingType);
+  const stageStyles = stylesForTarget(stageKind);
   const openSpotMarks = showHighlights && fixIssues.some((i) => i.status === "open");
   const showGrammarOverlay =
     !openSpotMarks && grammarMatches.length > 0 && showHighlights;
@@ -998,29 +1091,6 @@ export function WritingStudio() {
                 ))}
               </select>
 
-              {showMood && (
-                <>
-                  <label className="sr-only" htmlFor="ws-genre">
-                    Mood / genre
-                  </label>
-                  <select
-                    id="ws-genre"
-                    value={genre}
-                    onChange={(e) =>
-                      setGenre(e.target.value as (typeof GENRES)[number])
-                    }
-                    className={`${selectClass} min-w-[8.5rem] flex-1 sm:flex-none`}
-                    title="Mood for lyrics / poetry staging"
-                  >
-                    {GENRES.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-
               <label className="sr-only" htmlFor="ws-stt-lang">
                 Mic language
               </label>
@@ -1090,6 +1160,54 @@ export function WritingStudio() {
                 {busy === "structure"
                   ? "Structuring…"
                   : structureCtaLabel(writingType, stageKind)}
+              </button>
+              <button
+                type="button"
+                disabled={!draft.trim() || padLocked}
+                onClick={() => {
+                  void (async () => {
+                    if (journalId) {
+                      await saveJournal(draft);
+                      setPadStatus("Saved in journal.");
+                      return;
+                    }
+                    setBusy("save");
+                    try {
+                      const res = await fetch("/api/journal", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          accountId,
+                          body: draft,
+                          title: title.trim() || draft.split(/\n/)[0]?.slice(0, 48),
+                          writingType,
+                        }),
+                      });
+                      const data = (await res.json()) as {
+                        item?: { id: string; date?: string };
+                        error?: string;
+                      };
+                      if (!res.ok || !data.item?.id) {
+                        throw new Error(data.error || "Save failed");
+                      }
+                      setJournalId(data.item.id);
+                      setJournalDate(data.item.date || null);
+                      setWritingType("journal");
+                      setPadStatus("Saved in journal.");
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Save failed");
+                    } finally {
+                      setBusy(null);
+                    }
+                  })();
+                }}
+                className="min-h-10 flex-1 rounded-lg border border-[var(--line)] px-4 text-sm font-medium text-[var(--ink)] disabled:opacity-40 sm:flex-none"
+              >
+                {journalSaving || busy === "save"
+                  ? "Saving…"
+                  : journalId
+                    ? "Save journal"
+                    : "Save in journal"}
               </button>
             </div>
           </div>
@@ -1186,6 +1304,37 @@ export function WritingStudio() {
               ))}
             </div>
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="ws-stage-style">
+              Stage style
+            </label>
+            <select
+              id="ws-stage-style"
+              value={
+                stageStyles.includes(genre)
+                  ? genre
+                  : normalizeStageStyle(stageKind, genre)
+              }
+              onChange={(e) => {
+                const next = e.target.value;
+                setGenre(next);
+                if (!captionTouchedRef.current) {
+                  setCaption(styleCaptionSeed(stageKind, next, gender));
+                }
+              }}
+              className="min-h-10 min-w-[9rem] flex-1 rounded-lg border border-white/15 bg-black/30 px-2.5 text-xs font-medium text-[#e8e2d8] outline-none focus:border-[#8fb896]"
+              title="Style — Structure suggests a default; you can change it"
+            >
+              {stageStyles.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-[#a89f92]">
+              After Structure · change anytime
+            </p>
+          </div>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -1207,7 +1356,10 @@ export function WritingStudio() {
           />
           <input
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
+            onChange={(e) => {
+              captionTouchedRef.current = true;
+              setCaption(e.target.value);
+            }}
             placeholder={
               stageKind === "music"
                 ? "Style notes (deAPI caption / mood)"

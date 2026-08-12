@@ -220,7 +220,7 @@ export function HistorySidebar({
       <SkillsPanel memory={learningMemory ?? null} />
 
       <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
-        {/* Row: Family + Learning */}
+        {/* Row: Family + Me */}
         <div className="mb-2 grid grid-cols-2 gap-1.5">
           <a
             href="/family"
@@ -231,12 +231,11 @@ export function HistorySidebar({
             <span className="hidden truncate sm:inline">Family controls</span>
           </a>
           <a
-            href="/dashboard"
+            href="/me"
             className="flex min-h-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Learning dashboard"
+            title="Me — journal, creations, chats"
           >
-            <span className="truncate sm:hidden">Dashboard</span>
-            <span className="hidden truncate sm:inline">Learning dashboard</span>
+            Me
           </a>
         </div>
         <a

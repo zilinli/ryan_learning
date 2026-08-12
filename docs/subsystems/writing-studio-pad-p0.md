@@ -40,7 +40,7 @@ draft → debounce ~800ms → POST /api/writing-studio/grammar-check
 
 - Selector: Narrative / Persuasive / Descriptive / Expository / Poetry / Lyrics / Free write.
 - Mood/genre (Indie…) only when type is Lyrics or Poetry **(current)**.
-- **Superseded for next slice:** mood/genre moves into Stage. **Structure auto-selects a default style from the new lyrics/prompt; student can change it.** See [journal-and-me-hub.md](journal-and-me-hub.md) §6 — confirm before code. Planned extra type: `journal`.
+- Mood/genre now lives in Stage (JM.1). **Structure auto-selects a default style; student can change it.** Extra type: `journal`. See [journal-and-me-hub.md](journal-and-me-hub.md).
 - Structure CTA label adapts (`Structure essay` / `Turn into lyrics` / …).
 - Coach prompt receives `writingType` for rubric emphasis.
 

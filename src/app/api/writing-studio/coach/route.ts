@@ -37,6 +37,10 @@ import {
   type MentorChatTurn,
 } from "@/lib/entertain/basis-mentor-session";
 import { localHeuristicGrammarCheck } from "@/lib/entertain/languagetool";
+import {
+  normalizeStageStyle,
+  suggestStageStyle,
+} from "@/lib/entertain/stage-styles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +53,6 @@ function apiKey(): string {
   return k;
 }
 
-const GENRES = ["Indie", "Orchestral", "Hip-hop sketch", "Ballad"] as const;
 const MAX_IMAGES = 3;
 
 function parseTarget(raw: unknown): StudioStructureTarget {
@@ -174,9 +177,7 @@ export async function POST(req: Request) {
   const target = parseTarget(body.target);
   const draft = String(body.draft || "").trim().slice(0, 6000);
   const fileText = String(body.fileText || "").trim().slice(0, 8000);
-  const genre = GENRES.includes(body.genre as (typeof GENRES)[number])
-    ? String(body.genre)
-    : "Indie";
+  const genre = normalizeStageStyle(target, String(body.genre || ""));
   const writingTypeRaw = String(body.writingType || "free").toLowerCase();
   const writingType: WritingType = WRITING_TYPES.some((t) => t.id === writingTypeRaw)
     ? (writingTypeRaw as WritingType)
@@ -430,6 +431,7 @@ export async function POST(req: Request) {
               body: lyrics.slice(0, 8000),
               caption: String(parsed.caption || fallback.caption).slice(0, 500),
               prompt: String(parsed.caption || fallback.prompt).slice(0, 1200),
+              suggestedStyle: suggestStageStyle(target, lyrics),
             });
           }
         } else {
@@ -452,6 +454,7 @@ export async function POST(req: Request) {
               lyrics: bodyText.slice(0, 8000),
               caption,
               prompt: prompt.slice(0, 1200),
+              suggestedStyle: suggestStageStyle(target, bodyText),
             });
           }
         }
@@ -474,6 +477,10 @@ export async function POST(req: Request) {
       body: fallback.body,
       caption: fallback.caption,
       prompt: fallback.prompt,
+      suggestedStyle: suggestStageStyle(
+        fallback.target,
+        fallback.body || fallback.lyrics,
+      ),
     });
   }
 

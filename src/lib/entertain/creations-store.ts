@@ -105,6 +105,12 @@ export async function addCreation(
   store.items.unshift(row);
   store.items = store.items.slice(0, 100);
   await saveCreations(accountId, store);
+  try {
+    const { appendCreationToJournal } = await import("./journal-store");
+    await appendCreationToJournal(accountId, row);
+  } catch {
+    /* journal is best-effort — never fail Keep */
+  }
   if (overflow.length) {
     const { deleteMedia } = await import("../media-store");
     await Promise.allSettled(

@@ -60,6 +60,9 @@ export async function POST(req: Request) {
   const type = body.type as CreationType;
   if (
     type !== "ted_challenge" &&
+    type !== "natgeo_challenge" &&
+    type !== "bbc_challenge" &&
+    type !== "rsa_challenge" &&
     type !== "song" &&
     type !== "image" &&
     type !== "video"

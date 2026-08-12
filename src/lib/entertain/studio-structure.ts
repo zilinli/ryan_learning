@@ -143,8 +143,15 @@ export function structureImageLocal(
   const moodMap: Record<string, string> = {
     Indie: "intimate indie still, warm muted palette",
     Orchestral: "cinematic grandeur, rich contrast, film-still mood",
+    "Hip-hop": "urban editorial energy, bold shapes, graphic light",
     "Hip-hop sketch": "urban editorial energy, bold shapes, graphic light",
     Ballad: "tender emotional portrait, gentle bokeh, soft dusk light",
+    Folk: "handmade paper, natural light, rural still",
+    Electronic: "neon edge light, graphic night city",
+    Photo: "naturalistic still, soft light",
+    Watercolor: "kids-book wash, paper texture",
+    Comic: "bold ink, flat color",
+    "Film still": "cinematic grade, shallow depth",
   };
   const style =
     moodMap[genre] || "clean editorial illustration, soft depth of field";
@@ -186,8 +193,15 @@ export function structureVideoLocal(
   const camMap: Record<string, string> = {
     Indie: "slow handheld push-in, intimate framing",
     Orchestral: "smooth crane rise revealing the room",
+    "Hip-hop": "dynamic lateral tracking shot, rhythmic cuts implied",
     "Hip-hop sketch": "dynamic lateral tracking shot, rhythmic cuts implied",
     Ballad: "gentle static wide then soft rack focus to the desk",
+    Folk: "steady observational wide, natural light",
+    Electronic: "rhythmic tracking, night neon",
+    Playful: "light tracking, daylight",
+    Documentary: "observational, slower handheld",
+    "Music video": "rhythmic implied cuts, one continuous move",
+    Quiet: "single push-in, dusk",
   };
   const camera = camMap[genre] || "slow cinematic pan, steady frame";
   const body = joinSentences([

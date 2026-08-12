@@ -12,23 +12,32 @@ const storeFile = path.join(
   ACCT,
   "creations.json",
 );
+const journalFile = path.join(
+  process.cwd(),
+  "data",
+  "accounts",
+  ACCT,
+  "journal.json",
+);
+
+async function wipe() {
+  for (const f of [storeFile, journalFile]) {
+    try {
+      await fs.unlink(f);
+    } catch {
+      /* ok */
+    }
+  }
+}
 
 beforeEach(async () => {
   resetApiRateLimitForTests();
-  try {
-    await fs.unlink(storeFile);
-  } catch {
-    /* ok */
-  }
+  await wipe();
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  try {
-    await fs.unlink(storeFile);
-  } catch {
-    /* ok */
-  }
+  await wipe();
 });
 
 describe("/api/creations", () => {
@@ -62,6 +71,14 @@ describe("/api/creations", () => {
     const created = await post.json();
     expect(created.item.id).toBeTruthy();
     expect(created.item.type).toBe("song");
+
+    const journalRaw = JSON.parse(await fs.readFile(journalFile, "utf8")) as {
+      items: Array<{ made: Array<{ creationId?: string }> }>;
+    };
+    const madeIds = journalRaw.items.flatMap((e) =>
+      e.made.map((m) => m.creationId),
+    );
+    expect(madeIds).toContain(created.item.id);
 
     const list = await GET(
       new Request(
