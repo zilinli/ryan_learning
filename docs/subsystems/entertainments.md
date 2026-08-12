@@ -261,7 +261,7 @@ npm test -- src/lib/entertain
 
 ---
 
-## 6. Studio — TED Lab + Writing Studio (v0.8)
+## 6. Studio — TED Lab + Writing Studio (v0.9)
 
 ### 6.1 Product shape
 
@@ -271,7 +271,12 @@ npm test -- src/lib/entertain
 |------|-----|-----------|
 | TED Lab | `ted-lab` | Watch a talk. Then argue with it. |
 | Writing Studio | `writing-studio` | Write. Polish. Stage → song · image · video. |
-| My Creations | `creations` | Songs, images, videos & TED challenges. |
+| NatGeo Lab | `natgeo-lab` | Read articles. Then answer reading challenges. |
+| BBC Doc Lab | `bbc-lab` | Watch BBC documentary clips. Then answer. |
+| RSA Lab | `rsa-lab` | Watch RSA animated talks. Then think critically. |
+| My Creations | `creations` | Songs, images, videos & challenges. |
+
+**Responsive layout:** `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` — single column on mobile portrait, two columns on iPad/tablet, three on desktop.
 
 Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
@@ -290,7 +295,33 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
 - **Pedagogy:** Defaults from **numeric grade** (G1–G12) + optional English level + age nudge. UI shows the resolved label (e.g. **G10 · advanced**). G4 is only the fallback when grade is unknown. G3 softer; G5 same developing band but harder cue; G9–G12 advanced with grade grain inside the band.
 
-### 6.3 Writing Studio Stage + deAPI text2X
+### 6.3 NatGeo Lab · BBC Doc Lab · RSA Lab (v0.9)
+
+**NatGeo Lab** (`natgeo-lab`):
+- **Content:** 30 curated National Geographic Kids articles (animals, science, space, geography, history, nature, culture)
+- **Scraper:** `natgeo-scrape.ts` — live `__NEXT_DATA__` extraction + paragraph fallback + 7-day `data/natgeo-cache/`
+- **Challenge:** 5 reading-comprehension questions (`vocabulary`, `main-idea`, `detail`, `inference`, `connection`) banded by grade + English level
+- **API:** `GET /api/natgeo/search`, `POST /api/natgeo/challenge`, `POST /api/natgeo/evaluate`
+
+**BBC Doc Lab** (`bbc-lab`):
+- **Content:** 25 curated BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas, BBC)
+- **Transcript:** Shared `youtube-transcript.ts` — `youtubetranscript.com` API + yt-dlp fallback + 7-day `data/yt-cache/`
+- **Challenge:** 5 questions (`observation`, `explanation`, `sequence`, `vocabulary`, `connection`) — expository/narrative model
+- **API:** `GET /api/bbc/search`, `POST /api/bbc/challenge`, `POST /api/bbc/evaluate`
+
+**RSA Lab** (`rsa-lab`):
+- **Content:** 25 curated RSA animated talks (RSA Animates, Shorts, Minimates) from YouTube
+- **Transcript:** Shared `youtube-transcript.ts` (same as BBC)
+- **Challenge:** 4 questions reusing TED's `literal`, `structure`, `critique`, `retell` kinds — argumentative/idea-driven model
+- **API:** `GET /api/rsa/search`, `POST /api/rsa/challenge`, `POST /api/rsa/evaluate`
+
+**Shared infrastructure:**
+- `src/lib/youtube-transcript.ts` — transcript fetch (BBC + RSA)
+- `src/lib/youtube-urls.ts` — client-safe URL helpers (embed/watch/id extraction)
+- BKT integration via `recordStudioLearningTurn` with `source: "natgeo" | "bbc" | "rsa"`
+- Creation types: `natgeo_challenge` | `bbc_challenge` | `rsa_challenge` in `creations-store.ts`
+
+### 6.4 Writing Studio Stage + deAPI text2X
 
 - Writing pad → Coach (`POST /api/writing-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
   - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions).
@@ -309,18 +340,18 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - Legacy: `POST /api/writing-studio/generate` still works for music-only.
 - Unconfigured: lyrics-only drafts still save; generate returns 503.
 
-### 6.4 My Creations
+### 6.5 My Creations
 
 - Account JSON: `data/accounts/{id}/creations.json`
-- Types: `ted_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
+- Types: `ted_challenge` | `natgeo_challenge` | `bbc_challenge` | `rsa_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
 - APIs: `GET/POST/DELETE /api/creations`
 - **Audio retention:** studio blobs use `sessionId: "writing-studio"` and must **not** be pruned by chat `pruneOrphanMedia`. See [studio-creations-audio-mobile.md](./studio-creations-audio-mobile.md).
 
-### 6.5 Explicit non-goals
+### 6.6 Explicit non-goals
 
 Scrape/download TED video; local music inference on spark-tutor host; streaks/leaderboards; public sharing.
 
-### 6.6 Studio self-verify
+### 6.7 Studio self-verify
 
 ```bash
 # Unit tests (mocked providers)

@@ -14,6 +14,9 @@ import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
+import { NatGeoLab } from "./NatGeoLab";
+import { BbcDocLab } from "./BbcDocLab";
+import { RsaShortsLab } from "./RsaShortsLab";
 import { CreationsLibrary } from "./CreationsLibrary";
 import { StudioAccountBar } from "./StudioAccountBar";
 
@@ -65,6 +68,30 @@ const STUDIO: StudioDest[] = [
     tone: "write",
   },
   {
+    id: "natgeo-lab",
+    title: "NatGeo Lab",
+    kicker: "Read",
+    desc: "Explore articles, then answer reading challenges.",
+    cta: "Open lab",
+    tone: "cinema",
+  },
+  {
+    id: "bbc-lab",
+    title: "BBC Doc Lab",
+    kicker: "Watch",
+    desc: "Documentary clips from BBC Earth — watch, then answer.",
+    cta: "Open lab",
+    tone: "cinema",
+  },
+  {
+    id: "rsa-lab",
+    title: "RSA Lab",
+    kicker: "Think",
+    desc: "Animated talks on psychology, education, and big ideas.",
+    cta: "Open lab",
+    tone: "cinema",
+  },
+  {
     id: "creations",
     title: "My Creations",
     kicker: "Keep",
@@ -87,6 +114,9 @@ const TITLES: Record<GameId, string> = {
   klotski: "Klotski · 华容道",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
+  "natgeo-lab": "NatGeo Lab",
+  "bbc-lab": "BBC Doc Lab",
+  "rsa-lab": "RSA Lab",
   creations: "My Creations",
 };
 
@@ -171,6 +201,9 @@ export function EntertainPage() {
         {activeGame === "klotski" && <KlotskiGame />}
         {activeGame === "ted-lab" && <TedLab />}
         {activeGame === "writing-studio" && <WritingStudio />}
+        {activeGame === "natgeo-lab" && <NatGeoLab />}
+        {activeGame === "bbc-lab" && <BbcDocLab />}
+        {activeGame === "rsa-lab" && <RsaShortsLab />}
         {activeGame === "creations" && <CreationsLibrary />}
       </div>
     );
@@ -295,8 +328,8 @@ function StudioHub({ onSelect }: { onSelect: (id: GameId) => void }) {
       </header>
 
       <div className="relative z-10 flex flex-1 flex-col justify-center px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-10 lg:px-8">
-        {/* Fixed-height cards — avoid tall stretched columns on ultrawide / hi-res */}
-        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        {/* Responsive cards: 1 col mobile, 2 cols tablet, 3 cols desktop */}
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {STUDIO.map((dest, i) => (
             <StudioPanel
               key={dest.id}

@@ -50,7 +50,7 @@ export function studioOutcomeFromSoftFeedback(feedback: string): TurnOutcome {
   return "practice";
 }
 
-export type StudioLearningSource = "ted" | "writing";
+export type StudioLearningSource = "ted" | "writing" | "natgeo" | "bbc" | "rsa";
 
 /**
  * Record a Studio learning turn into local + server learning memory.
@@ -70,9 +70,23 @@ export async function recordStudioLearningTurn(opts: {
   const seed =
     opts.source === "ted"
       ? tedTopicsToSkillSeed(opts.tedTopics)
-      : "narrative writing essay paragraph vocabulary grammar reading comprehension argumentative writing";
+      : opts.source === "natgeo"
+        ? "reading comprehension science geography nature animals history vocabulary inference evidence article main idea"
+        : opts.source === "bbc"
+          ? "documentary viewing observation explanation sequence vocabulary science nature technology geography history"
+          : opts.source === "rsa"
+            ? "critical thinking argument analysis rhetoric debate philosophy psychology society creativity listening comprehension idea evaluation"
+            : "narrative writing essay paragraph vocabulary grammar reading comprehension argumentative writing";
   const userText = [
-    opts.source === "ted" ? "[TED Lab challenge]" : "[Writing Studio]",
+    opts.source === "ted"
+      ? "[TED Lab challenge]"
+      : opts.source === "natgeo"
+        ? "[NatGeo Lab]"
+        : opts.source === "bbc"
+          ? "[BBC Doc Lab]"
+          : opts.source === "rsa"
+            ? "[RSA Lab]"
+            : "[Writing Studio]",
     opts.title,
     seed,
     opts.userText,
@@ -93,7 +107,13 @@ export async function recordStudioLearningTurn(opts: {
     chatTitle:
       opts.source === "ted"
         ? `TED · ${opts.title}`.slice(0, 80)
-        : `Writing · ${opts.title}`.slice(0, 80),
+        : opts.source === "natgeo"
+          ? `NatGeo · ${opts.title}`.slice(0, 80)
+          : opts.source === "bbc"
+            ? `BBC · ${opts.title}`.slice(0, 80)
+            : opts.source === "rsa"
+              ? `RSA · ${opts.title}`.slice(0, 80)
+              : `Writing · ${opts.title}`.slice(0, 80),
     outcome: opts.outcome,
   });
   saveLearningMemory(next, accountId);

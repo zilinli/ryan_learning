@@ -11,6 +11,9 @@ export type GameId =
   | "klotski"
   | "ted-lab"
   | "writing-studio"
+  | "natgeo-lab"
+  | "bbc-lab"
+  | "rsa-lab"
   | "creations";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";

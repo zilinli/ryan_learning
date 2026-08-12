@@ -40,7 +40,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/entertain?hub=studio` (TED Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
+- **Entertainments / Studio** — games on `/entertain`; **Studio · learning** on `/entertain?hub=studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio with deAPI text2X, My Creations). See [entertainments.md](docs/subsystems/entertainments.md).
 
 ### Dictionary / Translation (`/dict`)
 
@@ -67,14 +67,19 @@ Sidebar: **Family | Dashboard** on one row; **Studio · learning | Entertainment
 
 | Route | Content |
 |-------|---------|
-| `/entertain?hub=studio` | **Studio · learning** — TED Lab, Writing Studio, My Creations |
+| `/entertain?hub=studio` | **Studio · learning** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
 | `/entertain` | **Entertainments** — board / arcade / logic games only |
 
-**Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
+**Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED, NatGeo, BBC, RSA answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on Learning dashboard.
 
 **Writing Studio** Stage supports deAPI **text2X**: song · image · video (`POST /api/studio/generate` with `kind`). **Coach** returns a **BASIS writing check** (topic / detail / vocab / grammar scores + craft tip) in a visual panel — not a wall of text. **Structure** is modality-aware (`target: music|image|video`). Writing pad accepts **multilingual mic**, **file / photo → text** (`action: extract`), and **live coach**.
 
 **TED Lab** searches the **live TED catalog** (`GET /api/ted/search` → TED InstantSearch), with **Refresh batch** for newest talks, plus links to open official TED pages. Watch UI keeps a **compact player** with a **sticky “Ready for challenge”** bar on phones.
+**NatGeo Lab** offers 30 curated National Geographic Kids articles (animals, science, space, history, etc.) with grade-banded reading comprehension challenges.
+
+**BBC Doc Lab** features 25 BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas) with observation, explanation, and vocabulary challenges.
+
+**RSA Lab** showcases 25 RSA animated talks on psychology, education, creativity, and society, with argument-driven challenges reusing TED's critique model.
 
 **Media generation** (no local GPU):
 

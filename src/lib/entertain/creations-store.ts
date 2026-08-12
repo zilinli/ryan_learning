@@ -6,7 +6,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type CreationType = "ted_challenge" | "song" | "image" | "video";
+export type CreationType = "ted_challenge" | "natgeo_challenge" | "bbc_challenge" | "rsa_challenge" | "song" | "image" | "video";
 
 export type CreationItem = {
   id: string;
