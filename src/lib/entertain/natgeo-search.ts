@@ -88,29 +88,79 @@ export async function searchNatGeoLive(opts: {
   const page = Math.max(0, Math.min(50, opts.page ?? 0));
   const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
 
-  let merged = searchNatGeoCatalog(
-    query,
-    topic === "all" ? undefined : topic,
-  );
+  let merged: NatGeoArticle[] = [];
   let usedLive = false;
 
-  if (query.length >= 2) {
-    const slugs = await scrapeSearchSlugs(query, opts.signal);
-    if (slugs.length) usedLive = true;
-    const seen = new Set(merged.map((a) => a.slug));
-    for (const slug of slugs) {
-      if (seen.has(slug)) continue;
-      const cat = NATGEO_CATALOG.find((a) => a.slug === slug);
-      const article = cat ?? (await fetchNatGeoArticle(slug));
-      if (article && (topic === "all" || article.topic === topic)) {
-        merged.push(article);
-        seen.add(slug);
+  // Try live search first for all queries (including empty — browse)
+  try {
+    if (query.length >= 2) {
+      const slugs = await scrapeSearchSlugs(query, opts.signal);
+      if (slugs.length) {
+        usedLive = true;
+        const seen = new Set<string>();
+        for (const slug of slugs) {
+          if (seen.has(slug)) continue;
+          seen.add(slug);
+          const cat = NATGEO_CATALOG.find((a) => a.slug === slug);
+          const article = cat ?? (await fetchNatGeoArticle(slug));
+          if (article && (topic === "all" || article.topic === topic)) {
+            merged.push(article);
+          }
+        }
       }
+    } else {
+      // No query — try browsing the animals page for fresh articles
+      try {
+        const res = await fetch("https://kids.nationalgeographic.com/animals", {
+          signal: (opts.signal ?? AbortSignal.timeout(12_000)),
+          headers: { "User-Agent": UA },
+        });
+        if (res.ok) {
+          const html = await res.text();
+          const slugs: string[] = [];
+          const re = /\/animals\/article\/([a-z0-9-]+)/gi;
+          let m;
+          while ((m = re.exec(html))) slugs.push(m[1]!);
+          if (slugs.length) usedLive = true;
+          const seen = new Set(merged.map((a) => a.slug));
+          for (const slug of slugs.slice(0, 12)) {
+            if (seen.has(slug)) continue;
+            const cat = NATGEO_CATALOG.find((a) => a.slug === slug);
+            const article = cat ?? (await fetchNatGeoArticle(slug));
+            if (article && (topic === "all" || article.topic === topic)) {
+              merged.push(article);
+              seen.add(slug);
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+
+  // Merge with catalog results (catalog-first, live-second for dedup)
+  const catalogResults = searchNatGeoCatalog(query, topic === "all" ? undefined : topic);
+  const seen = new Set(merged.map((a) => a.slug));
+  for (const a of catalogResults) {
+    if (!seen.has(a.slug)) {
+      merged.push(a);
+      seen.add(a.slug);
     }
   }
 
   if (!merged.length) {
-    return curatedFallback(query, topic, page, pageSize);
+    const catOnly = searchNatGeoCatalog(query, topic === "all" ? undefined : topic);
+    const start = page * pageSize;
+    const nbPages = Math.max(1, Math.ceil(catOnly.length / pageSize));
+    return {
+      articles: catOnly.slice(start, start + pageSize),
+      page: Math.max(0, page),
+      nbPages,
+      nbHits: catOnly.length,
+      query,
+      source: "curated-fallback",
+      cursor: null,
+      hasNextPage: page + 1 < nbPages,
+    };
   }
 
   const start = page * pageSize;

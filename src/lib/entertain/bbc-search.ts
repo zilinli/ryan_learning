@@ -1,233 +1,158 @@
 /**
- * Live BBC discovery via official YouTube channels + curated fallback.
- * Hard gate: English captions required for challenge-ready clips.
+ * Live BBC discovery via YouTube search + channel listing + curated fallback.
+ * Query-based: yt-dlp ytsearch → fast, relevant. Empty-query: channel listing.
+ * Caption checks are deferred (not blocking).
  */
 
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { BbcClip, BbcTopic } from "./bbc-catalog";
-import {
-  BBC_CATALOG,
-  searchBbcCatalog,
-  BBC_TOPIC_LABELS,
-} from "./bbc-catalog";
-import {
-  filterVideosByQuery,
-  filterVideosWithCaptions,
-  listChannelVideos,
-  type YtChannelVideo,
-} from "./youtube-channel-search";
+import { BBC_CATALOG, searchBbcCatalog, BBC_TOPIC_LABELS } from "./bbc-catalog";
+
+const execFileAsync = promisify(execFile);
+const UA = "Mozilla/5.0 (compatible; SparkTutor/1.0)";
+
+function ytDlpBin(): string { return process.env.YT_DLP_PATH?.trim() || "yt-dlp"; }
 
 const BBC_CHANNELS = [
-  {
-    label: "BBC Earth",
-    url: "https://www.youtube.com/@bbcearth/videos",
-  },
-  {
-    label: "BBC Ideas",
-    url: "https://www.youtube.com/@BBCIdeas/videos",
-  },
-  {
-    label: "BBC",
-    url: "https://www.youtube.com/@BBC/videos",
-  },
+  { label: "BBC Earth", url: "https://www.youtube.com/@bbcearth/videos" },
+  { label: "BBC Ideas", url: "https://www.youtube.com/@BBCIdeas/videos" },
+  { label: "BBC", url: "https://www.youtube.com/@BBC/videos" },
 ] as const;
 
 export type BbcSearchSource = "youtube-live" | "curated-fallback";
 
 export type BbcSearchResult = {
   clips: BbcClip[];
-  page: number;
-  nbPages: number;
-  nbHits: number;
-  query: string;
-  source: BbcSearchSource;
-  cursor: string | null;
-  hasNextPage: boolean;
+  page: number; nbPages: number; nbHits: number; query: string;
+  source: BbcSearchSource; cursor: string | null; hasNextPage: boolean;
 };
 
-function inferTopic(title: string): BbcTopic {
-  const t = title.toLowerCase();
-  if (/planet|ocean|animal|wild|nature|bird|fish|whale|lion|penguin/.test(t))
-    return "nature";
-  if (/history|war|ancient|empire|century/.test(t)) return "history";
-  if (/geo|country|city|map|continent/.test(t)) return "geography";
-  if (/tech|computer|ai|robot|engineer/.test(t)) return "technology";
-  if (/art|music|culture|language/.test(t)) return "culture";
+// ── yt-dlp ═══════════════════════════════════
+
+type YtEntry = { id?: string; title?: string; duration?: number; channel?: string; uploader?: string };
+
+function parseE(line: string): YtEntry | null {
+  try { const r = JSON.parse(line) as YtEntry; return r; } catch { return null; }
+}
+
+function inferTopic(t: string): BbcTopic {
+  const l = t.toLowerCase();
+  if (/planet|ocean|animal|wild|nature|bird|fish|whale|lion|penguin/.test(l)) return "nature";
+  if (/history|war|ancient|empire|century/.test(l)) return "history";
+  if (/geo|country|city|map|continent/.test(l)) return "geography";
+  if (/tech|computer|ai|robot|engineer/.test(l)) return "technology";
+  if (/art|music|culture|language/.test(l)) return "culture";
   return "science";
 }
 
-function ytToClip(v: YtChannelVideo): BbcClip {
-  const topic = inferTopic(v.title);
-  const duration = v.durationSec || 240;
+function e2clip(e: YtEntry, channel: string): BbcClip {
+  const topic = inferTopic(e.title || "");
   return {
-    videoId: v.videoId,
-    title: v.title,
+    videoId: String(e.id || ""),
+    title: String(e.title || "").slice(0, 200),
     series: BBC_TOPIC_LABELS[topic],
     topic,
-    durationSec: duration,
-    gradeMin: 3,
-    gradeMax: 9,
-    blurb: `From ${v.channel} on YouTube`,
-    channel: v.channel,
+    durationSec: Math.max(0, Math.round(Number(e.duration) || 0)) || 240,
+    gradeMin: 4, gradeMax: 10,
+    blurb: `From ${channel} on YouTube`,
+    channel,
   };
 }
 
-function curatedFallback(
-  query: string,
-  topic: BbcTopic | "all",
-  page: number,
-  pageSize: number,
-): BbcSearchResult {
-  const all = searchBbcCatalog(
-    query,
-    topic === "all" ? undefined : topic,
-  );
-  const start = Math.max(0, page) * pageSize;
-  const clips = all.slice(start, start + pageSize);
-  const nbPages = Math.max(1, Math.ceil(all.length / pageSize));
-  return {
-    clips,
-    page: Math.max(0, page),
-    nbPages,
-    nbHits: all.length,
-    query,
-    source: "curated-fallback",
-    cursor: null,
-    hasNextPage: page + 1 < nbPages,
-  };
+async function ytSearch(query: string, n: number): Promise<YtEntry[]> {
+  const args = [`ytsearch${n}:${query}`, "--dump-json", "--no-warnings", "--flat-playlist", "--user-agent", UA];
+  try {
+    const { stdout } = await execFileAsync(ytDlpBin(), args, { timeout: 25_000, maxBuffer: 4 * 1024 * 1024 });
+    const out: YtEntry[] = [];
+    for (const line of stdout.split("\n")) { const e = parseE(line); if (e?.id) out.push(e); }
+    return out;
+  } catch { return []; }
 }
 
-function parseCursor(raw: string | null | undefined): {
-  channelIdx: number;
-  start: number;
-} {
-  if (!raw) return { channelIdx: 0, start: 1 };
+async function ytChannel(
+  url: string, label: string, start: number, count: number,
+): Promise<{ entries: YtEntry[]; label: string }> {
+  const args = ["--flat-playlist","--dump-json","--no-warnings","--playlist-start",String(start),"--playlist-end",String(start+count-1),"--user-agent",UA,url];
+  try {
+    const { stdout } = await execFileAsync(ytDlpBin(), args, { timeout: 25_000, maxBuffer: 8 * 1024 * 1024 });
+    const out: YtEntry[] = [];
+    for (const line of stdout.split("\n")) { const e = parseE(line); if (e?.id) out.push(e); }
+    return { entries: out, label };
+  } catch { return { entries: [], label }; }
+}
+
+// ── Curated fallback ──
+
+function curatedFb(query: string, topic: BbcTopic|"all", page: number, ps: number): BbcSearchResult {
+  const all = searchBbcCatalog(query, topic==="all"?undefined:topic);
+  const start = Math.max(0,page)*ps;
+  return { clips: all.slice(start,start+ps), page: Math.max(0,page), nbPages: Math.max(1,Math.ceil(all.length/ps)), nbHits: all.length, query, source: "curated-fallback", cursor: null, hasNextPage: page+1<Math.ceil(all.length/ps) };
+}
+
+// ── Cursor ──
+
+function enc(ch: number, s: number): string { return `${ch}:${s}`; }
+function dec(raw: string|null|undefined): { ch: number; s: number } {
+  if (!raw) return { ch:0, s:1 };
   const m = /^(\d+):(\d+)$/.exec(raw.trim());
-  if (!m) return { channelIdx: 0, start: 1 };
-  return {
-    channelIdx: Math.max(0, Math.min(BBC_CHANNELS.length - 1, Number(m[1]) || 0)),
-    start: Math.max(1, Number(m[2]) || 1),
-  };
+  if (!m) return { ch:0, s:1 };
+  return { ch: Math.max(0,Math.min(BBC_CHANNELS.length-1,Number(m[1])||0)), s: Math.max(1,Number(m[2])||1) };
 }
 
-function encodeCursor(channelIdx: number, start: number): string {
-  return `${channelIdx}:${start}`;
-}
+// ── Public ═══════════════════════════════════
 
 export async function searchBbcLive(opts: {
-  query?: string;
-  topic?: BbcTopic | "all";
-  page?: number;
-  pageSize?: number;
-  signal?: AbortSignal;
+  query?: string; topic?: BbcTopic|"all"; page?: number; pageSize?: number; signal?: AbortSignal;
 }): Promise<BbcSearchResult> {
-  const query = String(opts.query || "").trim().slice(0, 120);
-  const topic = opts.topic || "all";
-  const page = Math.max(0, Math.min(50, opts.page ?? 0));
-  const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
+  const q = String(opts.query||"").trim().slice(0,120);
+  const topic = opts.topic||"all";
+  const pg = Math.max(0,Math.min(50,opts.page??0));
+  const ps = Math.max(6,Math.min(24,opts.pageSize??18));
 
-  const batchSize = Math.min(36, pageSize * 2);
-  const collected: YtChannelVideo[] = [];
-
-  for (const ch of BBC_CHANNELS) {
-    const raw = await listChannelVideos({
-      channelUrl: ch.url,
-      channelLabel: ch.label,
-      playlistStart: 1 + page * batchSize,
-      pageSize: batchSize,
-      signal: opts.signal,
+  // Query-based: use yt-dlp YouTube search
+  if (q) {
+    const entries = await ytSearch(q, Math.min(24, ps*2));
+    if (!entries.length) return curatedFb(q,topic,pg,ps);
+    let clips = entries.map(e => {
+      const ch = (e.channel||e.uploader||"").includes("BBC") ? (e.channel||e.uploader||"BBC") : "BBC";
+      return e2clip(e, ch);
     });
-    collected.push(...filterVideosByQuery(raw, query));
+    if (topic!=="all") clips = clips.filter(c => c.topic===topic);
+    if (!clips.length) return curatedFb(q,topic,pg,ps);
+    const paged = clips.slice(0,ps);
+    return { clips: paged, page: pg, nbPages: pg+2, nbHits: clips.length, query: q, source: "youtube-live", cursor: enc(0,1+ps), hasNextPage: clips.length>ps };
   }
 
-  const unique = new Map<string, YtChannelVideo>();
-  for (const v of collected) unique.set(v.videoId, v);
-  let videos = [...unique.values()];
-
-  if (topic !== "all") {
-    videos = videos.filter((v) => inferTopic(v.title) === topic);
+  // Empty query: list BBC channels (rotating)
+  const batch = Math.min(36, ps*3);
+  const start = 1 + pg * batch;
+  const perCh = Math.ceil(batch / BBC_CHANNELS.length);
+  const allE: YtEntry[] = [];
+  let lbl = "BBC";
+  for (const ch of BBC_CHANNELS) {
+    const r = await ytChannel(ch.url, ch.label, start, perCh);
+    lbl = r.label; allE.push(...r.entries);
   }
-
-  if (!videos.length) {
-    return curatedFallback(query, topic, page, pageSize);
-  }
-
-  const gated = await filterVideosWithCaptions(videos, {
-    maxChecks: Math.min(18, videos.length),
-    signal: opts.signal,
-  });
-
-  if (!gated.length) {
-    return curatedFallback(query, topic, page, pageSize);
-  }
-
-  const clips = gated.slice(0, pageSize).map(ytToClip);
-  return {
-    clips,
-    page,
-    nbPages: page + 2,
-    nbHits: gated.length,
-    query,
-    source: "youtube-live",
-    cursor: encodeCursor(0, 1 + (page + 1) * batchSize),
-    hasNextPage: gated.length >= pageSize,
-  };
+  if (!allE.length) return curatedFb(q,topic,pg,ps);
+  let clips = allE.map(e => e2clip(e, lbl));
+  if (topic!=="all") clips = clips.filter(c => c.topic===topic);
+  const paged = clips.slice(0,ps);
+  return { clips: paged, page: pg, nbPages: pg+2, nbHits: clips.length, query: q, source: "youtube-live", cursor: enc(0,start+batch), hasNextPage: clips.length>ps };
 }
 
 export async function refreshBbcBatch(opts: {
-  cursor?: string | null;
-  pageSize?: number;
-  signal?: AbortSignal;
+  cursor?: string|null; pageSize?: number; signal?: AbortSignal;
 }): Promise<BbcSearchResult> {
-  const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
-  const { channelIdx, start } = parseCursor(opts.cursor);
-  const ch = BBC_CHANNELS[channelIdx] ?? BBC_CHANNELS[0];
-  const batchSize = Math.min(36, pageSize * 2);
-
-  const raw = await listChannelVideos({
-    channelUrl: ch.url,
-    channelLabel: ch.label,
-    playlistStart: start,
-    pageSize: batchSize,
-    signal: opts.signal,
-  });
-
-  let videos = raw;
-  if (!videos.length) {
-    const shuffled = [...BBC_CATALOG].sort(
-      () => Math.random() - 0.5,
-    );
-    return {
-      clips: shuffled.slice(0, pageSize),
-      page: 0,
-      nbPages: 1,
-      nbHits: shuffled.length,
-      query: "",
-      source: "curated-fallback",
-      cursor: encodeCursor((channelIdx + 1) % BBC_CHANNELS.length, 1),
-      hasNextPage: true,
-    };
+  const ps = Math.max(6,Math.min(24,opts.pageSize??18));
+  const {ch,s} = dec(opts.cursor);
+  const chDef = BBC_CHANNELS[ch]??BBC_CHANNELS[0];
+  const batch = Math.min(36, ps*2);
+  const r = await ytChannel(chDef.url, chDef.label, s, batch);
+  if (!r.entries.length) {
+    const shuf = [...BBC_CATALOG].sort(()=>Math.random()-0.5);
+    return { clips: shuf.slice(0,ps), page:0, nbPages:1, nbHits:shuf.length, query:"", source:"curated-fallback", cursor: enc((ch+1)%BBC_CHANNELS.length,1), hasNextPage: true };
   }
-
-  const gated = await filterVideosWithCaptions(videos, {
-    maxChecks: Math.min(18, videos.length),
-    signal: opts.signal,
-  });
-
-  const clips = (gated.length ? gated : videos)
-    .slice(0, pageSize)
-    .map(ytToClip);
-
-  const nextChannel = gated.length ? channelIdx : (channelIdx + 1) % BBC_CHANNELS.length;
-  const nextStart = start + batchSize;
-
-  return {
-    clips,
-    page: 0,
-    nbPages: 2,
-    nbHits: clips.length,
-    query: "",
-    source: gated.length ? "youtube-live" : "curated-fallback",
-    cursor: encodeCursor(nextChannel, nextStart),
-    hasNextPage: true,
-  };
+  const clips = r.entries.map(e => e2clip(e, r.label)).slice(0,ps);
+  return { clips, page:0, nbPages:2, nbHits:clips.length, query:"", source:"youtube-live", cursor: enc((ch+1)%BBC_CHANNELS.length, s+batch), hasNextPage: true };
 }

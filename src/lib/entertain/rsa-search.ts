@@ -1,191 +1,136 @@
 /**
- * Live RSA discovery via @theRSAorg + curated fallback.
- * Hard gate: English captions required.
+ * Live RSA discovery via YouTube search + channel listing + curated fallback.
+ * Query-based: yt-dlp ytsearch. Empty-query: channel listing. No caption blocking.
  */
 
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { RsaTopic, RsaVideo } from "./rsa-catalog";
 import { RSA_CATALOG, searchRsaCatalog } from "./rsa-catalog";
-import {
-  filterVideosByQuery,
-  filterVideosWithCaptions,
-  listChannelVideos,
-  type YtChannelVideo,
-} from "./youtube-channel-search";
 
-const RSA_CHANNEL = {
-  label: "RSA",
-  url: "https://www.youtube.com/@theRSAorg/videos",
-} as const;
+const execFileAsync = promisify(execFile);
+const UA = "Mozilla/5.0 (compatible; SparkTutor/1.0)";
+
+function ytDlpBin(): string { return process.env.YT_DLP_PATH?.trim() || "yt-dlp"; }
+
+const RSA_CHANNEL = { label: "RSA", url: "https://www.youtube.com/@theRSAorg/videos" } as const;
 
 export type RsaSearchSource = "youtube-live" | "curated-fallback";
 
 export type RsaSearchResult = {
   videos: RsaVideo[];
-  page: number;
-  nbPages: number;
-  nbHits: number;
-  query: string;
-  source: RsaSearchSource;
-  cursor: string | null;
-  hasNextPage: boolean;
+  page: number; nbPages: number; nbHits: number; query: string;
+  source: RsaSearchSource; cursor: string | null; hasNextPage: boolean;
 };
 
-function inferTopic(title: string): RsaTopic {
-  const t = title.toLowerCase();
-  if (/school|education|learn|student|teacher/.test(t)) return "education";
-  if (/creat|design|art|imagine/.test(t)) return "creativity";
-  if (/econom|money|market|work/.test(t)) return "economics";
-  if (/society|social|community|politic/.test(t)) return "society";
-  if (/philosoph|ethic|moral|meaning/.test(t)) return "philosophy";
-  if (/psych|brain|mind|emotion|empathy/.test(t)) return "psychology";
+// ── yt-dlp ═══════════════════════════════════
+
+type YtEntry = { id?: string; title?: string; duration?: number; channel?: string; uploader?: string };
+
+function parseE(line: string): YtEntry | null {
+  try { const r = JSON.parse(line) as YtEntry; return r; } catch { return null; }
+}
+
+function inferTopic(t: string): RsaTopic {
+  const l = t.toLowerCase();
+  if (/school|education|learn|student|teacher/.test(l)) return "education";
+  if (/creat|design|art|imagine/.test(l)) return "creativity";
+  if (/econom|money|market|work/.test(l)) return "economics";
+  if (/society|social|community|politic/.test(l)) return "society";
+  if (/philosoph|ethic|moral|meaning/.test(l)) return "philosophy";
+  if (/psych|brain|mind|emotion|empath/.test(l)) return "psychology";
   return "ideas";
 }
 
-function inferSeries(durationSec: number): RsaVideo["series"] {
-  if (durationSec >= 480) return "Animate";
-  if (durationSec >= 180) return "Minimate";
+function inferSeries(d: number): RsaVideo["series"] {
+  if (d >= 480) return "Animate";
+  if (d >= 180) return "Minimate";
   return "Shorts";
 }
 
-function ytToVideo(v: YtChannelVideo): RsaVideo {
-  const durationSec = v.durationSec || 360;
+function e2video(e: YtEntry): RsaVideo {
+  const d = Math.max(0, Math.round(Number(e.duration) || 0)) || 360;
   return {
-    videoId: v.videoId,
-    title: v.title,
+    videoId: String(e.id || ""),
+    title: String(e.title || "").slice(0, 200),
     speaker: "RSA",
-    series: inferSeries(durationSec),
-    topic: inferTopic(v.title),
-    durationSec,
-    gradeMin: 6,
-    gradeMax: 12,
+    series: inferSeries(d),
+    topic: inferTopic(e.title || ""),
+    durationSec: d,
+    gradeMin: 6, gradeMax: 12,
     blurb: "From RSA on YouTube",
   };
 }
 
-function curatedFallback(
-  query: string,
-  topic: RsaTopic | "all",
-  page: number,
-  pageSize: number,
-): RsaSearchResult {
-  const all = searchRsaCatalog(
-    query,
-    topic === "all" ? undefined : topic,
-  );
-  const start = Math.max(0, page) * pageSize;
-  const videos = all.slice(start, start + pageSize);
-  const nbPages = Math.max(1, Math.ceil(all.length / pageSize));
-  return {
-    videos,
-    page: Math.max(0, page),
-    nbPages,
-    nbHits: all.length,
-    query,
-    source: "curated-fallback",
-    cursor: null,
-    hasNextPage: page + 1 < nbPages,
-  };
+async function ytSearch(query: string, n: number): Promise<YtEntry[]> {
+  const args = [`ytsearch${n}:${query}`, "--dump-json", "--no-warnings", "--flat-playlist", "--user-agent", UA];
+  try {
+    const { stdout } = await execFileAsync(ytDlpBin(), args, { timeout: 25_000, maxBuffer: 4 * 1024 * 1024 });
+    const out: YtEntry[] = [];
+    for (const line of stdout.split("\n")) { const e = parseE(line); if (e?.id) out.push(e); }
+    return out;
+  } catch { return []; }
 }
 
+async function ytChannel(start: number, count: number): Promise<YtEntry[]> {
+  const args = ["--flat-playlist","--dump-json","--no-warnings","--playlist-start",String(start),"--playlist-end",String(start+count-1),"--user-agent",UA,RSA_CHANNEL.url];
+  try {
+    const { stdout } = await execFileAsync(ytDlpBin(), args, { timeout: 25_000, maxBuffer: 8 * 1024 * 1024 });
+    const out: YtEntry[] = [];
+    for (const line of stdout.split("\n")) { const e = parseE(line); if (e?.id) out.push(e); }
+    return out;
+  } catch { return []; }
+}
+
+// ── Curated fallback ──
+
+function curatedFb(query: string, topic: RsaTopic|"all", page: number, ps: number): RsaSearchResult {
+  const all = searchRsaCatalog(query, topic==="all"?undefined:topic);
+  const start = Math.max(0,page)*ps;
+  return { videos: all.slice(start,start+ps), page: Math.max(0,page), nbPages: Math.max(1,Math.ceil(all.length/ps)), nbHits: all.length, query, source: "curated-fallback", cursor: null, hasNextPage: page+1<Math.ceil(all.length/ps) };
+}
+
+// ── Public ═══════════════════════════════════
+
 export async function searchRsaLive(opts: {
-  query?: string;
-  topic?: RsaTopic | "all";
-  page?: number;
-  pageSize?: number;
-  signal?: AbortSignal;
+  query?: string; topic?: RsaTopic|"all"; page?: number; pageSize?: number; signal?: AbortSignal;
 }): Promise<RsaSearchResult> {
-  const query = String(opts.query || "").trim().slice(0, 120);
-  const topic = opts.topic || "all";
-  const page = Math.max(0, Math.min(50, opts.page ?? 0));
-  const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
-  const batchSize = Math.min(40, pageSize * 2);
-  const start = 1 + page * batchSize;
+  const q = String(opts.query||"").trim().slice(0,120);
+  const topic = opts.topic||"all";
+  const pg = Math.max(0,Math.min(50,opts.page??0));
+  const ps = Math.max(6,Math.min(24,opts.pageSize??18));
 
-  const raw = await listChannelVideos({
-    channelUrl: RSA_CHANNEL.url,
-    channelLabel: RSA_CHANNEL.label,
-    playlistStart: start,
-    pageSize: batchSize,
-    signal: opts.signal,
-  });
-
-  let videos = filterVideosByQuery(raw, query);
-  if (topic !== "all") {
-    videos = videos.filter((v) => inferTopic(v.title) === topic);
+  if (q) {
+    const entries = await ytSearch(q, Math.min(24, ps*2));
+    if (!entries.length) return curatedFb(q,topic,pg,ps);
+    let videos = entries.map(e2video);
+    if (topic!=="all") videos = videos.filter(v => v.topic===topic);
+    if (!videos.length) return curatedFb(q,topic,pg,ps);
+    const paged = videos.slice(0,ps);
+    return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(1+ps), hasNextPage: videos.length>ps };
   }
 
-  if (!videos.length) {
-    return curatedFallback(query, topic, page, pageSize);
-  }
-
-  const gated = await filterVideosWithCaptions(videos, {
-    maxChecks: Math.min(18, videos.length),
-    signal: opts.signal,
-  });
-
-  if (!gated.length) {
-    return curatedFallback(query, topic, page, pageSize);
-  }
-
-  const results = gated.slice(0, pageSize).map(ytToVideo);
-  return {
-    videos: results,
-    page,
-    nbPages: page + 2,
-    nbHits: gated.length,
-    query,
-    source: "youtube-live",
-    cursor: String(start + batchSize),
-    hasNextPage: gated.length >= pageSize,
-  };
+  const batch = Math.min(40, ps*2);
+  const start = 1 + pg * batch;
+  const entries = await ytChannel(start, batch);
+  if (!entries.length) return curatedFb(q,topic,pg,ps);
+  let videos = entries.map(e2video);
+  if (topic!=="all") videos = videos.filter(v => v.topic===topic);
+  const paged = videos.slice(0,ps);
+  return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(start+batch), hasNextPage: videos.length>ps };
 }
 
 export async function refreshRsaBatch(opts: {
-  cursor?: string | null;
-  pageSize?: number;
-  signal?: AbortSignal;
+  cursor?: string|null; pageSize?: number; signal?: AbortSignal;
 }): Promise<RsaSearchResult> {
-  const pageSize = Math.max(6, Math.min(24, opts.pageSize ?? 18));
-  const start = Math.max(1, Number(opts.cursor) || 1);
-  const batchSize = Math.min(40, pageSize * 2);
-
-  const raw = await listChannelVideos({
-    channelUrl: RSA_CHANNEL.url,
-    channelLabel: RSA_CHANNEL.label,
-    playlistStart: start,
-    pageSize: batchSize,
-    signal: opts.signal,
-  });
-
-  if (!raw.length) {
-    const shuffled = [...RSA_CATALOG].sort(() => Math.random() - 0.5);
-    return {
-      videos: shuffled.slice(0, pageSize),
-      page: 0,
-      nbPages: 1,
-      nbHits: shuffled.length,
-      query: "",
-      source: "curated-fallback",
-      cursor: "1",
-      hasNextPage: true,
-    };
+  const ps = Math.max(6,Math.min(24,opts.pageSize??18));
+  const s = Math.max(1, Number(opts.cursor)||1);
+  const batch = Math.min(40, ps*2);
+  const entries = await ytChannel(s, batch);
+  if (!entries.length) {
+    const shuf = [...RSA_CATALOG].sort(()=>Math.random()-0.5);
+    return { videos: shuf.slice(0,ps), page:0, nbPages:1, nbHits:shuf.length, query:"", source:"curated-fallback", cursor: "1", hasNextPage: true };
   }
-
-  const gated = await filterVideosWithCaptions(raw, {
-    maxChecks: Math.min(18, raw.length),
-    signal: opts.signal,
-  });
-
-  const videos = (gated.length ? gated : raw).slice(0, pageSize).map(ytToVideo);
-
-  return {
-    videos,
-    page: 0,
-    nbPages: 2,
-    nbHits: videos.length,
-    query: "",
-    source: gated.length ? "youtube-live" : "curated-fallback",
-    cursor: String(start + batchSize),
-    hasNextPage: true,
-  };
+  const videos = entries.map(e2video).slice(0,ps);
+  return { videos, page:0, nbPages:2, nbHits:videos.length, query:"", source:"youtube-live", cursor: String(s+batch), hasNextPage: true };
 }

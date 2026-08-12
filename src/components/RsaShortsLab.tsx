@@ -98,11 +98,22 @@ export function RsaShortsLab() {
   if (phase === "browse") {
     return (
       <div className="mt-4 space-y-4 animate-fade-up">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search RSA talks..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
-        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : RSA_TOPIC_LABELS[t]}</button>))}
-          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="rounded-full border border-[var(--coral)]/40 px-3 py-1 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "Loading…" : "Refresh batch"}</button>
+        <div className="flex gap-2">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search RSA on YouTube — title, topic, keyword…" className="flex-1 min-h-11 rounded-xl border border-[var(--line)] bg-white/90 px-4 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
+          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="shrink-0 min-h-11 rounded-xl border border-[var(--coral)]/40 px-3 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "⟳" : "Refresh batch"}</button>
         </div>
-        <p className="text-[11px] text-[var(--ink-muted)]">{listSource === "loading" ? "Searching RSA channel…" : listSource === "live" ? `YouTube live · ${nbHits} talks with captions` : `Curated backup · ${nbHits} talks`}</p>
+        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : RSA_TOPIC_LABELS[t]}</button>))}
+        </div>
+        <div className="flex items-center gap-2">
+          {listSource === "loading" ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">⟳ Searching YouTube…</span>
+          ) : listSource === "live" ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">▶ YouTube Live</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">📋 Curated</span>
+          )}
+          <span className="text-[11px] text-[var(--ink-muted)]">{nbHits} videos</span>
+        </div>
         {searchError ? <p className="text-xs text-[var(--coral)]">{searchError}</p> : null}
         {videos.length > 0 ? (<ul className="grid gap-3 sm:grid-cols-2">{videos.map(v => (<li key={v.videoId}><button onClick={() => openVideo(v)} className="flex w-full flex-col gap-1.5 rounded-2xl border border-[var(--line)] bg-white/85 p-4 text-left transition hover:border-[var(--teal)] hover:shadow-sm dark:bg-white/5"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-[var(--ink)]">{v.title}</span><span className="shrink-0 rounded-full bg-[var(--mist)] px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]">{v.series}</span></div><p className="text-xs font-medium text-[var(--ink-muted)]">by {v.speaker}</p><p className="line-clamp-2 text-xs leading-relaxed text-[var(--ink-muted)]">{v.blurb}</p><div className="flex items-center gap-2 text-[10px] text-[var(--ink-muted)]/70"><span>{formatDuration(v.durationSec)}</span><span>G{v.gradeMin}-{v.gradeMax}</span></div></button></li>))}</ul>) : !listBusy ? (<p className="py-8 text-center text-sm text-[var(--ink-muted)]">No videos found.</p>) : null}
         {hasNextPage ? (<button type="button" disabled={listBusy} onClick={() => void runSearch({ page: page + 1, append: true })} className="w-full rounded-xl border border-[var(--line)] py-2 text-sm text-[var(--ink-muted)] hover:border-[var(--teal)] disabled:opacity-40">Load more</button>) : null}

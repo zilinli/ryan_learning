@@ -101,11 +101,22 @@ export function NatGeoLab() {
   if (phase === "browse") {
     return (
       <div className="mt-4 space-y-4 animate-fade-up">
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search articles about animals, space, history..." className="w-full rounded-xl border border-[var(--line)] bg-white/90 px-4 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
-        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : NATGEO_TOPIC_LABELS[t]}</button>))}
-          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="rounded-full border border-[var(--coral)]/40 px-3 py-1 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "Loading…" : "Refresh batch"}</button>
+        <div className="flex gap-2">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search articles on kids.nationalgeographic.com…" className="flex-1 min-h-11 rounded-xl border border-[var(--line)] bg-white/90 px-4 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" />
+          <button type="button" disabled={listBusy} onClick={() => void refreshBatch()} className="shrink-0 min-h-11 rounded-xl border border-[var(--coral)]/40 px-3 text-xs font-medium text-[var(--coral)] disabled:opacity-40">{listBusy ? "⟳" : "Refresh batch"}</button>
         </div>
-        <p className="text-[11px] text-[var(--ink-muted)]">{listSource === "loading" ? "Searching NatGeo Kids…" : listSource === "live" ? `NatGeo live · ${nbHits} articles` : `Curated backup · ${nbHits} articles`}</p>
+        <div className="flex flex-wrap items-center gap-1.5">{TOPICS.map(t => (<button key={t} onClick={() => setTopic(t)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${t === topic ? "bg-[var(--teal)] text-white" : "border border-[var(--line)] bg-white/60 text-[var(--ink-muted)] hover:border-[var(--teal)] dark:bg-white/5"}`}>{t === "all" ? "All" : NATGEO_TOPIC_LABELS[t]}</button>))}
+        </div>
+        <div className="flex items-center gap-2">
+          {listSource === "loading" ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">⟳ Searching NatGeo…</span>
+          ) : listSource === "live" ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">🌐 NatGeo Live</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">📋 Curated</span>
+          )}
+          <span className="text-[11px] text-[var(--ink-muted)]">{nbHits} articles</span>
+        </div>
         {searchError ? <p className="text-xs text-[var(--coral)]">{searchError}</p> : null}
         {articles.length > 0 ? (<ul className="grid gap-3 sm:grid-cols-2">{articles.map(a => (
           <li key={a.slug}><button onClick={() => openArticle(a)} className="flex w-full flex-col gap-1.5 rounded-2xl border border-[var(--line)] bg-white/85 p-4 text-left transition hover:border-[var(--teal)] hover:shadow-sm dark:bg-white/5">
