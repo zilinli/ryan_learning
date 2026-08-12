@@ -10,23 +10,22 @@ import {
   NATGEO_TOPIC_LABELS,
 } from "@/lib/entertain/natgeo-catalog";
 import type { NatGeoChallenge } from "@/lib/entertain/natgeo-challenge";
-import type { ChallengeItem } from "@/lib/entertain/ted-challenge";
 import { normalizeLearnerGrade } from "@/lib/entertain/ted-challenge";
-import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { youtubeEmbedUrl } from "@/lib/youtube-urls";
 import { readResponseJson } from "@/lib/api-json";
 import { useLabCatalogSearch } from "./useLabCatalogSearch";
-import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
+import {
+  MediaLabChallengeView,
+  type AnswerRecord,
+} from "./MediaLabChallengeView";
 
 type Phase = "browse" | "read" | "challenge";
-type AnswerRecord = { selected: number[]; essay: string };
 
 const TOPICS: Array<NatGeoTopic | "all"> = ["all", ...NATGEO_TOPICS];
 
 function formatGradeBand(article: NatGeoArticle): string { return `G${article.gradeMin}-G${article.gradeMax}`; }
-function choiceLetter(i: number): string { return "ABCD"[i] ?? String(i); }
 
 export function NatGeoLab() {
   const { accountId, grade } = useActiveStudioAccount();
@@ -79,12 +78,6 @@ export function NatGeoLab() {
     } catch (err) { setError(err instanceof Error ? err.message : "Could not load challenge"); }
     finally { setBusy(false); }
   }, [selectedArticle, grade]);
-
-  const submitAnswer = useCallback(async (item: ChallengeItem, selected: number[], essay: string) => {
-    if (!challenge || !selectedArticle) return;
-    setAnswers(prev => ({ ...prev, [item.id]: { selected, essay } }));
-    void recordStudioLearningTurn({ accountId: accountId || "acct_ryan", source: "natgeo", title: selectedArticle.title, userText: [`[NatGeo Lab]`, selectedArticle.title, `Q: ${item.prompt}`, `A: ${essay || selected.map(i => item.choices[i]).join(", ")}`].join("\n"), outcome: "practice" });
-  }, [challenge, selectedArticle, accountId]);
 
   const saveChallenge = useCallback(async () => {
     if (!challenge || !selectedArticle) return;
@@ -170,7 +163,7 @@ export function NatGeoLab() {
         {/* Sticky unlock bar */}
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <button type="button" disabled={!readReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${readReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Reading source & building…" : readReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
+            <button type="button" disabled={!readReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${readReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? (hasVideo ? "Fetching EN captions & building…" : "Reading source & building…") : readReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
             {!readReady && (<button type="button" onClick={() => { if (readTimer.current) clearInterval(readTimer.current); setReadReady(true); setReadSecs(30); }} className="min-h-11 w-full rounded-xl border border-white/20 px-4 text-sm transition hover:border-[#6db8a8] sm:w-auto">I've read enough — unlock now</button>)}
           </div>
           {!readReady && <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[#a89f92]">Reading for {readSecs}s — challenge unlocks at 30s</p>}
@@ -180,22 +173,25 @@ export function NatGeoLab() {
     );
   }
 
-  // ── CHALLENGE ──
-  if (phase === "challenge" && challenge) {
-    const item = challenge.items[qi];
-    if (!item) {
-      return (<div className="mt-4 space-y-4 animate-fade-up text-center"><div className="rounded-2xl border border-[var(--line)] bg-white/85 p-8 dark:bg-white/5"><p className="text-lg font-semibold text-[var(--ink)]">Challenge complete!</p><p className="mt-2 text-sm text-[var(--ink-muted)]">Great reading! You answered {challenge.items.length} questions on "{challenge.title}".</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button onClick={() => void saveChallenge()} className="rounded-xl bg-[var(--teal)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">Save to My Creations</button><button onClick={goBrowse} className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)] dark:bg-white/5">Read another article</button></div></div></div>);
-    }
+  if (phase === "challenge" && challenge && selectedArticle) {
     return (
-      <div className="mt-4 space-y-4 animate-fade-up">
-        <button onClick={goBrowse} className="text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--teal)]">&larr; Back</button>
-        <div className="flex gap-1">{challenge.items.map((_, i) => (<div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < qi ? (answers[challenge.items[i]!.id] ? "bg-[var(--teal)]" : "bg-[var(--coral)]/50") : i === qi ? "bg-[var(--teal)]/40" : "bg-[var(--line)]"}`} />))}</div>
-        <div className="rounded-2xl border border-[var(--line)] bg-white/85 p-5 dark:bg-white/5"><p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]/70">Question {qi + 1} of {challenge.items.length} · {item.kind}</p><p className="text-[15px] leading-relaxed text-[var(--ink)]">{item.prompt}</p></div>
-        <div className="space-y-2">{item.choices.map((choice, ci) => { const isSelected = answers[item.id]?.selected?.includes(ci); return (<button key={ci} onClick={() => { const prev = answers[item.id]?.selected || []; const next = prev.includes(ci) ? prev.filter(i => i !== ci) : [...prev, ci]; setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { essay: "", selected: [] }), selected: next } })); }} className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${isSelected ? "border-[var(--teal)] bg-[var(--teal)]/10 text-[var(--ink)]" : "border-[var(--line)] bg-white/70 text-[var(--ink-muted)] hover:border-[var(--teal)]/50 dark:bg-white/5"}`}><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${isSelected ? "bg-[var(--teal)] text-white" : "bg-[var(--mist)] text-[var(--ink-muted)]"}`}>{choiceLetter(ci)}</span><span>{choice}</span></button>); })}</div>
-        <div className="flex gap-2"><textarea value={answers[item.id]?.essay || ""} onChange={e => setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { selected: [], essay: "" }), essay: e.target.value } }))} placeholder="Explain your answer..." rows={3} className="min-h-[5rem] w-full flex-1 resize-y rounded-xl border border-[var(--line)] bg-white/90 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" /><MicTranscribeButton language="en" disabled={busy} onTranscript={(t: string) => setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { selected: [], essay: "" }), essay: ((a[item.id]?.essay || "") + " " + t).trim() } }))} /></div>
-        <button onClick={() => { const r = answers[item.id]; void submitAnswer(item, r?.selected || [], r?.essay || ""); if (qi < challenge.items.length - 1) setQi(qi + 1); }} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--teal)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-45">{qi < challenge.items.length - 1 ? "Submit & Next" : "Complete"}</button>
-        {error ? <p className="rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2 text-sm text-[var(--coral)]">{error}</p> : null}
-      </div>
+      <MediaLabChallengeView
+        lab="natgeo"
+        source="natgeo"
+        title={selectedArticle.title}
+        speaker="National Geographic Kids"
+        items={challenge.items}
+        qi={qi}
+        setQi={setQi}
+        answers={answers}
+        setAnswers={setAnswers}
+        accountId={accountId || "acct_ryan"}
+        busy={busy}
+        onSave={saveChallenge}
+        onBack={goBrowse}
+        onBrowseAnother={goBrowse}
+        anotherLabel="Read another article"
+      />
     );
   }
   return null;

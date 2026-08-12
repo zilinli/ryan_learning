@@ -101,6 +101,7 @@ flowchart TB
 | **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)** | TED Lab **video list** sorted by grade + age fit (not TED newest) |
 | **[subsystems/ted-challenge-hybrid-mcq.md](subsystems/ted-challenge-hybrid-mcq.md)** | TED Challenge per-item **MCQ (single/multi) + essay** hybrid |
 | **[subsystems/ted-challenge-inline-discuss.md](subsystems/ted-challenge-inline-discuss.md)** | TED Submit & discuss — **inline** Lab chat (no homepage hop) |
+| **[subsystems/lab-challenge-ted-parity.md](subsystems/lab-challenge-ted-parity.md)** | BBC / NatGeo / RSA Challenge — TED parity (CC → voice → discuss) |
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |
 | **[subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)** | ✍️ Writing Pad P0 — LanguageTool grammar, Feedback/Stage layout, writing type |
 | **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)** | 📓 Journal Timeline (`/me`, `/me/journal`) + Stage styles (Structure suggests Hip-hop etc.) |

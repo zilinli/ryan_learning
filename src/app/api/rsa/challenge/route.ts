@@ -3,13 +3,13 @@ import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { SDKAgent } from "@cursor/sdk";
 import { DEFAULT_CURSOR_API_KEY } from "@/lib/default-api-key";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
-import { findRsaVideo } from "@/lib/entertain/rsa-catalog";
 import {
   buildFallbackRsaChallenge,
   rsaChallengeSystemPrompt,
   parseRsaChallengeJson,
   type RsaChallengeLearner,
 } from "@/lib/entertain/rsa-challenge";
+import { resolveRsaVideo } from "@/lib/entertain/rsa-video-resolve";
 import { canAffordChallengeAgent } from "@/lib/entertain/challenge-agent-guard";
 import { fetchYouTubeTranscript } from "@/lib/youtube-transcript";
 
@@ -28,7 +28,11 @@ export async function POST(req: Request) {
   const limited = checkApiRateLimit(req, "rsa-challenge", RATE_PRESETS.agent);
   if (limited) return limited;
 
-  let body: { videoId?: string; learner?: RsaChallengeLearner } = {};
+  let body: {
+    videoId?: string;
+    video?: unknown;
+    learner?: RsaChallengeLearner;
+  } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -39,14 +43,25 @@ export async function POST(req: Request) {
   if (!videoId)
     return Response.json({ ok: false, error: "Missing videoId" }, { status: 400 });
 
-  const video = findRsaVideo(videoId);
+  const video = resolveRsaVideo(videoId, body.video);
   if (!video)
     return Response.json({ ok: false, error: "Video not found" }, { status: 404 });
 
   try {
-    const learner = body.learner || null;
+    const learner = body.learner || undefined;
 
+    // Prefer English YouTube CC (manual + auto) before blurb-only generation.
     const transcript = await fetchYouTubeTranscript(videoId);
+    if (!transcript || transcript.text.length < 80) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "No usable English captions (CC) for this video. Pick another clip with subtitles.",
+        },
+        { status: 422 },
+      );
+    }
     let challenge = buildFallbackRsaChallenge(video, transcript, learner);
 
     const forceFallback =

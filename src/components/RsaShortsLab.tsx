@@ -7,19 +7,19 @@ import {
 } from "@/lib/entertain/rsa-catalog";
 import type { ChallengeItem } from "@/lib/entertain/ted-challenge";
 import { normalizeLearnerGrade, formatTedDifficultyLabel } from "@/lib/entertain/ted-challenge";
-import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { youtubeEmbedUrl } from "@/lib/youtube-urls";
 import { readResponseJson } from "@/lib/api-json";
-import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
+import {
+  MediaLabChallengeView,
+  type AnswerRecord,
+} from "./MediaLabChallengeView";
 
 type Phase = "browse" | "watch" | "challenge";
-type AnswerRecord = { selected: number[]; essay: string };
 const TOPICS: Array<RsaTopic | "all"> = ["all", ...RSA_TOPICS];
 
 function formatDuration(sec: number): string { return ` · ${Math.round(sec / 60)} min`; }
-function choiceLetter(i: number): string { return "ABCD"[i] ?? String(i); }
 
 export function RsaShortsLab() {
   const { accountId, grade, englishLevel } = useActiveStudioAccount();
@@ -63,7 +63,18 @@ export function RsaShortsLab() {
 
   const fetchChallenge = useCallback(async () => {
     if (!selectedVideo) return null;
-    const res = await fetch("/api/rsa/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ videoId: selectedVideo.videoId, learner: { grade: normalizeLearnerGrade(grade || undefined), englishLevel } }) });
+    const res = await fetch("/api/rsa/challenge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoId: selectedVideo.videoId,
+        video: selectedVideo,
+        learner: {
+          grade: normalizeLearnerGrade(grade || undefined),
+          englishLevel,
+        },
+      }),
+    });
     const data = await readResponseJson<{ ok?: boolean; error?: string; challenge?: unknown }>(res);
     if (!data.ok) throw new Error(data.error || "Failed");
     return data.challenge;
@@ -75,12 +86,6 @@ export function RsaShortsLab() {
     catch (err) { setError(err instanceof Error ? err.message : "Could not load challenge"); }
     finally { setBusy(false); }
   }, [fetchChallenge]);
-
-  const submitAnswer = useCallback(async (item: ChallengeItem, selected: number[], essay: string) => {
-    if (!challenge || !selectedVideo) return;
-    setAnswers(prev => ({ ...prev, [item.id]: { selected, essay } }));
-    void recordStudioLearningTurn({ accountId: accountId || "acct_ryan", source: "rsa", title: selectedVideo.title, userText: ["[RSA Lab]", selectedVideo.title, `Q: ${item.prompt}`, `A: ${essay || selected.map(i => item.choices[i]).join(", ")}`].join("\n"), outcome: "practice" });
-  }, [challenge, selectedVideo, accountId]);
 
   const saveChallenge = useCallback(async () => {
     if (!challenge || !selectedVideo) return;
@@ -108,7 +113,7 @@ export function RsaShortsLab() {
           {listSource === "loading" ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">⟳ Searching YouTube…</span>
           ) : listSource === "live" ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">▶ YouTube Live</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">▶ YouTube Live · EN captions</span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">📋 Curated</span>
           )}
@@ -141,11 +146,11 @@ export function RsaShortsLab() {
               <iframe title={selectedVideo.title} src={youtubeEmbedUrl(selectedVideo.videoId)} className="absolute inset-0 h-full w-full border-0" allow="fullscreen; picture-in-picture" allowFullScreen />
             </div>
           </div>
-          <p className="px-3 py-2 text-center text-[11px] text-[#a89f92] sm:text-xs">Listen first — then take the challenge. Video stays compact.</p>
+          <p className="px-3 py-2 text-center text-[11px] text-[#a89f92] sm:text-xs">Listen first — challenge uses English captions (CC), then discuss with the AI teacher.</p>
         </div>
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <button type="button" disabled={!challengeReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${challengeReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Fetching captions & building…" : challengeReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
+            <button type="button" disabled={!challengeReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${challengeReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Fetching EN captions & building…" : challengeReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>
             <button type="button" onClick={() => setChallengeReady(true)} className="min-h-11 w-full rounded-xl border border-white/20 px-4 text-sm transition hover:border-[#6db8a8] sm:w-auto">I've listened enough — unlock now</button>
           </div>
           {!challengeReady && <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[#a89f92]">Challenge unlocks after ~45s, or tap unlock now.</p>}
@@ -155,22 +160,25 @@ export function RsaShortsLab() {
     );
   }
 
-  // ── CHALLENGE ──
-  if (phase === "challenge" && challenge) {
-    const item = challenge.items[qi] as ChallengeItem | undefined;
-    if (!item) {
-      return (<div className="mt-4 space-y-4 animate-fade-up text-center"><div className="rounded-2xl border border-[var(--line)] bg-white/85 p-8 dark:bg-white/5"><p className="text-lg font-semibold text-[var(--ink)]">Challenge complete!</p><p className="mt-2 text-sm text-[var(--ink-muted)]">You answered {challenge.items.length} questions.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button onClick={() => void saveChallenge()} className="rounded-xl bg-[var(--teal)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">Save to My Creations</button><button onClick={() => setPhase("browse")} className="rounded-xl border border-[var(--line)] bg-white/70 px-4 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--mist)] dark:bg-white/5">Watch another</button></div></div></div>);
-    }
+  if (phase === "challenge" && challenge && selectedVideo) {
     return (
-      <div className="mt-4 space-y-4 animate-fade-up">
-        <button onClick={() => setPhase("browse")} className="text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--teal)]">&larr; Back</button>
-        <div className="flex gap-1">{challenge.items.map((_: any, i: number) => (<div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < qi ? (answers[challenge.items[i].id] ? "bg-[var(--teal)]" : "bg-[var(--coral)]/50") : i === qi ? "bg-[var(--teal)]/40" : "bg-[var(--line)]"}`} />))}</div>
-        <div className="rounded-2xl border border-[var(--line)] bg-white/85 p-5 dark:bg-white/5"><p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)]/70">Q{qi + 1}/{challenge.items.length} · {item.kind}</p><p className="text-[15px] leading-relaxed text-[var(--ink)]">{item.prompt}</p></div>
-        <div className="space-y-2">{item.choices.map((choice: string, ci: number) => { const isSelected = answers[item.id]?.selected?.includes(ci); return (<button key={ci} onClick={() => { const prev = answers[item.id]?.selected || []; const next = prev.includes(ci) ? prev.filter(i => i !== ci) : [...prev, ci]; setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { essay: "", selected: [] }), selected: next } })); }} className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${isSelected ? "border-[var(--teal)] bg-[var(--teal)]/10 text-[var(--ink)]" : "border-[var(--line)] bg-white/70 text-[var(--ink-muted)] hover:border-[var(--teal)]/50 dark:bg-white/5"}`}><span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${isSelected ? "bg-[var(--teal)] text-white" : "bg-[var(--mist)] text-[var(--ink-muted)]"}`}>{choiceLetter(ci)}</span><span>{choice}</span></button>); })}</div>
-        <div className="flex gap-2"><textarea value={answers[item.id]?.essay || ""} onChange={e => setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { selected: [], essay: "" }), essay: e.target.value } }))} placeholder="Explain your answer..." rows={3} className="min-h-[5rem] w-full flex-1 resize-y rounded-xl border border-[var(--line)] bg-white/90 px-3 py-2 text-sm text-[var(--ink)] outline-none focus:border-[var(--teal)] dark:bg-white/10" /><MicTranscribeButton language="en" disabled={busy} onTranscript={(t: string) => setAnswers(a => ({ ...a, [item.id]: { ...(a[item.id] || { selected: [], essay: "" }), essay: ((a[item.id]?.essay || "") + " " + t).trim() } }))} /></div>
-        <button onClick={() => { const r = answers[item.id]; void submitAnswer(item, r?.selected || [], r?.essay || ""); if (qi < challenge.items.length - 1) setQi(qi + 1); }} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--teal)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-45">{qi < challenge.items.length - 1 ? "Submit & Next" : "Complete"}</button>
-        {error ? <p className="rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2 text-sm text-[var(--coral)]">{error}</p> : null}
-      </div>
+      <MediaLabChallengeView
+        lab="rsa"
+        source="rsa"
+        title={selectedVideo.title}
+        speaker={selectedVideo.speaker}
+        items={challenge.items as ChallengeItem[]}
+        qi={qi}
+        setQi={setQi}
+        answers={answers}
+        setAnswers={setAnswers}
+        accountId={accountId || "acct_ryan"}
+        busy={busy}
+        onSave={saveChallenge}
+        onBack={() => setPhase("browse")}
+        onBrowseAnother={() => setPhase("browse")}
+        anotherLabel="Watch another"
+      />
     );
   }
   return null;

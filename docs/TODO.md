@@ -37,6 +37,20 @@
 
 ---
 
+## 🎯 ENT-LAB-PARITY — BBC / NatGeo / RSA Challenge = TED benchmark (2026-08-12)
+
+> **Design:** [subsystems/lab-challenge-ted-parity.md](subsystems/lab-challenge-ted-parity.md)  
+> **Goal:** (1) Prefer English YouTube CC → questions. (2) Essay voice input. (3) Submit & discuss inline Socratic coaching — not one-shot Submit & Next.
+
+- [x] **ENT-LAB.1** — Caption-first: YT search gate + challenge requires EN CC; live clip resolve; NatGeo CC-before-article
+- [x] **ENT-LAB.2** — `lab-discuss` + `POST /api/lab/discuss` + `LabDiscussDialogue` / `MediaLabChallengeView`
+- [x] **ENT-LAB.3** — Wire BbcDocLab / RsaShortsLab / NatGeoLab: voice `appendVoiceTranscript` + Submit & discuss
+- [x] **ENT-LAB.4** — Unit LD* + clip-resolve tests
+- [ ] **ENT-LAB.5** — apply_changes → publish_develop → deploy_live
+- [ ] **ENT-LAB.6** — Manual: BBC/RSA/NatGeo Submit & discuss stays on Lab; Next advances qi
+
+---
+
 ## 📓 JM — Journal + Me hub + Stage styles (2026-08-12) — DESIGN ONLY
 
 > **Design:** [subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)  
@@ -75,7 +89,7 @@
 - [x] **CROP-M.1** — Export `clientToCropNorm` / `rectFromDrag` / `isNearFullFrameCrop` in `image-process.ts`
 - [x] **CROP-M.2** — `PhotoCropModal`: `dvh` + safe-area + `min-h-0` stage; `block max-h-full` img; body scroll lock
 - [x] **CROP-M.3** — Unit tests `image-process-crop.test.ts`
-- [ ] **CROP-M.4** — `run_tests` → `apply_changes` → `publish_develop` → `deploy_live`
+- [x] **CROP-M.4** — `run_tests` → `apply_changes` → `publish_develop` → `deploy_live`
 - [x] **AUDIT8.8** — Voice menu Core/More lazy groups (no language removal)
 - [ ] **AUDIT8.9** — `run_tests` on touched files → `apply_changes` → `publish_develop` → `deploy_live`
 - [x] **TODO-CLEAN.1** — Wire TEO.5 dialect-feedback `engine`+`original` from Composer/VoiceControls

@@ -66,14 +66,20 @@ export async function POST(req: Request) {
 
     const learner = body.learner || null;
 
-    // Prefer article + YouTube narration when the catalog entry has a video.
+    // Prefer English YouTube CC first (TED-style), then article as secondary.
     let sourceArticle: NatGeoArticle = article;
     if (article.videoId) {
       const yt = await fetchYouTubeTranscript(article.videoId);
-      if (yt?.text) {
+      if (yt?.text && yt.text.length >= 80) {
         sourceArticle = {
           ...article,
-          body: [article.body, "Video narration (captions):", yt.text]
+          body: [
+            "Primary source — English video captions (YouTube CC):",
+            yt.text.slice(0, 10_000),
+            "",
+            "Secondary — article text:",
+            article.body,
+          ]
             .filter(Boolean)
             .join("\n\n")
             .slice(0, 12_000),

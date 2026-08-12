@@ -1,12 +1,17 @@
 /**
  * Live RSA discovery via YouTube search + channel listing + curated fallback.
- * Query-based: yt-dlp ytsearch. Empty-query: channel listing. No caption blocking.
+ * Query-based: yt-dlp ytsearch. Empty-query: curated catalog.
+ * Live results are gated on usable English captions (TED parity).
  */
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { RsaTopic, RsaVideo } from "./rsa-catalog";
 import { RSA_CATALOG, searchRsaCatalog } from "./rsa-catalog";
+import {
+  filterVideosWithCaptions,
+  type YtChannelVideo,
+} from "./youtube-channel-search";
 
 const execFileAsync = promisify(execFile);
 const UA = "Mozilla/5.0 (compatible; SparkTutor/1.0)";
@@ -60,6 +65,25 @@ function e2video(e: YtEntry): RsaVideo {
   };
 }
 
+async function gateEnCaptions(
+  videos: RsaVideo[],
+  signal?: AbortSignal,
+): Promise<RsaVideo[]> {
+  if (!videos.length) return [];
+  const asYt: YtChannelVideo[] = videos.map((v) => ({
+    videoId: v.videoId,
+    title: v.title,
+    durationSec: v.durationSec,
+    channel: "RSA",
+  }));
+  const kept = await filterVideosWithCaptions(asYt, {
+    maxChecks: Math.min(16, videos.length),
+    signal,
+  });
+  const ids = new Set(kept.map((v) => v.videoId));
+  return videos.filter((v) => ids.has(v.videoId));
+}
+
 async function ytSearch(query: string, n: number): Promise<YtEntry[]> {
   const args = [`ytsearch${n}:${query}`, "--dump-json", "--no-warnings", "--flat-playlist", "--user-agent", UA];
   try {
@@ -97,8 +121,10 @@ export async function searchRsaLive(opts: {
   let videos = entries.map(e2video);
   if (topic!=="all") videos = videos.filter(v => v.topic===topic);
   if (!videos.length) return curatedFb(q,topic,pg,ps);
-  const paged = videos.slice(0,ps);
-  return { videos: paged, page: pg, nbPages: pg+2, nbHits: videos.length, query: q, source: "youtube-live", cursor: String(1+ps), hasNextPage: videos.length>ps };
+  const captioned = await gateEnCaptions(videos, opts.signal);
+  if (!captioned.length) return curatedFb(q,topic,pg,ps);
+  const paged = captioned.slice(0,ps);
+  return { videos: paged, page: pg, nbPages: pg+2, nbHits: captioned.length, query: q, source: "youtube-live", cursor: String(1+ps), hasNextPage: captioned.length>ps };
 }
 
 export async function refreshRsaBatch(opts: {

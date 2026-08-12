@@ -295,28 +295,31 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
 - **Pedagogy:** Defaults from **numeric grade** (G1–G12) + optional English level + age nudge. UI shows the resolved label (e.g. **G10 · advanced**). G4 is only the fallback when grade is unknown. G3 softer; G5 same developing band but harder cue; G9–G12 advanced with grade grain inside the band.
 
-### 6.3 NatGeo Lab · BBC Doc Lab · RSA Lab (v0.9)
+### 6.3 NatGeo Lab · BBC Doc Lab · RSA Lab (TED parity)
+
+**Shared Challenge UX (TED benchmark):** English captions → hybrid MCQ + essay with mic → **Submit & discuss** inline Socratic coaching via `POST /api/lab/discuss` — see [lab-challenge-ted-parity.md](./lab-challenge-ted-parity.md).
 
 **NatGeo Lab** (`natgeo-lab`):
-- **Content:** 30 curated National Geographic Kids articles (animals, science, space, geography, history, nature, culture)
+- **Content:** curated National Geographic Kids articles (+ optional YouTube)
 - **Scraper:** `natgeo-scrape.ts` — live `__NEXT_DATA__` extraction + paragraph fallback + 7-day `data/natgeo-cache/`
-- **Challenge:** 5 reading-comprehension questions (`vocabulary`, `main-idea`, `detail`, `inference`, `connection`) banded by grade + English level
-- **API:** `GET /api/natgeo/search`, `POST /api/natgeo/challenge`, `POST /api/natgeo/evaluate`
+- **Challenge:** Prefer **YouTube EN CC first** when `videoId` present, then article text; hybrid items + discuss
+- **API:** `GET /api/natgeo/search`, `POST /api/natgeo/challenge`, `POST /api/lab/discuss`
 
 **BBC Doc Lab** (`bbc-lab`):
-- **Content:** 25 curated BBC documentary clips from official YouTube channels (BBC Earth, BBC Ideas, BBC)
-- **Transcript:** Shared `youtube-transcript.ts` — `youtubetranscript.com` API + yt-dlp fallback + 7-day `data/yt-cache/`
-- **Challenge:** 5 questions (`observation`, `explanation`, `sequence`, `vocabulary`, `connection`) — expository/narrative model
-- **API:** `GET /api/bbc/search`, `POST /api/bbc/challenge`, `POST /api/bbc/evaluate`
+- **Content:** curated + live YouTube (BBC Earth / Ideas / BBC) **gated on EN captions**
+- **Transcript:** Shared `youtube-transcript.ts` (manual EN + auto-CC + yt-dlp)
+- **Challenge:** Requires usable EN CC; live clips accepted via `clip` payload; Submit & discuss
+- **API:** `GET /api/bbc/search`, `POST /api/bbc/challenge`, `POST /api/lab/discuss`
 
 **RSA Lab** (`rsa-lab`):
-- **Content:** 25 curated RSA animated talks (RSA Animates, Shorts, Minimates) from YouTube
-- **Transcript:** Shared `youtube-transcript.ts` (same as BBC)
-- **Challenge:** 4 questions reusing TED's `literal`, `structure`, `critique`, `retell` kinds — argumentative/idea-driven model
-- **API:** `GET /api/rsa/search`, `POST /api/rsa/challenge`, `POST /api/rsa/evaluate`
+- **Content:** curated + live RSA YouTube **gated on EN captions**
+- **Transcript:** Shared `youtube-transcript.ts`
+- **Challenge:** TED-like kinds; requires EN CC; Submit & discuss
+- **API:** `GET /api/rsa/search`, `POST /api/rsa/challenge`, `POST /api/lab/discuss`
 
 **Shared infrastructure:**
-- `src/lib/youtube-transcript.ts` — transcript fetch (BBC + RSA)
+- `src/lib/youtube-transcript.ts` — transcript fetch (BBC + RSA + NatGeo video)
+- `src/lib/entertain/lab-discuss.ts` + `MediaLabChallengeView` + `LabDiscussDialogue`
 - `src/lib/youtube-urls.ts` — client-safe URL helpers (embed/watch/id extraction)
 - BKT integration via `recordStudioLearningTurn` with `source: "natgeo" | "bbc" | "rsa"`
 - Creation types: `natgeo_challenge` | `bbc_challenge` | `rsa_challenge` in `creations-store.ts`
