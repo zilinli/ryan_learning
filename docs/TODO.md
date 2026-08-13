@@ -45,7 +45,7 @@
 - [x] **SPARK-V2.13 (attribution)** — `SkillMastery.sourceCounts`/`lastSource` + `recordLearningTurnMemory(source)` + `attributionBySource` + 家长周报 `sourceAttribution`/Main drivers
 - [x] **SPARK-V2.14 (tests)** — 新增 proactive-nudge / weekly-launchpad + 扩展 flow/explore/bkt/breadth/connection/learning-memory/parent-digest/local-facts/journal-route；全量 1525 passed
 - [x] **SPARK-V2.15 (docs)** — `spark-v2-flywheel.md` + roadmap + TODO + DESIGN + README
-- [ ] **SPARK-V2.16 (release)** — publish develop/master + build + pm2 restart + health
+- [x] **SPARK-V2.16 (release)** — publish develop/master + build + pm2 restart + health（`904a2eb`，2026-08-13 上线，home/journal 200）
 
 ---
 
