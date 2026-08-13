@@ -8,7 +8,9 @@ import { fetchPageText, webSearch } from "./tutor-harness";
 const GIT_TO = 15000;
 const RUN_TO = 30000;
 const TEST_TO = 60000;
-const BUILD_TO = 240000;
+// smart-build can run up to 4 attempts × 300s ≈ 20 min; give it headroom so the
+// spawn timeout never orphans the real build process mid-flight.
+const BUILD_TO = 1500000;
 const PUSH_TO = 120000;
 
 /** Full pipeline (research → design → TODO → code) needs a higher budget. */
@@ -231,6 +233,13 @@ async function gitDiff(): Promise<string> {
 }
 
 async function applyChanges(args: Record<string, SDKJsonValue>): Promise<string> {
+  if (process.env.CONSOLE_APPLY_DRY_RUN === "1") {
+    return JSON.stringify({
+      ok: true,
+      dryRun: true,
+      steps: ["run tests", "git add -A", "git commit"],
+    });
+  }
   const tr = await runTests({});
   const td = JSON.parse(tr) as { failed: number };
   if (td.failed > 0) throw new Error("Tests failed (" + td.failed + ")");
@@ -339,11 +348,13 @@ async function deployLive(_args: Record<string, SDKJsonValue>): Promise<string> 
     return JSON.stringify({
       ok: true,
       dryRun: true,
-      steps: ["npm run build", "pm2 restart spark-tutor", "GET /"],
+      steps: ["node scripts/smart-build.mjs", "pm2 restart spark-tutor", "GET /"],
     });
   }
 
-  const build = await exe("npm", ["run", "build"], { timeout: BUILD_TO });
+  // Run smart-build directly (not `npm run build`) so a timeout SIGTERM lands on
+  // smart-build itself, whose handlers restore `.next` instead of orphaning a child.
+  const build = await exe("node", ["scripts/smart-build.mjs"], { timeout: BUILD_TO });
   const buildIdPath = path.join(root(), ".next", "BUILD_ID");
   let hasBuild = false;
   try {
@@ -404,6 +415,13 @@ async function deployLive(_args: Record<string, SDKJsonValue>): Promise<string> 
 }
 
 async function revertChanges(): Promise<string> {
+  if (process.env.CONSOLE_REVERT_DRY_RUN === "1") {
+    return JSON.stringify({
+      ok: true,
+      dryRun: true,
+      steps: ["git checkout -- .", "git clean -fd (excludes .next/.env*/data)"],
+    });
+  }
   await exe("git", ["checkout", "--", "."], { timeout: GIT_TO });
   // Never wipe production `.next` / stash — gitignored but required by pm2 npm start.
   await exe(
@@ -547,7 +565,7 @@ export function createConsoleHarnessTools(): Record<string, SDKCustomTool> {
       publishDevelop,
     ),
     deploy_live: tool(
-      "Rebuild production .next (npm run build) and pm2 restart spark-tutor, then health-check. REQUIRED after src/ changes so the live site updates. Dry-run when CONSOLE_DEPLOY_DRY_RUN=1.",
+      "Rebuild production .next (node scripts/smart-build.mjs) and pm2 restart spark-tutor, then health-check. REQUIRED after src/ changes so the live site updates. Dry-run when CONSOLE_DEPLOY_DRY_RUN=1.",
       { type: "object", properties: {}, required: [] },
       deployLive,
     ),

@@ -109,6 +109,36 @@ function formatRecentTitles(titles?: string[]): string[] {
   ];
 }
 
+function formatQuote(quote?: {
+  author: "user" | "assistant";
+  excerpt: string;
+  content?: string;
+  fileSummaries?: string[];
+  imageCount?: number;
+}): string[] {
+  if (!quote) return [];
+  const who = quote.author === "user" ? "student" : "tutor";
+  const lines: string[] = [
+    "",
+    "[Quoted earlier message — anchor your reply to this specific text]",
+    `The student quoted a previous ${who} message. Address that quoted content FIRST, then answer the new message below.`,
+  ];
+  if (quote.excerpt) lines.push(`Quoted snippet: "${quote.excerpt}"`);
+  if (quote.content && quote.content !== quote.excerpt) {
+    lines.push(`Full quoted text: "${quote.content}"`);
+  }
+  if (quote.imageCount && quote.imageCount > 0) {
+    lines.push(
+      `The quoted message also included ${quote.imageCount} photo(s)/image(s) — re-sent as image blocks (Quoted Photo 1…${quote.imageCount}). Read them as part of the quoted context.`,
+    );
+  }
+  if (quote.fileSummaries?.length) {
+    lines.push("Document text extracted from the quoted files:");
+    for (const s of quote.fileSummaries) lines.push(s);
+  }
+  return lines;
+}
+
 function audienceLine(mode: ReplyLangMode): string {
   if (mode === "zh") {
     return "Audience: student who wants tutoring mainly in Mandarin Chinese.";
@@ -343,6 +373,16 @@ export function buildTutorPrompt(params: {
   checkMode?: boolean;
   /** UX-RPT.10 — optional emotion-rhythm coach note */
   coachNote?: string;
+  /** Quoted earlier message this turn is replying to */
+  quote?: {
+    author: "user" | "assistant";
+    excerpt: string;
+    content?: string;
+    /** extracted text from quoted documents/files */
+    fileSummaries?: string[];
+    /** number of quoted images (re-sent as image blocks) */
+    imageCount?: number;
+  };
 }): string {
   const { userText, imageCount, fileSummaries = [], history } = params;
   const hasHomework = imageCount > 0 || fileSummaries.length > 0;
@@ -507,6 +547,15 @@ export function buildTutorPrompt(params: {
       ].join("\n")
     : "";
 
+  const quoteLines = params.quote?.excerpt?.trim()
+    ? [
+        "",
+        "[Quoted earlier message — anchor your reply to this specific text]",
+        `Quoted ${params.quote.author === "user" ? "student" : "tutor"} message: "${params.quote.excerpt.replace(/\s+/g, " ").trim().slice(0, 500)}"`,
+        "Address the quoted text first, then respond to the new message below.",
+      ]
+    : [];
+
   const mem = params.learningMemory;
   const loop = planPedagogyLoop(mem);
   const preferredRaw = mem?.preferredRepBySkill || {};
@@ -540,6 +589,7 @@ export function buildTutorPrompt(params: {
     "For comic / joke panels with speech text: use a wide enough viewBox (often ≥480) and keep all labels inside the viewBox with margin — text past the right edge gets clipped.",
     ...replyLanguageInstructions(mode),
     ...mediaLines,
+    ...formatQuote(params.quote),
     ...formatHistory(history),
     ...formatRecentTitles(params.recentTitles),
     ...formatRules,

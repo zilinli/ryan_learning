@@ -235,4 +235,34 @@ describe("buildTutorPrompt", () => {
     expect(on).toContain("SUSPENDED while check mode is on");
     expect(on).not.toContain("Hint ladder");
   });
+
+  it("anchors reply on a quoted earlier message", () => {
+    const p = buildTutorPrompt({
+      userText: "what do you mean?",
+      imageCount: 0,
+      voiceId: "ava",
+      quote: {
+        author: "assistant",
+        excerpt: "First find a common denominator",
+        content: "First find a common denominator, then add the numerators.",
+        fileSummaries: ["--- File 1 (notes.md) ---\nstep by step"],
+        imageCount: 1,
+      },
+    });
+    expect(p).toContain("[Quoted earlier message");
+    expect(p).toContain("Quoted snippet");
+    expect(p).toContain("common denominator");
+    expect(p).toContain("Full quoted text");
+    expect(p).toContain("Quoted Photo 1");
+    expect(p).toContain("step by step");
+  });
+
+  it("omits the quote block when no quote is present", () => {
+    const p = buildTutorPrompt({
+      userText: "hi",
+      imageCount: 0,
+      voiceId: "ava",
+    });
+    expect(p).not.toContain("[Quoted earlier message");
+  });
 });

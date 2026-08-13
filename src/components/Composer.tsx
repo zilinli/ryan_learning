@@ -14,6 +14,7 @@ import { FileAttachControl } from "./FileAttachControl";
 import { getTutorVoice, loadVoiceAutoSend, type TutorVoiceId } from "@/lib/voices";
 import { VoiceControls, type SpeakStreamApi } from "./VoiceControls";
 import { RYAN_ACCOUNT } from "@/lib/tenant-storage";
+import type { ChatQuote } from "@/lib/types";
 
 export type ComposerApi = {
   openCamera: () => void;
@@ -35,9 +36,14 @@ type Props = {
   onSpeakingChange?: (speaking: boolean) => void;
   /** B3 — skill context for voice confusable gating */
   recentSkillIds?: string[];
+  /** Active quote (reply-to) chip shown above the textarea */
+  quote?: ChatQuote | null;
+  /** Dismiss the active quote */
+  onQuoteDismiss?: () => void;
   onSend: (payload: {
     text: string;
     attachments: ClientAttachment[];
+    quote?: ChatQuote;
   }) => void;
 };
 
@@ -53,6 +59,8 @@ export function Composer({
   speakStatus,
   onSpeakingChange,
   recentSkillIds,
+  quote,
+  onQuoteDismiss,
   onSend,
 }: Props) {
   const [text, setText] = useState("");
@@ -149,7 +157,7 @@ export function Composer({
     const finalText = (overrideText ?? text).trim();
     const current = attachmentsRef.current;
     if (!finalText && current.length === 0) return;
-    const payload = { text: finalText, attachments: current };
+    const payload = { text: finalText, attachments: current, quote: quote ?? undefined };
     setText("");
     setAttachments([]);
     setError("");
@@ -218,6 +226,54 @@ export function Composer({
       ) : null}
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
+        {quote ? (
+          <div className="mb-1.5 flex items-center gap-2 rounded-xl border-l-2 border-[var(--teal)] bg-[var(--mist)] px-2.5 py-1.5 animate-fade-up">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0 text-[var(--teal)]"
+              aria-hidden
+            >
+              <path d="M3 4h6v4H6.5L5 10V8H3V4Z" />
+              <path d="M10 2.5h3V6h-1.5L10.5 7V6H10V2.5Z" />
+            </svg>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                Replying to — {quote.author === "user" ? "You" : "The Answer Book"}
+              </p>
+              <p className="truncate text-xs text-[var(--ink)]">
+                {quote.excerpt || "(attachment)"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onQuoteDismiss}
+              className="shrink-0 rounded-full p-1 text-[var(--ink-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              aria-label="Remove quote"
+              title="Remove quote"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        ) : null}
         <textarea
           ref={textareaRef}
           value={text}

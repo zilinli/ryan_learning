@@ -79,6 +79,23 @@ describe("createConsoleHarnessTools", () => {
     );
     expect(src).toContain("CONSOLE_SYS");
   });
+  it("D3: smart-build frees systemd sidecars (spark-acc + spark-stt)", async () => {
+    const src = await fs.readFile(
+      path.join(ROOT, "scripts/smart-build.mjs"),
+      "utf-8",
+    );
+    expect(src).toContain('"spark-acc"');
+    expect(src).toContain('"spark-stt"');
+    expect(src).toContain("systemctl stop");
+    expect(src).toContain("systemctl start");
+  });
+  it("D3b: deploy_live runs smart-build directly (no npm wrapper)", async () => {
+    const src = await fs.readFile(
+      path.join(ROOT, "src/lib/console-harness.ts"),
+      "utf-8",
+    );
+    expect(src).toContain('exe("node", ["scripts/smart-build.mjs"]');
+  });
   it("CD4: allows MAX_EDITS_PER_SESSION edits then throws", async () => {
     expect(MAX_EDITS_PER_SESSION).toBe(25);
     for (let i = 0; i < MAX_EDITS_PER_SESSION; i++) {
@@ -142,7 +159,33 @@ describe("createConsoleHarnessTools", () => {
   });
   describe("git_diff", () => { it("returns a string", async () => { const r = asString(await tools.git_diff!.execute({}, ctx)); expect(typeof r).toBe("string"); }); });
   describe("run_tests", () => { it("runs vitest and reports results", async () => { const r = asString(await tools.run_tests!.execute({ file: "src/lib/dict-cache.test.ts" }, ctx)); const parsed = JSON.parse(r); expect(parsed.passed).toBeGreaterThanOrEqual(0); }, 70000); });
-  describe("apply_changes", () => { it("runs apply flow", async () => { try { await tools.apply_changes!.execute({ message: "test" }, ctx); } catch (e) { expect(e).toBeDefined(); } }, 90000); });
-  describe("revert_changes", () => { it("reverts changes", async () => { const r = asString(await tools.revert_changes!.execute({}, ctx)); expect(typeof r).toBe("string"); }); });
+  describe("apply_changes", () => {
+    it("dry-runs without touching the real repo", async () => {
+      const prev = process.env.CONSOLE_APPLY_DRY_RUN;
+      process.env.CONSOLE_APPLY_DRY_RUN = "1";
+      try {
+        const r = JSON.parse(asString(await tools.apply_changes!.execute({ message: "test" }, ctx)));
+        expect(r.ok).toBe(true);
+        expect(r.dryRun).toBe(true);
+      } finally {
+        if (prev === undefined) delete process.env.CONSOLE_APPLY_DRY_RUN;
+        else process.env.CONSOLE_APPLY_DRY_RUN = prev;
+      }
+    });
+  });
+  describe("revert_changes", () => {
+    it("dry-runs without touching the real repo", async () => {
+      const prev = process.env.CONSOLE_REVERT_DRY_RUN;
+      process.env.CONSOLE_REVERT_DRY_RUN = "1";
+      try {
+        const r = JSON.parse(asString(await tools.revert_changes!.execute({}, ctx)));
+        expect(r.ok).toBe(true);
+        expect(r.dryRun).toBe(true);
+      } finally {
+        if (prev === undefined) delete process.env.CONSOLE_REVERT_DRY_RUN;
+        else process.env.CONSOLE_REVERT_DRY_RUN = prev;
+      }
+    });
+  });
 });
 describe("file change counter", () => { it("resets to zero", () => { resetFileChangeCount(); expect(getFileChangeCount()).toBe(0); }); });

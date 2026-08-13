@@ -1,4 +1,8 @@
-import { normalizeIncomingAttachments, stripDataUrlPrefix } from "@/lib/attachments";
+import {
+  MAX_ATTACHMENTS,
+  normalizeIncomingAttachments,
+  stripDataUrlPrefix,
+} from "@/lib/attachments";
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
 import { buildTutorPrompt } from "@/lib/prompts";
@@ -79,6 +83,23 @@ export async function POST(req: Request) {
 
   const imageAttachments = attachments.filter((a) => a.kind === "image" && a.data);
   const fileSummaries = await buildFileSummaries(attachments);
+
+  // Quoted earlier message — re-send its text + media so the model anchors on it.
+  const quote = body.quote && (body.quote.excerpt || body.quote.content)
+    ? body.quote
+    : undefined;
+  const quoteAttachments = Array.isArray(quote?.attachments)
+    ? quote.attachments
+        .slice(0, MAX_ATTACHMENTS)
+        .map((a) => ({
+          ...a,
+          kind: a.kind || (a.mimeType?.startsWith("image/") ? "image" : "file"),
+        }))
+    : [];
+  const quoteImageAttachments = quoteAttachments.filter(
+    (a) => a.kind === "image" && a.data,
+  );
+  const quoteFileSummaries = await buildFileSummaries(quoteAttachments);
 
   const history = Array.isArray(body.history)
     ? body.history
@@ -165,12 +186,32 @@ export async function POST(req: Request) {
       typeof body.coachNote === "string" && body.coachNote.trim()
         ? body.coachNote.trim().slice(0, 600)
         : undefined,
+    quote: quote
+      ? {
+          author: quote.author === "user" ? "user" : "assistant",
+          excerpt: quote.excerpt || "",
+          content:
+            typeof quote.content === "string" ? quote.content.slice(0, 2000) : undefined,
+          fileSummaries: quoteFileSummaries.length
+            ? quoteFileSummaries
+            : undefined,
+          imageCount: quoteImageAttachments.length,
+        }
+      : undefined,
   });
 
   const images: SDKImage[] | undefined =
-    imageAttachments.length > 0 || historyImages.length > 0
+    imageAttachments.length > 0 ||
+    historyImages.length > 0 ||
+    quoteImageAttachments.length > 0
       ? [
           ...imageAttachments.map((img) => ({
+            data: stripDataUrlPrefix(img.data || ""),
+            mimeType: img.mimeType.startsWith("image/")
+              ? img.mimeType
+              : "image/jpeg",
+          })),
+          ...quoteImageAttachments.map((img) => ({
             data: stripDataUrlPrefix(img.data || ""),
             mimeType: img.mimeType.startsWith("image/")
               ? img.mimeType

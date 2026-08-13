@@ -87,9 +87,11 @@ import {
 import type { ClientAttachment } from "@/lib/file-payload";
 import type {
   ChatMessage,
+  ChatQuote,
   ConversationRecord,
   ConversationsStore,
 } from "@/lib/types";
+import { resolveQuoteForSend } from "@/lib/quote";
 import type { SpeakStreamApi } from "../VoiceControls";
 import type { ComposerApi } from "../Composer";
 import {
@@ -974,6 +976,7 @@ export function useTutorSession() {
   const handleSend = async (payload: {
     text: string;
     attachments: ClientAttachment[];
+    quote?: ChatQuote;
   }) => {
     if (busy || !store || !sessionId) return;
 
@@ -999,6 +1002,7 @@ export function useTutorSession() {
         id: messageId(),
         role: "user",
         content: payload.text,
+        quote: payload.quote ?? undefined,
         createdAt: Date.now(),
       };
       const assistantMsg: ChatMessage = {
@@ -1064,6 +1068,7 @@ export function useTutorSession() {
       id: messageId(),
       role: "user",
       content: payload.text,
+      quote: payload.quote ?? undefined,
       attachments: payload.attachments.map((a) => ({
         id: a.id,
         name: a.name,
@@ -1106,11 +1111,16 @@ export function useTutorSession() {
         .filter((t) => t && t !== "New chat");
       const coachNote = emotionPromptLines().filter(Boolean).join("\n") || undefined;
 
+      const wireQuote = payload.quote
+        ? resolveQuoteForSend(payload.quote, messages)
+        : undefined;
+
       const full = await consumeChatStream(
         {
           sessionId,
           message: payload.text,
           reset: needReset,
+          quote: wireQuote,
           history: needReset ? undefined : history,
           recentTitles,
           studentProfile: profile,

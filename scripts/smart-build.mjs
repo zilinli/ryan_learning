@@ -36,6 +36,12 @@ const DOT_NEXT_PREV = resolve(ROOT, ".next.prev");
 /** Sidecars stopped to free RAM during the build itself. */
 const PM2_SERVICES_TO_FREE = ["formospeech-tts"];
 /**
+ * systemd sidecars also stopped to free RAM: spark-acc (agent-chat `next dev`,
+ * ~273MB idle / ~800MB peak) and spark-stt (Whisper/SenseVoice). They are
+ * restarted after the build so the deploy window only briefly pauses them.
+ */
+const SYSTEMD_SERVICES_TO_FREE = ["spark-acc", "spark-stt"];
+/**
  * App must stop BEFORE `.next` is stashed — otherwise live traffic hits a
  * missing BUILD_ID and Next returns plain "Internal Server Error" (not JSON),
  * which Studio labs surface as `Unexpected token 'I'...`.
@@ -167,7 +173,15 @@ function stopHeavyServices() {
       log(`Warning: could not stop ${svc} (may not be running)`);
     }
   }
-  if (PM2_SERVICES_TO_FREE.length > 0) {
+  for (const svc of SYSTEMD_SERVICES_TO_FREE) {
+    try {
+      execSync(`systemctl stop ${svc}`, { cwd: ROOT, stdio: "pipe", timeout: 15000 });
+      log(`Stopped systemd service: ${svc}`);
+    } catch {
+      log(`Warning: could not stop ${svc} (may not be running)`);
+    }
+  }
+  if (PM2_SERVICES_TO_FREE.length + SYSTEMD_SERVICES_TO_FREE.length > 0) {
     execSync("sleep 2", { stdio: "ignore" });
   }
 }
@@ -208,6 +222,18 @@ function restartHeavyServices() {
       log(`Warning: could not restart ${svc}`);
     }
   }
+  for (const svc of SYSTEMD_SERVICES_TO_FREE) {
+    try {
+      execSync(`systemctl start ${svc}`, {
+        cwd: ROOT,
+        stdio: "pipe",
+        timeout: 30000,
+      });
+      log(`Restarted systemd service: ${svc}`);
+    } catch {
+      log(`Warning: could not restart ${svc}`);
+    }
+  }
 }
 
 function postClean() {
@@ -242,17 +268,20 @@ function emergencyRestore(signal) {
 process.on("SIGINT", () => {
   emergencyRestore("SIGINT");
   restartAppAfterBuild();
+  restartHeavyServices();
   process.exit(1);
 });
 process.on("SIGTERM", () => {
   emergencyRestore("SIGTERM");
   restartAppAfterBuild();
+  restartHeavyServices();
   process.exit(1);
 });
 process.on("uncaughtException", (err) => {
   log(`uncaughtException: ${err.message}`);
   emergencyRestore("uncaughtException");
   restartAppAfterBuild();
+  restartHeavyServices();
   process.exit(1);
 });
 

@@ -33,16 +33,16 @@ Secondary limits that make long prompts fail mid-way:
 
 Runs in project root (`process.cwd()` = `/root/codes/ryan_learning`):
 
-1. `npm run build` (smart-build: stops formospeech, heap-capped Next build, restarts TTS)
+1. `node scripts/smart-build.mjs` (smart-build: stops `formospeech-tts` + `spark-acc` + `spark-stt` to free RAM, heap-capped Next build, restores `.next` on failure, restarts all sidecars)
 2. `pm2 restart spark-tutor`
 3. HTTP health check `GET http://127.0.0.1:3000/` expect `200`
 
 Returns JSON `{ ok, phase, http?, log? }`.  
 Dry-run: `CONSOLE_DEPLOY_DRY_RUN=1` → no side effects (unit tests).
 
-Timeout: build ≤ 240s (console route `maxDuration` = 300).
+Timeout: build ≤ 1500s (25 min; smart-build can run up to 4 attempts × 300s). `deploy_live` invokes `node scripts/smart-build.mjs` directly — no `npm` wrapper — so a timeout SIGTERM lands on smart-build, whose signal handlers restore the stashed `.next`.
 
-`npm run build` uses **smart-build** which **stashes** `.next` → `.next.prev` before rebuilding and **restores** on failure/interrupt, so a failed Code Agent deploy no longer deletes the live production bundle.
+`node scripts/smart-build.mjs` uses **smart-build** which **stashes** `.next` → `.next.prev` before rebuilding and **restores** on failure/interrupt, so a failed Code Agent deploy no longer deletes the live production bundle.
 
 ### 2.2 SYS prompt contract
 

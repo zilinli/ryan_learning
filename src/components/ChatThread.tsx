@@ -74,6 +74,8 @@ type Props = {
   onStopSpeak?: () => void;
   /** Message id currently being spoken (for button state) */
   speakingMessageId?: string | null;
+  /** Quote an earlier message to reply with focused context */
+  onQuote?: (message: ChatMessage) => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -160,6 +162,7 @@ export function ChatThread({
   speakingMessageId,
   breakNudge,
   onDismissBreakNudge,
+  onQuote,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -653,6 +656,26 @@ export function ChatThread({
                   : "rounded-2xl rounded-bl-md bg-[var(--surface-muted)] px-4 py-3 text-[var(--ink)] ring-1 ring-[var(--line)]"
               }`}
             >
+              {m.quote ? (
+                <div
+                  className={`mb-2 rounded-lg border-l-2 px-2.5 py-1.5 text-left ${
+                    isUser
+                      ? "border-white/60 bg-white/10"
+                      : "border-[var(--teal)]/50 bg-[var(--mist)]"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    {m.quote.author === "user" ? "You" : "The Answer Book"}
+                  </p>
+                  <p
+                    className={`line-clamp-2 text-xs ${
+                      isUser ? "text-white/90" : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {m.quote.excerpt || "(attachment)"}
+                  </p>
+                </div>
+              ) : null}
               {attachments.length > 0 ? (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, idx) => {
@@ -785,6 +808,12 @@ export function ChatThread({
                 <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-[var(--teal)] align-middle" />
               ) : null}
             </div>
+            {/* Quote reply under finished user messages */}
+            {isUser && onQuote ? (
+              <div className="flex flex-wrap items-center gap-0.5">
+                <QuoteAction message={m} onQuote={onQuote} />
+              </div>
+            ) : null}
             {/* Listen + English under finished assistant messages */}
             {!isUser &&
             displayContent &&
@@ -881,6 +910,7 @@ export function ChatThread({
                         ? "Hide"
                         : "English"}
                   </button>
+                  {onQuote ? <QuoteAction message={m} onQuote={onQuote} /> : null}
                 </div>
                 {translations[m.id]?.status === "error" ? (
                   <p className="max-w-prose px-1 text-[11px] text-[var(--coral)]">
@@ -930,6 +960,41 @@ export function ChatThread({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** Reply-to-quote action shown under both user and tutor messages. */
+function QuoteAction({
+  message,
+  onQuote,
+}: {
+  message: ChatMessage;
+  onQuote: (m: ChatMessage) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onQuote(message)}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-[var(--ink-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--teal)]"
+      aria-label="Quote this message"
+      title="Quote and reply"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3 4h6v4H6.5L5 10V8H3V4Z" />
+        <path d="M10 2.5h3V6h-1.5L10.5 7V6H10V2.5Z" />
+      </svg>
+      Quote
+    </button>
   );
 }
 

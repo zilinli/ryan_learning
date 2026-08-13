@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
@@ -39,6 +40,8 @@ import {
   type DeepDiveMode,
 } from "@/lib/prompts";
 import { interruptHint } from "@/lib/speech-barge-in";
+import { buildQuoteFromMessage } from "@/lib/quote";
+import type { ChatQuote } from "@/lib/types";
 
 export function TutorShell() {
   const {
@@ -56,6 +59,11 @@ export function TutorShell() {
     setPracticeOffer, setSessionOpener,
     breakNudge, handleDismissBreakNudge,
   } = useTutorSession();
+
+  const [quote, setQuote] = useState<ChatQuote | null>(null);
+  useEffect(() => {
+    setQuote(null);
+  }, [sessionId]);
 
   if (!ready || !store) {
     return (
@@ -310,6 +318,7 @@ export function TutorShell() {
             }}
             breakNudge={breakNudge}
             onDismissBreakNudge={handleDismissBreakNudge}
+            onQuote={(m) => setQuote(buildQuoteFromMessage(m))}
           />
         </main>
 
@@ -405,7 +414,12 @@ export function TutorShell() {
           onPrepareSpeak={async () => {
             await speakApiRef.current?.prepare();
           }}
-          onSend={handleSend}
+          quote={quote}
+          onQuoteDismiss={() => setQuote(null)}
+          onSend={(payload) => {
+            handleSend(payload);
+            setQuote(null);
+          }}
         />
         </div>
       </div>

@@ -35,6 +35,20 @@ export interface ChatImage {
   mimeType: string;
 }
 
+/** A quoted prior message attached to a new turn for focused context */
+export interface ChatQuote {
+  /** id of the message being quoted */
+  messageId: string;
+  /** who wrote the quoted message */
+  author: "user" | "assistant";
+  /** collapsed plain-text snippet shown in the bubble / composer chip */
+  excerpt: string;
+  /** Full quoted text (clipped) sent to the model — populated on send */
+  content?: string;
+  /** Re-sent attachments (images + files) so the model sees quoted media */
+  attachments?: ChatAttachmentPayload[];
+}
+
 export interface ChatMessage {
   id: string;
   role: ChatRole;
@@ -42,6 +56,8 @@ export interface ChatMessage {
   attachments?: ChatAttachment[];
   /** @deprecated legacy single image */
   image?: ChatImage;
+  /** Quoted earlier message this turn is replying to (rendered + sent to model) */
+  quote?: ChatQuote;
   createdAt: number;
 }
 
@@ -96,6 +112,8 @@ export interface ChatRequestBody {
   sessionId: string;
   message: string;
   attachments?: ChatAttachmentPayload[];
+  /** Quoted earlier message this turn replies to (anchors the model's answer) */
+  quote?: ChatQuote;
   /** Recent text turns (no images) — keeps context if agent was recreated */
   history?: HistoryTurn[];
   /** Voice picker id: auto | ava | yunxi | wanLung | alvaro | henri … */
