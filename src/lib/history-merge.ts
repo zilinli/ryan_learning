@@ -50,8 +50,14 @@ export function mergeMessageAttachments(
           ? other.image
           : m.image || other.image;
 
+    // The `quote` field is author-critical metadata. When the winning copy
+    // (e.g. an old server snapshot) lacks it but the losing copy still has
+    // it, restore it instead of dropping the reference.
+    const quote = m.quote ?? other.quote;
+
     return {
       ...m,
+      ...(quote ? { quote } : {}),
       ...(attachments?.length ? { attachments } : {}),
       ...(image ? { image } : {}),
     };

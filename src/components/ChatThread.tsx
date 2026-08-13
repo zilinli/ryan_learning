@@ -200,6 +200,20 @@ function messageAttachments(m: ChatMessage): ChatAttachment[] {
   return [];
 }
 
+/**
+ * Resolve the thumbnail shown inside a quote card. Prefers the inline
+ * thumbnail from the quote itself; after a refresh the persisted quote has no
+ * base64 payload, so fall back to the first image on the original message.
+ */
+function quoteThumb(m: ChatMessage, messages: ChatMessage[]): string | null {
+  if (m.quote?.thumbnail) return m.quote.thumbnail;
+  if (!m.quote) return null;
+  const src = messages.find((x) => x.id === m.quote?.messageId);
+  if (!src) return null;
+  const img = messageAttachments(src).find((a) => a.kind === "image");
+  return img?.dataUrl || null;
+}
+
 /** Prefer local dataUrl; then vault; then server media (after vault miss). */
 function attachmentHref(
   a: ChatAttachment,
@@ -293,6 +307,21 @@ export function ChatThread({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+  /** messageId → DOM node, for quote tap-to-jump */
+  const msgElsRef = useRef(new Map<string, HTMLElement>());
+  /** messageId currently flashed after a quote jump */
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+
+  /** WeChat-style: tap a quote → scroll to the original message + flash it. */
+  const jumpToMessage = (messageId: string) => {
+    const el = msgElsRef.current.get(messageId);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(messageId);
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlashId(null), 2000);
+  };
 
   const translateToEnglish = async (messageId: string, raw: string) => {
     const existing = translations[messageId];
@@ -383,6 +412,13 @@ export function ChatThread({
       clearTimeout(t);
     };
   }, [messages]);
+
+  // Clear the quote-jump flash timer on unmount
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -935,9 +971,15 @@ export function ChatThread({
         return (
           <article
             key={m.id}
+            ref={(el) => {
+              if (el) msgElsRef.current.set(m.id, el);
+              else msgElsRef.current.delete(m.id);
+            }}
             className={`flex flex-col gap-2 ${
               animateIn ? "animate-fade-up" : ""
-            } ${isUser ? "items-end" : "items-start"}`}
+            } ${flashId === m.id ? "quote-jump-flash" : ""} ${
+              isUser ? "items-end" : "items-start"
+            }`}
           >
             <span className="text-xs tracking-wide text-[var(--ink-muted)]">
               {isUser ? "You" : "The Answer Book · AI Tutor"}
@@ -955,24 +997,52 @@ export function ChatThread({
               }`}
             >
               {m.quote ? (
-                <div
-                  className={`mb-2 rounded-lg border-l-2 px-2.5 py-1.5 text-left ${
+                <button
+                  type="button"
+                  onClick={() => jumpToMessage(m.quote!.messageId)}
+                  className={`mb-2 flex w-full items-center gap-2.5 rounded-lg border-l-[3px] px-2.5 py-1.5 text-left transition ${
                     isUser
-                      ? "border-white/60 bg-white/10"
-                      : "border-[var(--teal)]/50 bg-[var(--mist)]"
+                      ? "border-white/70 bg-white/10 hover:bg-white/15"
+                      : "border-[var(--teal)]/70 bg-[var(--mist)] hover:brightness-[1.03]"
                   }`}
+                  title="Tap to jump to the quoted message"
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
-                    {m.quote.author === "user" ? "You" : "The Answer Book · AI Tutor"}
-                  </p>
-                  <p
-                    className={`line-clamp-2 text-xs ${
-                      isUser ? "text-white/90" : "text-[var(--ink-muted)]"
-                    }`}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                      {m.quote.author === "user" ? "You" : "The Answer Book · AI Tutor"}
+                    </p>
+                    <p
+                      className={`line-clamp-2 text-xs ${
+                        isUser ? "text-white/90" : "text-[var(--ink-muted)]"
+                      }`}
+                    >
+                      {m.quote.excerpt || "(attachment)"}
+                    </p>
+                  </div>
+                  {quoteThumb(m, messages) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={quoteThumb(m, messages)!}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-md object-cover"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`shrink-0 ${isUser ? "text-white/50" : "text-[var(--ink-muted)]"}`}
+                    aria-hidden
                   >
-                    {m.quote.excerpt || "(attachment)"}
-                  </p>
-                </div>
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </button>
               ) : null}
               {attachments.length > 0 ? (
                 <div className="mb-2 flex flex-wrap gap-2">

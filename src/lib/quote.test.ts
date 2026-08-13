@@ -5,6 +5,7 @@ import {
   clipQuoteText,
   quoteAttachmentsToPayload,
   resolveQuoteForSend,
+  slimQuote,
   QUOTE_CONTENT_MAX,
   QUOTE_EXCERPT_MAX,
 } from "./quote";
@@ -58,6 +59,36 @@ describe("buildQuoteFromMessage", () => {
       createdAt: 1,
     };
     expect(buildQuoteFromMessage(m).excerpt).toBe("1 photo");
+  });
+
+  it("includes a thumbnail dataUrl when the quoted message has an image", () => {
+    const m: ChatMessage = {
+      id: "m5",
+      role: "assistant",
+      content: "Here is the diagram",
+      attachments: [
+        {
+          id: "a1",
+          name: "diagram.png",
+          mimeType: "image/png",
+          kind: "image",
+          dataUrl: "data:image/png;base64,QUJD",
+        },
+      ],
+      createdAt: 1,
+    };
+    const q = buildQuoteFromMessage(m);
+    expect(q.thumbnail).toBe("data:image/png;base64,QUJD");
+  });
+
+  it("omits thumbnail for text-only messages", () => {
+    const m: ChatMessage = {
+      id: "m6",
+      role: "user",
+      content: "Just a question",
+      createdAt: 1,
+    };
+    expect(buildQuoteFromMessage(m).thumbnail).toBeUndefined();
   });
 });
 
@@ -115,6 +146,52 @@ describe("quoteAttachmentsToPayload", () => {
       },
     ]);
     expect(payload[0]?.mediaId).toBe("med-1");
+  });
+});
+
+describe("slimQuote", () => {
+  it("keeps the reference and excerpt, strips heavy attachment payloads", () => {
+    const slim = slimQuote({
+      messageId: "m9",
+      author: "user",
+      excerpt: "How do I add fractions?",
+      content: "How do I add fractions with unlike denominators?",
+      attachments: [
+        {
+          name: "work.jpg",
+          mimeType: "image/jpeg",
+          kind: "image",
+          data: "QUJD",
+          dataUrl: "data:image/jpeg;base64,QUJD",
+          textContent: "extracted text",
+        },
+        {
+          name: "doc.pdf",
+          mimeType: "application/pdf",
+          kind: "file",
+          mediaId: "med-1",
+        },
+      ],
+    });
+    expect(slim.messageId).toBe("m9");
+    expect(slim.author).toBe("user");
+    expect(slim.excerpt).toBe("How do I add fractions?");
+    expect(slim.content).toBe("How do I add fractions with unlike denominators?");
+    expect(slim.attachments).toEqual([
+      { name: "work.jpg", mimeType: "image/jpeg", kind: "image" },
+      { name: "doc.pdf", mimeType: "application/pdf", kind: "file", mediaId: "med-1" },
+    ]);
+  });
+
+  it("clips content to the send cap", () => {
+    const long = "y".repeat(QUOTE_CONTENT_MAX + 500);
+    const slim = slimQuote({
+      messageId: "m9",
+      author: "user",
+      excerpt: "hi",
+      content: long,
+    });
+    expect(slim.content).toHaveLength(QUOTE_CONTENT_MAX);
   });
 });
 

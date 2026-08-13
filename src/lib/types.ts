@@ -43,6 +43,8 @@ export interface ChatQuote {
   author: "user" | "assistant";
   /** collapsed plain-text snippet shown in the bubble / composer chip */
   excerpt: string;
+  /** small base64 dataUrl preview of the quoted image (composer chip / bubble); not persisted */
+  thumbnail?: string;
   /** Full quoted text (clipped) sent to the model — populated on send */
   content?: string;
   /** Re-sent attachments (images + files) so the model sees quoted media */

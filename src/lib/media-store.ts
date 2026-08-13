@@ -421,6 +421,7 @@ export async function persistConversationMedia(
       content: m.content,
       createdAt: m.createdAt,
       ...(attachments.length ? { attachments } : {}),
+      ...(m.quote ? { quote: m.quote } : {}),
     });
   }
 

@@ -40,6 +40,44 @@ describe("history-store server persistence", () => {
     expect(clean.messages[0]?.attachments?.[0]?.name).toBe("p.jpg");
   });
 
+  it("sanitizeForServer preserves the quote reference", () => {
+    const clean = sanitizeForServer({
+      sessionId: "abc123",
+      title: "t",
+      messages: [
+        {
+          id: "m2",
+          role: "user",
+          content: "Please explain the steps",
+          createdAt: 2,
+          quote: {
+            messageId: "m1",
+            author: "assistant",
+            excerpt: "1/4 + 1/2 = 3/4.",
+            content: "1/4 + 1/2 = 3/4.",
+            attachments: [
+              {
+                name: "work.jpg",
+                mimeType: "image/jpeg",
+                kind: "image",
+                data: "QUJD",
+              },
+            ],
+          },
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 3,
+    });
+    const quoted = clean.messages.find((m) => m.id === "m2");
+    expect(quoted?.quote?.messageId).toBe("m1");
+    expect(quoted?.quote?.author).toBe("assistant");
+    expect(quoted?.quote?.excerpt).toBe("1/4 + 1/2 = 3/4.");
+    // Heavy payload stripped for storage; reference stays intact
+    expect(quoted?.quote?.attachments?.[0]?.data).toBeUndefined();
+    expect(quoted?.quote?.attachments?.[0]?.name).toBe("work.jpg");
+  });
+
   it("round-trips conversations through the data directory", async () => {
     const id = `ut_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const file = path.join(

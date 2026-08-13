@@ -227,7 +227,7 @@ export function Composer({
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-2 shadow-[0_8px_32px_-20px_rgba(15,60,70,0.4)] backdrop-blur sm:p-2.5">
         {quote ? (
-          <div className="mb-1.5 flex items-center gap-2 rounded-xl border-l-2 border-[var(--teal)] bg-[var(--mist)] px-2.5 py-1.5 animate-fade-up">
+          <div className="mb-1.5 flex items-center gap-2 rounded-xl border-l-[3px] border-[var(--teal)] bg-[var(--mist)] px-2.5 py-1.5 animate-fade-up">
             <svg
               width="14"
               height="14"
@@ -251,6 +251,15 @@ export function Composer({
                 {quote.excerpt || "(attachment)"}
               </p>
             </div>
+            {quote.thumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={quote.thumbnail}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-md object-cover"
+                aria-hidden
+              />
+            ) : null}
             <button
               type="button"
               onClick={onQuoteDismiss}

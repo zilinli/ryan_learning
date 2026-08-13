@@ -76,6 +76,118 @@ describe("mergeConversationLists", () => {
     expect(merged.conversations.some((c) => c.sessionId === "old")).toBe(true);
   });
 
+  it("restores quote from local when server copy wins the tie", () => {
+    const local: ConversationRecord = {
+      sessionId: "q",
+      title: "Quote chat",
+      messages: [
+        {
+          id: "m0",
+          role: "assistant",
+          content: "1/4 + 1/2 = 3/4.",
+          createdAt: 100,
+        },
+        {
+          id: "m1",
+          role: "user",
+          content: "Show steps",
+          createdAt: 101,
+          quote: {
+            messageId: "m0",
+            author: "assistant",
+            excerpt: "1/4 + 1/2 = 3/4.",
+          },
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 101,
+    };
+    // Server snapshot saved by older code — same updatedAt, same message ids,
+    // but the `quote` field was dropped during persistence.
+    const remote: ConversationRecord = {
+      sessionId: "q",
+      title: "Quote chat",
+      messages: [
+        {
+          id: "m0",
+          role: "assistant",
+          content: "1/4 + 1/2 = 3/4.",
+          createdAt: 100,
+        },
+        {
+          id: "m1",
+          role: "user",
+          content: "Show steps",
+          createdAt: 101,
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 101,
+    };
+    const merged = mergeConversationLists([local], [remote], "q");
+    const m1 = merged.conversations.find((c) => c.sessionId === "q")?.messages.find((m) => m.id === "m1");
+    expect(m1?.quote?.messageId).toBe("m0");
+    expect(m1?.quote?.excerpt).toBe("1/4 + 1/2 = 3/4.");
+  });
+
+  it("restores quote when server copy is newer and wins", () => {
+    const local: ConversationRecord = {
+      sessionId: "q2",
+      title: "Quote chat 2",
+      messages: [
+        {
+          id: "m0",
+          role: "assistant",
+          content: "The mitochondria is the powerhouse.",
+          createdAt: 100,
+        },
+        {
+          id: "m1",
+          role: "user",
+          content: "Why?",
+          createdAt: 101,
+          quote: {
+            messageId: "m0",
+            author: "assistant",
+            excerpt: "The mitochondria is the powerhouse.",
+          },
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 101,
+    };
+    const remote: ConversationRecord = {
+      sessionId: "q2",
+      title: "Quote chat 2",
+      messages: [
+        {
+          id: "m0",
+          role: "assistant",
+          content: "The mitochondria is the powerhouse.",
+          createdAt: 100,
+        },
+        {
+          id: "m1",
+          role: "user",
+          content: "Why?",
+          createdAt: 101,
+        },
+        {
+          id: "m2",
+          role: "assistant",
+          content: "It produces ATP via cellular respiration.",
+          createdAt: 200,
+        },
+      ],
+      createdAt: 100,
+      updatedAt: 200,
+    };
+    const merged = mergeConversationLists([local], [remote], "q2");
+    const m1 = merged.conversations.find((c) => c.sessionId === "q2")?.messages.find((m) => m.id === "m1");
+    expect(m1?.quote?.messageId).toBe("m0");
+    expect(merged.conversations.find((c) => c.sessionId === "q2")?.messages).toHaveLength(3);
+  });
+
   it("restores local photo dataUrls when server copy is newer but stripped", () => {
     const local: ConversationRecord = {
       sessionId: "hw",

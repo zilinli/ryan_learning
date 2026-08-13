@@ -333,6 +333,20 @@ input {
   animation: pulse-ring 1.5s ease-in-out infinite;
 }
 
+/* WeChat-style flash when tapping a quote jumps to the original message */
+@keyframes quote-jump-flash {
+  0% {
+    background-color: var(--quote-flash-bg, rgba(107, 143, 113, 0.28));
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.quote-jump-flash {
+  animation: quote-jump-flash 1.8s ease-out;
+}
+
 /* Focus-visible rings on all interactive elements */
 *:focus-visible {
   outline: none;

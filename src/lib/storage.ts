@@ -15,6 +15,7 @@ import {
   readFlatKey,
   RYAN_ACCOUNT,
 } from "./tenant-storage";
+import { slimQuote } from "./quote";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = FLAT_KEYS.sessions;
@@ -157,6 +158,7 @@ export function slimMessages(
       createdAt: m.createdAt,
       ...(attachments?.length ? { attachments } : {}),
       ...(image && image.dataUrl ? { image } : {}),
+      ...(m.quote ? { quote: slimQuote(m.quote) } : {}),
     };
   });
 }

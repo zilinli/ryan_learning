@@ -44,10 +44,12 @@ export function buildQuoteFromMessage(m: ChatMessage): ChatQuote {
     if (files) parts.push(`${files} file${files > 1 ? "s" : ""}`);
     excerpt = parts.join(" + ");
   }
+  const firstImage = atts.find((a) => a.kind === "image" && a.dataUrl);
   return {
     messageId: m.id,
     author: m.role === "user" ? "user" : "assistant",
     excerpt,
+    ...(firstImage?.dataUrl ? { thumbnail: firstImage.dataUrl } : {}),
   };
 }
 
@@ -75,6 +77,35 @@ export function quoteAttachmentsToPayload(
     if (a.mediaId) payload.mediaId = a.mediaId;
     return payload;
   });
+}
+
+/**
+ * Slim a quote for persistence: keep the reference (messageId / author /
+ * excerpt) plus the clipped content, and strip heavy attachment payloads
+ * (base64 data / dataUrl / textContent) — only metadata + mediaId survive.
+ * `resolveQuoteForSend` re-derives full content/attachments from the quoted
+ * message at send time, so the stored copy only needs to be self-sufficient
+ * for rendering and for re-attaching media via mediaId.
+ */
+export function slimQuote(q: ChatQuote): ChatQuote {
+  return {
+    messageId: q.messageId,
+    author: q.author,
+    excerpt: q.excerpt,
+    ...(q.content
+      ? { content: clipQuoteText(q.content, QUOTE_CONTENT_MAX) }
+      : {}),
+    ...(q.attachments?.length
+      ? {
+          attachments: q.attachments.map((a) => ({
+            name: a.name,
+            mimeType: a.mimeType,
+            kind: a.kind,
+            ...(a.mediaId ? { mediaId: a.mediaId } : {}),
+          })),
+        }
+      : {}),
+  };
 }
 
 /**

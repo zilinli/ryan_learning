@@ -20,6 +20,7 @@ function msg(
     createdAt: partial.createdAt ?? Date.now(),
     attachments: partial.attachments,
     image: partial.image,
+    quote: partial.quote,
   };
 }
 
@@ -131,6 +132,40 @@ describe("slimMessages", () => {
     );
     expect(slim[0]!.content.length).toBeLessThan(huge.length);
     expect(slim[0]!.content.endsWith("…")).toBe(true);
+  });
+
+  it("preserves the quote reference across persistence", () => {
+    const messages = [
+      msg({
+        id: "m1",
+        role: "user",
+        content: "What is 1/4 + 1/2?",
+      }),
+      msg({
+        id: "m2",
+        role: "assistant",
+        content: "1/4 + 1/2 = 3/4.",
+      }),
+      msg({
+        id: "m3",
+        role: "user",
+        content: "Show me the steps please",
+        quote: {
+          messageId: "m2",
+          author: "assistant",
+          excerpt: "1/4 + 1/2 = 3/4.",
+          content: "1/4 + 1/2 = 3/4.",
+        },
+      }),
+    ];
+    const slim = slimMessages(messages, true);
+    const quoted = slim.find((m) => m.id === "m3");
+    expect(quoted?.quote).toEqual({
+      messageId: "m2",
+      author: "assistant",
+      excerpt: "1/4 + 1/2 = 3/4.",
+      content: "1/4 + 1/2 = 3/4.",
+    });
   });
 
   it("preserves SVG markdown images when truncating long replies", () => {
