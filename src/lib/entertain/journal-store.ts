@@ -90,6 +90,30 @@ export async function loadJournal(accountId: string): Promise<JournalStore> {
   }
 }
 
+/**
+ * Load every account's journal rows (the "Everyone" timeline view).
+ * Each row keeps its own accountId so the UI can show who created it.
+ */
+export async function loadAllJournals(): Promise<JournalEntry[]> {
+  const dir = path.join(dataDir(), "accounts");
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true }).then((ds) =>
+      ds
+        .filter((d) => d.isDirectory() && /^acct_[A-Za-z0-9_-]+$/.test(d.name))
+        .map((d) => d.name),
+    );
+  } catch {
+    return [];
+  }
+  const out: JournalEntry[] = [];
+  for (const accountId of entries) {
+    const store = await loadJournal(accountId);
+    out.push(...store.items);
+  }
+  return out;
+}
+
 export async function saveJournal(
   accountId: string,
   store: JournalStore,
@@ -183,6 +207,41 @@ export async function deleteJournalEntry(
   store.items = next;
   await saveJournal(accountId, store);
   return true;
+}
+
+/**
+ * V2 §9.4.3 — lightweight praise on the Everyone wall.
+ * Toggles a like: praising again removes it. A one-line note (optional)
+ * replaces any previous note from the same person. Never ranks entries.
+ */
+export async function praiseJournalEntry(
+  targetAccountId: string,
+  id: string,
+  from: { accountId: string; name?: string; note?: string },
+): Promise<JournalEntry | null> {
+  const store = await loadJournal(targetAccountId);
+  const idx = store.items.findIndex((e) => e.id === id);
+  if (idx < 0) return null;
+  const prev = store.items[idx]!;
+  const notes = [...(prev.praise?.notes || [])].filter(
+    (n) => n.accountId !== from.accountId,
+  );
+  const note = from.note?.trim().slice(0, 120);
+  if (note) {
+    notes.push({
+      accountId: from.accountId,
+      name: from.name,
+      note,
+      at: Date.now(),
+    });
+  }
+  const next: JournalEntry = {
+    ...prev,
+    praise: { count: notes.length, notes: notes.slice(-8) },
+  };
+  store.items[idx] = next;
+  await saveJournal(targetAccountId, store);
+  return next;
 }
 
 /**

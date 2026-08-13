@@ -71,6 +71,31 @@ export function bktDefaultsForBand(band: "early" | "elementary" | "middle" | "hi
   }
 }
 
+// ── V2 P1 — BKT prior tiers (report §9.3.1) ─────────────────────────
+
+/** Prior tier for a learner: "high" = high-aptitude / above-band student. */
+export type PriorTier = "standard" | "high";
+
+/**
+ * Adjust BKT params for a high-prior (high-aptitude) student.
+ * 2026 ICAP evidence (arXiv 2602.07308): DRL-style *aggressive* challenge
+ * helps high-prior students most — a uniform BKT prior under-climbs for them.
+ * High tier: higher prior, faster learning, lower slip/guess (more precise,
+ * more confident solver) → pKnown climbs faster and is trusted sooner.
+ */
+export function bktPriorTier(
+  params: BktParams,
+  tier: PriorTier,
+): BktParams {
+  if (tier !== "high") return params;
+  return {
+    pInit: clamp01(params.pInit + 0.10),
+    pLearn: clamp01(params.pLearn + 0.05),
+    pSlip: clamp01(params.pSlip * 0.75),
+    pGuess: clamp01(params.pGuess * 0.85),
+  };
+}
+
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0.001, Math.min(0.999, n));

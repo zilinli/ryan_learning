@@ -156,4 +156,51 @@ describe("parent-digest (D2)", () => {
     const weekly = buildParentWeeklyDigest(m, now);
     expect(weekly.breakthrough).toBeNull();
   });
+
+  it("V2 attribution: weekly digest names the main learning mechanisms", () => {
+    const now = Date.now();
+    const m = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.5,
+          mastery: 50,
+          attempts: 6,
+          correct: 4,
+          incorrect: 2,
+          lastSeen: now,
+          sm2State: { ef: 2.2, interval: 3, reps: 2, prevReview: now - 86_400_000 },
+          eloState: { rating: 1400, n: 6, lastUpdate: now },
+          sourceCounts: { deepDive: 3, explore: 2, wrongbook: 1 },
+          lastSource: "deepDive",
+        },
+        {
+          id: "place-value",
+          label: "Place value",
+          topicId: "place-value",
+          pKnown: 0.7,
+          mastery: 70,
+          attempts: 4,
+          correct: 3,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.5, interval: 3, reps: 2, prevReview: now },
+          eloState: { rating: 1500, n: 4, lastUpdate: now },
+          sourceCounts: { deepDive: 2 },
+        },
+      ],
+      updatedAt: now,
+    });
+    const weekly = buildParentWeeklyDigest(m, now);
+    expect(weekly.sourceAttribution).toBeDefined();
+    // deepDive total = 3 + 2 = 5, above explore(2) and wrongbook(1)
+    expect(weekly.sourceAttribution[0]).toMatchObject({
+      source: "deepDive",
+      count: 5,
+    });
+    expect(weekly.text).toMatch(/Main drivers/);
+    expect(weekly.text).toMatch(/weekly deep dives/);
+  });
 });

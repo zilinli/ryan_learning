@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AccountAvatar from "@/components/AccountAvatar";
+import { accountIdFromUrl } from "@/lib/storage";
 import {
   getActiveAccount,
   hydrateAccountsFromServer,
@@ -158,8 +159,18 @@ export function useActiveStudioAccount(): {
         englishLevel: a.profile.englishLevel,
       });
     };
-    apply(getActiveAccount(loadAccounts()));
-    void hydrateAccountsFromServer().then((s) => apply(getActiveAccount(s)));
+    // ?account= deep-links (e.g. shared chat links) must win over the last
+    // active account in localStorage, otherwise a parent opening a Ching link
+    // on a device that was last used by Ryan would see Ryan's timeline.
+    const pick = (s: Parameters<typeof getActiveAccount>[0]) => {
+      const urlId = accountIdFromUrl();
+      if (urlId && s.accounts.some((a) => a.id === urlId)) {
+        return getActiveAccount({ ...s, activeId: urlId });
+      }
+      return getActiveAccount(s);
+    };
+    apply(pick(loadAccounts()));
+    void hydrateAccountsFromServer().then((s) => apply(pick(s)));
   }, []);
 
   return state;

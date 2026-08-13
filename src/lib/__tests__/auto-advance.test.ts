@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   autoAdvanceCheck,
+  detectPriorTier,
   emptyLearningMemory,
   type LearningMemory,
   type SkillMastery,
@@ -117,5 +118,68 @@ describe("autoAdvanceCheck", () => {
     };
     const result = autoAdvanceCheck(mem, "elementary");
     expect(result).toBeNull();
+  });
+
+  // V2 P1 — prior tier (report §9.3.1): high-prior students advance more eagerly
+  it("high-prior tier fires with a slightly lower readiness bar", () => {
+    // 4/5 skills above 80%: standard threshold (85%) + 75% ratio would NOT fire
+    const mem: LearningMemory = {
+      ...emptyLearningMemory(),
+      skills: [
+        makeSkill({ id: "fractions-concepts", pKnown: 0.83, mastery: 83 }),
+        makeSkill({ id: "equivalent-fractions", pKnown: 0.82, mastery: 82 }),
+        makeSkill({ id: "geometry-measure", pKnown: 0.84, mastery: 84 }),
+        makeSkill({ id: "reading-evidence", pKnown: 0.81, mastery: 81 }),
+        makeSkill({ id: "multiplication-facts", pKnown: 0.50, mastery: 50 }),
+      ],
+    };
+    expect(autoAdvanceCheck(mem, "elementary", "standard")).toBeNull();
+    const result = autoAdvanceCheck(mem, "elementary", "high");
+    expect(result).not.toBeNull();
+    expect(result!.suggestedBand).toBe("middle");
+  });
+});
+
+describe("detectPriorTier", () => {
+  it("flags accelerated curriculum (grade above enrolled grade)", () => {
+    expect(
+      detectPriorTier(
+        { grade: 4, curriculum: { label: "G5 accelerated", grade: 5, subjects: [] } },
+        emptyLearningMemory(),
+      ),
+    ).toBe("high");
+  });
+
+  it("stays standard when curriculum matches the enrolled grade", () => {
+    expect(
+      detectPriorTier(
+        { grade: 4, curriculum: { label: "G4", grade: 4, subjects: [] } },
+        emptyLearningMemory(),
+      ),
+    ).toBe("standard");
+  });
+
+  it("flags high when several well-attempted skills sit above 75%", () => {
+    const mem: LearningMemory = {
+      ...emptyLearningMemory(),
+      skills: [
+        makeSkill({ id: "a", pKnown: 0.90, mastery: 90, attempts: 6 }),
+        makeSkill({ id: "b", pKnown: 0.88, mastery: 88, attempts: 5 }),
+        makeSkill({ id: "c", pKnown: 0.80, mastery: 80, attempts: 4 }),
+      ],
+    };
+    expect(detectPriorTier(null, mem)).toBe("high");
+  });
+
+  it("stays standard without enough evidence", () => {
+    const mem: LearningMemory = {
+      ...emptyLearningMemory(),
+      skills: [
+        makeSkill({ id: "a", pKnown: 0.90, mastery: 90, attempts: 6 }),
+        makeSkill({ id: "b", pKnown: 0.88, mastery: 88, attempts: 5 }),
+        makeSkill({ id: "c", pKnown: 0.40, mastery: 40, attempts: 4 }),
+      ],
+    };
+    expect(detectPriorTier(null, mem)).toBe("standard");
   });
 });

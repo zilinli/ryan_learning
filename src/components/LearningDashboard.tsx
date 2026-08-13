@@ -17,10 +17,22 @@ import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { buildMistakePatterns } from "@/lib/family-report";
 import {
   buildBreadthFootprint,
+  buildSubjectBridges,
+  stashBreadthBridgeStarter,
   stashSubjectStarter,
+  type SubjectBridge,
   type SubjectFootprint,
 } from "@/lib/breadth-map";
 import { recentInterests } from "@/lib/interest-store";
+
+const SUBJECT_META_EMOJI: Record<SubjectFootprint["subject"], string> = {
+  math: "🔢",
+  science: "🔬",
+  ela: "📚",
+  humanities: "🏛️",
+  language: "🗣️",
+  general: "🧭",
+};
 
 export function LearningDashboard() {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
@@ -44,6 +56,9 @@ export function LearningDashboard() {
     () => buildBreadthFootprint(memory, accountId),
     [memory, accountId],
   );
+  // V2 P1 — breadth as navigation (report §9.4.1): doors from mastered
+  // subjects into adjacent unexplored subjects.
+  const bridges = useMemo(() => buildSubjectBridges(memory), [memory]);
   const interests = useMemo(
     () => recentInterests(accountId, 5),
     [accountId],
@@ -54,6 +69,11 @@ export function LearningDashboard() {
 
   const trySubject = (f: SubjectFootprint) => {
     stashSubjectStarter(f);
+    window.location.href = "/";
+  };
+
+  const tryBridge = (b: SubjectBridge) => {
+    stashBreadthBridgeStarter(b);
     window.location.href = "/";
   };
 
@@ -343,6 +363,50 @@ export function LearningDashboard() {
               ))}
             </ul>
           </section>
+
+          {/* V2 P1 — breadth as navigation (report §9.4.1) */}
+          {bridges.length > 0 ? (
+            <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+              <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+                Next-door subjects
+              </h2>
+              <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                You already know one side — tap a door to start from what you know
+                and peek into the next subject.
+              </p>
+              <ul className="mt-3 space-y-2">
+                {bridges.map((b) => (
+                  <li
+                    key={`${b.from}->${b.to}`}
+                    className="rounded-xl border border-[var(--line)]/60 bg-[var(--surface)] p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-2.5 py-1 font-medium text-[var(--teal)]">
+                        {SUBJECT_META_EMOJI[b.from]} {b.fromLabel}
+                      </span>
+                      <span className="text-[var(--ink-muted)]" aria-hidden>
+                        ──▶
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--coral)]/35 bg-[var(--coral)]/8 px-2.5 py-1 font-medium text-[var(--coral)]">
+                        {SUBJECT_META_EMOJI[b.to]} {b.toLabel}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-relaxed text-[var(--ink-muted)]">
+                      From <span className="font-medium text-[var(--ink)]">{b.anchorSkillLabel}</span>,
+                      try <span className="font-medium text-[var(--ink)]">{b.doorSkillLabel}</span>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => tryBridge(b)}
+                      className="mt-2 inline-flex min-h-10 items-center rounded-full border border-[var(--teal)]/45 bg-[var(--teal)]/12 px-3 text-[12px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20"
+                    >
+                      Start from what I know
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {/* P0 — exploration footprint (report §9.1.3) */}
           {interests.length > 0 ? (

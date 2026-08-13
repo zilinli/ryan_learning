@@ -436,12 +436,294 @@ function tryDoubleTriple(text: string): LocalFactHit | null {
   return null;
 }
 
+// ---- V2 P2 — more formula fast-paths (report §9.2.3) ----
+
+/** `perimeter of square 5`, `正方形周长 5` */
+const PERIM_SQUARE_RE =
+  /^\s*(?:(?:square|正方形)\s*)?(?:perimeter|周长|周長)\s*(?:of|of a|of the)?\s*(?:square|正方形)?\s*(\d{1,4})\s*\??\s*$/i;
+/** `circumference of circle 7`, `圆周长 半径7`, `圆的周长 7` */
+const CIRCUM_CIRCLE_RE =
+  /^\s*(?:circumference|周长|周長)\s*(?:of|of a|of the)?\s*(?:circle|圆|圓|半径|半徑)?\s*(?:radius|r|半径|半徑)?\s*(\d{1,4})\s*\??\s*$/i;
+/** `area of circle 5`, `圆面积 半径5` */
+const AREA_CIRCLE_RE =
+  /^\s*(?:area|面积|面積)\s*(?:of|of a|of the)?\s*(?:circle|圆|圓|半径|半徑)?\s*(?:radius|r|半径|半徑)?\s*(\d{1,4})\s*\??\s*$/i;
+/** `area of triangle 6 and 4`, `三角形面积 底6 高4` */
+const AREA_TRIANGLE_RE =
+  /^\s*(?:area|面积|面積)\s*(?:of|of a|of the)?\s*(?:triangle|三角形)?\s*(?:base|底)?\s*(\d{1,4})\s*(?:and|和|,|，|×|\*)?\s*(?:height|高|h)?\s*(\d{1,4})\s*\??\s*$/i;
+/** `hypotenuse 3 and 4`, `勾股 3和4`, `斜边 3 4` */
+const HYPOTENUSE_RE =
+  /^\s*(?:hypotenuse|斜边|斜邊)\s*(?:of|of a|of the)?\s*(?:right triangle|right-angled triangle|直角三角形)?\s*(\d{1,4})\s*(?:and|和|,|，|×|\*)?\s*(\d{1,4})\s*\??\s*$/i;
+/** `volume of cube 3`, `立方体体积 3` */
+const VOLUME_CUBE_RE =
+  /^\s*(?:(?:cube|立方体|立方體)\s*)?(?:volume|体积|體積)\s*(?:of|of a|of the)?\s*(?:cube|立方体|立方體)?\s*(\d{1,4})\s*\??\s*$/i;
+
+function tryMoreFormulas(text: string): LocalFactHit | null {
+  const t = text.trim();
+  if (!t || t.length > 34) return null;
+
+  const ps = PERIM_SQUARE_RE.exec(t);
+  if (ps) {
+    const n = Number(ps[1]);
+    if (n > 9999) return null;
+    return {
+      question: t,
+      answer: String(n * 4),
+      reply: `Yes — perimeter = 4 × ${n} = ${n * 4}.`,
+    };
+  }
+  const cc = CIRCUM_CIRCLE_RE.exec(t);
+  if (cc) {
+    const r = Number(cc[1]);
+    if (r > 9999) return null;
+    const out = formatValue(2 * Math.PI * r);
+    return {
+      question: t,
+      answer: out,
+      reply: `Yes — circumference = 2π × ${r} ≈ ${out}.`,
+    };
+  }
+  const ac = AREA_CIRCLE_RE.exec(t);
+  if (ac) {
+    const r = Number(ac[1]);
+    if (r > 999) return null;
+    const out = formatValue(Math.PI * r * r);
+    return {
+      question: t,
+      answer: out,
+      reply: `Yes — area = π × ${r}² ≈ ${out}.`,
+    };
+  }
+  const at = AREA_TRIANGLE_RE.exec(t);
+  if (at) {
+    const b = Number(at[1]);
+    const h = Number(at[2]);
+    if (b > 9999 || h > 9999) return null;
+    const out = (b * h) / 2;
+    return {
+      question: t,
+      answer: String(out),
+      reply: `Yes — area = ½ × ${b} × ${h} = ${out}.`,
+    };
+  }
+  const hy = HYPOTENUSE_RE.exec(t);
+  if (hy) {
+    const a = Number(hy[1]);
+    const b = Number(hy[2]);
+    if (a > 999 || b > 999) return null;
+    const c = Math.round(Math.sqrt(a * a + b * b) * 100) / 100;
+    return {
+      question: t,
+      answer: String(c),
+      reply: `Yes — c² = ${a}² + ${b}², so c = ${c}.`,
+    };
+  }
+  const vc = VOLUME_CUBE_RE.exec(t);
+  if (vc) {
+    const n = Number(vc[1]);
+    if (n > 999) return null;
+    return {
+      question: t,
+      answer: String(n * n * n),
+      reply: `Yes — volume = ${n}³ = ${n * n * n}.`,
+    };
+  }
+  return null;
+}
+
+// ---- V2 P2 — ratio / percent quick math ----
+
+/** `40 is what percent of 200`, `40是200的百分之几`, `40占200的%` */
+const WHAT_PERCENT_EN_RE =
+  /^\s*(\d{1,6})\s*(?:is)\s*(?:what|how many)\s*(?:percent|%)\s*(?:of)\s*(\d{1,6})\s*\??\s*$/i;
+const WHAT_PERCENT_CN_RE =
+  /^\s*(\d{1,6})\s*(?:是|占|站)\s*(\d{1,6})\s*的?\s*(?:百分之几|百分之多少|百分之?)\s*\??\s*$/;
+
+function tryWhatPercent(text: string): LocalFactHit | null {
+  const t = text.trim();
+  if (!t || t.length > 30) return null;
+  const m = WHAT_PERCENT_EN_RE.exec(t) || WHAT_PERCENT_CN_RE.exec(t);
+  if (!m) return null;
+  const part = Number(m[1]);
+  const whole = Number(m[2]);
+  if (!Number.isFinite(part) || !Number.isFinite(whole) || whole === 0) return null;
+  if (part > whole) return null;
+  const out = formatValue((part / whole) * 100);
+  if (!out) return null;
+  return {
+    question: t,
+    answer: `${out}%`,
+    reply: `Yes — ${part} ÷ ${whole} = ${out}%.`,
+  };
+}
+
+// ---- V2 P2 — subject noun dictionary ----
+
+type TermDef = {
+  keys: string[];
+  term: string;
+  def: string;
+};
+
+const TERM_TABLE: TermDef[] = [
+  {
+    keys: ["fraction", "分数", "分數"],
+    term: "fraction",
+    def: "A part of a whole, written like 3/4 — three of four equal pieces.",
+  },
+  {
+    keys: ["decimal", "小数", "小數"],
+    term: "decimal",
+    def: "A way to write a part of a whole using a dot, like 0.25.",
+  },
+  {
+    keys: ["percentage", "percent", "百分比", "百分数", "百分數"],
+    term: "percentage",
+    def: "A part out of 100, written with a % sign — like 25%.",
+  },
+  {
+    keys: ["prime number", "质数", "質數", "素数", "素數"],
+    term: "prime number",
+    def: "A number with exactly two factors: 1 and itself. 2, 3, 5, 7 are prime.",
+  },
+  {
+    keys: ["noun", "名词", "名詞"],
+    term: "noun",
+    def: "A naming word: a person, place, thing, or idea — like 'cat' or 'dream'.",
+  },
+  {
+    keys: ["verb", "动词", "動詞"],
+    term: "verb",
+    def: "An action or being word — like 'run', 'think', or 'is'.",
+  },
+  {
+    keys: ["adjective", "形容词", "形容詞"],
+    term: "adjective",
+    def: "A describing word that tells you more about a noun — like 'bright'.",
+  },
+  {
+    keys: ["photosynthesis", "光合作用"],
+    term: "photosynthesis",
+    def: "How plants make their own food: sunlight + water + carbon dioxide → sugar + oxygen.",
+  },
+  {
+    keys: ["gravity", "重力", "引力"],
+    term: "gravity",
+    def: "The invisible force that pulls things toward each other — it's why apples fall down.",
+  },
+  {
+    keys: ["ecosystem", "生态系统", "生態系統"],
+    term: "ecosystem",
+    def: "A community of living things and their environment working together, like a pond.",
+  },
+  {
+    keys: ["molecule", "分子"],
+    term: "molecule",
+    def: "The smallest piece of a substance that keeps its properties — like one H₂O for water.",
+  },
+  {
+    keys: ["pythagorean theorem", "勾股定理", "毕达哥拉斯定理", "畢達哥拉斯定理"],
+    term: "Pythagorean theorem",
+    def: "In a right triangle: a² + b² = c². The two short sides squared add up to the long side squared.",
+  },
+];
+
+function tryTermLookup(text: string): LocalFactHit | null {
+  const t = text.trim();
+  if (!t || t.length > 60) return null;
+  const isAsk =
+    /^(?:what|what is|what's|define|definition|解释|解释一下|什么是|啥是|什么叫|定義|意思)/i.test(
+      t.replace(/[?？]+$/, "").trim(),
+    ) || /(?:是什么意思|是啥意思|的定义|的定義|define|definition)/i.test(t);
+  if (!isAsk) return null;
+  const clean = t.replace(/[?？.!！]+$/g, "").trim();
+  for (const row of TERM_TABLE) {
+    const key = row.keys.find((k) =>
+      k.includes(" ") ? new RegExp(`\\b${k}\\b`, "i").test(clean) : new RegExp(k, "i").test(clean),
+    );
+    if (!key) continue;
+    return {
+      question: t,
+      answer: row.term,
+      reply: `${row.term}: ${row.def}`,
+    };
+  }
+  return null;
+}
+
+// ---- V2 P2 — history timeline quick facts ----
+
+type HistoryFact = {
+  keys: RegExp;
+  when: string;
+  line: string;
+};
+
+const HISTORY_TABLE: HistoryFact[] = [
+  {
+    keys: /(world war ii|world war 2|二战|第二次世界大戰|第二次世界大战|wwii)/i,
+    when: "1939–1945",
+    line: "World War II ran from 1939 to 1945.",
+  },
+  {
+    keys: /(world war i|world war 1|一战|第一次世界大战|第一次世界大戰|wwi)/i,
+    when: "1914–1918",
+    line: "World War I ran from 1914 to 1918.",
+  },
+  {
+    keys: /(titanic|泰坦尼克|鐵達尼)/i,
+    when: "1912",
+    line: "The Titanic sank on 15 April 1912.",
+  },
+  {
+    keys: /(moon landing|apollo 11|登月|阿波罗11|阿波羅11)/i,
+    when: "1969",
+    line: "Apollo 11 landed humans on the Moon on 20 July 1969.",
+  },
+  {
+    keys: /(declaration of independence|独立宣言|獨立宣言)/i,
+    when: "1776",
+    line: "The US Declaration of Independence was signed in 1776.",
+  },
+  {
+    keys: /(great wall|长城|長城)/i,
+    when: "built over centuries from the 7th century BC",
+    line: "The Great Wall was built across many dynasties, starting around the 7th century BC.",
+  },
+  {
+    keys: /(american civil war|南北战争|南北戰爭)/i,
+    when: "1861–1865",
+    line: "The American Civil War ran from 1861 to 1865.",
+  },
+  {
+    keys: /(qing dynasty|清朝)/i,
+    when: "1644–1912",
+    line: "The Qing dynasty ruled China from 1644 to 1912.",
+  },
+];
+
+function tryHistoryTimeline(text: string): LocalFactHit | null {
+  const t = text.trim();
+  if (!t || t.length > 60) return null;
+  const isAsk =
+    /(when|什么时候|何时|何時|哪一年|什么时候发生的|year|timeline|时间线|時間線|历史|歷史)/i.test(t);
+  if (!isAsk) return null;
+  for (const row of HISTORY_TABLE) {
+    if (!row.keys.test(t)) continue;
+    return {
+      question: t,
+      answer: row.when,
+      reply: row.line,
+    };
+  }
+  return null;
+}
+
 /**
  * Match a narrow set of facts. Returns null for anything else (Agent path).
  */
 export function tryLocalFacts(text: string): LocalFactHit | null {
   const t = text.trim();
-  if (!t || t.length > 40) return null;
+  if (!t || t.length > 60) return null;
   return (
     tryUnitConversion(t) ??
     tryDistanceFormula(t) ??
@@ -452,6 +734,10 @@ export function tryLocalFacts(text: string): LocalFactHit | null {
     tryTemperature(t) ??
     tryFractionDecimal(t) ??
     tryShapesFormulas(t) ??
-    tryDoubleTriple(t)
+    tryDoubleTriple(t) ??
+    tryMoreFormulas(t) ??
+    tryWhatPercent(t) ??
+    tryTermLookup(t) ??
+    tryHistoryTimeline(t)
   );
 }

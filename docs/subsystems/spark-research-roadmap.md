@@ -3,6 +3,42 @@
 > 基准报告：`/root/AI教学产品调研与Spark分析报告.md` §9 路线图。
 > 状态：全部 12 项已实现（2026-08-13），每项带 vitest 单元测试。
 
+## V2 四维学习飞轮（三阶段）— 全部实现
+
+> 基准报告：`evaluation/Spark_四维学习力深度调研报告_V2_2026-08-13.md` §10 路线图。
+> 设计：**[spark-v2-flywheel.md](spark-v2-flywheel.md)**（三阶段飞轮总设计）。
+> 状态：P0（主动出击 + 信号转活 + 兴趣反哺）、P1（BKT 先验分层 + 每周 Launchpad + 广度导航 + 兴趣作品闭环）、P2（好奇心干预 + 动态连接卡 + 作品墙 + 快速路径扩容 + 课程序列分离 + 数据归因）全部完成（2026-08-13），1525 单测通过。
+> 验收锚点：答错后 AI 主动邀请复盘；连续秒答出现成长时刻；探索主题延续上次兴趣；优秀学生更快上探；每周一屏节奏；广度地图可导航；家长周报含归因。
+
+### V2-P0 — 主动出击 + 信号转活
+
+- `proactive-nudge.ts`：`recentWrongAnswer` / `shouldProactiveInvite`（答错未复盘或闲置 ≥5 分钟触发，每会话一次，dismiss 不骚扰）/ `buildProactiveInviteLine`（"I saw X was a bit tricky — want to spend 2 minutes together?" + "Not now"）。
+- `useTutorSession`：`classifyTurnOutcome === "incorrect"` 时 `noteProactiveOpportunity`；暴露 `proactiveInvite` 状态。
+- `ChatThread`：顶部非阻塞邀请条（复用 emotionLine 横幅样式），"Let's review" 发送错题复盘 kickoff，"Not now" dismiss。
+- **flowMoment**：`recordFlowTurn` 返回 advice 后 `setFlowMoment(flowAdviceLabel(flowAdvice))`；step-up/step-down 追加进 `coachNote` 注入 prompt；ChatThread emotionLine 下方一行成长时刻，可 dismiss，下条消息前自动清除。
+- **兴趣反哺**：`pickExploreTopics(mem, limit, interests?)` 评分 = 技能重叠 + 兴趣 count 加权 + 本周已探索主题优先衍生；kickoff 在已知兴趣时加"因为你上次喜欢 X，我准备了它的邻居 Y"。
+
+### V2-P1 — 深度分层 + 每周节奏
+
+- **BKT 先验分层**（`bkt.ts` `bktPriorTier`）：high-prior 学生 pInit/pLearn 更高、pSlip 更低；`detectPriorTier` 由年级超前 / 前置已掌握 / 历史正确率判定；`autoAdvanceCheck` 高先验更灵敏。
+- **每周 Launchpad**（`weekly-launchpad.ts`）：聚合深潜 / 连接卡 / Feynman / 周目标 → `WeeklyLaunchpadView`；ChatThread 空状态「This week」聚合卡一行状态条，点击进入对应流程。
+- **广度导航**（`breadth-map.ts` `buildSubjectBridges`）：已掌握技能 → `adjacent` 跨学科未探索技能 → (from→to) 去重、最强锚点获胜；LearningDashboard 展示"you know X → try Y"路径，点击跳转聊天。
+- **兴趣→作品闭环**（`creationOffer`）：探索会话末尾检测 enjoy/like/喜欢 信号 → ChatThread 轻量卡 "Want to turn it into a mini creation?" → Studio/Journal。
+
+### V2-P2 — 语言干预精修 + 数据归因
+
+- **好奇心语言干预**：`buildExploreKickoffMessage` / `buildDeepDiveKickoff` 固定追加知识缺口指令（先抛反直觉事实或未解之谜，再进苏格拉底阶梯）。
+- **动态连接卡**：`buildDynamicConnectionOffer(mem, accountId)` — 双学科各 ≥1 个 pKnown≥0.8 的已掌握技能 → 最近掌握技能对锚点；空状态动态卡优先于周连接卡。
+- **Everyone 作品墙轻互动**：`JournalEntry.praise`（count + notes 每人一条 ≤120 字）；`praiseJournalEntry` + `PATCH /api/journal`（禁自赞）；JournalTimeline Everyone 视图 `PraiseChip`（点赞 + 一句话点评）。
+- **快速路径扩容**（`local-facts.ts`）：公式（周长/面积/勾股/体积）、百分比速算、学科名词释义、历史时间线速查；中英双语、确定性、命中即返回不走 LLM。
+- **课程序列 vs 对话分离**：`planExploreSequence` / `planOneExploreTopic` 纯函数（规则选主题 + ZPD 起点，不调 LLM）；LLM 只负责对话。
+- **核心归因**：`SkillMastery.sourceCounts` / `lastSource`（opener/challenge/deepDive/connection/wrongbook/variant/explore/homework/proactive）；`recordLearningTurnMemory` 记录来源；`attributionBySource` 聚合；家长周报新增 `sourceAttribution` + "Main drivers" 行，回答"这周孩子从哪个机制学得最多"。
+
+### 测试（V2）
+
+- 新增：`proactive-nudge.test.ts` / `flow-signals.test.ts`（扩展）/ `explore-catalog.test.ts`（扩展）/ `bkt.test.ts`（扩展）/ `weekly-launchpad.test.ts` / `breadth-map.test.ts`（扩展）/ `connection-card.test.ts`（扩展）/ `journal` route PATCH 测试 / `learning-memory.test.ts`（归因）/ `parent-digest.test.ts`（归因）/ `local-facts.test.ts`（扩展）。
+- 全量 `npm test`：1525 passed / 189 files（唯一失败为已知 `console-composer-camera` flaky 测试，按计划跳过）。
+
 ## 四维学习力路线图（2026-08-13）— P0/P1 全部 + P2 全部已实现
 
 > 基准报告：`evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣/心流/深度/广度四维）。

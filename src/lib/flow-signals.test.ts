@@ -4,6 +4,8 @@ import {
   beginFlowSession,
   emptyFlowState,
   flowAdviceFor,
+  flowAdviceLabel,
+  flowAdvicePromptNote,
   FLOW_DOWN_AFTER,
   FLOW_UP_AFTER,
   recordFlowTurn,
@@ -61,5 +63,22 @@ describe("flow-signals — recordFlowTurn", () => {
   it("neutral practice resets the fast signal", () => {
     recordFlowTurn("correct", { latencyMs: 500 });
     expect(recordFlowTurn("practice", { latencyMs: 500 })).toBe("hold");
+  });
+});
+
+describe("flow-signals — growth-moment copy (report §9.2.1)", () => {
+  it("step-up has a kid-facing label and a coach prompt note", () => {
+    expect(flowAdviceLabel("step-up")).toContain("harder");
+    expect(flowAdvicePromptNote("step-up")).toContain("notch harder");
+  });
+
+  it("step-down has a gentler label and prompt note", () => {
+    expect(flowAdviceLabel("step-down")).toContain("gentler");
+    expect(flowAdvicePromptNote("step-down")).toContain("gentler");
+  });
+
+  it("hold produces no copy for either audience", () => {
+    expect(flowAdviceLabel("hold")).toBeNull();
+    expect(flowAdvicePromptNote("hold")).toBeNull();
   });
 });

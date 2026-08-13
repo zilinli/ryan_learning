@@ -11,6 +11,8 @@
 
 import { kvGet, kvSet } from "./browser-kv";
 import { deepDiveWeekKey } from "./deep-dive-week";
+import type { LearningMemory, SkillMastery } from "./learning-memory";
+import { getSkillDef } from "./skill-catalog";
 
 export type ConnectionCard = {
   id: string;
@@ -157,4 +159,75 @@ export function buildConnectionOffer(
 export function markConnectionShown(accountId: string, weekOf: string): void {
   const card = cardForWeek(weekOf);
   kvSet(connectionCardStorageKey(accountId), JSON.stringify({ card, weekOf, done: true }));
+}
+
+/**
+ * V2 P2 — dynamic connection offer (report §9.4.2).
+ * When BKT shows two skills mastered in different subjects, the anchor becomes
+ * the child's most recently mastered pair instead of the curated weekly card.
+ * Returns null when fewer than two mastered skills exist (falls back to the
+ * weekly card) or when a card was already shown this week.
+ */
+export function buildDynamicConnectionOffer(
+  mem: LearningMemory | null | undefined,
+  accountId: string,
+  now = Date.now(),
+): ConnectionOffer | null {
+  const weekOf = deepDiveWeekKey(now);
+  const raw = kvGet(connectionCardStorageKey(accountId));
+  try {
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<ConnectionOffer>;
+      if (p && p.weekOf === weekOf && p.card?.id) return null; // already offered
+    }
+  } catch {
+    /* fall through — offer again */
+  }
+
+  const mastered = (mem?.skills || [])
+    .filter((s) => s.attempts >= 2 && s.pKnown >= DYNAMIC_MASTERED_PKNOWN)
+    .sort((a, b) => b.lastSeen - a.lastSeen);
+  if (mastered.length < 2) return null;
+
+  const anchor = mastered[0];
+  const anchorSubject = subjectOf(anchor.id);
+  if (!anchorSubject) return null;
+
+  const mate = mastered.find(
+    (s) => s.id !== anchor.id && subjectOf(s.id) !== anchorSubject,
+  );
+  if (!mate) return null;
+
+  const card: ConnectionCard = {
+    id: `dynamic:${anchor.id}↔${mate.id}:${weekOf}`,
+    title: `${anchor.label} ↔ ${mate.label}`,
+    fromLabel: anchor.label,
+    toLabel: mate.label,
+    blurb:
+      `You just got really good at "${anchor.label}" AND "${mate.label}". ` +
+      `Different names — but is there ONE idea hiding under both? Let's hunt for it.`,
+    kickoff:
+      `Surprise me: "${anchor.label}" and "${mate.label}" might share a hidden idea. ` +
+      `Give me ONE question that makes me find the connection myself (no naming it first), then check my explanation.`,
+  };
+  return { card, weekOf, done: false };
+}
+
+/** Record a shown/dismissed card by offer (keeps the dynamic card's id). */
+export function markConnectionShownForOffer(
+  accountId: string,
+  offer: ConnectionOffer,
+): void {
+  kvSet(
+    connectionCardStorageKey(accountId),
+    JSON.stringify({ card: offer.card, weekOf: offer.weekOf, done: true }),
+  );
+}
+
+/** pKnown at or above which a skill counts as "mastered" for dynamic anchors. */
+const DYNAMIC_MASTERED_PKNOWN = 0.8;
+
+function subjectOf(skillId: string): string | null {
+  const def = getSkillDef(skillId);
+  return def?.subject ?? null;
 }

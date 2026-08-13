@@ -13,8 +13,11 @@ import {
 } from "@/lib/entertain/journal-model";
 import { useActiveStudioAccount } from "./StudioAccountBar";
 
-function studioUrl(journalId: string): string {
-  return `/studio?game=writing-studio&journal=${encodeURIComponent(journalId)}`;
+function studioUrl(journalId: string, accountId?: string): string {
+  const base = `/studio?game=writing-studio&journal=${encodeURIComponent(
+    journalId,
+  )}`;
+  return accountId ? `${base}&account=${encodeURIComponent(accountId)}` : base;
 }
 
 function madeLabel(m: JournalMadeBlock): string {
@@ -54,18 +57,24 @@ export function JournalTimeline({
   const [error, setError] = useState<string | null>(null);
   const [jumpMonth, setJumpMonth] = useState<string | null>(null);
   const [newDate, setNewDate] = useState(localDay());
+  const [view, setView] = useState<"mine" | "everyone">("mine");
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/journal?accountId=${encodeURIComponent(accountId)}`,
-      );
-      const data = (await res.json()) as { ok?: boolean; items?: JournalEntry[] };
+      const url =
+        view === "everyone"
+          ? "/api/journal?scope=all"
+          : `/api/journal?accountId=${encodeURIComponent(accountId)}`;
+      const res = await fetch(url);
+      const data = (await res.json()) as {
+        ok?: boolean;
+        items?: JournalEntry[];
+      };
       setItems(data.items || []);
     } catch {
       setItems([]);
     }
-  }, [accountId]);
+  }, [accountId, view]);
 
   useEffect(() => {
     void load();
@@ -95,6 +104,45 @@ export function JournalTimeline({
       }
     },
     [accountId, load],
+  );
+
+  // V2 §9.4.3 — Everyone wall praise (like + one-line note) on another
+  // student's entry. Updates the row in place, no leaderboards.
+  const praise = useCallback(
+    async (targetAccountId: string, id: string, note: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/journal", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetAccountId,
+            fromAccountId: accountId,
+            id,
+            note: note.trim() || undefined,
+          }),
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          item?: JournalEntry;
+          error?: string;
+        };
+        if (!res.ok || !data.ok || !data.item)
+          throw new Error(data.error || "Could not praise");
+        const next = data.item;
+        setItems((prev) =>
+          prev.map((e) =>
+            e.id === next.id && e.accountId === next.accountId ? next : e,
+          ),
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not praise");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [accountId],
   );
 
   const days = useMemo(() => buildTimeline(items), [items]);
@@ -156,7 +204,31 @@ export function JournalTimeline({
               {name} · related records, newest first
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-full border border-[var(--line)] bg-[var(--surface-muted)] p-0.5">
+              <button
+                type="button"
+                onClick={() => setView("mine")}
+                className={`min-h-9 rounded-full px-3 text-[12px] font-semibold transition ${
+                  view === "mine"
+                    ? "bg-[var(--teal)] text-white"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                }`}
+              >
+                Mine
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("everyone")}
+                className={`min-h-9 rounded-full px-3 text-[12px] font-semibold transition ${
+                  view === "everyone"
+                    ? "bg-[var(--teal)] text-white"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                }`}
+              >
+                Everyone
+              </button>
+            </div>
             <a
               href="/"
               className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-4 text-[13px] font-medium leading-[2.75rem] text-[var(--ink)]"
@@ -187,35 +259,41 @@ export function JournalTimeline({
 
       <div className="mb-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3">
         <p className="text-[13px] text-[var(--ink-muted)]">{prompt}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void createNew()}
-            className="min-h-11 rounded-full bg-[var(--action-bg)] px-4 text-sm font-semibold text-[var(--action-ink)] disabled:opacity-40"
-          >
-            {busy ? "Opening…" : "+ New"}
-          </button>
-          {!peek ? (
-            <label className="flex items-center gap-1.5 text-[12px] text-[var(--ink-muted)]">
-              Date
-              <input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value || localDay())}
-                className="min-h-10 rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[13px] text-[var(--ink)]"
-              />
-            </label>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void createNew(localDay(), { openTodayIfExists: true })}
-            className="min-h-11 rounded-full border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40"
-          >
-            Write today
-          </button>
-        </div>
+        {view === "mine" ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void createNew()}
+              className="min-h-11 rounded-full bg-[var(--action-bg)] px-4 text-sm font-semibold text-[var(--action-ink)] disabled:opacity-40"
+            >
+              {busy ? "Opening…" : "+ New"}
+            </button>
+            {!peek ? (
+              <label className="flex items-center gap-1.5 text-[12px] text-[var(--ink-muted)]">
+                Date
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value || localDay())}
+                  className="min-h-10 rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[13px] text-[var(--ink)]"
+                />
+              </label>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void createNew(localDay(), { openTodayIfExists: true })}
+              className="min-h-11 rounded-full border border-[var(--teal)] px-4 text-sm font-medium text-[var(--teal)] disabled:opacity-40"
+            >
+              Write today
+            </button>
+          </div>
+        ) : (
+          <p className="mt-2 text-[12px] text-[var(--ink-muted)]">
+            Everyone view — showing creations from all students.
+          </p>
+        )}
         {error ? <p className="mt-2 text-sm text-[var(--coral)]">{error}</p> : null}
       </div>
 
@@ -260,10 +338,13 @@ export function JournalTimeline({
               key={day.date}
               day={day}
               busy={busy}
+              everyone={view === "everyone"}
               onDeleteEntry={(id) => void remove(id)}
               onDeleteMade={(entryId, creationId) =>
                 void remove(entryId, creationId)
               }
+              onPraise={(target, id, note) => void praise(target, id, note)}
+              myAccountId={accountId}
             />
           ))}
         </ol>
@@ -275,13 +356,19 @@ export function JournalTimeline({
 function TimelineDayBlock({
   day,
   busy,
+  everyone,
+  myAccountId,
   onDeleteEntry,
   onDeleteMade,
+  onPraise,
 }: {
   day: TimelineDay;
   busy: boolean;
+  everyone: boolean;
+  myAccountId: string;
   onDeleteEntry: (id: string) => void;
   onDeleteMade: (entryId: string, creationId: string) => void;
+  onPraise: (targetAccountId: string, id: string, note: string) => void;
 }) {
   return (
     <li className="relative mb-6">
@@ -298,8 +385,11 @@ function TimelineDayBlock({
             key={entry.id}
             entry={entry}
             busy={busy}
+            everyone={everyone}
+            myAccountId={myAccountId}
             onDeleteEntry={() => onDeleteEntry(entry.id)}
             onDeleteMade={(creationId) => onDeleteMade(entry.id, creationId)}
+            onPraise={(note) => onPraise(entry.accountId, entry.id, note)}
           />
         ))}
       </div>
@@ -311,13 +401,19 @@ function TimelineDayBlock({
 function EntryBlock({
   entry,
   busy,
+  everyone,
+  myAccountId,
   onDeleteEntry,
   onDeleteMade,
+  onPraise,
 }: {
   entry: JournalEntry;
   busy: boolean;
+  everyone: boolean;
+  myAccountId: string;
   onDeleteEntry: () => void;
   onDeleteMade: (creationId: string) => void;
+  onPraise: (note: string) => void;
 }) {
   const hasProse = entry.body.trim().length > 0;
   const related = entry.made;
@@ -329,9 +425,10 @@ function EntryBlock({
           className="group relative rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-[var(--teal)]/40"
         >
           <a
-            href={studioUrl(entry.id)}
+            href={studioUrl(entry.id, everyone ? entry.accountId : undefined)}
             className="block pr-[4.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
           >
+            {everyone ? <AuthorBadge name={entry.authorName} accountId={entry.accountId} /> : null}
             <p className="text-[11px] font-semibold text-[var(--teal)]">Wrote</p>
             <p className="mt-0.5 text-sm font-medium text-[var(--ink)]">
               {entry.title || entry.body.slice(0, 72)}
@@ -340,7 +437,16 @@ function EntryBlock({
               {entry.body}
             </p>
           </a>
-          <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+          {everyone ? (
+            <PraiseChip
+              entry={entry}
+              busy={busy}
+              myAccountId={myAccountId}
+              onPraise={onPraise}
+            />
+          ) : (
+            <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+          )}
         </div>
       ) : null}
       {related.map((m, i) => (
@@ -348,6 +454,7 @@ function EntryBlock({
           key={`${m.creationId || m.at}-${i}`}
           className="group relative rounded-xl border border-[var(--line)]/80 bg-[var(--surface-muted)] p-3"
         >
+          {everyone ? <AuthorBadge name={entry.authorName} accountId={entry.accountId} /> : null}
           <p className="text-[11px] font-semibold text-[var(--ink-muted)]">
             Related
           </p>
@@ -387,12 +494,18 @@ function EntryBlock({
             />
           ) : null}
           <a
-            href="/studio?game=creations"
+            href={
+              everyone
+                ? `/studio?game=creations&account=${encodeURIComponent(
+                    entry.accountId,
+                  )}`
+                : "/studio?game=creations"
+            }
             className="mt-2 inline-block text-[11px] font-semibold text-[var(--teal)]"
           >
             Open in My Creations
           </a>
-          {m.creationId ? (
+          {m.creationId && !everyone ? (
             <DeleteChip
               label="Remove"
               busy={busy}
@@ -404,12 +517,153 @@ function EntryBlock({
       {!hasAny ? (
         <div className="group relative rounded-xl border border-dashed border-[var(--line)] p-3">
           <a
-            href={studioUrl(entry.id)}
+            href={studioUrl(entry.id, everyone ? entry.accountId : undefined)}
             className="block pr-[4.5rem] text-sm text-[var(--ink-muted)]"
           >
             Empty day — tap to write
           </a>
-          <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+          {!everyone ? (
+            <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Small author chip shown in the Everyone timeline view. */
+function AuthorBadge({
+  name,
+  accountId,
+}: {
+  name?: string;
+  accountId: string;
+}) {
+  return (
+    <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-2 py-0.5 text-[11px] font-semibold text-[var(--teal)]">
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      {name || accountId}
+    </span>
+  );
+}
+
+/**
+ * V2 §9.4.3 — lightweight praise on the Everyone wall.
+ * A heart toggles a like; "Say something nice" attaches a one-line note.
+ * Encouragement only — no leaderboards, no ranking.
+ */
+function PraiseChip({
+  entry,
+  busy,
+  myAccountId,
+  onPraise,
+}: {
+  entry: JournalEntry;
+  busy: boolean;
+  myAccountId: string;
+  onPraise: (note: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const notes = entry.praise?.notes || [];
+  const count = entry.praise?.count ?? 0;
+  const meLiked = notes.some((n) => n.accountId === myAccountId);
+  const canPraise = entry.accountId !== myAccountId;
+
+  const submit = () => {
+    if (busy) return;
+    onPraise(note);
+    setNote("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
+      {open ? (
+        <div className="flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1 shadow-sm">
+          <input
+            value={note}
+            maxLength={120}
+            placeholder="Say something nice…"
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
+            className="w-36 bg-transparent px-1 text-[12px] text-[var(--ink)] placeholder:text-[var(--ink-muted)] focus:outline-none"
+            aria-label="Praise note"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={submit}
+            className="rounded-md bg-[var(--teal)] px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-[var(--teal)]/90"
+          >
+            Send
+          </button>
+        </div>
+      ) : null}
+      <div className="flex items-center gap-1.5">
+        {canPraise ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onPraise("")}
+            aria-label={meLiked ? "Unlike" : "Praise"}
+            aria-pressed={meLiked}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold transition ${
+              meLiked
+                ? "border-[var(--coral)]/40 bg-[var(--coral)]/10 text-[var(--coral)]"
+                : "border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--teal)]/40 hover:text-[var(--teal)]"
+            }`}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={meLiked ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+            {count > 0 ? count : "Like"}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Leave a note"
+          className="inline-flex items-center rounded-full border border-[var(--line)] px-2 py-1 text-[11px] font-semibold text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:text-[var(--teal)]"
+        >
+          ✍️ Nice
+        </button>
+      </div>
+      {notes.length > 0 ? (
+        <div className="max-w-[12rem] space-y-0.5 text-right">
+          {notes.slice(-2).map((n) => (
+            <p
+              key={n.at}
+              className="truncate text-[10px] italic text-[var(--ink-muted)]"
+            >
+              “{n.note}” — {n.name || n.accountId}
+            </p>
+          ))}
         </div>
       ) : null}
     </div>

@@ -17,6 +17,12 @@ import type { SessionOpener } from "@/lib/session-opener";
 import type { ExploreTopic } from "@/lib/explore-catalog";
 import type { DeepDiveOffer } from "@/lib/deep-dive-week";
 import type { ConnectionOffer } from "@/lib/connection-card";
+import type { ProactiveInvite } from "@/lib/proactive-nudge";
+import type {
+  LaunchpadAction,
+  WeeklyLaunchpadView,
+} from "@/lib/weekly-launchpad";
+import type { CreationOffer } from "@/lib/creation-offer";
 import {
   buildDeepDivePrompt,
   DEEP_DIVE_LABELS,
@@ -144,6 +150,20 @@ type Props = {
   /** P2 — cross-domain auto-recommendation: a neighbor skill worth peeking at */
   adjacentOpener?: SessionOpener | null;
   onAdjacentTry?: () => void;
+  /** V2 P0 — proactive review invite (report §9.2.2) */
+  proactiveInvite?: ProactiveInvite | null;
+  onAcceptProactiveInvite?: () => void;
+  onDismissProactiveInvite?: () => void;
+  /** V2 P0 — growth-moment line from the flow signal (report §9.2.1) */
+  flowMoment?: string | null;
+  onDismissFlowMoment?: () => void;
+  /** V2 P1 — weekly "This week" Launchpad strip (report §9.3.2) */
+  weeklyLaunchpad?: WeeklyLaunchpadView | null;
+  onLaunchpadItem?: (action: LaunchpadAction) => void;
+  /** V2 P1 — interest → creation offer (report §9.1.3) */
+  creationOffer?: CreationOffer | null;
+  creationOfferLine?: string | null;
+  onDismissCreationOffer?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -242,6 +262,16 @@ export function ChatThread({
   challengeGauge,
   adjacentOpener,
   onAdjacentTry,
+  proactiveInvite,
+  onAcceptProactiveInvite,
+  onDismissProactiveInvite,
+  flowMoment,
+  onDismissFlowMoment,
+  weeklyLaunchpad,
+  onLaunchpadItem,
+  creationOffer,
+  creationOfferLine,
+  onDismissCreationOffer,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -532,6 +562,48 @@ export function ChatThread({
           </div>
         ) : null}
 
+        {weeklyLaunchpad ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+                🗓️ This week
+              </p>
+              <p className="text-[11px] tabular-nums text-[var(--ink-muted)]">
+                {weeklyLaunchpad.doneCount}/{weeklyLaunchpad.totalCount} done
+              </p>
+            </div>
+            <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {weeklyLaunchpad.items.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => onLaunchpadItem?.(item.action)}
+                  title={item.line}
+                  className={`flex min-h-14 flex-col items-start justify-between gap-1 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+                    item.done
+                      ? "border-[var(--teal)]/30 bg-[var(--teal)]/6"
+                      : "border-[var(--line)] bg-[var(--bg0)] hover:border-[var(--teal)]/45"
+                  }`}
+                >
+                  <span className="flex w-full items-center justify-between text-[13px] leading-none">
+                    <span aria-hidden>{item.emoji}</span>
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        item.done ? "text-[var(--teal)]" : "text-[var(--ink-muted)]"
+                      }`}
+                    >
+                      {item.done ? "✓" : "·"}
+                    </span>
+                  </span>
+                  <span className="text-[11px] font-medium leading-tight text-[var(--ink)]">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {exploreTopics && exploreTopics.length > 0 ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
@@ -742,12 +814,53 @@ export function ChatThread({
 
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+      {proactiveInvite ? (
+        <div
+          className="flex items-start justify-between gap-2 rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2 text-[13px] text-[var(--ink)]"
+          aria-live="polite"
+        >
+          <div className="min-w-0">
+            <p className="font-medium text-[var(--ink)]">{proactiveInvite.line}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--ink-muted)]">
+              Two minutes together — no pressure.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onAcceptProactiveInvite}
+              className="min-h-9 rounded-lg bg-[var(--coral)] px-3 text-[12px] font-semibold text-white transition hover:bg-[var(--coral)]/90 active:scale-95"
+            >
+              Let&apos;s review
+            </button>
+            <button
+              type="button"
+              onClick={onDismissProactiveInvite}
+              className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      ) : null}
       {emotionLine ? (
         <div className="flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/25 bg-[var(--teal)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
           <p>{emotionLine}</p>
           <button
             type="button"
             onClick={onDismissEmotionLine}
+            className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+          >
+            OK
+          </button>
+        </div>
+      ) : null}
+      {flowMoment ? (
+        <div className="flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 py-2 text-[13px] text-[var(--ink)]">
+          <p className="font-medium text-[var(--teal)]">{flowMoment}</p>
+          <button
+            type="button"
+            onClick={onDismissFlowMoment}
             className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
           >
             OK
@@ -1149,6 +1262,40 @@ export function ChatThread({
       })}
       {onDeepDive && !streaming && messages.some((m) => m.role === "assistant") ? (
         <DeepDiveControl onPick={onDeepDive} />
+      ) : null}
+      {creationOffer && creationOfferLine ? (
+        <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--teal)]/8 px-4 py-3 text-left shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            ✨ Make it yours
+          </p>
+          <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+            {creationOfferLine}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[var(--ink-muted)]">
+            Draw it, write it, or explain it — then save it to your journal.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href="/entertain?hub=studio"
+              className="inline-flex min-h-11 items-center rounded-xl bg-[var(--teal)] px-3 text-[13px] font-semibold text-white transition hover:bg-[var(--teal)]/90 active:scale-95"
+            >
+              Open Writing Studio
+            </a>
+            <a
+              href="/me/journal"
+              className="inline-flex min-h-11 items-center rounded-xl border border-[var(--teal)]/45 px-3 text-[13px] font-medium text-[var(--teal)] transition hover:bg-[var(--teal)]/10"
+            >
+              My journal
+            </a>
+            <button
+              type="button"
+              onClick={onDismissCreationOffer}
+              className="min-h-11 rounded-xl px-3 text-[13px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
       ) : null}
       {lightbox ? (
         <ImageLightbox

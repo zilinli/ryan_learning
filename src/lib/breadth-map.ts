@@ -6,7 +6,7 @@
  * "explored vs not-yet" dots and one entry question per untouched subject.
  */
 
-import type { LearningMemory } from "./learning-memory";
+import type { LearningMemory, SkillMastery } from "./learning-memory";
 import { getSkillDef } from "./skill-catalog";
 import { loadInterests, type InterestRecord } from "./interest-store";
 
@@ -117,6 +117,86 @@ export function subjectForInterest(
   if (/(music|food)/.test(t)) return "math"; // fraction-forward topics
   if (/(code|coding|program)/.test(t)) return "general";
   return null;
+}
+
+// ── V2 P1 — breadth as navigation (report §9.4.1) ───────────────────
+
+/**
+ * A door from a subject the child has mastered into an *adjacent* subject they
+ * haven't — built from skill-catalog's `subject` + `adjacent` fields so the
+ * map becomes a navigation tool, not just a record.
+ */
+export type SubjectBridge = {
+  from: SubjectFootprint["subject"];
+  fromLabel: string;
+  /** The mastered skill that acts as the anchor ("you already know X"). */
+  anchorSkillId: string;
+  anchorSkillLabel: string;
+  to: SubjectFootprint["subject"];
+  toLabel: string;
+  /** The adjacent, not-yet-mastered skill that opens the new subject. */
+  doorSkillId: string;
+  doorSkillLabel: string;
+  /** Starter question: starts from what the child already knows. */
+  starter: string;
+};
+
+/**
+ * Find cross-subject bridges: for every mastered skill, look at its catalog
+ * `adjacent` skills; when an adjacent skill lives in a different subject and
+ * isn't mastered yet, that's a "you know X → try Y over there" door.
+ * Deduped by (from→to) pair, best anchor wins.
+ */
+export function buildSubjectBridges(
+  mem: LearningMemory | null | undefined,
+): SubjectBridge[] {
+  const skills = mem?.skills || [];
+  const byId = new Map<string, SkillMastery>(skills.map((s) => [s.id, s]));
+  const isMastered = (id: string) => {
+    const s = byId.get(id);
+    return !!s && s.attempts > 0 && s.pKnown >= MASTERED;
+  };
+
+  const best = new Map<string, SubjectBridge>();
+  for (const s of skills) {
+    if (!s || s.attempts <= 0 || s.pKnown < MASTERED) continue;
+    const def = getSkillDef(s.id);
+    if (!def?.adjacent?.length) continue;
+    const from = (def.subject || "general") as SubjectFootprint["subject"];
+    for (const adjId of def.adjacent) {
+      if (isMastered(adjId)) continue; // not new ground
+      const adjDef = getSkillDef(adjId);
+      if (!adjDef) continue;
+      const to = (adjDef.subject || "general") as SubjectFootprint["subject"];
+      if (to === from) continue; // same-subject adjacency is ZPD, not breadth
+      const key = `${from}->${to}`;
+      const existing = best.get(key);
+      if (
+        existing &&
+        s.pKnown < (byId.get(existing.anchorSkillId)?.pKnown ?? -1)
+      )
+        continue;
+      best.set(key, {
+        from,
+        fromLabel: SUBJECT_META[from].label,
+        anchorSkillId: s.id,
+        anchorSkillLabel: s.label,
+        to,
+        toLabel: SUBJECT_META[to].label,
+        doorSkillId: adjId,
+        doorSkillLabel: adjDef.label,
+        starter: `I already know ${s.label} — show me how that connects to ${adjDef.label} over in ${SUBJECT_META[to].label}. Give me ONE question that starts from what I know, then let me explore the new subject.`,
+      });
+    }
+  }
+  return [...best.values()];
+}
+
+/** One-shot handoff for a cross-subject bridge door (same key as subject starter). */
+export function stashBreadthBridgeStarter(b: SubjectBridge): void {
+  kickoffWrite(
+    JSON.stringify({ subject: b.to, label: b.toLabel, starter: b.starter }),
+  );
 }
 
 // ── Dashboard → chat handoff for "try an entry question" ────────────

@@ -6,7 +6,12 @@
  */
 
 import { getSkillDef } from "./skill-catalog";
-import type { LearningMemory } from "./learning-memory";
+import type { LearningMemory, SkillMastery } from "./learning-memory";
+import type { InterestRecord } from "./interest-store";
+import { CURIOSITY_HOOK_LINE } from "./curiosity-hook";
+
+/** Derivative-window: interests explored within this many days count as "recent". */
+export const INTEREST_DERIVATIVE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type ExploreTopic = {
   id: string;
@@ -138,17 +143,51 @@ export function getExploreTopic(id: string): ExploreTopic | undefined {
 /**
  * Kid-friendly curated set (grade-aware-ish): prefer topics whose related
  * skills overlap the student's current catalog band, then pad with fresh ones.
+ *
+ * V2 P0 (report §9.1.1) — interest data feeds back into the ranking:
+ * - an interest the child actually picked gets a `count`-weighted boost, so
+ *   favorites stay visible and "只进不出" becomes "进则反哺";
+ * - a topic that shares skills with a *recently* explored interest gets a
+ *   "derivative" boost (dinosaurs → animals/fossils), surfacing neighbors.
  */
 export function pickExploreTopics(
   mem: LearningMemory | null | undefined,
   limit = 4,
+  interests: InterestRecord[] = [],
 ): ExploreTopic[] {
   const ids = new Set((mem?.skills || []).map((s) => s.id));
+  const interestById = new Map(interests.map((i) => [i.topicId, i]));
+  const recentIds = new Set(
+    interests
+      .filter(
+        (i) =>
+          i.exploredAt >= Date.now() - INTEREST_DERIVATIVE_WINDOW_MS,
+      )
+      .map((i) => i.topicId),
+  );
+  const topicById = new Map(EXPLORE_TOPICS.map((t) => [t.id, t]));
+
+  const sharesSkills = (a: ExploreTopic, b: ExploreTopic): boolean =>
+    a.skillIds.some((s) => b.skillIds.includes(s));
+
   const scored = EXPLORE_TOPICS.map((t) => {
-    const overlap = t.skillIds.filter((id) => ids.has(id)).length;
-    return { topic: t, score: overlap };
+    let score = t.skillIds.filter((id) => ids.has(id)).length;
+    // interest count boost (up to +3)
+    const own = interestById.get(t.id);
+    if (own) score += Math.min(3, own.count);
+    // derivative boost: neighbor of a recently-explored interest (+1 each)
+    for (const rid of recentIds) {
+      if (rid === t.id) continue;
+      const rTopic = topicById.get(rid);
+      if (rTopic && sharesSkills(t, rTopic)) score += 1;
+    }
+    return { topic: t, score };
   })
-    .sort((a, b) => b.score - a.score)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.topic.skillIds.length - a.topic.skillIds.length,
+    )
     .map((x) => x.topic);
   // De-duplicate: keep one topic per emoji, then round-robin from varied picks
   const seen = new Set<string>();
@@ -160,6 +199,29 @@ export function pickExploreTopics(
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/**
+ * The most recent interest that led us to this topic (same topic, or a
+ * recently-explored neighbor sharing skills) — drives the continuation copy.
+ */
+export function leadingInterestForTopic(
+  topic: ExploreTopic,
+  interests: InterestRecord[],
+): InterestRecord | null {
+  if (!interests?.length) return null;
+  const topicById = new Map(EXPLORE_TOPICS.map((t) => [t.id, t]));
+  const recent = interests
+    .filter((i) => i.exploredAt >= Date.now() - INTEREST_DERIVATIVE_WINDOW_MS)
+    .sort((a, b) => b.exploredAt - a.exploredAt);
+  for (const i of recent) {
+    if (i.topicId === topic.id) return i;
+    const other = topicById.get(i.topicId);
+    if (other && other.skillIds.some((s) => topic.skillIds.includes(s))) {
+      return i;
+    }
+  }
+  return null;
 }
 
 /** Human list of related skill labels for the kickoff prompt (max 3). */
@@ -176,10 +238,16 @@ export function relatedSkillLabels(topic: ExploreTopic): string[] {
 /**
  * Kid-facing kickoff sent when a student picks an interest chip. Frames the
  * exploration as a ZPD challenge linked to catalog skills, not a lecture.
+ * V2 P0 — when this topic continues a recent interest, the kickoff says so
+ * ("因为你上次喜欢 X，我准备了它的邻居 Y", report §9.1.1).
+ * V2 P2 — an optional `zpdSkill` (the mid-mastery skill chosen by
+ * `planExploreSequence`, report §9.3.3) pins the start of the ladder.
  */
 export function buildExploreKickoffMessage(
   topic: ExploreTopic,
   mem: LearningMemory | null | undefined,
+  interests: InterestRecord[] = [],
+  zpdSkill?: string | null,
 ): string {
   const skills = relatedSkillLabels(topic);
   const knownSkills = [...(mem?.skills || [])]
@@ -190,12 +258,79 @@ export function buildExploreKickoffMessage(
   const anchor = knownSkills.length
     ? `Connect it to what I already know (${knownSkills.join(", ")}).`
     : "Keep it right at the edge of what I know.";
+  const zpdLine = zpdSkill
+    ? `Start from "${zpdSkill}" — that's right at the edge of what I know — then stretch from there.`
+    : "";
+  const leading = leadingInterestForTopic(topic, interests);
+  const continuation = leading
+    ? `Because I loved "${leading.label}" last time, this topic is its neighbor — let's keep going.`
+    : "";
   return [
     `I chose to explore: ${topic.emoji} ${topic.label}!`,
+    continuation,
     `${topic.framing}`,
+    CURIOSITY_HOOK_LINE,
     `Use these to shape questions if they fit: ${skills.join(", ")}.`,
+    zpdLine,
     anchor,
     "Give me ONE question at a time, Socratic hints only, no spoilers. If I solve it fast, make the next one a little harder; if I'm stuck, give a small nudge.",
     "Make it feel like a real exploration, not a worksheet.",
-  ].join("\n");
+  ]
+    .filter((l) => l.trim().length > 0)
+    .join("\n");
+}
+
+/**
+ * V2 P2 — curriculum sequence vs dialog separation (report §9.3.3).
+ * Pure, rule-based planning: choosing the topic AND the ZPD starting point
+ * happens here with no LLM call. The LLM only runs the conversation.
+ */
+export type ExplorePlan = {
+  topic: ExploreTopic;
+  /** Mid-mastery topic skill to start the ladder (ZPD), else null. */
+  zpdSkill: string | null;
+  /** Skills the child already knows well enough to anchor on. */
+  anchorSkills: string[];
+  /** Ready-to-send kickoff for the LLM conversation. */
+  kickoff: string;
+};
+
+export function planOneExploreTopic(
+  topic: ExploreTopic,
+  mem: LearningMemory | null | undefined,
+  interests: InterestRecord[] = [],
+): ExplorePlan {
+  const mastery = new Map((mem?.skills || []).map((s) => [s.id, s]));
+  // ZPD start: a topic skill with attempts still mid-band (0.35–0.75) —
+  // hardest in the zone first, since it's the point of maximum stretch.
+  const zpd = topic.skillIds
+    .map((id) => mastery.get(id))
+    .filter(
+      (s): s is SkillMastery =>
+        typeof s !== "undefined" && s.attempts > 0,
+    )
+    .filter((s) => s.pKnown >= 0.35 && s.pKnown < 0.75)
+    .sort((a, b) => a.pKnown - b.pKnown)[0];
+  const anchorSkills = [...(mem?.skills || [])]
+    .filter((s) => s.attempts > 0 && s.pKnown >= 0.4)
+    .sort((a, b) => b.pKnown - a.pKnown)
+    .slice(0, 3)
+    .map((s) => s.label);
+  return {
+    topic,
+    zpdSkill: zpd?.label ?? null,
+    anchorSkills,
+    kickoff: buildExploreKickoffMessage(topic, mem, interests, zpd?.label ?? null),
+  };
+}
+
+/** Plan the next `limit` explorations for the empty-chat state. */
+export function planExploreSequence(
+  mem: LearningMemory | null | undefined,
+  interests: InterestRecord[] = [],
+  limit = 4,
+): ExplorePlan[] {
+  return pickExploreTopics(mem, limit, interests).map((topic) =>
+    planOneExploreTopic(topic, mem, interests),
+  );
 }

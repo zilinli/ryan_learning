@@ -59,6 +59,14 @@ Research-driven learning loops from the [four-dimension report](evaluation/Spark
 - **Focus guardrail** — when a worksheet is still in progress, a gentle non-blocking nudge appears next to Games in the sidebar and atop the Games page ("Homework still has N questions — finish, then play?"), dismissible once per day, never locking anything.
 - **Cross-domain auto-recommendation** — once a skill hits high mastery, the opener card suggests a neighboring fresh skill (astronomy → gravity; fractions → ratios), so breadth grows out of depth.
 
+### V2 Learning Flywheel (三阶段学习飞轮)
+
+The [V2 four-dimension report](evaluation/Spark_四维学习力深度调研报告_V2_2026-08-13.md) roadmap turns built components into a real learning flywheel — see [spark-v2-flywheel.md](docs/subsystems/spark-v2-flywheel.md):
+
+- **P0 — proactive outreach** — after a wrong answer (or after ≥5 min idle), a non-blocking invite bar offers a 2-minute review; fast streaks surface "growth moment" lines that feed the prompt; explore topics now continue the child's past interests.
+- **P1 — tiered depth & weekly rhythm** — high-aptitude students get a more aggressive BKT prior (faster up-stairing); a weekly **Launchpad** card aggregates deep-dive / connection / Feynman / weekly goal into one strip; a subject bridge map shows "you already know X → try Y over there"; a "turn it into a mini creation?" card closes the interest→work loop.
+- **P2 — curiosity language & attribution** — explore/deep-dive kickoffs open with a knowledge-gap hook (counter-intuitive fact or open mystery); connection cards are generated dynamically from two recently-mastered skills across subjects; the Everyone works wall gains light praise (like + one-line note, no leaderboards); the local fast path covers formulas / percentages / term lookups / history timeline; curriculum sequencing is a pure function separate from LLM dialogue; and every learning turn is attributed to a source (opener/challenge/deepDive/connection/wrongbook/variant/explore/homework/proactive) so the parent weekly report answers "what drove the most learning this week".
+
 
 ### Parent Hub (`/family`)
 
@@ -389,6 +397,7 @@ Design documents live in `docs/subsystems/`. Key reads:
 | [product-audit-2026-08-roadmap](docs/subsystems/product-audit-2026-08-roadmap.md) | Product audit & roadmap |
 | [ux-competitor-report-2026-08-feasibility](docs/subsystems/ux-competitor-report-2026-08-feasibility.md) | UX competitor analysis |
 | [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1/P2 + 竞品调研路线图 |
+| [spark-v2-flywheel](docs/subsystems/spark-v2-flywheel.md) | V2 学习飞轮三阶段（P0 主动出击 → P1 分层周节奏 → P2 归因与语言干预） |
 
 Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.
 

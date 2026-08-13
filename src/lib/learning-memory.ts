@@ -20,6 +20,7 @@ import {
 } from "./tenant-storage";
 import {
   applySm2Decay,
+  bktPriorTier,
   DEFAULT_BKT,
   DEFAULT_ELO,
   DEFAULT_SM2,
@@ -32,6 +33,7 @@ import {
   softBktUpdate,
   zpdScore,
   type EloState,
+  type PriorTier,
   type Sm2State,
 } from "./bkt";
 import {
@@ -62,6 +64,22 @@ export type TopicMastery = {
   lastSeen: number;
 };
 
+/**
+ * V2 attribution — which learning mechanism drove a turn.
+ * The parent weekly report answers "where did this week's learning come from"
+ * by summing these counts per skill (report §10, 核心归因).
+ */
+export type LearningSource =
+  | "opener"
+  | "challenge"
+  | "deepDive"
+  | "connection"
+  | "wrongbook"
+  | "variant"
+  | "explore"
+  | "homework"
+  | "proactive";
+
 export type SkillMastery = {
   id: string;
   label: string;
@@ -82,6 +100,10 @@ export type SkillMastery = {
   eloState: EloState;
   /** CA-6 — recent misconception tag hits */
   misconceptionHits?: Array<{ id: string; count: number; lastSeen: number }>;
+  /** V2 attribution — turn counts by learning mechanism. */
+  sourceCounts?: Partial<Record<LearningSource, number>>;
+  /** V2 attribution — most recent mechanism that touched this skill. */
+  lastSource?: LearningSource;
 };
 
 /** Auto-advance suggestion when mastery exceeds current band ceiling. Parent opt-in; not auto-applied. */
@@ -111,6 +133,8 @@ export type LearningMemory = {
     days: string[];
     expiresAt: number;
   }>;
+  /** V2 P1 — BKT prior tier (report §9.3.1): "high" uses more aggressive params */
+  priorTier?: PriorTier;
   updatedAt: number;
 };
 
@@ -352,7 +376,45 @@ function normalizeSkill(raw: Partial<SkillMastery>): SkillMastery | null {
     misconceptionHits: normalizeHits(
       (raw as Record<string, unknown>).misconceptionHits,
     ),
+    sourceCounts: normalizeSourceCounts(
+      (raw as Record<string, unknown>).sourceCounts,
+    ),
+    lastSource: isLearningSource(
+      (raw as Record<string, unknown>).lastSource,
+    )
+      ? ((raw as Record<string, unknown>).lastSource as LearningSource)
+      : undefined,
   };
+}
+
+export const LEARNING_SOURCES: LearningSource[] = [
+  "opener",
+  "challenge",
+  "deepDive",
+  "connection",
+  "wrongbook",
+  "variant",
+  "explore",
+  "homework",
+  "proactive",
+];
+
+export function isLearningSource(v: unknown): v is LearningSource {
+  return typeof v === "string" && (LEARNING_SOURCES as string[]).includes(v);
+}
+
+function normalizeSourceCounts(
+  raw: unknown,
+): Partial<Record<LearningSource, number>> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Partial<Record<LearningSource, number>> = {};
+  for (const key of Object.keys(raw)) {
+    const v = (raw as Record<string, unknown>)[key];
+    if (isLearningSource(key) && typeof v === "number" && v > 0) {
+      out[key] = Math.min(9999, Math.floor(v));
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Migrate legacy topic rows into skills when skills[] is empty. */
@@ -472,6 +534,10 @@ export function normalizeMemory(
     preferredRepBySkill: normalizeRepMap(raw.preferredRepBySkill),
     stuckStreakBySkill: normalizeStuckMap(raw.stuckStreakBySkill),
     gapHistory: pruneGapHistory(raw.gapHistory as GapDayEntry[] | undefined),
+    priorTier:
+      raw.priorTier === "high" || raw.priorTier === "standard"
+        ? raw.priorTier
+        : undefined,
     updatedAt: Number(raw.updatedAt) || 0,
   };
 }
@@ -716,6 +782,7 @@ export function mergeLearningMemory(
     stuckStreakBySkill,
     gapHistory,
     advanceSuggestion: newer.advanceSuggestion ?? older.advanceSuggestion,
+    priorTier: newer.priorTier ?? older.priorTier,
     updatedAt: Math.max(na.updatedAt || 0, nb.updatedAt || 0),
   });
   // Apply SM-2 decay after merge so stale remote skills don't look mastered
@@ -736,9 +803,16 @@ export function recordLearningTurnMemory(
     chatTitle?: string;
     /** When set (e.g. Studio soft-feedback), skip text heuristics. */
     outcome?: TurnOutcome;
+    /** V2 P1 — BKT prior tier for this learner (report §9.3.1). */
+    priorTier?: PriorTier;
+    /** V2 attribution — which learning mechanism drove this turn. */
+    source?: LearningSource;
   },
 ): LearningMemory {
   const now = Date.now();
+  const { source } = params;
+  // V2 P1 — high-prior students use more aggressive BKT params (faster climb).
+  const tieredParams = bktPriorTier(DEFAULT_BKT, params.priorTier ?? "standard");
   const blob = [
     params.userText,
     params.chatTitle || "",
@@ -778,23 +852,31 @@ export function recordLearningTurnMemory(
     s.topicId = topicId;
     s.lastSeen = now;
     s.attempts += 1;
+    // V2 attribution — count this turn under its learning mechanism.
+    if (source) {
+      s.sourceCounts = {
+        ...(s.sourceCounts || {}),
+        [source]: (s.sourceCounts?.[source] || 0) + 1,
+      };
+      s.lastSource = source;
+    }
 
     // ── Confidence-weighted BKT update (Phase 1.5) ──
     if (confidence && (outcome === "correct" || outcome === "incorrect")) {
       if (outcome === "incorrect" && confidence >= 2) {
         // High-conf wrong → amplified slip penalty (larger drop)
         // Apply BKT twice to simulate stronger negative evidence
-        const first = softBktUpdate(s.pKnown, outcome);
-        s.pKnown = softBktUpdate(first, outcome);
+        const first = softBktUpdate(s.pKnown, outcome, tieredParams);
+        s.pKnown = softBktUpdate(first, outcome, tieredParams);
       } else if (outcome === "correct" && confidence === 1) {
         // Low-conf correct → dampened gain (half-step)
-        const damped = softBktUpdate(s.pKnown, "practice");
+        const damped = softBktUpdate(s.pKnown, "practice", tieredParams);
         s.pKnown = damped;
       } else {
-        s.pKnown = softBktUpdate(s.pKnown, outcome);
+        s.pKnown = softBktUpdate(s.pKnown, outcome, tieredParams);
       }
     } else {
-      s.pKnown = softBktUpdate(s.pKnown, outcome);
+      s.pKnown = softBktUpdate(s.pKnown, outcome, tieredParams);
     }
 
     s.mastery = masteryFromPKnown(s.pKnown);
@@ -812,11 +894,11 @@ export function recordLearningTurnMemory(
     // Re-apply BKT with difficulty-adjusted params for a finer update
     // (the primary BKT above uses default params; this second pass
     //  nudges pKnown toward the difficulty-calibrated estimate)
-    const diff = difficultyAdjustedBktParams(s.eloState);
+    const diff = difficultyAdjustedBktParams(s.eloState, tieredParams);
     const adjustedPKnown = softBktUpdate(
       s.pKnown,
       outcome,
-      { ...DEFAULT_BKT, ...diff },
+      { ...tieredParams, ...diff },
     );
     // Blend: 30% difficulty-adjusted, 70% original to avoid oscillation
     s.pKnown = clamp(s.pKnown * 0.7 + adjustedPKnown * 0.3, 0.001, 0.999);
@@ -875,6 +957,7 @@ export function recordLearningTurnMemory(
     stuckStreakBySkill,
     gapHistory: base.gapHistory,
     advanceSuggestion: base.advanceSuggestion,
+    priorTier: params.priorTier ?? base.priorTier,
     updatedAt: now,
   });
   next = {
@@ -883,6 +966,45 @@ export function recordLearningTurnMemory(
   };
   saveLearningMemory(next);
   return next;
+}
+
+/**
+ * V2 attribution — total turn counts per mechanism across skills seen in the
+ * window, sorted by contribution (report §10, 核心归因).
+ */
+export function attributionBySource(
+  mem: LearningMemory | null | undefined,
+  now = Date.now(),
+  windowMs = 7 * 86_400_000,
+): Array<{ source: LearningSource; count: number; label: string }> {
+  const out = new Map<LearningSource, number>();
+  const weekStart = now - windowMs;
+  for (const s of mem?.skills || []) {
+    if (s.lastSeen < weekStart) continue;
+    for (const [src, c] of Object.entries(s.sourceCounts || {})) {
+      if (isLearningSource(src) && c) {
+        out.set(src, (out.get(src) || 0) + c);
+      }
+    }
+  }
+  return [...out.entries()]
+    .map(([source, count]) => ({ source, count, label: sourceLabel(source) }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export function sourceLabel(source: LearningSource): string {
+  const map: Record<LearningSource, string> = {
+    opener: "daily opener",
+    challenge: "challenge rounds",
+    deepDive: "weekly deep dives",
+    connection: "connection cards",
+    wrongbook: "wrong-answer reviews",
+    variant: "variant practice",
+    explore: "interest explorations",
+    homework: "homework & photos",
+    proactive: "proactive reviews",
+  };
+  return map[source];
 }
 
 /** CA-6 — apply a misconception fence hit onto a skill row (caller persists). */
@@ -915,6 +1037,7 @@ export function applyMisconceptionToMemory(
       lastSeen: hit.lastSeen,
       sm2State: { ...DEFAULT_SM2 },
       eloState: { ...DEFAULT_ELO },
+      misconceptionHits: undefined,
     };
     skills.unshift(target);
   }
@@ -1112,6 +1235,7 @@ function nextBand(current: "early" | "elementary" | "middle" | "high"): "early" 
 export function autoAdvanceCheck(
   mem: LearningMemory,
   band: "early" | "elementary" | "middle" | "high",
+  priorTier: PriorTier = "standard",
 ): AdvanceSuggestion | null {
   if (band === "high") return null; // already at ceiling
 
@@ -1122,15 +1246,46 @@ export function autoAdvanceCheck(
   const activeSkills = normalized.skills.filter((s) => s.attempts > 0);
   if (activeSkills.length < 3) return null; // not enough data
 
-  const ready = activeSkills.filter((s) => s.pKnown > ADVANCE_THRESHOLD);
+  // V2 P1 — high-prior students advance more eagerly (report §9.3.1): the
+  // DRL-style aggressive path means a slightly lower readiness bar is fine.
+  const threshold = priorTier === "high" ? ADVANCE_THRESHOLD - 0.05 : ADVANCE_THRESHOLD;
+  const readyRatio = priorTier === "high" ? 0.7 : 0.75;
+
+  const ready = activeSkills.filter((s) => s.pKnown > threshold);
   const ratio = ready.length / activeSkills.length;
-  if (ratio < 0.75 || ready.length < 3) return null; // most skills need to be ready
+  if (ratio < readyRatio || ready.length < 3) return null; // most skills need to be ready
 
   const suggested = nextBand(band);
   if (suggested === band) return null;
 
   const confidence = Math.min(0.95, ratio * 1.1); // cap at 0.95
   return { suggestedBand: suggested, confidence, skillsReady: ready.length };
+}
+
+/**
+ * V2 P1 (report §9.3.1) — detect whether this learner is "high prior":
+ * - enrolled grade but working above it (accelerated curriculum), or
+ * - a solid history of well-attempted skills sitting high in pKnown.
+ * Returns "high" only with reasonable evidence; otherwise "standard".
+ */
+export function detectPriorTier(
+  profile: {
+    grade?: number;
+    curriculum?: { grade?: number } | null;
+  } | null | undefined,
+  mem?: LearningMemory | null,
+): PriorTier {
+  if (profile?.curriculum && (profile.curriculum.grade ?? 0) > (profile.grade ?? 0)) {
+    return "high";
+  }
+  const skills = mem?.skills || [];
+  const attempted = skills.filter((s) => s.attempts >= 3);
+  if (attempted.length >= 3) {
+    const avg =
+      attempted.reduce((sum, s) => sum + s.pKnown, 0) / attempted.length;
+    if (avg >= 0.75) return "high";
+  }
+  return "standard";
 }
 
 // ── Prompt Lines ────────────────────────────────────────────────────
@@ -1336,6 +1491,7 @@ export function serializeLearningMemoryForChat(
     preferredRepBySkill: m.preferredRepBySkill,
     stuckStreakBySkill: m.stuckStreakBySkill,
     gapHistory: (m.gapHistory || []).slice(0, 8),
+    priorTier: m.priorTier,
     updatedAt: m.updatedAt,
   };
 }

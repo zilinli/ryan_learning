@@ -9,10 +9,13 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   getJournalEntry,
+  loadAllJournals,
   loadJournal,
+  praiseJournalEntry,
   removeJournalMadeBlock,
   updateJournalEntry,
 } from "@/lib/entertain/journal-store";
+import { readServerAccounts } from "@/lib/accounts-store";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
@@ -35,6 +38,24 @@ export async function GET(req: Request) {
       return Response.json({ ok: false, error: "Not found" }, { status: 404 });
     }
     return Response.json({ ok: true, item });
+  }
+  // Everyone view: aggregate every account's journal and attach each row's
+  // author display name (fallback: the raw accountId).
+  const scope = String(url.searchParams.get("scope") || "").slice(0, 8);
+  if (scope === "all") {
+    const [items, accts] = await Promise.all([
+      loadAllJournals(),
+      readServerAccounts().catch(() => null),
+    ]);
+    const names = new Map<string, string>();
+    for (const a of accts?.accounts || []) {
+      names.set(a.id, a.profile.name || a.id);
+    }
+    const withAuthor = items.map((e) => ({
+      ...e,
+      authorName: names.get(e.accountId) || e.accountId,
+    }));
+    return Response.json({ ok: true, items: withAuthor });
   }
   const month = String(url.searchParams.get("month") || "").slice(0, 7);
   const store = await loadJournal(accountId);
@@ -113,4 +134,43 @@ export async function DELETE(req: Request) {
     ? await removeJournalMadeBlock(accountId, id, creationId)
     : await deleteJournalEntry(accountId, id);
   return Response.json({ ok });
+}
+
+/**
+ * PATCH /api/journal — V2 §9.4.3 praise write-back on the Everyone wall.
+ * Body: { targetAccountId, id, fromAccountId, note? }. Toggles the like for
+ * `fromAccountId`; a non-empty note attaches a one-line encouragement.
+ * Self-praise is rejected.
+ */
+export async function PATCH(req: Request) {
+  const limited = checkApiRateLimit(req, "journal-patch", RATE_PRESETS.entertain);
+  if (limited) return limited;
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
+  const targetAccountId = safeAccount(String(body.targetAccountId || ""));
+  const fromAccountId = safeAccount(String(body.fromAccountId || ""));
+  const id = String(body.id || "").slice(0, 80);
+  if (!id || !targetAccountId || !fromAccountId) {
+    return Response.json({ ok: false, error: "Missing id/account" }, { status: 400 });
+  }
+  if (targetAccountId === fromAccountId) {
+    return Response.json({ ok: false, error: "No self-praise" }, { status: 400 });
+  }
+  let name: string | undefined;
+  const accts = await readServerAccounts().catch(() => null);
+  const fromProfile = accts?.accounts.find((a) => a.id === fromAccountId);
+  if (fromProfile) name = fromProfile.profile.name || fromAccountId;
+  const item = await praiseJournalEntry(targetAccountId, id, {
+    accountId: fromAccountId,
+    name,
+    note: body.note !== undefined ? String(body.note) : undefined,
+  });
+  if (!item) {
+    return Response.json({ ok: false, error: "Not found" }, { status: 404 });
+  }
+  return Response.json({ ok: true, item });
 }

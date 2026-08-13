@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applySm2Decay,
   bktDefaultsForBand,
+  bktPriorTier,
   bktUpdate,
   DEFAULT_BKT,
   DEFAULT_SM2,
@@ -371,6 +372,38 @@ describe("bktDefaultsForBand", () => {
       expect(params.pSlip).toBeLessThan(0.3);
       expect(params.pGuess).toBeGreaterThan(0);
       expect(params.pGuess).toBeLessThan(0.3);
+    }
+  });
+});
+
+describe("bktPriorTier (report §9.3.1)", () => {
+  it("standard tier keeps the given params unchanged", () => {
+    expect(bktPriorTier(DEFAULT_BKT, "standard")).toEqual(DEFAULT_BKT);
+  });
+
+  it("high tier raises prior and learning, lowers slip and guess", () => {
+    const hi = bktPriorTier(DEFAULT_BKT, "high");
+    expect(hi.pInit).toBeGreaterThan(DEFAULT_BKT.pInit);
+    expect(hi.pLearn).toBeGreaterThan(DEFAULT_BKT.pLearn);
+    expect(hi.pSlip).toBeLessThan(DEFAULT_BKT.pSlip);
+    expect(hi.pGuess).toBeLessThan(DEFAULT_BKT.pGuess);
+  });
+
+  it("high tier climbs pKnown faster on identical correct sequences", () => {
+    let standard = 0.25;
+    let high = 0.25;
+    for (let i = 0; i < 3; i++) {
+      standard = softBktUpdate(standard, "correct", bktPriorTier(DEFAULT_BKT, "standard"));
+      high = softBktUpdate(high, "correct", bktPriorTier(DEFAULT_BKT, "high"));
+    }
+    expect(high).toBeGreaterThan(standard);
+  });
+
+  it("high tier stays within valid bounds", () => {
+    const hi = bktPriorTier(DEFAULT_BKT, "high");
+    for (const v of [hi.pInit, hi.pLearn, hi.pSlip, hi.pGuess]) {
+      expect(v).toBeGreaterThan(0);
+      expect(v).toBeLessThan(1);
     }
   });
 });

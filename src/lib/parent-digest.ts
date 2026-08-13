@@ -12,6 +12,7 @@ import {
   needsReviewSkills,
   skillWeaknesses,
   zpdWarmUpSkills,
+  attributionBySource,
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
@@ -79,6 +80,8 @@ export type ParentWeeklyDigest = {
     digestInsight?: string;
     text: string;
   } | null;
+  /** V2 attribution — which learning mechanisms drove this week (report §10). */
+  sourceAttribution: Array<{ source: string; count: number; label: string }>;
   text: string;
 };
 
@@ -159,6 +162,7 @@ export function buildParentWeeklyDigest(
       idleDays: null,
       feynmanTask: null,
       breakthrough: null,
+      sourceAttribution: [],
       text: `Week of ${weekOf}: no skill activity logged yet.`,
     };
   }
@@ -215,6 +219,12 @@ export function buildParentWeeklyDigest(
   const idleNote = parentIdleNote(idleDays);
   const feynmanTask = buildFeynmanTask(mem, now);
   const breakthrough = buildBreakthrough(mem, masteryUp, now);
+  // V2 attribution — "where did this week's learning come from" (report §10).
+  const sourceAttribution = attributionBySource(mem, now).map((r) => ({
+    source: r.source,
+    count: r.count,
+    label: r.label,
+  }));
 
   const lines: string[] = [`Week of ${weekOf}`];
   if (idleNote) {
@@ -226,6 +236,11 @@ export function buildParentWeeklyDigest(
     );
   } else {
     lines.push("Practiced: no chats logged in the last 7 days.");
+  }
+  if (sourceAttribution.length) {
+    lines.push(
+      `Main drivers: ${sourceAttribution.slice(0, 3).map((s) => `${s.label} (${s.count})`).join(", ")}`,
+    );
   }
   if (masteryUp.length) {
     lines.push(`Gains: ${masteryUp.map((s) => s.label).join(", ")}`);
@@ -264,6 +279,7 @@ export function buildParentWeeklyDigest(
     idleDays,
     feynmanTask,
     breakthrough,
+    sourceAttribution,
     text: lines.join("\n"),
   };
 }

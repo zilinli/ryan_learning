@@ -25,6 +25,23 @@ export type JournalEntry = {
   source: "student" | "creation" | "mixed";
   made: JournalMadeBlock[];
   writingType?: string;
+  /**
+   * Lightweight peer praise on the Everyone wall (V2 §9.4.3): a like and an
+   * optional one-line note. No leaderboards — just encouragement.
+   */
+  praise?: JournalPraise;
+  /** Author display name, injected only by the scope=all aggregation endpoint. */
+  authorName?: string;
+};
+
+export type JournalPraise = {
+  count: number;
+  notes: Array<{
+    accountId: string;
+    name?: string;
+    note?: string;
+    at: number;
+  }>;
 };
 
 export function localDay(ms: number = Date.now()): string {

@@ -127,3 +127,17 @@ export function flowAdviceLabel(advice: FlowAdvice): string | null {
   if (advice === "step-down") return "Let's make the next one a little gentler.";
   return null;
 }
+
+/**
+ * Coach-facing prompt note (report §9.2.1): lets the LLM adjust the *next*
+ * question's difficulty in any conversation, not just challenge mode.
+ */
+export function flowAdvicePromptNote(advice: FlowAdvice): string | null {
+  if (advice === "step-up") {
+    return "The child just breezed through a fast correct streak — nudge the next question a notch harder.";
+  }
+  if (advice === "step-down") {
+    return "The child is stuck or hesitating — make the next question a little gentler.";
+  }
+  return null;
+}

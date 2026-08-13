@@ -79,6 +79,8 @@ describe("deep-dive-week", () => {
     expect(msg).toMatch(/ELABORATE/);
     expect(msg).toMatch(/EVALUATE/);
     expect(msg).toMatch(/poster|diagram|summary/);
+    // V2 P2 — curiosity hook opens before the first question (report §9.1.2)
+    expect(msg).toMatch(/counterintuitive fact or unsolved mystery/);
   });
 
   it("marking done is scoped to the week", () => {

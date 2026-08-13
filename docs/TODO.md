@@ -24,6 +24,31 @@
 
 ---
 
+## 🎯 SPARK-V2 — V2 四维学习飞轮三阶段（2026-08-13）
+
+> **基准报告:** `evaluation/Spark_四维学习力深度调研报告_V2_2026-08-13.md` §10 路线图  
+> **Design:** [subsystems/spark-v2-flywheel.md](subsystems/spark-v2-flywheel.md) · [subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) § V2 三阶段  
+> **目标:** P0 主动出击+信号转活+兴趣反哺；P1 BKT 先验分层+每周 Launchpad+广度导航+兴趣作品闭环；P2 好奇心干预+动态连接卡+作品墙+快速路径扩容+课程序列分离+数据归因
+
+- [x] **SPARK-V2.1 (P0-proactive)** — `proactive-nudge.ts`（答错/闲置触发、每会话一次、dismiss 不骚扰）+ `useTutorSession` 记录 + `ChatThread` 非阻塞邀请条
+- [x] **SPARK-V2.2 (P0-flow)** — `recordFlowTurn` advice → `flowMoment` UI + step-up/down 注入 `coachNote` prompt
+- [x] **SPARK-V2.3 (P0-interest)** — `pickExploreTopics(mem, limit, interests?)` 兴趣加权 + kickoff 延续文案 + `planExploreSequence` 接线
+- [x] **SPARK-V2.4 (P1-bkt-tier)** — `bktPriorTier` 先验分层 + `detectPriorTier` + `autoAdvanceCheck` 高先验更灵敏
+- [x] **SPARK-V2.5 (P1-launchpad)** — `weekly-launchpad.ts` 聚合深潜/连接/Feynman/目标 → ChatThread「This week」聚合卡
+- [x] **SPARK-V2.6 (P1-breadth-nav)** — `buildSubjectBridges` 跨学科桥梁（已掌握→相邻未探索，最强锚点）+ LearningDashboard 展示
+- [x] **SPARK-V2.7 (P1-creation-loop)** — 探索末尾"喜欢"信号 → `creationOffer` 轻量卡 → Studio/Journal
+- [x] **SPARK-V2.8 (P2-curiosity)** — 探索/深潜 kickoff 追加知识缺口指令（反直觉事实 → 苏格拉底阶梯）
+- [x] **SPARK-V2.9 (P2-dynamic-card)** — `buildDynamicConnectionOffer` 双学科已掌握 → 动态连接卡（优先级高于周卡）
+- [x] **SPARK-V2.10 (P2-workswall)** — `JournalEntry.praise` + `PATCH /api/journal`（禁自赞）+ JournalTimeline Everyone `PraiseChip`
+- [x] **SPARK-V2.11 (P2-fastpath)** — `local-facts.ts` 公式/百分比/名词释义/历史时间线速查（中英双语确定性）
+- [x] **SPARK-V2.12 (P2-seq-dialog)** — `planExploreSequence`/`planOneExploreTopic` 纯函数（课程序列 vs LLM 对话分离）
+- [x] **SPARK-V2.13 (attribution)** — `SkillMastery.sourceCounts`/`lastSource` + `recordLearningTurnMemory(source)` + `attributionBySource` + 家长周报 `sourceAttribution`/Main drivers
+- [x] **SPARK-V2.14 (tests)** — 新增 proactive-nudge / weekly-launchpad + 扩展 flow/explore/bkt/breadth/connection/learning-memory/parent-digest/local-facts/journal-route；全量 1525 passed
+- [x] **SPARK-V2.15 (docs)** — `spark-v2-flywheel.md` + roadmap + TODO + DESIGN + README
+- [ ] **SPARK-V2.16 (release)** — publish develop/master + build + pm2 restart + health
+
+---
+
 ## 🎯 SPARK-4D — 四维学习力 P0→P2（2026-08-13）
 
 > **基准报告:** `evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣 / 心流 / 深度 / 广度）  

@@ -10,6 +10,7 @@
 import { kvGet, kvSet } from "./browser-kv";
 import type { LearningMemory } from "./learning-memory";
 import { buildWrongAnswerReviewSet, type WrongAnswer } from "./wrong-answer-store";
+import { CURIOSITY_HOOK_LINE } from "./curiosity-hook";
 
 export const DEEP_DIVE_DAY = 0; // Sunday (getUTCDay) — but offer is any day of a fresh week
 const MASTERY_FLOOR = 0.82;
@@ -143,6 +144,7 @@ export function buildDeepDiveKickoff(
       : `Let's go DEEP on "${topicLabel}" today.`;
   return [
     opener,
+    CURIOSITY_HOOK_LINE,
     "Run this as a weekly deep project, one step at a time:",
     "1. ENGAGE — ask me a wonder question about it first; I'll pick one to explore.",
     "2. EXPLORE — give me a small puzzle or prediction to try BEFORE you explain. No spoilers.",

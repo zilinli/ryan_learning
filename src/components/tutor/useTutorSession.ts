@@ -9,7 +9,26 @@ import {
 import { tryLocalRecall } from "@/lib/local-recall";
 import { tryLocalFacts } from "@/lib/local-facts";
 import { recordChallengeOutcome } from "@/lib/challenge-mode";
-import { recordFlowTurn } from "@/lib/flow-signals";
+import {
+  flowAdviceLabel,
+  flowAdvicePromptNote,
+  recordFlowTurn,
+  type FlowAdvice,
+} from "@/lib/flow-signals";
+import {
+  buildProactiveInvite,
+  dismissProactiveToday,
+  isWrongReviewKickoff,
+  loadPendingWrongAt,
+  markProactiveShown,
+  noteReviewStarted,
+  noteWrongAnswerAt,
+  pendingReviewSet,
+  PROACTIVE_IDLE_MS,
+  shouldProactiveInvite,
+  turnsSinceLastWrong,
+  type ProactiveInvite,
+} from "@/lib/proactive-nudge";
 import {
   addWrongAnswer,
   buildVariantKickoffOpener,
@@ -19,6 +38,12 @@ import {
   skillLabelForText,
 } from "@/lib/wrong-answer-store";
 import { consumeSubjectStarter } from "@/lib/breadth-map";
+import {
+  creationOfferLine,
+  likesTopicSignal,
+  type CreationOffer,
+} from "@/lib/creation-offer";
+import { recentInterests } from "@/lib/interest-store";
 import { reconcileWeeklyGoal } from "@/lib/weekly-goal";
 import {
   emotionPromptLines,
@@ -68,6 +93,8 @@ import {
 } from "@/lib/student-profile";
 import {
   applyMisconceptionToMemory,
+  autoAdvanceCheck,
+  detectPriorTier,
   hydrateLearningMemoryFromServer,
   loadLearningMemory,
   pushLearningMemoryToServer,
@@ -78,6 +105,7 @@ import {
   appendDigestToMemory,
   classifyTurnOutcome,
   type LearningMemory,
+  type LearningSource,
 } from "@/lib/learning-memory";
 import {
   deletePhotosFromVault,
@@ -199,6 +227,19 @@ export function useTutorSession() {
     dismissed: boolean;
   } | null>(null);
   const [emotionLine, setEmotionLine] = useState<string | null>(null);
+  // V2 P0 — proactive review invite (report §9.2.2): non-blocking offer after
+  // an unanswered wrong answer or an idle return.
+  const [proactiveInvite, setProactiveInvite] = useState<ProactiveInvite | null>(
+    null,
+  );
+  const hiddenAtRef = useRef<number | null>(null);
+  // V2 P0 — "growth moment" line from the flow signal (report §9.2.1).
+  const [flowMoment, setFlowMoment] = useState<string | null>(null);
+  // Last turn's flow advice — injected into the NEXT turn's prompt so the LLM
+  // can adjust difficulty in ordinary conversations (not just challenge mode).
+  const flowAdviceRef = useRef<FlowAdvice>("hold");
+  // V2 P1 — interest → creation offer (report §9.1.3).
+  const [creationOffer, setCreationOffer] = useState<CreationOffer | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
@@ -693,6 +734,58 @@ export function useTutorSession() {
   const sessionId = active?.sessionId ?? "";
   const messages = active?.messages ?? [];
 
+  // V2 P0 — proactive review invite (report §9.2.2).
+  // Shows a non-blocking offer when (a) a wrong answer went unanswered for a
+  // few turns, or (b) the child returns after being away ≥ PROACTIVE_IDLE_MS.
+  // Frequency/dismissal guards live in proactive-nudge.ts.
+  useEffect(() => {
+    if (!ready) return;
+
+    const maybeShowRecentWrong = () => {
+      if (busy) return;
+      const pendingAt = loadPendingWrongAt(accountId);
+      const turns = turnsSinceLastWrong(messages, pendingAt);
+      if (
+        shouldProactiveInvite(accountId, {
+          reason: "recent-wrong",
+          pendingAt,
+          turnsSince: turns,
+        })
+      ) {
+        const items = pendingReviewSet(accountId);
+        if (items.length > 0) {
+          markProactiveShown(accountId);
+          setProactiveInvite(buildProactiveInvite(items, "recent-wrong"));
+        }
+      }
+    };
+
+    const maybeShowIdleReturn = () => {
+      if (busy) return;
+      const hiddenAt = hiddenAtRef.current;
+      if (hiddenAt == null || Date.now() - hiddenAt < PROACTIVE_IDLE_MS) return;
+      if (!shouldProactiveInvite(accountId, { reason: "idle-return" })) return;
+      const items = pendingReviewSet(accountId);
+      if (items.length === 0) return;
+      hiddenAtRef.current = null;
+      markProactiveShown(accountId);
+      setProactiveInvite(buildProactiveInvite(items, "idle-return"));
+    };
+
+    maybeShowRecentWrong();
+
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+      } else {
+        maybeShowIdleReturn();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, busy, ready, accountId]);
+
   // CA-2 / CA-3 — hydrate empty-chat offers when account or active chat changes
   useEffect(() => {
     if (!ready || !store) return;
@@ -745,6 +838,27 @@ export function useTutorSession() {
   const handleDismissBreakNudge = useCallback(() => {
     dismissBreakNudge();
     setBreakNudge(null);
+  }, []);
+
+  // V2 P0 — proactive review invite: "Not now" (off for the day) / accept.
+  const handleDismissProactiveInvite = useCallback(() => {
+    dismissProactiveToday(accountId);
+    noteReviewStarted(accountId);
+    setProactiveInvite(null);
+  }, [accountId]);
+
+  const handleAcceptProactiveInvite = useCallback(() => {
+    if (!proactiveInvite) return;
+    const kickoff = proactiveInvite.kickoff;
+    noteReviewStarted(accountId);
+    setProactiveInvite(null);
+    void handleSend({ text: kickoff, attachments: [], source: "proactive" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, proactiveInvite]);
+
+  // V2 P1 — creation offer: "Not now" simply clears it.
+  const handleDismissCreationOffer = useCallback(() => {
+    setCreationOffer(null);
   }, []);
 
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
@@ -870,6 +984,8 @@ export function useTutorSession() {
     setError("");
     stopSpeakAll();
     setUrlSession(id, accountId);
+    // V2 P1 — creation offer belongs to the conversation that produced it.
+    setCreationOffer(null);
 
     // CA-3 — once/day opener on empty new chat (practice offer takes precedence in UI)
     const opener = buildSessionOpener(mem, accountId);
@@ -925,7 +1041,7 @@ export function useTutorSession() {
     const text = pendingTedKickoffRef.current;
     if (!text || messages.length > 0) return;
     pendingTedKickoffRef.current = null;
-    void handleSend({ text, attachments: [] });
+    void handleSend({ text, attachments: [], source: "challenge" });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot after new session
   }, [ready, store, sessionId, busy, messages.length]);
 
@@ -1010,6 +1126,8 @@ export function useTutorSession() {
     text: string;
     attachments: ClientAttachment[];
     quote?: ChatQuote;
+    /** V2 attribution — the learning mechanism that started this turn. */
+    source?: LearningSource;
   }) => {
     if (busy || !store || !sessionId) return;
 
@@ -1147,7 +1265,12 @@ export function useTutorSession() {
         .slice(0, 5)
         .map((c) => c.title)
         .filter((t) => t && t !== "New chat");
-      const coachNote = emotionPromptLines().filter(Boolean).join("\n") || undefined;
+      const coachNote = [
+        emotionPromptLines().filter(Boolean).join("\n"),
+        flowAdvicePromptNote(flowAdviceRef.current),
+      ]
+        .filter(Boolean)
+        .join("\n") || undefined;
 
       const wireQuote = payload.quote
         ? resolveQuoteForSend(payload.quote, messages)
@@ -1243,11 +1366,20 @@ export function useTutorSession() {
       resetIdsRef.current.delete(sessionId);
       lastAssistantAtRef.current = Date.now();
       setEngagement(recordLearningTurn(undefined, accountId));
+      // V2 P1 — BKT prior tier (report §9.3.1): high-prior students get more
+      // aggressive learning parameters and a more eager auto-advance trigger.
+      const priorTier = detectPriorTier(profile, mem);
       let nextMem = recordLearningTurnMemory(mem, {
         userText: payload.text,
         assistantText: full,
         chatTitle: active?.title || titleFromMessages(messages),
+        priorTier,
+        source: payload.source,
       });
+      const suggestion = autoAdvanceCheck(nextMem, profile.gradeBand, priorTier);
+      if (suggestion && !nextMem.advanceSuggestion) {
+        nextMem = { ...nextMem, advanceSuggestion: suggestion };
+      }
       // CA-6 — merge misconception fence into skill hits
       const mcHit = parseMisconceptionFence(full);
       if (mcHit) {
@@ -1267,6 +1399,25 @@ export function useTutorSession() {
       const outcome = classifyTurnOutcome(payload.text, full);
       // P0 — in-session flow: record answer latency, get step-up/step-down advice
       const flowAdvice = recordFlowTurn(outcome, { latencyMs: answerLatencyMs });
+      // V2 P0 — surface the "growth moment" line and remember the advice for
+      // the next turn's prompt (report §9.2.1).
+      flowAdviceRef.current = flowAdvice;
+      setFlowMoment(flowAdviceLabel(flowAdvice));
+      // V2 P1 — interest → creation loop (report §9.1.3): when the child gets
+      // a turn right AND sounds enthusiastic, offer a mini-creation card.
+      if (
+        outcome === "correct" &&
+        likesTopicSignal(payload.text, full) &&
+        !creationOffer
+      ) {
+        const last = recentInterests(accountId, 1)[0];
+        if (last) {
+          setCreationOffer({
+            topicLabel: last.label,
+            createdAt: Date.now(),
+          });
+        }
+      }
       // P1 — auto difficulty ramp: fast correct streaks climb faster; slow or
       // wrong streaks drop back (only while a challenge session is active).
       recordChallengeOutcome(accountId, outcome, {
@@ -1288,6 +1439,14 @@ export function useTutorSession() {
           studentAnswer: payload.text,
           assistantText: full,
         });
+        // V2 P0 — proactive outreach: remember this wrong answer is pending a
+        // follow-up review (surfaced as a non-blocking invite later).
+        noteWrongAnswerAt(accountId);
+      }
+      // V2 P0 — if the child just started a wrong-review/variant kickoff, that
+      // counts as the follow-up: no proactive invite for this wrong answer.
+      if (isWrongReviewKickoff(payload.text)) {
+        noteReviewStarted(accountId);
       }
       const emotionKind =
         outcome === "correct"
@@ -1378,5 +1537,8 @@ export function useTutorSession() {
     setSpeakApi, stopSpeakAll, handleOpenCodeAgent, setKeyMissing,
     setPracticeOffer, setSessionOpener, setStore,
     breakNudge, handleDismissBreakNudge,
+    proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
+    flowMoment, setFlowMoment,
+    creationOffer, handleDismissCreationOffer, creationOfferLine,
   };
 }

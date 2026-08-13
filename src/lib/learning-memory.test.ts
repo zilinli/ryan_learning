@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attributionBySource,
   emptyLearningMemory,
   inferTopicsFromText,
   learningMemoryPromptLines,
@@ -123,5 +124,63 @@ describe("learning-memory", () => {
     expect(text).toMatch(/fraction/i);
     expect(text).toMatch(/Adaptive difficulty|tailor difficulty/i);
     expect(text).toMatch(/Self-assessment|confidence/i);
+  });
+
+  it("V2 attribution: records source counts per skill and preserves them on normalize", () => {
+    let mem = emptyLearningMemory();
+    mem = recordLearningTurnMemory(mem, {
+      userText: "I'm stuck on this fraction problem",
+      source: "deepDive",
+    });
+    mem = recordLearningTurnMemory(mem, {
+      userText: "got it! fractions equivalent",
+      assistantText: "Yes, that's right — nice work!",
+      source: "deepDive",
+    });
+    mem = recordLearningTurnMemory(mem, {
+      userText: "show me more fractions",
+      assistantText: "Yes — 1/2 = 2/4, nice work on equivalent fractions.",
+      source: "explore",
+    });
+
+    const frac = mem.skills.find((s) => s.topicId === "fractions");
+    expect(frac?.sourceCounts?.deepDive).toBeGreaterThanOrEqual(1);
+    expect(frac?.sourceCounts?.explore).toBeGreaterThanOrEqual(1);
+    expect(frac?.lastSource).toBe("explore");
+
+    const restored = normalizeMemory(mem);
+    const frac2 = restored.skills.find((s) => s.topicId === "fractions");
+    expect(frac2?.sourceCounts?.deepDive).toBe(frac?.sourceCounts?.deepDive);
+    expect(frac2?.lastSource).toBe("explore");
+  });
+
+  it("V2 attribution: attributionBySource aggregates across skills and drops junk", () => {
+    const mem = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.5,
+          mastery: 50,
+          attempts: 2,
+          correct: 1,
+          incorrect: 1,
+          lastSeen: Date.now(),
+          sm2State: { ef: 2.2, interval: 2, reps: 1, prevReview: Date.now() },
+          eloState: { rating: 1300, n: 2, lastUpdate: Date.now() },
+          sourceCounts: {
+            deepDive: 2,
+            junk: 9,
+          } as Partial<Record<import("./learning-memory").LearningSource, number>>,
+        },
+      ],
+      updatedAt: Date.now(),
+    });
+    const rows = attributionBySource(mem);
+    expect(rows[0]?.source).toBe("deepDive");
+    expect(rows[0]?.count).toBe(2);
+    expect(rows.some((r) => (r.source as string) === "junk")).toBe(false);
+    expect(rows[0]?.label).toBe("weekly deep dives");
   });
 });

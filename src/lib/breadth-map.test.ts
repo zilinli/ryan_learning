@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { kvClearMemory, kvRemove } from "./browser-kv";
 import {
   buildBreadthFootprint,
+  buildSubjectBridges,
   consumeSubjectStarter,
+  stashBreadthBridgeStarter,
   stashSubjectStarter,
   subjectForInterest,
 } from "./breadth-map";
@@ -67,5 +69,71 @@ describe("breadth-map", () => {
     expect(k!.label).toBe(untouched.label);
     expect(k!.starter.length).toBeGreaterThan(10);
     expect(consumeSubjectStarter()).toBeNull();
+  });
+});
+
+describe("breadth-map: subject bridges (report §9.4.1)", () => {
+  it("finds a cross-subject door from a mastered skill's adjacent", () => {
+    // geometry-measure (math) has adjacent physics-6-8 (science)
+    const m = mem(["geometry-measure"]);
+    const bridges = buildSubjectBridges(m);
+    const toScience = bridges.find((b) => b.to === "science");
+    expect(toScience).toBeDefined();
+    expect(toScience!.from).toBe("math");
+    expect(toScience!.doorSkillId).toBe("physics-6-8");
+    expect(toScience!.starter).toContain("I already know");
+  });
+
+  it("skips adjacent skills that are already mastered", () => {
+    const now = Date.now();
+    const m = normalizeMemory({
+      skills: [
+        {
+          id: "geometry-measure",
+          label: "geometry-measure",
+          topicId: "geometry",
+          pKnown: 0.9,
+          mastery: 90,
+          attempts: 5,
+          correct: 4,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.5, interval: 4, reps: 2, prevReview: now },
+          eloState: { rating: 1500, n: 5, lastUpdate: now },
+        },
+        {
+          id: "physics-6-8",
+          label: "physics-6-8",
+          topicId: "science-phys",
+          pKnown: 0.85,
+          mastery: 85,
+          attempts: 5,
+          correct: 4,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.5, interval: 4, reps: 2, prevReview: now },
+          eloState: { rating: 1500, n: 5, lastUpdate: now },
+        },
+      ],
+      updatedAt: now,
+    });
+    const bridges = buildSubjectBridges(m);
+    expect(bridges.find((b) => b.to === "science")).toBeUndefined();
+  });
+
+  it("keeps same-subject adjacency out of the breadth map", () => {
+    // earth-moon-sun (science) → ecosystems (science): not a breadth bridge
+    const bridges = buildSubjectBridges(mem(["earth-moon-sun"]));
+    expect(bridges.every((b) => b.from !== b.to)).toBe(true);
+  });
+
+  it("stash/consume bridge starter routes to the chat", () => {
+    const bridges = buildSubjectBridges(mem(["geometry-measure"]));
+    const bridge = bridges.find((b) => b.to === "science")!;
+    stashBreadthBridgeStarter(bridge);
+    const k = consumeSubjectStarter();
+    expect(k).not.toBeNull();
+    expect(k!.subject).toBe("science");
+    expect(k!.starter).toContain("I already know");
   });
 });

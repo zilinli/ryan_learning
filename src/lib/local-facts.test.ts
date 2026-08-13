@@ -145,3 +145,69 @@ describe("tryLocalFacts — double & triple", () => {
     expect(tryLocalFacts("6的3倍")?.answer).toBe("18");
   });
 });
+
+describe("tryLocalFacts — V2 P2 more formulas (report §9.2.3)", () => {
+  it("square perimeter", () => {
+    expect(tryLocalFacts("perimeter of square 5")?.answer).toBe("20");
+    expect(tryLocalFacts("正方形周长 5")?.answer).toBe("20");
+  });
+
+  it("circle circumference & area", () => {
+    const cc = tryLocalFacts("circumference of circle 7")!;
+    expect(cc.answer).toBe("43.98");
+    const ca = tryLocalFacts("area of circle 5")!;
+    expect(ca.answer).toBe("78.54");
+  });
+
+  it("triangle area, hypotenuse, cube volume", () => {
+    expect(tryLocalFacts("area of triangle 6 and 4")?.answer).toBe("12");
+    expect(tryLocalFacts("hypotenuse 3 and 4")?.answer).toBe("5");
+    expect(tryLocalFacts("volume of cube 3")?.answer).toBe("27");
+    expect(tryLocalFacts("立方体体积 3")?.answer).toBe("27");
+  });
+});
+
+describe("tryLocalFacts — V2 P2 what-percent (report §9.2.3)", () => {
+  it("40 is what percent of 200", () => {
+    const hit = tryLocalFacts("40 is what percent of 200")!;
+    expect(hit.answer).toBe("20%");
+    expect(hit.reply).toMatch(/20%/);
+  });
+
+  it("中文：40是200的百分之几", () => {
+    expect(tryLocalFacts("40是200的百分之几")?.answer).toBe("20%");
+  });
+
+  it("rejects part > whole", () => {
+    expect(tryLocalFacts("300 is what percent of 200")).toBeNull();
+  });
+});
+
+describe("tryLocalFacts — V2 P2 term dictionary (report §9.2.3)", () => {
+  it("math & ELA terms", () => {
+    expect(tryLocalFacts("what is a fraction")?.reply).toMatch(/part of a whole/);
+    expect(tryLocalFacts("what is a prime number")?.answer).toBe("prime number");
+    expect(tryLocalFacts("what is a noun")?.answer).toBe("noun");
+    expect(tryLocalFacts("define verb")?.answer).toBe("verb");
+    expect(tryLocalFacts("什么是光合作用")?.answer).toBe("photosynthesis");
+    expect(tryLocalFacts("什么是重力")?.answer).toBe("gravity");
+  });
+
+  it("rejects non-definition questions", () => {
+    expect(tryLocalFacts("I like fractions")).toBeNull();
+    expect(tryLocalFacts("fraction")).toBeNull();
+  });
+});
+
+describe("tryLocalFacts — V2 P2 history timeline (report §9.2.3)", () => {
+  it("when did WWII / Titanic / Apollo 11 happen", () => {
+    expect(tryLocalFacts("when did world war ii happen")?.answer).toBe("1939–1945");
+    expect(tryLocalFacts("when did the titanic sink")?.answer).toBe("1912");
+    expect(tryLocalFacts("moon landing happened when")?.answer).toBe("1969");
+    expect(tryLocalFacts("什么时候发生的二战")?.answer).toBe("1939–1945");
+  });
+
+  it("rejects non-history asks", () => {
+    expect(tryLocalFacts("when is lunch")).toBeNull();
+  });
+});

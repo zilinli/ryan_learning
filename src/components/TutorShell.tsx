@@ -40,11 +40,12 @@ import {
   type ChallengeLevel,
 } from "@/lib/challenge-mode";
 import {
-  pickExploreTopics,
   buildExploreKickoffMessage,
+  planExploreSequence,
+  type ExplorePlan,
   type ExploreTopic,
 } from "@/lib/explore-catalog";
-import { recordInterest } from "@/lib/interest-store";
+import { recordInterest, loadInterests } from "@/lib/interest-store";
 import { buildAdjacentOpener } from "@/lib/adjacent-recommend";
 import {
   buildDeepDiveOfferForAccount,
@@ -52,8 +53,15 @@ import {
   type DeepDiveOffer,
 } from "@/lib/deep-dive-week";
 import {
+  buildWeeklyLaunchpad,
+  launchpadKickoff,
+  type LaunchpadAction,
+  type WeeklyLaunchpadView,
+} from "@/lib/weekly-launchpad";
+import {
   buildConnectionOffer,
-  markConnectionShown,
+  buildDynamicConnectionOffer,
+  markConnectionShownForOffer,
   type ConnectionOffer,
 } from "@/lib/connection-card";
 import {
@@ -79,6 +87,9 @@ export function TutorShell() {
     setSpeakApi, stopSpeakAll, handleOpenCodeAgent,
     setPracticeOffer, setSessionOpener,
     breakNudge, handleDismissBreakNudge,
+    proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
+    flowMoment, setFlowMoment,
+    creationOffer, handleDismissCreationOffer, creationOfferLine,
   } = useTutorSession();
 
   const [quote, setQuote] = useState<ChatQuote | null>(null);
@@ -88,24 +99,45 @@ export function TutorShell() {
 
   // P0 — interest-led exploration chips for the empty chat
   const [exploreTopics, setExploreTopics] = useState<ExploreTopic[]>([]);
+  // V2 P2 — rule-based explore plan (topic + ZPD start) for the chip kickoffs
+  const explorePlansRef = useRef<Map<string, ExplorePlan>>(new Map());
   // P1 — weekly deep-dive project + weekly connection card offers
   const [deepDiveOffer, setDeepDiveOffer] = useState<DeepDiveOffer | null>(null);
   const [connectionOffer, setConnectionOffer] = useState<ConnectionOffer | null>(null);
   // P2 — cross-domain auto-recommendation (neighbor skill of a mastered one)
   const [adjacentOpener, setAdjacentOpener] = useState<SessionOpener | null>(null);
+  // V2 P1 — weekly "This week" Launchpad strip (report §9.3.2)
+  const [weeklyLaunchpad, setWeeklyLaunchpad] = useState<WeeklyLaunchpadView | null>(
+    null,
+  );
 
   useEffect(() => {
     if (messages.length > 0) {
       setExploreTopics([]);
+      explorePlansRef.current.clear();
       setDeepDiveOffer(null);
       setConnectionOffer(null);
       setAdjacentOpener(null);
+      setWeeklyLaunchpad(null);
       return;
     }
-    setExploreTopics(pickExploreTopics(learningMemory, 4));
+    // V2 P2 — curriculum sequence is a pure plan (report §9.3.3): chips come
+    // from the plan and each plan carries its own ZPD-start kickoff.
+    const plans = planExploreSequence(
+      learningMemory,
+      loadInterests(accountId),
+      4,
+    );
+    explorePlansRef.current = new Map(plans.map((p) => [p.topic.id, p]));
+    setExploreTopics(plans.map((p) => p.topic));
     setDeepDiveOffer(buildDeepDiveOfferForAccount(accountId, learningMemory));
-    setConnectionOffer(buildConnectionOffer(accountId));
+    // V2 P2 — dynamic connection card wins over the weekly card (report §9.4.2)
+    setConnectionOffer(
+      buildDynamicConnectionOffer(learningMemory, accountId) ??
+        buildConnectionOffer(accountId),
+    );
     setAdjacentOpener(buildAdjacentOpener(learningMemory));
+    setWeeklyLaunchpad(buildWeeklyLaunchpad(accountId, learningMemory));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, accountId, learningMemory]);
 
@@ -131,18 +163,27 @@ export function TutorShell() {
       label: topic.label,
       emoji: topic.emoji,
     });
-    const text = buildExploreKickoffMessage(topic, learningMemory);
+    // V2 P2 — the plan (with its ZPD start) decides the kickoff, not a new
+    // LLM call here (report §9.3.3).
+    const plan = explorePlansRef.current.get(topic.id);
+    const text =
+      plan?.kickoff ??
+      buildExploreKickoffMessage(
+        topic,
+        learningMemory,
+        loadInterests(accountId),
+      );
     markOpenerShown(accountId);
     setSessionOpener(null);
     setExploreTopics([]);
-    void handleSend({ text, attachments: [] });
+    void handleSend({ text, attachments: [], source: "explore" });
   };
 
   const handleStartDeepDive = () => {
     if (!deepDiveOffer) return;
     markDeepDiveDone(accountId);
     setDeepDiveOffer(null);
-    void handleSend({ text: deepDiveOffer.kickoff, attachments: [] });
+    void handleSend({ text: deepDiveOffer.kickoff, attachments: [], source: "deepDive" });
   };
 
   const handleSkipDeepDive = () => {
@@ -152,15 +193,38 @@ export function TutorShell() {
 
   const handleShowConnection = () => {
     if (!connectionOffer) return;
-    markConnectionShown(accountId, connectionOffer.weekOf);
+    markConnectionShownForOffer(accountId, connectionOffer);
     setConnectionOffer(null);
-    void handleSend({ text: connectionOffer.card.kickoff, attachments: [] });
+    void handleSend({
+      text: connectionOffer.card.kickoff,
+      attachments: [],
+      source: "connection",
+    });
   };
 
   const handleDismissConnection = () => {
     if (!connectionOffer) return;
-    markConnectionShown(accountId, connectionOffer.weekOf);
+    markConnectionShownForOffer(accountId, connectionOffer);
     setConnectionOffer(null);
+  };
+
+  // V2 P1 — weekly Launchpad (report §9.3.2): deep-dive & connection reuse the
+  // offer handlers; Feynman & goal kick off a focused chat turn.
+  const handleLaunchpadItem = (action: LaunchpadAction) => {
+    if (action.type === "deepDive") {
+      if (deepDiveOffer) handleStartDeepDive();
+      return;
+    }
+    if (action.type === "connection") {
+      if (connectionOffer) handleShowConnection();
+      return;
+    }
+    setWeeklyLaunchpad(null);
+    void handleSend({
+      text: launchpadKickoff(action),
+      attachments: [],
+      source: action.type === "goal" ? "homework" : "explore",
+    });
   };
 
   if (!ready || !store) {
@@ -333,7 +397,7 @@ export function TutorShell() {
               setPracticeOffer(null);
               markOpenerShown(accountId);
               setSessionOpener(null);
-              void handleSend({ text, attachments: [] });
+              void handleSend({ text, attachments: [], source: "variant" });
             }}
             onPracticeTomorrow={() => {
               if (!practiceOffer) return;
@@ -350,7 +414,7 @@ export function TutorShell() {
               const text = buildOpenerKickoffMessage(sessionOpener);
               markOpenerShown(accountId);
               setSessionOpener(null);
-              void handleSend({ text, attachments: [] });
+              void handleSend({ text, attachments: [], source: "opener" });
             }}
             onOpenerNext={() => {
               if (!sessionOpener) return;
@@ -371,7 +435,7 @@ export function TutorShell() {
                 label: top.label,
                 startedAt: Date.now(),
               });
-              void handleSend({ text, attachments: [] });
+              void handleSend({ text, attachments: [], source: "challenge" });
             }}
             canChallenge={Boolean(
               learningMemory && pickChallengeSkills(learningMemory, 1).length > 0,
@@ -391,13 +455,14 @@ export function TutorShell() {
               if (!adjacentOpener) return;
               const text = buildOpenerKickoffMessage(adjacentOpener);
               setAdjacentOpener(null);
-              void handleSend({ text, attachments: [] });
+              void handleSend({ text, attachments: [], source: "explore" });
             }}
             challengeGauge={challengeGaugeView}
             onDeepDive={(mode: DeepDiveMode) => {
               void handleSend({
                 text: buildDeepDivePrompt(mode),
                 attachments: [],
+                source: "deepDive",
               });
             }}
             onSnapHomework={() => {
@@ -435,6 +500,20 @@ export function TutorShell() {
             }}
             breakNudge={breakNudge}
             onDismissBreakNudge={handleDismissBreakNudge}
+            proactiveInvite={proactiveInvite}
+            onDismissProactiveInvite={handleDismissProactiveInvite}
+            onAcceptProactiveInvite={handleAcceptProactiveInvite}
+            flowMoment={flowMoment}
+            onDismissFlowMoment={() => setFlowMoment(null)}
+            weeklyLaunchpad={
+              messages.length === 0 ? weeklyLaunchpad : null
+            }
+            onLaunchpadItem={handleLaunchpadItem}
+            creationOffer={creationOffer}
+            creationOfferLine={
+              creationOffer ? creationOfferLine(creationOffer) : null
+            }
+            onDismissCreationOffer={handleDismissCreationOffer}
             onQuote={(m) => setQuote(buildQuoteFromMessage(m))}
           />
         </main>
@@ -534,7 +613,12 @@ export function TutorShell() {
           quote={quote}
           onQuoteDismiss={() => setQuote(null)}
           onSend={(payload) => {
-            handleSend(payload);
+            // Photo/homework turns carry attachments — attribute them as homework.
+            handleSend({
+              ...payload,
+              source:
+                payload.attachments.length > 0 ? "homework" : undefined,
+            });
             setQuote(null);
           }}
         />
