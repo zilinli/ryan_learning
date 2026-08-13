@@ -5,6 +5,7 @@ import {
 } from "@/lib/attachments";
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
+import { buildImageOcrSummaries } from "@/lib/image-ocr";
 import { buildTutorPrompt } from "@/lib/prompts";
 import { normalizeProfile } from "@/lib/student-profile";
 import { filterTutorDelta, preferCompleteTutorText, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
@@ -83,6 +84,10 @@ export async function POST(req: Request) {
 
   const imageAttachments = attachments.filter((a) => a.kind === "image" && a.data);
   const fileSummaries = await buildFileSummaries(attachments);
+  // OCR photographed pages (word lists / worksheets) so the tutor gets exact
+  // spellings instead of relying on fuzzy multimodal reading. Never blocks the
+  // request: on failure / no key it returns [] and raw vision is the fallback.
+  const imageOcrSummaries = await buildImageOcrSummaries(attachments);
 
   // Quoted earlier message — re-send its text + media so the model anchors on it.
   const quote = body.quote && (body.quote.excerpt || body.quote.content)
@@ -172,6 +177,7 @@ export async function POST(req: Request) {
     userText: message ?? "",
     imageCount: imageAttachments.length || historyImages.length,
     fileSummaries,
+    imageOcrSummaries,
     history,
     historyImageCount: historyImages.length,
     recentTitles,

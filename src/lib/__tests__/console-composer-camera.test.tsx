@@ -193,7 +193,9 @@ describe("Disabled state propagation", () => {
 describe("File attach regression guard", () => {
   it("file attach button is still present", () => {
     render(<ConsoleComposer onSubmit={vi.fn()} />);
-    expect(screen.getByLabelText("Attach file")).toBeTruthy();
+    // The label and its visually-hidden input share the aria-label; either
+    // match proves the attach control is present.
+    expect(screen.getAllByLabelText("Attach file").length).toBeGreaterThan(0);
   });
 
   it("text input is still present", () => {

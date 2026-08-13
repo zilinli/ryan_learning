@@ -4,6 +4,42 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { compressImageDataUrl } from "@/lib/image-process";
 import { ensureMediaDevices, isSecureMediaContext } from "@/lib/media";
+import {
+  cameraConstraintAttempts,
+  cameraErrorMessage,
+  defaultFacingMode,
+  isMacUserAgent,
+  isNoLiveCamera,
+  queryCameraPermission,
+  type CameraPermissionState,
+} from "@/lib/camera-errors";
+
+// #region agent log
+function camLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId = "",
+  runId = "run1",
+) {
+  try {
+    void fetch("/api/debug-camera", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location,
+        message,
+        data,
+        timestamp: Date.now(),
+        hypothesisId,
+        runId,
+      }),
+    }).catch(() => {});
+  } catch {
+    /* noop */
+  }
+}
+// #endregion
 
 type Props = {
   open: boolean;
@@ -19,6 +55,7 @@ type Props = {
 
 async function getCameraStream(
   facingMode: "environment" | "user",
+  preferUserFirst: boolean,
 ): Promise<MediaStream> {
   const devices = ensureMediaDevices();
   if (!devices?.getUserMedia) {
@@ -29,45 +66,75 @@ async function getCameraStream(
   }
 
   // Enumerate first to detect if a video input exists (avoids confusing NotFoundError)
+  let sawAnyVideoInput = false;
   try {
     const devicesList = await devices.enumerateDevices();
-    const hasVideo = devicesList.some((d) => d.kind === "videoinput");
-    if (!hasVideo) {
-      throw new DOMException("No video input device found", "NotFoundError");
-    }
+    sawAnyVideoInput = devicesList.some((d) => d.kind === "videoinput");
+    // #region agent log
+    camLog(
+      "getCameraStream",
+      "enumerate",
+      {
+        total: devicesList.length,
+        videoinputs: devicesList.filter((d) => d.kind === "videoinput").length,
+        kinds: devicesList.map((d) => d.kind).join(","),
+        hasVideo: sawAnyVideoInput,
+        preferUserFirst,
+      },
+      "A",
+    );
+    // #endregion
   } catch {
     // enumerateDevices may fail on some browsers; proceed to getUserMedia
   }
 
-  const attempts: MediaStreamConstraints[] = [
-    // Preferred: 720p back camera
-    {
-      audio: false,
-      video: {
-        facingMode: { ideal: facingMode },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    },
-    // Fallback 1: any resolution, specific facing
-    { audio: false, video: { facingMode: { ideal: facingMode } } },
-    // Fallback 2: exact facing string (older API)
-    { audio: false, video: { facingMode } },
-    // Fallback 3: any video source
-    { audio: false, video: true },
-  ];
+  const attempts = cameraConstraintAttempts(facingMode, preferUserFirst);
 
-  let lastErr: unknown;
-  for (const constraints of attempts) {
+  let lastErr: { name?: string; message?: string } | null = null;
+  for (let i = 0; i < attempts.length; i++) {
+    const constraints = attempts[i];
     try {
-      return await devices.getUserMedia(constraints);
+      const stream = await devices.getUserMedia(constraints);
+      // #region agent log
+      camLog(
+        "getCameraStream",
+        "gum-ok",
+        {
+          attempt: i,
+          facingMode,
+          trackCount: stream.getVideoTracks().length,
+          constraints: JSON.stringify(constraints.video),
+        },
+        "A",
+      );
+      // #endregion
+      return stream;
     } catch (err) {
-      lastErr = err;
+      lastErr = err as { name?: string; message?: string };
+      // #region agent log
+      camLog(
+        "getCameraStream",
+        "gum-fail",
+        {
+          attempt: i,
+          facingMode,
+          name: (err as { name?: string })?.name ?? "",
+          msg: (err as { message?: string })?.message ?? String(err),
+          constraints: JSON.stringify(constraints.video),
+        },
+        "A",
+      );
+      // #endregion
     }
   }
-  throw lastErr instanceof Error
-    ? lastErr
-    : new Error("Could not open the camera");
+  if (!lastErr) {
+    throw new Error("Could not open the camera");
+  }
+  // Preserve the real error (DOMException may not be `instanceof Error` in
+  // every runtime); attach the enumerate result so startStream can classify.
+  (lastErr as { sawAnyVideoInput?: boolean }).sawAnyVideoInput =
+    sawAnyVideoInput;
+  throw lastErr;
 }
 
 export function CameraCapture({
@@ -81,15 +148,30 @@ export function CameraCapture({
   const phoneCameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
-  const [facingMode, setFacingMode] = useState<"environment" | "user">(
-    "environment",
+  const [facingMode, setFacingMode] = useState<"environment" | "user">(() =>
+    defaultFacingMode({
+      isMac:
+        typeof navigator !== "undefined" &&
+        isMacUserAgent(navigator.userAgent),
+      coarsePointer:
+        typeof window !== "undefined"
+          ? window.matchMedia?.("(pointer: coarse)").matches
+          : undefined,
+    }),
   );
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState(false);
   /** After Phone/Album, live preview is off until user taps Live again */
   const [livePaused, setLivePaused] = useState(false);
+  /** Manual "Retry live" counter — bumps the start effect so it re-runs. */
+  const [retryNonce, setRetryNonce] = useState(0);
+  /** Live getUserMedia unavailable (0 video devices) → Album-first UI. */
+  const [albumPreferred, setAlbumPreferred] = useState(false);
   const [aspectClass, setAspectClass] = useState("aspect-[3/4]");
+  const isMacRef = useRef(
+    typeof navigator !== "undefined" && isMacUserAgent(navigator.userAgent),
+  );
 
   // Detect coarse-pointer → portrait phone; fine → landscape desktop/tablet.
   // Deferred post-hydration so the initial SSR render isn't a
@@ -117,8 +199,37 @@ export function CameraCapture({
     stopStream();
     setError("");
     setReady(false);
+    const preferUserFirst =
+      isMacRef.current ||
+      (typeof window !== "undefined" &&
+        !window.matchMedia?.("(pointer: coarse)").matches);
+    let permissionState: CameraPermissionState = "unknown";
     try {
-      const stream = await getCameraStream(facingMode);
+      permissionState = await queryCameraPermission();
+    } catch {
+      permissionState = "unknown";
+    }
+    // #region agent log
+    camLog(
+      "startStream",
+      "start",
+      {
+        facingMode,
+        preferUserFirst,
+        permissionState,
+        secure: isSecureMediaContext(),
+        hasGUM: Boolean(ensureMediaDevices()?.getUserMedia),
+        ua: typeof navigator !== "undefined" ? navigator.userAgent : "ssr",
+        pointerCoarse:
+          typeof window !== "undefined" &&
+          Boolean(window.matchMedia?.("(pointer: coarse)").matches),
+      },
+      "F",
+      "post-fix",
+    );
+    // #endregion
+    try {
+      const stream = await getCameraStream(facingMode, preferUserFirst);
       streamRef.current = stream;
       const video = videoRef.current;
       if (!video) return;
@@ -145,9 +256,25 @@ export function CameraCapture({
         window.setTimeout(resolve, 3000);
       });
 
+      // #region agent log
+      camLog(
+        "startStream",
+        "after-meta-wait",
+        {
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+        },
+        "B",
+        "post-fix",
+      );
+      // #endregion
+
       // play() returns a promise; catch autoplay blocks silently
+      let playOk = false;
       try {
         await video.play();
+        playOk = true;
       } catch {
         // iPad Safari may block play even for muted+playsinline.
         // Try one more time after a microtask — sometimes the
@@ -155,35 +282,82 @@ export function CameraCapture({
         await new Promise((r) => window.setTimeout(r, 100));
         try {
           await video.play();
+          playOk = true;
         } catch {
           // frames may still arrive; don't block readiness
         }
       }
 
+      // #region agent log
+      camLog(
+        "startStream",
+        "after-play",
+        {
+          playOk,
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+        },
+        "C",
+        "post-fix",
+      );
+      // #endregion
+
       // Readiness: check videoWidth after play attempt, then fallback to track count
       const hasVideo = Boolean(
         video.videoWidth || stream.getVideoTracks().length,
       );
+      // #region agent log
+      camLog(
+        "startStream",
+        "ready-result",
+        {
+          hasVideo,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          trackCount: stream.getVideoTracks().length,
+        },
+        "B",
+        "post-fix",
+      );
+      // #endregion
       setReady(hasVideo);
       if (!hasVideo) {
         setError("Camera not ready — tap Retry live or use Phone camera.");
       }
     } catch (err) {
-      const name = err instanceof DOMException ? err.name : "";
-      const msg =
-        err instanceof Error ? err.message : "Could not open the camera";
-      if (
-        name === "NotAllowedError" ||
-        msg.toLowerCase().includes("permission") ||
-        msg.includes("NotAllowed")
-      ) {
-        setError(
-          "Camera permission blocked — use Phone camera or Album below.",
-        );
-      } else if (name === "NotFoundError") {
-        setError("No camera found — use Album or Upload.");
-      } else {
-        setError(msg);
+      const errInfo = err as {
+        name?: string;
+        message?: string;
+        sawAnyVideoInput?: boolean;
+      };
+      const name = errInfo?.name ?? "";
+      const msg = errInfo?.message ?? "Could not open the camera";
+      const sawAnyVideoInput = errInfo?.sawAnyVideoInput ?? false;
+      // #region agent log
+      camLog(
+        "startStream",
+        "error",
+        { name, msg, sawAnyVideoInput, permissionState },
+        name === "NotAllowedError" ? "F" : "A",
+        "post-fix",
+      );
+      // #endregion
+      const failure = {
+        name,
+        message: msg,
+        sawAnyVideoInput,
+        permissionState,
+        isMac: isMacRef.current,
+      };
+      setError(cameraErrorMessage(failure));
+      if (isNoLiveCamera(failure)) {
+        setAlbumPreferred(true);
+        try {
+          window.sessionStorage?.setItem("spark.camera.noLive", "1");
+        } catch {
+          /* ignore */
+        }
       }
     }
   }, [facingMode, stopStream]);
@@ -194,10 +368,34 @@ export function CameraCapture({
       const t = setTimeout(() => {
         setLivePaused(false);
         setError("");
+        // Keep albumPreferred across open/close within the session so MacBook
+        // users who already know live camera is gone skip the error flash.
       }, 0);
       return () => clearTimeout(t);
     }
     if (livePaused) {
+      return;
+    }
+    // Remembered "no live camera" on this browser session → Album-first,
+    // skip getUserMedia until the user explicitly taps Retry live.
+    let rememberedNoLive = false;
+    try {
+      rememberedNoLive =
+        window.sessionStorage?.getItem("spark.camera.noLive") === "1";
+    } catch {
+      rememberedNoLive = false;
+    }
+    if (rememberedNoLive) {
+      setAlbumPreferred(true);
+      setError(
+        cameraErrorMessage({
+          name: "NotFoundError",
+          message: "Requested device not found",
+          sawAnyVideoInput: false,
+          permissionState: "granted",
+          isMac: isMacRef.current,
+        }),
+      );
       return;
     }
     const t = setTimeout(() => void startStream(), 0);
@@ -205,11 +403,21 @@ export function CameraCapture({
       clearTimeout(t);
       stopStream();
     };
-  }, [open, facingMode, livePaused, startStream, stopStream]);
+  }, [open, facingMode, livePaused, retryNonce, startStream, stopStream]);
 
   const resumeLive = () => {
     setError("");
     setLivePaused(false);
+    setAlbumPreferred(false);
+    try {
+      window.sessionStorage?.removeItem("spark.camera.noLive");
+    } catch {
+      /* ignore */
+    }
+    // Force the start effect to re-run even when livePaused didn't change
+    // (the error path leaves livePaused=false, so a plain setLivePaused(false)
+    // would bail and never restart the stream).
+    setRetryNonce((n) => n + 1);
   };
 
   const emitImage = async (dataUrl: string, mimeType: string) => {
@@ -229,6 +437,20 @@ export function CameraCapture({
     if (!video || !ready || busy) return;
     const w = video.videoWidth;
     const h = video.videoHeight;
+    // #region agent log
+    camLog(
+      "snap",
+      "snap-start",
+      {
+        w,
+        h,
+        ready,
+        facingMode,
+        readyState: video.readyState,
+      },
+      "D",
+    );
+    // #endregion
     if (!w || !h) {
       setError("Camera not ready — wait a moment, or use Phone camera.");
       return;
@@ -244,6 +466,19 @@ export function CameraCapture({
     }
     ctx.drawImage(video, 0, 0, w, h);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    // #region agent log
+    camLog(
+      "snap",
+      "snap-data",
+      {
+        w,
+        h,
+        dataUrlLen: dataUrl.length,
+        head: dataUrl.slice(0, 23),
+      },
+      "D",
+    );
+    // #endregion
     await emitImage(dataUrl, "image/jpeg");
   };
 
@@ -355,23 +590,30 @@ export function CameraCapture({
             </div>
           ) : null}
           {error ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-[#ffb4a8]">
+            <div
+              className={`absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm ${
+                albumPreferred ? "text-white/90" : "text-[#ffb4a8]"
+              }`}
+            >
               <p>{error}</p>
               <div className="flex flex-wrap justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => releaseThenPick("phone")}
-                  className="min-h-11 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#14100c]"
-                >
-                  Phone camera
-                </button>
+                {/* Album is the reliable path when live view is unavailable */}
                 <button
                   type="button"
                   onClick={() => releaseThenPick("album")}
-                  className="min-h-11 rounded-full border border-white/40 px-4 py-2 text-sm text-white"
+                  className="min-h-11 rounded-full bg-white px-5 py-2 text-sm font-semibold text-[#14100c]"
                 >
-                  Album
+                  {albumPreferred ? "Choose from Album" : "Album"}
                 </button>
+                {!albumPreferred ? (
+                  <button
+                    type="button"
+                    onClick={() => releaseThenPick("phone")}
+                    className="min-h-11 rounded-full border border-white/40 px-4 py-2 text-sm text-white"
+                  >
+                    Phone camera
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={resumeLive}

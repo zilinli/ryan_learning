@@ -14,7 +14,7 @@ import {
   beforeEach,
   afterEach,
 } from "vitest";
-import { render, screen, cleanup, waitFor, act } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, act, fireEvent } from "@testing-library/react";
 import { CameraCapture } from "../../components/CameraCapture";
 
 // ---------------------------------------------------------------------------
@@ -461,5 +461,153 @@ describe("CameraCapture error / inputs / closed", () => {
     render(<CameraCapture open={false} onClose={vi.fn()} onCapture={vi.fn()} />);
     expect(document.querySelector('[data-camera-portal="true"]')).toBeNull();
     expect(screen.queryByText("Camera")).toBeNull();
+  });
+});
+
+// ===========================================================================
+// macOS system-block recovery — reproduction evidence:
+// Chrome on MacBook: enumerateDevices() → 0 videoinput, getUserMedia →
+// NotFoundError. The app must (a) show System Settings guidance and
+// (b) let "Retry live" actually re-invoke getUserMedia after the user
+// enables the camera in macOS.
+// ===========================================================================
+
+describe("CameraCapture — macOS system-block recovery", () => {
+  const defaultGum = vi.fn(() =>
+    Promise.reject(new DOMException("NotAllowed", "NotAllowedError")),
+  );
+  const macGum = vi.fn<
+    (constraints: MediaStreamConstraints) => Promise<MediaStream>
+  >(() =>
+    Promise.reject(
+      new DOMException("Requested device not found", "NotFoundError"),
+    ),
+  );
+
+  beforeEach(() => {
+    macGum.mockReset();
+    macGum.mockRejectedValue(
+      new DOMException("Requested device not found", "NotFoundError"),
+    );
+    try {
+      window.sessionStorage?.removeItem("spark.camera.noLive");
+    } catch {
+      /* ignore */
+    }
+    // Simulate MacBook Chrome UA so messaging / facing defaults kick in.
+    Object.defineProperty(globalThis.navigator, "userAgent", {
+      value:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+      configurable: true,
+    });
+    // Matches post-restart evidence: site permission granted, but 0 devices.
+    Object.defineProperty(globalThis.navigator, "permissions", {
+      value: {
+        query: vi.fn(async () => ({ state: "granted" })),
+      },
+      configurable: true,
+    });
+    // macOS block signature: enumerateDevices sees no videoinput.
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      value: {
+        getUserMedia: macGum,
+        enumerateDevices: vi.fn(() => Promise.resolve([])),
+      },
+      writable: true,
+      configurable: true,
+    });
+    // Skip the metadata-wait timeout in the success path.
+    Object.defineProperty(HTMLVideoElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 2,
+    });
+  });
+
+  afterEach(() => {
+    try {
+      window.sessionStorage?.removeItem("spark.camera.noLive");
+    } catch {
+      /* ignore */
+    }
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      value: {
+        getUserMedia: defaultGum,
+        enumerateDevices: vi.fn(() => Promise.resolve([])),
+      },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("shows Chrome restart / Album guidance instead of 'No camera found'", async () => {
+    renderOpen();
+    await waitFor(
+      () => {
+        const err = document.querySelector(
+          ".text-\\[\\#ffb4a8\\], .text-white\\/90",
+        );
+        expect(err).not.toBeNull();
+        const text = err?.textContent || "";
+        expect(/quit Chrome|Album|permission is already OK/i.test(text)).toBe(
+          true,
+        );
+      },
+      { timeout: 5000 },
+    );
+    // Must NOT mislead a MacBook owner into thinking there is no camera hardware.
+    expect(screen.queryByText(/^No camera found/)).toBeNull();
+    // Album-first CTA appears when live camera is unavailable.
+    expect(
+      screen.getByRole("button", { name: "Choose from Album" }),
+    ).toBeTruthy();
+  });
+
+  it("Retry live re-invokes getUserMedia after the OS block is fixed", async () => {
+    renderOpen();
+
+    // First attempt: all constraint tries fail with NotFoundError.
+    await waitFor(
+      () => {
+        const err = document.querySelector(
+          ".text-\\[\\#ffb4a8\\], .text-white\\/90",
+        );
+        expect(err).not.toBeNull();
+        expect(
+          /quit Chrome|Album|permission is already OK/i.test(
+            err?.textContent || "",
+          ),
+        ).toBe(true);
+      },
+      { timeout: 5000 },
+    );
+    const callsAfterFailure = macGum.mock.calls.length;
+    expect(callsAfterFailure).toBeGreaterThanOrEqual(4);
+
+    // User enables camera in macOS System Settings → next request succeeds.
+    const track = { stop: vi.fn() };
+    macGum.mockResolvedValue({
+      getVideoTracks: () => [track],
+      getTracks: () => [track],
+      getAudioTracks: () => [],
+    } as unknown as MediaStream);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry live" }));
+
+    // Retry must actually call getUserMedia again (Bug A regression).
+    await waitFor(
+      () => {
+        expect(macGum.mock.calls.length).toBeGreaterThan(callsAfterFailure);
+      },
+      { timeout: 5000 },
+    );
+
+    // Stream goes live → Snap becomes enabled.
+    await waitFor(
+      () => {
+        const snap = screen.getByText("Snap") as HTMLButtonElement;
+        expect(snap.disabled).toBe(false);
+      },
+      { timeout: 5000 },
+    );
   });
 });
