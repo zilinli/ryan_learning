@@ -17,6 +17,8 @@ import {
   type SkillMastery,
 } from "./learning-memory";
 import { buildFeynmanTask, type FeynmanTask } from "./feynman-task";
+import { recommendAdjacent } from "./adjacent-recommend";
+import type { InterestRecord } from "./interest-store";
 
 const WEEK_MS = 7 * 86_400_000;
 
@@ -82,6 +84,10 @@ export type ParentWeeklyDigest = {
   } | null;
   /** V2 attribution — which learning mechanisms drove this week (report §10). */
   sourceAttribution: Array<{ source: string; count: number; label: string }>;
+  /** P1-4 — topics the child kept exploring this week (curiosity profile). */
+  interestFocus: string[];
+  /** P1-4 — next week's stretch suggestion (mastered this week → neighbor). */
+  nextChallenge: { label: string; line: string } | null;
   text: string;
 };
 
@@ -148,6 +154,7 @@ function buildBreakthrough(
 export function buildParentWeeklyDigest(
   mem: LearningMemory | null | undefined,
   now = Date.now(),
+  interests?: InterestRecord[],
 ): ParentWeeklyDigest {
   const weekOf = weekOfLabel(now);
   if (!mem?.skills?.length) {
@@ -163,6 +170,8 @@ export function buildParentWeeklyDigest(
       feynmanTask: null,
       breakthrough: null,
       sourceAttribution: [],
+      interestFocus: [],
+      nextChallenge: null,
       text: `Week of ${weekOf}: no skill activity logged yet.`,
     };
   }
@@ -225,6 +234,24 @@ export function buildParentWeeklyDigest(
     count: r.count,
     label: r.label,
   }));
+  // P1-4 — this week's curiosity profile (top explored topics by count).
+  const interestFocus = (interests || [])
+    .filter((i) => i.exploredAt >= weekStart)
+    .sort((a, b) => b.count - a.count || b.exploredAt - a.exploredAt)
+    .slice(0, 3)
+    .map((i) => i.label);
+  // P1-4 — next week's stretch: a skill mastered THIS week unlocks its neighbor
+  // (eats the fixed P0-1 attribution chain: 已掌握 → 建议下一周挑战).
+  const nextChallenge = (() => {
+    const rec = recommendAdjacent(mem);
+    if (!rec) return null;
+    const from = mem.skills.find((s) => s.id === rec.fromSkillId);
+    if (!from || from.lastSeen < weekStart) return null;
+    return {
+      label: rec.label,
+      line: `${from.label} clicked this week — next up: ${rec.label}.`,
+    };
+  })();
 
   const lines: string[] = [`Week of ${weekOf}`];
   if (idleNote) {
@@ -267,6 +294,12 @@ export function buildParentWeeklyDigest(
   if (breakthrough) {
     lines.push(`Biggest breakthrough: ${breakthrough.text}`);
   }
+  if (interestFocus.length) {
+    lines.push(`Curiosity this week: ${interestFocus.join(" · ")}`);
+  }
+  if (nextChallenge) {
+    lines.push(`Next stretch: ${nextChallenge.line}`);
+  }
 
   return {
     weekOf,
@@ -280,6 +313,8 @@ export function buildParentWeeklyDigest(
     feynmanTask,
     breakthrough,
     sourceAttribution,
+    interestFocus,
+    nextChallenge,
     text: lines.join("\n"),
   };
 }

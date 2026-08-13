@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildGeometryStepSvgs,
   buildGeometrySvg,
+  describeGeometryShapes,
   ensureTutorDiagrams,
   geometrySpecToMarkdown,
   normalizeTutorMarkdown,
   sanitizeSvg,
   splitTutorContent,
   svgToMarkdownImage,
+  type GeometrySpec,
 } from "./geometry-svg";
 
 describe("sanitizeSvg", () => {
@@ -293,5 +295,40 @@ describe("buildGeometrySvg", () => {
       shapes: [{ type: "circle", center: [40, 60], r: 20 }],
     });
     expect(md).not.toContain("geom-steps");
+  });
+});
+
+describe("describeGeometryShapes (P2-5 where-to-look)", () => {
+  const spec: GeometrySpec = {
+    shapes: [
+      { type: "triangle", points: [[10, 10], [110, 10], [60, 90]], labels: ["A", "B", "C"] },
+      { type: "segment", from: [10, 10], to: [110, 10], midLabel: "base = 5 cm" },
+      { type: "angle", at: [10, 10], from: [60, 90], to: [110, 10], label: "θ" },
+      { type: "bar", from: [10, 140], size: [80, 30], quantityLabel: "12" },
+      { type: "point", at: [60, 90], label: "C" },
+      { type: "circle", center: [200, 60], r: 24 },
+    ],
+    steps: [],
+  };
+
+  it("describes highlighted shapes with their labels", () => {
+    expect(describeGeometryShapes(spec, [0])).toEqual(["triangle A·B·C"]);
+    expect(describeGeometryShapes(spec, [1])).toEqual(["segment base = 5 cm"]);
+    expect(describeGeometryShapes(spec, [2])).toEqual(["angle θ"]);
+    expect(describeGeometryShapes(spec, [3])).toEqual(["12"]);
+    expect(describeGeometryShapes(spec, [4])).toEqual(["point C"]);
+  });
+
+  it("falls back to plain type names when labels are missing", () => {
+    const bare = describeGeometryShapes(
+      { shapes: [{ type: "circle", center: [5, 5], r: 2 }], steps: [] },
+      [0],
+    );
+    expect(bare).toEqual(["circle"]);
+  });
+
+  it("skips out-of-range indexes", () => {
+    expect(describeGeometryShapes(spec, [99])).toEqual([]);
+    expect(describeGeometryShapes(spec, [])).toEqual([]);
   });
 });

@@ -15,6 +15,7 @@ import {
   MediaLabChallengeView,
   type AnswerRecord,
 } from "./MediaLabChallengeView";
+import { CrossLabSuggest } from "./CrossLabSuggest";
 
 type Phase = "browse" | "watch" | "challenge";
 const TOPICS: Array<RsaTopic | "all"> = ["all", ...RSA_TOPICS];
@@ -148,6 +149,13 @@ export function RsaShortsLab() {
           </div>
           <p className="px-3 py-2 text-center text-[11px] text-[#a89f92] sm:text-xs">Listen first — challenge uses English captions (CC), then discuss with the AI teacher.</p>
         </div>
+
+        {/* P2-4 — cross-lab next stop */}
+        <CrossLabSuggest
+          from="rsa"
+          tags={[selectedVideo.topic, selectedVideo.title]}
+        />
+
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <button type="button" disabled={!challengeReady || busy} onClick={() => void startChallenge()} className={`min-h-12 w-full rounded-xl px-5 text-sm font-semibold transition sm:w-auto sm:min-w-[12rem] ${challengeReady ? "animate-pulse bg-[#4f7356] text-white hover:bg-[#3d5c44]" : "cursor-not-allowed bg-white/10 text-white/45"}`}>{busy ? "Fetching EN captions & building…" : challengeReady ? "Ready for challenge" : "Ready for challenge (soon)"}</button>

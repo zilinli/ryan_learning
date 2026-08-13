@@ -85,6 +85,42 @@ export function recentInterests(accountId: string, limit = 5): InterestRecord[] 
   return loadInterests(accountId).slice(0, Math.max(1, limit));
 }
 
+// ── P1-3 — curiosity map ("本周好奇心地图") ──────────────────────────
+
+export type CuriosityMap = {
+  /** One-sentence read on this week's curiosity thread. */
+  headline: string;
+  /** Up to 3 interest words driving the week, strongest first. */
+  words: string[];
+};
+
+/**
+ * Build the "this week's curiosity map": a headline + 3 interest words based
+ * on exploration counts. Falls back to the overall profile when nothing was
+ * explored in the last 7 days; null when there are no interests at all.
+ */
+export function buildCuriosityMap(
+  interests: InterestRecord[],
+  now = Date.now(),
+): CuriosityMap | null {
+  const list = (interests || []).filter((i) => i && i.topicId);
+  if (!list.length) return null;
+  const weekStart = now - 7 * 86_400_000;
+  const weekly = list.filter((i) => i.exploredAt >= weekStart);
+  const pool = weekly.length ? weekly : list;
+  const ranked = [...pool].sort(
+    (a, b) => b.count - a.count || b.exploredAt - a.exploredAt,
+  );
+  const top = ranked[0]!;
+  return {
+    words: ranked.slice(0, 3).map((i) => i.label),
+    headline:
+      weekly.length >= 3
+        ? `This week you kept coming back to ${top.label} — a real curiosity thread.`
+        : `${top.label} is the spark you return to most.`,
+  };
+}
+
 // ── Server sync (V3) — cross-device interest continuity ─────────────
 
 /**

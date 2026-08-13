@@ -2,15 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  buildWeeklyQuiz,
+  buildWeeklyQuizKickoffMessage,
+  buildWeeklyQuizPrintHtml,
   buildWrongAnswerReviewSet,
   deleteWrongAnswer,
   loadWrongAnswers,
+  markWrongAnswersRedone,
   stashVariantKickoff,
   stashWrongReviewKickoff,
   wrongAnswersBySkill,
+  type WeeklyQuiz,
   type WrongAnswer,
   type WrongAnswerAction,
 } from "@/lib/wrong-answer-store";
+import { openLearningPortfolioPrint } from "@/lib/learning-portfolio";
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -26,6 +32,8 @@ function timeAgo(ts: number): string {
 /**
  * P1 (report §8.9) — wrong-answer book. Groups misses by skill, lets the
  * student redo the tricky ones in the chat, or clear single entries.
+ * P1-1 — "this week's quiz" (组卷): pick one wrong answer per skill, print a
+ * worksheet, and redo it in the chat, then clear the re-practiced ones.
  */
 export function WrongAnswerBook({
   accountId,
@@ -35,6 +43,7 @@ export function WrongAnswerBook({
   className?: string;
 }) {
   const [items, setItems] = useState<WrongAnswer[]>([]);
+  const [quiz, setQuiz] = useState<WeeklyQuiz | null>(null);
 
   useEffect(() => {
     setItems(loadWrongAnswers(accountId));
@@ -58,6 +67,43 @@ export function WrongAnswerBook({
     setItems(loadWrongAnswers(accountId));
   };
 
+  // P1-1 — make / refresh this week's quiz
+  const makeQuiz = () => {
+    const q = buildWeeklyQuiz(accountId);
+    setQuiz(q);
+  };
+
+  const quizInChat = (q: WeeklyQuiz) => {
+    stashWrongReviewKickoff(
+      q.items.map((w) => ({
+        id: w.id,
+        accountId,
+        skillId: w.skillId,
+        skillLabel: w.skillLabel,
+        question: w.question,
+        studentAnswer: "",
+        assistantText: "",
+        createdAt: Date.now(),
+      })),
+    );
+    window.location.href = "/";
+  };
+
+  const printQuiz = (q: WeeklyQuiz) => {
+    openLearningPortfolioPrint(
+      buildWeeklyQuizPrintHtml(q, { accountLabel: "My weekly quiz" }),
+    );
+  };
+
+  const clearQuizDone = (q: WeeklyQuiz) => {
+    markWrongAnswersRedone(
+      accountId,
+      q.items.map((w) => w.id),
+    );
+    setItems(loadWrongAnswers(accountId));
+    setQuiz(null);
+  };
+
   if (items.length === 0) return null;
 
   return (
@@ -66,14 +112,73 @@ export function WrongAnswerBook({
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-muted)]">
           Review box
         </p>
-        <button
-          type="button"
-          onClick={() => reviewInChat(buildWrongAnswerReviewSet(accountId, 3))}
-          className="rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-3 py-1.5 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20"
-        >
-          Redo 3 in chat
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => reviewInChat(buildWrongAnswerReviewSet(accountId, 3))}
+            className="rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-3 py-1.5 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20"
+          >
+            Redo 3 in chat
+          </button>
+          <button
+            type="button"
+            onClick={makeQuiz}
+            className="rounded-full bg-[var(--action-bg)] px-3 py-1.5 text-[11px] font-semibold text-[var(--action-ink)] transition hover:brightness-110"
+          >
+            This week&apos;s quiz
+          </button>
+        </div>
       </div>
+
+      {quiz ? (
+        <div className="mt-3 rounded-xl border border-[var(--action-bg)]/40 bg-[var(--surface-muted)] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] font-semibold text-[var(--ink)]">
+              Week of {quiz.weekOf}
+              <span className="ml-1.5 text-[11px] font-normal text-[var(--ink-muted)]">
+                {quiz.items.length} question{quiz.items.length === 1 ? "" : "s"}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => quizInChat(quiz)}
+                className="rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2.5 py-1 text-[10px] font-medium text-[var(--teal)] hover:bg-[var(--teal)]/20"
+              >
+                Redo in chat
+              </button>
+              <button
+                type="button"
+                onClick={() => printQuiz(quiz)}
+                className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-medium text-[var(--ink)] hover:border-[var(--teal)]/40"
+              >
+                Print
+              </button>
+              <button
+                type="button"
+                onClick={() => clearQuizDone(quiz)}
+                title="I re-practiced these — clear them from the box"
+                className="rounded-full border border-[var(--coral)]/35 bg-[var(--coral)]/8 px-2.5 py-1 text-[10px] font-medium text-[var(--coral)] hover:bg-[var(--coral)]/15"
+              >
+                Done — clear
+              </button>
+            </div>
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {quiz.items.map((w, i) => (
+              <li key={w.id} className="rounded-lg border border-[var(--line)]/50 bg-[var(--surface)] px-2.5 py-1.5">
+                <p className="text-[12px] leading-snug text-[var(--ink-muted)]">
+                  <span className="mr-1 font-semibold text-[var(--ink)]">Q{i + 1}</span>
+                  {w.question}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ink-muted)] opacity-70">
+                  {w.skillLabel}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mt-3 space-y-3">
         {groups.map((g) => (

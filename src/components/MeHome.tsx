@@ -9,6 +9,8 @@ import { SkillDots } from "./SkillDots";
 import { WrongAnswerBook } from "./WrongAnswerBook";
 import { WeeklyGoalCard } from "./WeeklyGoalCard";
 import { ReadAlongPractice } from "./ReadAlongPractice";
+import { InterestRadar } from "./InterestRadar";
+import { DirectionCard } from "./DirectionCard";
 import type { CreationItem } from "@/lib/entertain/creations-store";
 import type { JournalEntry } from "@/lib/entertain/journal-model";
 
@@ -105,6 +107,15 @@ export function MeHome() {
         <JournalTimeline peek />
       </section>
 
+      {/* P2-3 — quarterly direction report: dynamic self-description card */}
+      <section className="mb-6">
+        <DirectionCard
+          accountId={acct.accountId}
+          name={acct.name}
+          creations={creations}
+        />
+      </section>
+
       {praiseReceived > 0 ? (
         <section className="mb-6">
           <a
@@ -127,6 +138,10 @@ export function MeHome() {
 
       <section className="mb-6">
         <SkillDots accountId={acct.accountId} />
+      </section>
+
+      <section className="mb-6">
+        <InterestRadar accountId={acct.accountId} />
       </section>
 
       <section className="mb-6">

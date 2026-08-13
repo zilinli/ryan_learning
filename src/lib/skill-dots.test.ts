@@ -56,4 +56,17 @@ describe("summarizeSkillDots", () => {
     expect(s.strengths).toHaveLength(0);
     expect(s.weaknesses).toHaveLength(0);
   });
+
+  it("P2-1: litThisWeek counts dots practised in the current week only", () => {
+    const now = Date.now();
+    const lastWeek = now - 8 * 86_400_000;
+    const m = mem([
+      { id: "a", label: "Algebra", pKnown: 0.9, attempts: 8, correct: 7, incorrect: 1, lastSeen: now },
+      { id: "b", label: "Fractions", pKnown: 0.6, attempts: 4, correct: 2, incorrect: 2, lastSeen: now },
+      { id: "c", label: "Geometry", pKnown: 0.35, attempts: 2, correct: 0, incorrect: 2, lastSeen: lastWeek },
+      { id: "d", label: "Statistics", pKnown: 0.2, attempts: 0, correct: 0, incorrect: 0, lastSeen: now },
+    ]);
+    const s = summarizeSkillDots(m, now);
+    expect(s.litThisWeek.map((x) => x.id).sort()).toEqual(["a", "b"]);
+  });
 });

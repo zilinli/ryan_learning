@@ -60,14 +60,16 @@ function QuickActionCard({
   title: string;
   hint: string;
   onClick?: () => void;
-  accent?: "default" | "teal" | "coral";
+  accent?: "default" | "teal" | "coral" | "action";
 }) {
   const accentClass =
     accent === "teal"
       ? "border-[var(--teal)]/40 bg-[var(--teal)]/8 text-[var(--teal)]"
       : accent === "coral"
         ? "border-[var(--coral)]/40 bg-[var(--coral)]/8 text-[var(--coral)]"
-        : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]";
+        : accent === "action"
+          ? "border-[var(--action-bg)]/60 bg-[var(--action-bg)] text-[var(--action-ink)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--action-bg)_30%,transparent)]"
+          : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]";
   return (
     <button
       type="button"
@@ -494,13 +496,17 @@ export function ChatThread({
     const openerEyebrow =
       sessionOpener?.kind === "return"
         ? "Welcome back"
-        : sessionOpener?.kind === "practice"
-          ? "From learning map"
-          : sessionOpener
-            ? "Today's warm-up"
-            : null;
+        : sessionOpener?.kind === "challenge"
+          ? "Mastered a lot — stretch it"
+          : sessionOpener?.kind === "practice"
+            ? "From learning map"
+            : sessionOpener
+              ? "Today's warm-up"
+              : null;
     const openerEmphasized =
-      sessionOpener?.kind === "return" || sessionOpener?.kind === "practice";
+      sessionOpener?.kind === "return" ||
+      sessionOpener?.kind === "practice" ||
+      sessionOpener?.kind === "challenge";
 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center animate-fade-up">
@@ -581,7 +587,11 @@ export function ChatThread({
           </div>
         ) : null}
 
-        {adjacentOpener && !sessionOpener ? (
+        {/* P0-2 — the adjacent card normally defers to the daily opener; in
+            high-mastery mode the opener is a stretch challenge, so the
+            neighbor recommendation stays visible as the "what next" lane. */}
+        {adjacentOpener &&
+        (!sessionOpener || sessionOpener.highMasteryMode) ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--teal)]/6 px-4 py-3 text-left shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
               A neighbor to explore
@@ -743,10 +753,19 @@ export function ChatThread({
             ) : null}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <QuickActionCard
-                emoji="⚡"
-                title="Quick questions"
-                hint={`3 warm-ups on “${sessionOpener.label}”`}
+                emoji={sessionOpener.kind === "challenge" ? "🏆" : "⚡"}
+                title={
+                  sessionOpener.kind === "challenge"
+                    ? "Go harder"
+                    : "Quick questions"
+                }
+                hint={
+                  sessionOpener.kind === "challenge"
+                    ? `Multi-step ${sessionOpener.label} — no spoilers`
+                    : `3 warm-ups on “${sessionOpener.label}”`
+                }
                 onClick={onOpenerTry}
+                accent={sessionOpener.kind === "challenge" ? "action" : "default"}
               />
               {onOpenerNext &&
               sessionOpener.practiceTargets &&
@@ -758,13 +777,15 @@ export function ChatThread({
                   onClick={onOpenerNext}
                 />
               ) : null}
-              {onChallenge && canChallenge ? (
+              {onChallenge && canChallenge && sessionOpener.kind !== "challenge" ? (
                 <QuickActionCard
                   emoji="🏆"
                   title="Challenge me!"
                   hint="Push a mastered skill higher"
                   onClick={onChallenge}
-                  accent="teal"
+                  accent={
+                    sessionOpener.highMasteryMode ? "action" : "teal"
+                  }
                 />
               ) : null}
               <QuickActionCard

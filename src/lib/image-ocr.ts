@@ -140,6 +140,76 @@ export async function extractImageOcrText(
 export type OcrSummary = { label: string; text: string };
 
 /**
+ * P1-2 — a worksheet item ("题") extracted from OCR text. Qwen-OCR returns a
+ * flat text dump; this splits it into numbered question blocks so the tutor
+ * can grade the page per-item and point at the exact wrong ones.
+ */
+export type WorksheetItem = { number: number; text: string };
+
+/** Lines that start a new numbered worksheet item (Q1 / 1. / 1) / 第1题). */
+const ITEM_MARKER_RE =
+  /^\s*(?:Q\d+\s*[.:、．]?|(?:第\s*\d+\s*题)|(?:[（(]\s*\d+\s*[）)])|\d{1,3}\s*[.)、．])\s*/;
+
+/**
+ * Split OCR text into numbered worksheet items. Returns [] when the page has
+ * no numbered structure (word lists, paragraphs) — callers then treat the
+ * whole page as one unit.
+ */
+export function parseWorksheetItems(text: string): WorksheetItem[] {
+  const lines = String(text || "").split(/\r?\n/);
+  const items: WorksheetItem[] = [];
+  let cur: WorksheetItem | null = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = ITEM_MARKER_RE.exec(line);
+    if (m) {
+      if (cur) items.push(cur);
+      cur = {
+        number: items.length + 1,
+        text: line.replace(m[0], "").trim(),
+      };
+    } else if (cur) {
+      cur.text = `${cur.text} ${line}`.trim();
+    }
+  }
+  if (cur) items.push(cur);
+  return items;
+}
+
+/**
+ * P1-2 — build the "full-page grading" instruction block for the tutor prompt
+ * when a photographed worksheet has recognizable numbered items.
+ */
+export function worksheetGradingBlock(
+  ocrText: string,
+  itemLimit = 40,
+): string | null {
+  const items = parseWorksheetItems(ocrText);
+  if (!items.length) return null;
+  const shown = items.length > itemLimit ? itemLimit : items.length;
+  return [
+    "",
+    "[Full-page grading — the page is a worksheet with numbered items]",
+    `The OCR page has ${items.length} numbered item(s)${shown < items.length ? ` (grade the first ${shown} as a set)` : ""}. Grade the set in ONE go:`,
+    "- Per item: a one-line verdict, marked ✓ or ✗ (e.g. “Q1 ✓ · Q2 ✗ — you wrote 2/3”).",
+    "- Finish with a compact summary line: “You got N of M right. To redo: Q…”. Then stop — no new topic until the student reacts.",
+    "- Next, work through the WRONG items ONE at a time, Socratic hints only, no spoilers. Use the OCR text as ground truth for spellings/numbers.",
+  ].join("\n");
+}
+
+/** Build the grading block from `buildImageOcrSummaries` output (plain text parts). */
+export function worksheetGradingBlockFromSummaries(
+  summaries: string[],
+): string | null {
+  const texts = (summaries || [])
+    .map((s) => s.slice(s.indexOf("\n") + 1))
+    .filter(Boolean);
+  if (!texts.length) return null;
+  return worksheetGradingBlock(texts.join("\n"));
+}
+
+/**
  * OCR every image attachment and produce `--- Photo N (name) ---\n<text>`
  * summaries the tutor prompt can quote. Any failed / blank image is dropped so
  * the agent falls back to raw vision for that photo.

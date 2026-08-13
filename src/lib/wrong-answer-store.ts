@@ -128,6 +128,154 @@ export function buildWrongAnswerReviewSet(
   return loadWrongAnswers(accountId).slice(0, Math.max(1, limit));
 }
 
+// ── P1-1 — this week's quiz ("组卷") ────────────────────────────────
+
+export type WeeklyQuizItem = {
+  id: string;
+  skillId: string;
+  skillLabel: string;
+  question: string;
+};
+
+export type WeeklyQuiz = {
+  /** Monday (YYYY-MM-DD) of the quiz's week. */
+  weekOf: string;
+  items: WeeklyQuizItem[];
+};
+
+/**
+ * Build a 3–5 question quiz from this week's wrong answers, one per skill
+ * (newest first). The quiz is the printable/re-doable sheet that closes the
+ * "wrong answer → redo → remaster" loop (豆包/千问-style 组卷).
+ */
+export function buildWeeklyQuiz(
+  accountId: string,
+  count = 4,
+  now = Date.now(),
+): WeeklyQuiz {
+  const weekStart = now - 7 * 86_400_000;
+  const seen = new Set<string>();
+  const items: WeeklyQuizItem[] = [];
+  for (const w of loadWrongAnswers(accountId)) {
+    if (w.createdAt < weekStart) continue;
+    if (seen.has(w.skillId)) continue;
+    seen.add(w.skillId);
+    items.push({
+      id: w.id,
+      skillId: w.skillId,
+      skillLabel: w.skillLabel,
+      question: w.question,
+    });
+    const max = Math.max(3, Math.min(count, 5));
+    if (items.length >= max) break;
+  }
+  return { weekOf: weekKeyOf(now), items };
+}
+
+/** Chat kickoff for redoing a quiz sheet (one question at a time). */
+export function buildWeeklyQuizKickoffMessage(quiz: WeeklyQuiz): string {
+  const lines = quiz.items.map(
+    (w, i) => `Q${i + 1} (${w.skillLabel}): ${w.question}`,
+  );
+  return [
+    "This week's quiz — let's redo these together:",
+    ...lines,
+    "Give them to me ONE at a time, Socratic hints only, no spoilers. Tell me right away which ones I got right this time.",
+  ].join("\n");
+}
+
+/** Forget quiz items the child re-practiced successfully ("标记重做"). */
+export function markWrongAnswersRedone(
+  accountId: string,
+  ids: string[],
+): number {
+  const idSet = new Set(ids);
+  const before = loadWrongAnswers(accountId);
+  const removed = before.filter((w) => idSet.has(w.id)).length;
+  if (!removed) return 0;
+  saveWrongAnswers(accountId, before.filter((w) => !idSet.has(w.id)));
+  return removed;
+}
+
+/** Monday (YYYY-MM-DD) helper — mirrors learning-memory weekKeyOf. */
+export function weekKeyOf(ts = Date.now()): string {
+  const d = new Date(ts);
+  const day = d.getUTCDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + offset),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+function escHtml(s: string): string {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Self-contained printable quiz sheet (P1-1 组卷打印) — one page a parent can
+ * print for the child to work on paper, then redo in the chat.
+ */
+export function buildWeeklyQuizPrintHtml(
+  quiz: WeeklyQuiz,
+  opts: { accountLabel?: string; now?: number } = {},
+): string {
+  const now = opts.now ?? Date.now();
+  const day = new Date(now).toISOString().slice(0, 10);
+  const rows = quiz.items.length
+    ? quiz.items
+        .map(
+          (w, i) => `<li class="q">
+            <div class="qno">${i + 1}</div>
+            <div>
+              <p class="skill">${escHtml(w.skillLabel)}</p>
+              <p class="text">${escHtml(w.question)}</p>
+              <div class="answer-line"></div>
+            </div>
+          </li>`,
+        )
+        .join("\n")
+    : "<li class='empty'>No tricky questions this week — nice job!</li>";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>This week's quiz — The Answer Book</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; max-width: 640px; margin: 2rem auto; padding: 0 1.25rem; color: #1a1a1a; line-height: 1.45; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .meta { color: #555; font-size: 0.9rem; }
+  ul { list-style: none; padding: 0; }
+  li.q { display: flex; gap: 0.9rem; padding: 1rem 0; border-bottom: 1px solid #eee; page-break-inside: avoid; }
+  .qno { font-size: 1.1rem; font-weight: 700; color: #a85f42; min-width: 1.6rem; }
+  .skill { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin: 0 0 0.15rem; }
+  .text { margin: 0 0 1rem; }
+  .answer-line { border-bottom: 1px solid #aaa; height: 1.4rem; }
+  .empty { color: #666; }
+  footer { margin-top: 2rem; font-size: 0.75rem; color: #888; }
+  @media print { body { margin: 0; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+  <p class="meta">The Answer Book · AI Tutor — This week's quiz</p>
+  <h1>${escHtml(opts.accountLabel || "Student")}</h1>
+  <p class="meta">Week of ${escHtml(quiz.weekOf)} · Generated ${escHtml(day)}</p>
+  <p class="meta">Try each one on paper first, then redo them with the tutor in the app.</p>
+  <ul>
+${rows}
+  </ul>
+  <footer>Private family record · Print or Save as PDF from the browser.</footer>
+  <p class="no-print"><button type="button" onclick="window.print()">Print / Save as PDF</button></p>
+</body>
+</html>`;
+}
+
 export function buildWrongReviewKickoffMessage(items: WrongAnswer[]): string {
   const lines = items.map(
     (w, i) => `Q${i + 1} (${w.skillLabel}): ${w.question}`,

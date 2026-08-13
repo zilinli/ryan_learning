@@ -46,6 +46,8 @@ yarn-error.log*
 /tmp/
 /data/conversations/*.json
 !/data/conversations/.gitkeep
+/data/interests/
+!/data/interests/.gitkeep
 /data/learning-memory.json
 /data/media/*
 !/data/media/.gitkeep

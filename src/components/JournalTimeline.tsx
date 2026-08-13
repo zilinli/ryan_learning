@@ -454,6 +454,10 @@ function EntryBlock({
           )}
         </div>
       ) : null}
+      {/* P2-2 — encouragement with attribution: show who liked the work and why */}
+      {!everyone && entry.praise?.notes?.length ? (
+        <PraiseAttribution entry={entry} />
+      ) : null}
       {related.map((m, i) => (
         <div
           key={`${m.creationId || m.at}-${i}`}
@@ -532,6 +536,38 @@ function EntryBlock({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * P2-2 — encouragement with attribution: on the child's own timeline, show
+ * who liked a piece of work and their one-line note, anchored to the most
+ * recent related creation when one exists ("Mom liked your ▶ Rocket launch
+ * because…").
+ */
+function PraiseAttribution({ entry }: { entry: JournalEntry }) {
+  const notes = entry.praise?.notes || [];
+  if (!notes.length) return null;
+  const latest = notes[notes.length - 1];
+  const subject = entry.made?.[0] ? madeLabel(entry.made[0]) : "your journal";
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-[var(--coral)]/20 bg-[var(--coral)]/5 px-3 py-1.5">
+      <span aria-hidden className="text-[13px] leading-none">
+        💛
+      </span>
+      <p className="text-[11px] italic leading-snug text-[var(--ink-muted)]">
+        <span className="not-italic font-medium text-[var(--ink)]">
+          {latest.name || "Someone"}
+        </span>{" "}
+        liked {subject}
+        {latest.note ? (
+          <>
+            {" "}
+            — “{latest.note}”
+          </>
+        ) : null}
+      </p>
     </div>
   );
 }

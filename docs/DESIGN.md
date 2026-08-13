@@ -109,6 +109,7 @@ flowchart TB
 | **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md)** | 🗺 竞品调研路线图 P0→P3：开场卡/快速路径/SkillDots → Challenge/深挖/错题本 → Feynman/周目标/突破叙事/朗读 → 几何步骤高亮 |
 | **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) · 四维学习力** | 🧭 四维学习力 P0/P1/P2（2026-08-13）：兴趣探索回路 + 心流信号难度微调 + 问即答快速路径 → 每周深度探究日 + 错题变式/概念提升 + 跨学科连接卡与学科足迹地图 → 体验精修：一键即玩卡片 + 学习/游戏专注护栏 + 领域间自动推荐 |
 | **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) · V3 飞轮** | 🔧 V3（2026-08-13）：归因链路修复（序列化/合并保字段 + source 写入补齐 + 家庭页"本周学力来源"卡）+ 主动出击校准（视觉默认重试按钮 + 优秀学生 reactive + 短而具体回复）+ 验证进化（作品墙点亮 + 兴趣服务端持久化） |
+| **[subsystems/spark-deep-analysis-roadmap.md](subsystems/spark-deep-analysis-roadmap.md)** | 🎯 优等生深度体验 P0→P2（2026-08-13）：归因数据修复（幂等合并+周窗口）+ 高掌握度饥饿循环 + 视觉默认 → 错题本周组卷 + 整页 OCR 批改 + 兴趣雷达/好奇心地图 + 家长周报方向栏 + 知识版图 → 成长时刻动画 + 鼓励带归因 + 季度方向报告 + 实验室跨内容推荐 + 几何交互可视化 |
 | **[subsystems/spark-v2-flywheel.md](subsystems/spark-v2-flywheel.md)** | 🎡 V2 四维学习飞轮三阶段（2026-08-13）：P0 主动出击/心流转活/兴趣反哺 → P1 BKT 先验分层/每周 Launchpad/广度导航/作品闭环 → P2 好奇心干预/动态连接卡/作品墙/快速路径扩容/序列对话分离 + 学习来源归因 |
 | **[subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)** | Writing Pad → music/image/video — **adapt** language, don’t copy |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |

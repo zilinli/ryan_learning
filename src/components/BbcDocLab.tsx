@@ -22,6 +22,7 @@ import {
   MediaLabChallengeView,
   type AnswerRecord,
 } from "./MediaLabChallengeView";
+import { CrossLabSuggest } from "./CrossLabSuggest";
 
 type Phase = "browse" | "watch" | "challenge";
 
@@ -300,6 +301,13 @@ export function BbcDocLab() {
             with the AI teacher.
           </p>
         </div>
+
+        {/* P2-4 — cross-lab next stop */}
+        <CrossLabSuggest
+          from="bbc"
+          tags={[selectedClip.topic, selectedClip.title]}
+        />
+
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <button

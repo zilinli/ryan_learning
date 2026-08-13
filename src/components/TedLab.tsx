@@ -40,6 +40,7 @@ import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { useActiveStudioAccount } from "./StudioAccountBar";
+import { CrossLabSuggest } from "./CrossLabSuggest";
 
 type Phase = "browse" | "watch" | "challenge";
 type ListSource = "ted-live" | "curated-fallback" | "loading";
@@ -612,6 +613,9 @@ export function TedLab() {
             Listen on TED — then take the challenge. Video stays compact so the next step stays visible.
           </p>
         </div>
+
+        {/* P2-4 — cross-lab next stop */}
+        <CrossLabSuggest from="ted" tags={talk.topics} />
 
         {/* Sticky challenge actions — always visible */}
         <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/15 bg-[#141210]/95 px-3 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">

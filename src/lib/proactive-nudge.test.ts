@@ -86,8 +86,9 @@ describe("proactive-nudge: eligibility guards", () => {
     ).toBe(false);
   });
 
-  it("suppresses the recent-wrong path for high-prior learners (reactive)", () => {
+  it("P0-3: high-prior learners get only one wrong-answer retry, no idle push", () => {
     noteWrongAnswerAt(ACCT, 1000);
+    // recent-wrong allowed (the single "Retry this problem" opportunity)
     expect(
       shouldProactiveInvite(ACCT, {
         reason: "recent-wrong",
@@ -95,8 +96,15 @@ describe("proactive-nudge: eligibility guards", () => {
         turnsSince: PROACTIVE_TURNS,
         priorTier: "high",
       }),
+    ).toBe(true);
+    // but no idle pushes for high-prior
+    expect(
+      shouldProactiveInvite(ACCT, {
+        reason: "idle-return",
+        priorTier: "high",
+      }),
     ).toBe(false);
-    // standard tier keeps the existing behavior
+    // standard tier keeps both behaviors
     expect(
       shouldProactiveInvite(ACCT, {
         reason: "recent-wrong",
@@ -105,13 +113,10 @@ describe("proactive-nudge: eligibility guards", () => {
         priorTier: "standard",
       }),
     ).toBe(true);
-  });
-
-  it("still allows idle-return for high-prior learners", () => {
     expect(
       shouldProactiveInvite(ACCT, {
         reason: "idle-return",
-        priorTier: "high",
+        priorTier: "standard",
       }),
     ).toBe(true);
   });

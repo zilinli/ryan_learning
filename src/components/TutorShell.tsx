@@ -29,7 +29,7 @@ import {
   tedLabResumeHref,
 } from "@/lib/entertain/ted-challenge-handoff";
 import { engagementSummary } from "@/lib/engagement";
-import { learningMemorySummary } from "@/lib/learning-memory";
+import { learningMemorySummary, type SkillMastery } from "@/lib/learning-memory";
 import { recordCreationOfferAccepted } from "@/lib/creation-offer";
 import {
   buildChallengeKickoffMessage,
@@ -438,6 +438,35 @@ export function TutorShell() {
             }}
             onOpenerTry={() => {
               if (!sessionOpener) return;
+              // P0-2 — a "hunger loop" opener is a challenge start: build the
+              // kickoff live (fresh streak) and mark an active challenge session
+              // so the difficulty band / gauge behave like Challenge me!.
+              if (sessionOpener.kind === "challenge") {
+                const streak = getChallengeStreak(
+                  accountId,
+                  sessionOpener.skillId,
+                );
+                const text = buildChallengeKickoffMessage(
+                  {
+                    id: sessionOpener.skillId,
+                    label: sessionOpener.label,
+                    pKnown: 0.9,
+                    attempts: 1,
+                    lastSeen: Date.now(),
+                  } as SkillMastery,
+                  streak,
+                );
+                startChallengeSession({
+                  accountId,
+                  skillId: sessionOpener.skillId,
+                  label: sessionOpener.label,
+                  startedAt: Date.now(),
+                });
+                markOpenerShown(accountId);
+                setSessionOpener(null);
+                void handleSend({ text, attachments: [], source: "challenge" });
+                return;
+              }
               const text = buildOpenerKickoffMessage(sessionOpener);
               markOpenerShown(accountId);
               setSessionOpener(null);

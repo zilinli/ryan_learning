@@ -7,6 +7,7 @@ import {
   type LearningMemory,
 } from "@/lib/learning-memory";
 import {
+  buildDashboardExtras,
   buildDashboardModel,
   radarPolygonPoints,
   SUBJECT_LABELS,
@@ -48,6 +49,9 @@ export function LearningDashboard() {
   }, []);
 
   const model = useMemo(() => buildDashboardModel(memory), [memory]);
+  // P1-5 — how this week was earned + next-door skill, both shown even when
+  // the skill radar is still empty (exploration footprint stays visible).
+  const extras = useMemo(() => buildDashboardExtras(memory), [memory]);
   const patterns = useMemo(
     () => (memory ? buildMistakePatterns(memory, 6) : []),
     [memory],
@@ -109,9 +113,36 @@ export function LearningDashboard() {
       </header>
 
       {!model.skillCount ? (
-        <p className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-4 text-[14px] text-[var(--ink-muted)]">
-          Chat with Spark a few times — skills will show up here.
-        </p>
+        <div className="space-y-6">
+          <p className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-4 text-[14px] text-[var(--ink-muted)]">
+            Chat with Spark a few times — skills will show up here.
+          </p>
+          {interests.length > 0 ? (
+            <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+              <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+                Your exploration footprint
+              </h2>
+              <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                Even before the radar lights up, every topic you explore is kept
+                here — it grows every time you pick one.
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {interests.map((i) => (
+                  <li
+                    key={i.topicId}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[12px] text-[var(--ink)]"
+                  >
+                    <span aria-hidden>{i.emoji}</span>
+                    {i.label}
+                    {i.count > 1 ? (
+                      <span className="text-[10px] text-[var(--ink-muted)]">×{i.count}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
       ) : (
         <div className="space-y-6">
           {/* Student: radar */}
@@ -411,6 +442,62 @@ export function LearningDashboard() {
                     >
                       Start from what I know
                     </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {/* P1-5 — next-door skill: "you mastered X → try Y" */}
+          {extras.adjacent ? (
+            <section className="rounded-2xl border border-[var(--coral)]/30 bg-[var(--coral)]/5 p-4">
+              <h2 className="text-[13px] font-semibold text-[var(--coral)]">
+                What's next
+              </h2>
+              <p className="mt-1 text-[13px] leading-relaxed">
+                You've got{" "}
+                <span className="font-medium text-[var(--ink)]">
+                  {extras.adjacent.fromLabel}
+                </span>{" "}
+                down —{" "}
+                <span className="font-medium text-[var(--ink)]">
+                  {extras.adjacent.label}
+                </span>{" "}
+                is right next door.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  stashPracticeKickoff({
+                    skillId: extras.adjacent!.skillId,
+                    label: extras.adjacent!.label,
+                    source: "dashboard-adjacent",
+                  });
+                  window.location.href = "/";
+                }}
+                className="mt-2 inline-flex min-h-10 items-center rounded-full border border-[var(--coral)]/45 bg-[var(--coral)]/12 px-3 text-[12px] font-semibold text-[var(--coral)] transition hover:bg-[var(--coral)]/20"
+              >
+                Take the next step
+              </button>
+            </section>
+          ) : null}
+
+          {/* P1-5 — how this week was earned (source dimension) */}
+          {extras.sourceAttribution.length > 0 ? (
+            <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+              <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+                How you learned this week
+              </h2>
+              <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                What kept your curiosity fed — ranked by practice this week.
+              </p>
+              <ul className="mt-3 space-y-1.5 text-[13px]">
+                {extras.sourceAttribution.slice(0, 5).map((a) => (
+                  <li key={a.source} className="flex justify-between gap-2">
+                    <span className="truncate">{a.label}</span>
+                    <span className="tabular-nums text-[var(--teal)]">
+                      ×{a.count}
+                    </span>
                   </li>
                 ))}
               </ul>

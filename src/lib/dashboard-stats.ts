@@ -5,6 +5,7 @@
 import { getMisconception } from "./misconceptions";
 import { getSkillDef } from "./skill-catalog";
 import {
+  attributionBySource,
   needsReviewSkills,
   normalizeMemory,
   skillWeaknesses,
@@ -12,6 +13,7 @@ import {
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
+import { recommendAdjacent, type AdjacentRecommend } from "./adjacent-recommend";
 
 export type SubjectKey = "math" | "science" | "ela" | "humanities" | "language" | "general";
 
@@ -187,4 +189,27 @@ export function radarPolygonPoints(
       return `${cx + Math.cos(angle) * rr},${cy + Math.sin(angle) * rr}`;
     })
     .join(" ");
+}
+
+/**
+ * P1-5 — pure extras for the knowledge-map dashboard: how the week was earned
+ * (source dimension from attributionBySource) and the next-door skill waiting
+ * once something is mastered (from recommendAdjacent). Kept pure so the
+ * dashboard stays thin and this is unit-testable.
+ */
+export type DashboardExtras = {
+  /** Top sources that drove learning this week, desc by count. */
+  sourceAttribution: Array<{ source: string; count: number; label: string }>;
+  /** "You mastered X → try Y" next-door suggestion, if any. */
+  adjacent: AdjacentRecommend | null;
+};
+
+export function buildDashboardExtras(
+  mem: LearningMemory | null | undefined,
+  now = Date.now(),
+): DashboardExtras {
+  return {
+    sourceAttribution: attributionBySource(mem, now),
+    adjacent: recommendAdjacent(mem),
+  };
 }

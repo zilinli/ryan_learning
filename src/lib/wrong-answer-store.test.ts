@@ -4,6 +4,8 @@ import {
   addWrongAnswer,
   buildVariantKickoffMessage,
   buildVariantKickoffOpener,
+  buildWeeklyQuiz,
+  buildWeeklyQuizKickoffMessage,
   buildWrongAnswerReviewSet,
   buildWrongReviewKickoffMessage,
   buildWrongReviewOpener,
@@ -11,6 +13,7 @@ import {
   consumeWrongReviewKickoff,
   deleteWrongAnswer,
   loadWrongAnswers,
+  markWrongAnswersRedone,
   skillLabelForText,
   stashVariantKickoff,
   stashWrongReviewKickoff,
@@ -148,6 +151,53 @@ describe("wrong-answer-store", () => {
       const opener = buildVariantKickoffOpener(k);
       expect(opener.kind).toBe("practice");
       expect(opener.kickoffOverride).toMatch(/VARIANT/);
+    });
+  });
+
+  describe("this week's quiz (P1-1 组卷)", () => {
+    const now = Date.now();
+    const day = 86_400_000;
+
+    it("builds one question per skill from this week's wrong answers", () => {
+      add("q-frac-1", "fractions-concepts", "Fraction concepts", now - day);
+      add("q-frac-2", "fractions-concepts", "Fraction concepts", now - 2 * day);
+      add("q-alg", "algebra-equations", "Algebra equations", now - 3 * day);
+      add("q-old", "reading-evidence", "Reading evidence", now - 30 * day);
+      const quiz = buildWeeklyQuiz(ACCT, 4, now);
+      expect(quiz.weekOf.length).toBe(10);
+      // fractions-concepts appears once, old (>7d) is excluded
+      expect(quiz.items.map((i) => i.skillId).sort()).toEqual([
+        "algebra-equations",
+        "fractions-concepts",
+      ]);
+    });
+
+    it("respects count between 3 and 5 and skips old answers", () => {
+      for (let i = 0; i < 6; i += 1) {
+        add(`q${i}`, `skill-${i}`, `Skill ${i}`, now - day);
+      }
+      add("old", "old-skill", "Old", now - 20 * day);
+      const quiz = buildWeeklyQuiz(ACCT, 6, now);
+      expect(quiz.items.length).toBeLessThanOrEqual(5);
+      expect(quiz.items.length).toBeGreaterThanOrEqual(3);
+      expect(quiz.items.some((i) => i.skillId === "old-skill")).toBe(false);
+    });
+
+    it("kickoff message names the questions one at a time", () => {
+      add("What is 1/2 + 1/4?", "fractions-concepts", "Fraction concepts", now);
+      const quiz = buildWeeklyQuiz(ACCT, 4, now);
+      const msg = buildWeeklyQuizKickoffMessage(quiz);
+      expect(msg).toMatch(/1\/2 \+ 1\/4/);
+      expect(msg).toMatch(/one at a time/i);
+    });
+
+    it("markWrongAnswersRedone removes only the given ids", () => {
+      const a = add("a", "s1", "S1", now - day);
+      const b = add("b", "s2", "S2", now - day);
+      const removed = markWrongAnswersRedone(ACCT, [a.id]);
+      expect(removed).toBe(1);
+      expect(loadWrongAnswers(ACCT).map((w) => w.id)).toEqual([b.id]);
+      expect(markWrongAnswersRedone(ACCT, ["missing"])).toBe(0);
     });
   });
 });

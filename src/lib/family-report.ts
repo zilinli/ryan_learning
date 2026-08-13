@@ -23,6 +23,7 @@ import {
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
+import type { InterestRecord } from "./interest-store";
 
 export type PatternSeverity = "watch" | "recurring" | "persistent";
 
@@ -179,6 +180,14 @@ function buildNarrative(
       `P2 teach-back: ask them to explain ${weekly.feynmanTask.skillLabel} to you — one example, one check question.`,
     );
   }
+  if (weekly.interestFocus.length) {
+    nameBits.push(
+      `Curiosity this week: ${weekly.interestFocus.join(", ")}.`,
+    );
+  }
+  if (weekly.nextChallenge) {
+    nameBits.push(`Next stretch: ${weekly.nextChallenge.line}`);
+  }
   if (weekly.nextWeekFocus.length) {
     nameBits.push(
       `Suggested focus next: ${weekly.nextWeekFocus.map((s) => s.label).join(", ")}.`,
@@ -189,7 +198,7 @@ function buildNarrative(
 
 export function buildFamilyReport(
   mem: LearningMemory | null | undefined,
-  opts: { accountLabel?: string; now?: number } = {},
+  opts: { accountLabel?: string; now?: number; interests?: InterestRecord[] } = {},
 ): FamilyReport {
   const now = opts.now ?? Date.now();
   const accountLabel = opts.accountLabel || "Student";
@@ -218,7 +227,7 @@ export function buildFamilyReport(
     };
   }
   const m = normalizeMemory(mem);
-  const weekly = buildParentWeeklyDigest(m, now);
+  const weekly = buildParentWeeklyDigest(m, now, opts.interests);
   const patterns = buildMistakePatterns(m);
   const radar = buildSubjectRadar(m);
   const trend30 = buildMasteryTrend30(m, now);

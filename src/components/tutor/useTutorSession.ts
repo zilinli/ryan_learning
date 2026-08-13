@@ -769,7 +769,17 @@ export function useTutorSession() {
       if (busy) return;
       const hiddenAt = hiddenAtRef.current;
       if (hiddenAt == null || Date.now() - hiddenAt < PROACTIVE_IDLE_MS) return;
-      if (!shouldProactiveInvite(accountId, { reason: "idle-return" })) return;
+      const priorTier =
+        learningMemory?.priorTier ??
+        detectPriorTier(loadStudentProfile(), learningMemory);
+      if (
+        !shouldProactiveInvite(accountId, {
+          reason: "idle-return",
+          priorTier,
+        })
+      ) {
+        return;
+      }
       const items = pendingReviewSet(accountId);
       if (items.length === 0) return;
       hiddenAtRef.current = null;

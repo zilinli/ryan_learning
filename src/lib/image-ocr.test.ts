@@ -5,7 +5,10 @@ import {
   loadImageOcrConfig,
   ocrCompletionsUrl,
   ocrContentFromResponse,
+  parseWorksheetItems,
   stripCodeFence,
+  worksheetGradingBlock,
+  worksheetGradingBlockFromSummaries,
 } from "./image-ocr";
 
 const OLD = { ...process.env };
@@ -148,5 +151,55 @@ describe("buildImageOcrSummaries", () => {
       { ocrFn: async () => "ab" },
     );
     expect(out).toEqual([]);
+  });
+});
+
+describe("parseWorksheetItems (P1-2 逐题解析)", () => {
+  it("splits OCR text into numbered items with continuation lines", () => {
+    const items = parseWorksheetItems(`1. What is 1/2 + 1/4?
+Show your work.
+2) 9 × 8 =
+3. Solve for x: 2x + 3 = 11
+   Explain the steps.`);
+    expect(items.map((i) => i.number)).toEqual([1, 2, 3]);
+    expect(items[0]?.text).toMatch(/What is 1\/2 \+ 1\/4/);
+    expect(items[0]?.text).toMatch(/Show your work/);
+    expect(items[1]?.text).toMatch(/9 × 8/);
+    expect(items[2]?.text).toMatch(/2x \+ 3 = 11/);
+    expect(items[2]?.text).toMatch(/Explain the steps/);
+  });
+
+  it("supports Q-prefixed and 第N题 markers", () => {
+    const items = parseWorksheetItems("Q1. Which planet is largest?\nQ2 What is photosynthesis?\n第3题 请列出五种动物");
+    expect(items.map((i) => i.text)).toHaveLength(3);
+    expect(items[0]?.text).toMatch(/largest/);
+    expect(items[2]?.text).toMatch(/五种动物/);
+  });
+
+  it("returns [] for unnumbered content (word lists / paragraphs)", () => {
+    expect(parseWorksheetItems("linger\nliterature\nlocate")).toEqual([]);
+    expect(parseWorksheetItems("")).toEqual([]);
+  });
+});
+
+describe("worksheetGradingBlock (P1-2 整页批改)", () => {
+  it("produces a grading block naming the item count", () => {
+    const block = worksheetGradingBlock("1. 12 + 7 =\n2. 9 × 3 =\n3. 100 − 23 =");
+    expect(block).not.toBeNull();
+    expect(block).toMatch(/3 numbered item/);
+    expect(block).toMatch(/✓ or ✗/);
+    expect(block).toMatch(/redo/);
+  });
+
+  it("returns null when the page has no numbered items", () => {
+    expect(worksheetGradingBlock("frog\ntoad\npond")).toBeNull();
+  });
+
+  it("builds the block from OCR summary lines", () => {
+    const block = worksheetGradingBlockFromSummaries([
+      "--- Photo 1 (cam.jpg) ---\n1. 12 + 7 =\n2. 9 × 3 =",
+    ]);
+    expect(block).toMatch(/2 numbered item/);
+    expect(worksheetGradingBlockFromSummaries([])).toBeNull();
   });
 });

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   buildGeometryStepSvgs,
+  describeGeometryShapes,
   sanitizeSvg,
   type GeometrySpec,
 } from "@/lib/geometry-svg";
@@ -85,6 +86,14 @@ export function GeometryStepPlayer({ body }: { body: string }) {
       .catch(() => setSpeaking(false));
   }, [speaking, views, active]);
 
+  const step = spec?.steps?.[active];
+  // P2-5 — current step's note + highlighted shape labels ("where the quantity is")
+  const lookingAt = useMemo(
+    () => (step ? describeGeometryShapes(spec, step.highlight) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [active, spec],
+  );
+
   if (!spec || views.length < 2) return null;
 
   const go = (next: number) => {
@@ -122,7 +131,7 @@ export function GeometryStepPlayer({ body }: { body: string }) {
           <img
             src={svgDataUri(views[active]!.svg)}
             alt={views[active]!.caption}
-            className="tutor-diagram-img"
+            className="tutor-diagram-img animate-[fade-up_0.3s_ease]"
           />
         </button>
         <span className="tutor-diagram-zoom-hint" aria-hidden>
@@ -149,6 +158,32 @@ export function GeometryStepPlayer({ body }: { body: string }) {
           alt={views[active]!.caption}
           onClose={() => setZoom(false)}
         />
+      ) : null}
+
+      {/* P2-5 — "where the quantity is" callout (measurement note + shapes) */}
+      {step && (step.note || lookingAt.length > 0) ? (
+        <div className="mt-2 rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2">
+          {step.note ? (
+            <p className="text-[13px] font-semibold text-[var(--coral)]">
+              {step.note}
+            </p>
+          ) : null}
+          {lookingAt.length > 0 ? (
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-[var(--ink-muted)]">
+              <span className="font-semibold uppercase tracking-wide">
+                Where to look
+              </span>
+              {lookingAt.map((l) => (
+                <span
+                  key={l}
+                  className="rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2 py-0.5 font-medium text-[var(--teal)]"
+                >
+                  {l}
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {/* Caption */}

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { kvClearMemory } from "./browser-kv";
 import {
+  buildCuriosityMap,
   interestStorageKey,
   loadInterests,
   mergeInterests,
@@ -80,5 +81,44 @@ describe("interest-store", () => {
     expect(space?.count).toBe(5);
     expect(space?.exploredAt).toBe(3000);
     expect(merged[0]?.topicId).toBe("space"); // newest first
+  });
+});
+
+describe("buildCuriosityMap (P1-3 好奇心地图)", () => {
+  const now = Date.now();
+  const day = 86_400_000;
+  const rec = (
+    topicId: string,
+    label: string,
+    count: number,
+    exploredAt: number,
+  ) => ({ topicId, label, emoji: "✨", count, exploredAt });
+
+  it("ranks this week's interests by count and yields a headline", () => {
+    const map = buildCuriosityMap(
+      [
+        rec("space", "Space", 4, now - day),
+        rec("music", "Music", 2, now - 2 * day),
+        rec("art", "Art", 3, now - 3 * day),
+      ],
+      now,
+    );
+    expect(map?.words).toEqual(["Space", "Art", "Music"]);
+    expect(map?.headline).toMatch(/Space/);
+    expect(map?.headline).toMatch(/curiosity thread/);
+  });
+
+  it("falls back to the overall profile when nothing was explored this week", () => {
+    const map = buildCuriosityMap(
+      [rec("music", "Music", 2, now - 30 * day)],
+      now,
+    );
+    expect(map?.words).toEqual(["Music"]);
+    expect(map?.headline).toMatch(/return to most/);
+  });
+
+  it("returns null with no interests", () => {
+    expect(buildCuriosityMap([], now)).toBeNull();
+    expect(buildCuriosityMap(null as never, now)).toBeNull();
   });
 });

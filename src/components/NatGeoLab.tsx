@@ -20,6 +20,7 @@ import {
   MediaLabChallengeView,
   type AnswerRecord,
 } from "./MediaLabChallengeView";
+import { CrossLabSuggest } from "./CrossLabSuggest";
 
 type Phase = "browse" | "read" | "challenge";
 
@@ -157,6 +158,14 @@ export function NatGeoLab() {
             <div className="text-[14px] leading-relaxed text-[#e8e2d8] space-y-2">
               {selectedArticle.body.split("\n\n").map((p, i) => (<p key={i}>{p}</p>))}
             </div>
+          </div>
+
+          {/* P2-4 — cross-lab next stop */}
+          <div className="px-3 pb-2 sm:px-4">
+            <CrossLabSuggest
+              from="natgeo"
+              tags={[NATGEO_TOPIC_LABELS[selectedArticle.topic], selectedArticle.title]}
+            />
           </div>
         </div>
 

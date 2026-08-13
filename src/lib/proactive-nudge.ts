@@ -187,11 +187,15 @@ export function shouldProactiveInvite(
   if (proactiveShownRecently(accountId, PROACTIVE_COOLDOWN_MS, opts?.now)) {
     return false;
   }
+  // P0-3 — high-prior students are reactive by default (report §9 P0-3):
+  // the only proactive touch is a single "Retry this problem" after a wrong
+  // answer (already gated to once by cooldown + same-day dismiss). No idle
+  // pushes — they know their way back and interruption only breaks flow
+  // (mixed human-AI tiering evidence).
+  if (opts.priorTier === "high") {
+    return opts.reason === "recent-wrong";
+  }
   if (opts.reason === "idle-return") return true;
-  // recent-wrong — high-prior students are on reactive by default: proactive
-  // interruption has ~zero marginal benefit for them and can break flow
-  // (mixed human-AI tiering + flow evidence). They still get idle-return.
-  if (opts.priorTier === "high") return false;
   if (opts.pendingAt == null) return false;
   if (opts.turnsSince == null || opts.turnsSince < PROACTIVE_TURNS) return false;
   return true;

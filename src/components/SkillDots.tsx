@@ -44,6 +44,7 @@ export function SkillDots({
   }, [accountId]);
 
   const dots = useMemo(() => summarizeSkillDots(mem), [mem]);
+  const litIds = useMemo(() => new Set(dots.litThisWeek.map((s) => s.id)), [dots]);
 
   if (dots.skills.length === 0) return null;
 
@@ -64,6 +65,26 @@ export function SkillDots({
         </p>
       </button>
 
+      {/* P2-1 — growth moment banner: dots lit this week */}
+      {dots.litThisWeek.length > 0 ? (
+        <div
+          role="status"
+          className="mt-3 flex items-center gap-2 rounded-xl border border-[#2e9e6b]/30 bg-[#2e9e6b]/10 px-3 py-2"
+        >
+          <span className="text-base leading-none" aria-hidden>
+            🎉
+          </span>
+          <p className="text-[12px] text-[var(--ink)]">
+            You lit{" "}
+            <span className="font-semibold text-[#2e9e6b]">
+              {dots.litThisWeek.length}
+            </span>{" "}
+            dot{dots.litThisWeek.length > 1 ? "s" : ""} this week
+            {dots.grouped.green > 0 ? " — level up!" : ""}
+          </p>
+        </div>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap items-center gap-1.5" role="list" aria-label="Skill dots">
         {dots.skills.map((s) => {
           const tone = skillDotTone(s);
@@ -72,7 +93,9 @@ export function SkillDots({
               key={s.id}
               role="listitem"
               title={`${s.label} — ${TONE_LABEL[tone]} (${Math.round(s.pKnown * 100)}%)`}
-              className={`h-3.5 w-3.5 rounded-full ${TONE_CLASS[tone]} ring-2 ring-[var(--surface)]`}
+              className={`h-3.5 w-3.5 rounded-full ${TONE_CLASS[tone]} ring-2 ring-[var(--surface)] ${
+                litIds.has(s.id) ? "animate-pulse" : ""
+              }`}
             />
           );
         })}

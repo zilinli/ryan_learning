@@ -265,4 +265,16 @@ describe("buildTutorPrompt", () => {
     });
     expect(p).not.toContain("[Quoted earlier message");
   });
+
+  it("P1-2: injects full-page grading instructions for numbered worksheets", () => {
+    const p = buildTutorPrompt({
+      userText: "check my page",
+      imageCount: 1,
+      imageOcrSummaries: ["--- Photo 1 (cam.jpg) ---\n1. 12 + 7 =\n2. 9 × 3 ="],
+      worksheetGrading:
+        "[Full-page grading — the page is a worksheet with numbered items]\nThe OCR page has 2 numbered item(s).",
+    });
+    expect(p).toContain("Full-page grading");
+    expect(p).toContain("2 numbered item");
+  });
 });

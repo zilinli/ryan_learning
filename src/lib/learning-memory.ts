@@ -106,10 +106,14 @@ export type SkillMastery = {
   eloState: EloState;
   /** CA-6 — recent misconception tag hits */
   misconceptionHits?: Array<{ id: string; count: number; lastSeen: number }>;
-  /** V2 attribution — turn counts by learning mechanism. */
+  /** V2 attribution — turn counts by learning mechanism (lifetime). */
   sourceCounts?: Partial<Record<LearningSource, number>>;
   /** V2 attribution — most recent mechanism that touched this skill. */
   lastSource?: LearningSource;
+  /** V3 attribution — turn counts by mechanism for the current week only. */
+  sourceCountsWeek?: Partial<Record<LearningSource, number>>;
+  /** V3 attribution — week key the weekly counts belong to (Monday YYYY-MM-DD). */
+  sourceWeekKey?: string;
 };
 
 /** Auto-advance suggestion when mastery exceeds current band ceiling. Parent opt-in; not auto-applied. */
@@ -390,6 +394,13 @@ function normalizeSkill(raw: Partial<SkillMastery>): SkillMastery | null {
     )
       ? ((raw as Record<string, unknown>).lastSource as LearningSource)
       : undefined,
+    sourceCountsWeek: normalizeSourceCounts(
+      (raw as Record<string, unknown>).sourceCountsWeek,
+    ),
+    sourceWeekKey:
+      typeof (raw as Record<string, unknown>).sourceWeekKey === "string"
+        ? ((raw as Record<string, unknown>).sourceWeekKey as string).slice(0, 10)
+        : undefined,
   };
 }
 
@@ -712,7 +723,25 @@ export function appendDigestToMemory(
 
 // ── Merge ───────────────────────────────────────────────────────────
 
-/** Sum source attribution counts across two skills (keeps both sides). */
+/** Monday (YYYY-MM-DD) of the week containing `ts` — buckets weekly attribution. */
+export function weekKeyOf(ts = Date.now()): string {
+  const d = new Date(ts);
+  const day = d.getUTCDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + offset),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Merge source attribution counts across two skill copies.
+ * Counts are cumulative snapshots (both sides hold the full history), so the
+ * merge is idempotent — keep the larger per-source count, mirroring how
+ * `attempts` merges with Math.max. Summing would inflate counts on every
+ * snapshot sync (local ↔ server), which is what produced `homework:245`.
+ */
 function mergeSourceCounts(
   a?: Partial<Record<LearningSource, number>>,
   b?: Partial<Record<LearningSource, number>>,
@@ -721,7 +750,7 @@ function mergeSourceCounts(
   for (const s of [a, b]) {
     for (const [src, c] of Object.entries(s || {})) {
       if (isLearningSource(src) && typeof c === "number" && c > 0) {
-        out[src] = Math.min(9999, (out[src] || 0) + c);
+        out[src] = Math.min(9999, Math.max(out[src] || 0, Math.floor(c)));
       }
     }
   }
@@ -740,8 +769,19 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
   for (const h of b.misconceptionHits || []) {
     hits = mergeMisconceptionHit(hits, h);
   }
-  // V2 attribution — keep both sides' counts (sum per source), newer lastSource.
+  // V2 attribution — keep both sides' counts (max per source, idempotent), newer lastSource.
   const sourceCounts = mergeSourceCounts(a.sourceCounts, b.sourceCounts);
+  // V3 weekly attribution — counts for the current week only; prefer the copy
+  // whose weekly window is newer, merging same-week copies with max.
+  const newerWeek =
+    (a.sourceWeekKey || "") >= (b.sourceWeekKey || "") ? a : b;
+  const sameWeek = a.sourceWeekKey && a.sourceWeekKey === b.sourceWeekKey;
+  const sourceCountsWeek = sameWeek
+    ? mergeSourceCounts(a.sourceCountsWeek, b.sourceCountsWeek)
+    : newerWeek.sourceCountsWeek;
+  const sourceWeekKey = sameWeek
+    ? a.sourceWeekKey
+    : newerWeek.sourceWeekKey;
   return {
     id: a.id,
     label: newer.label,
@@ -758,6 +798,8 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
     misconceptionHits: hits.length ? hits : undefined,
     sourceCounts,
     lastSource: newer.lastSource ?? a.lastSource ?? b.lastSource,
+    sourceCountsWeek,
+    sourceWeekKey,
   };
 }
 
@@ -793,10 +835,26 @@ export function mergeLearningMemory(
     ...older.stuckStreakBySkill,
     ...newer.stuckStreakBySkill,
   };
-  const gapHistory = pruneGapHistory([
+  // Dedup gap history by skillId (union of days, later expiry) before prune —
+  // naive concatenation left 12 duplicate physics-6-8 rows in production data.
+  const gapMap = new Map<string, NonNullable<LearningMemory["gapHistory"]>[number]>();
+  for (const g of pruneGapHistory([
     ...(newer.gapHistory || []),
     ...(older.gapHistory || []),
-  ]);
+  ])) {
+    const prev = gapMap.get(g.skillId);
+    gapMap.set(
+      g.skillId,
+      prev
+        ? {
+            ...g,
+            days: [...new Set([...prev.days, ...g.days])].slice(-14),
+            expiresAt: Math.max(prev.expiresAt, g.expiresAt),
+          }
+        : g,
+    );
+  }
+  const gapHistory = pruneGapHistory([...gapMap.values()]);
 
   const merged = normalizeMemory({
     skills,
@@ -889,6 +947,17 @@ export function recordLearningTurnMemory(
       s.sourceCounts = {
         ...(s.sourceCounts || {}),
         [source]: (s.sourceCounts?.[source] || 0) + 1,
+      };
+      // V3 weekly attribution — roll over to a fresh week bucket when the
+      // calendar week changes, so parent "this week's drivers" is real.
+      const wk = weekKeyOf(now);
+      if (s.sourceWeekKey !== wk) {
+        s.sourceCountsWeek = {};
+        s.sourceWeekKey = wk;
+      }
+      s.sourceCountsWeek = {
+        ...(s.sourceCountsWeek || {}),
+        [source]: (s.sourceCountsWeek?.[source] || 0) + 1,
       };
       s.lastSource = source;
     }
@@ -1001,19 +1070,20 @@ export function recordLearningTurnMemory(
 }
 
 /**
- * V2 attribution — total turn counts per mechanism across skills seen in the
- * window, sorted by contribution (report §10, 核心归因).
+ * V2 attribution — turn counts per mechanism for the CURRENT week, sorted by
+ * contribution (parent weekly report "this week's growth sources"). Reads the
+ * per-skill weekly buckets (`sourceCountsWeek`), so it never mixes lifetime
+ * totals into a weekly number.
  */
 export function attributionBySource(
   mem: LearningMemory | null | undefined,
   now = Date.now(),
-  windowMs = 7 * 86_400_000,
 ): Array<{ source: LearningSource; count: number; label: string }> {
   const out = new Map<LearningSource, number>();
-  const weekStart = now - windowMs;
+  const wk = weekKeyOf(now);
   for (const s of mem?.skills || []) {
-    if (s.lastSeen < weekStart) continue;
-    for (const [src, c] of Object.entries(s.sourceCounts || {})) {
+    if (s.sourceWeekKey !== wk) continue;
+    for (const [src, c] of Object.entries(s.sourceCountsWeek || {})) {
       if (isLearningSource(src) && c) {
         out.set(src, (out.get(src) || 0) + c);
       }
@@ -1523,6 +1593,8 @@ export function serializeLearningMemoryForChat(
       misconceptionHits: s.misconceptionHits?.slice(0, 4),
       sourceCounts: s.sourceCounts,
       lastSource: s.lastSource,
+      sourceCountsWeek: s.sourceCountsWeek,
+      sourceWeekKey: s.sourceWeekKey,
     })),
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),

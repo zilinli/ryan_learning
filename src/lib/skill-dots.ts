@@ -7,6 +7,7 @@
 import {
   skillStrengths,
   skillWeaknesses,
+  weekKeyOf,
   type LearningMemory,
   type SkillMastery,
 } from "./learning-memory";
@@ -28,9 +29,20 @@ export type SkillDotsSummary = {
   grouped: Record<SkillDotTone, number>;
   strengths: SkillMastery[];
   weaknesses: SkillMastery[];
+  /** P2-1 — dots that lit up during the current week (a "growth moment"). */
+  litThisWeek: SkillMastery[];
 };
 
-export function summarizeSkillDots(mem: LearningMemory | null): SkillDotsSummary {
+/** Monday timestamp (UTC) of the current week — used for the growth banner. */
+export function weekStartOf(ts = Date.now()): number {
+  const wk = weekKeyOf(ts);
+  return Date.parse(wk + "T00:00:00.000Z");
+}
+
+export function summarizeSkillDots(
+  mem: LearningMemory | null,
+  now = Date.now(),
+): SkillDotsSummary {
   const skills = mem?.skills || [];
   const grouped: Record<SkillDotTone, number> = {
     green: 0,
@@ -40,10 +52,15 @@ export function summarizeSkillDots(mem: LearningMemory | null): SkillDotsSummary
   for (const s of skills) {
     grouped[skillDotTone(s)] += 1;
   }
+  const weekStart = weekStartOf(now);
+  const litThisWeek = skills.filter(
+    (s) => s.lastSeen >= weekStart && skillDotTone(s) !== "grey",
+  );
   return {
     skills,
     grouped,
     strengths: skillStrengths(mem, 3),
     weaknesses: skillWeaknesses(mem, 3),
+    litThisWeek,
   };
 }

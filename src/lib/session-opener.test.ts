@@ -275,4 +275,106 @@ describe("session-opener (CA-3)", () => {
     const next = rotateSessionOpener(opener);
     expect(next).toBeNull();
   });
+
+  it("P0-2: saturated learner gets a challenge opener, not a generic warm-up", () => {
+    const now = Date.now();
+    // 3/3 skills mastered with fresh reviews → no gap, no due review, no ZPD.
+    const sat = (id: string, label: string, topicId: string) => ({
+      id,
+      label,
+      topicId,
+      pKnown: 0.93,
+      mastery: 93,
+      attempts: 10,
+      correct: 9,
+      incorrect: 1,
+      lastSeen: now,
+      sm2State: {
+        ef: 2.5,
+        interval: 8,
+        reps: 6,
+        prevReview: now - 86_400_000,
+      },
+      eloState: { rating: 1700, n: 10, lastUpdate: now },
+    });
+    const mem = normalizeMemory({
+      skills: [
+        sat("fractions-concepts", "Fraction concepts", "fractions"),
+        sat("algebra-equations", "Algebra equations", "algebra"),
+        sat("perimeter-area", "Perimeter & area", "geometry"),
+      ],
+      updatedAt: now,
+    });
+    const opener = buildSessionOpener(mem, "acct_a")!;
+    expect(opener.highMasteryMode).toBe(true);
+    expect(opener.kind).toBe("challenge");
+    expect(opener.source).toBe("challenge");
+    expect(opener.line).toMatch(/tougher spin/i);
+  });
+
+  it("P0-2: mixed mastery keeps a normal opener and highMasteryMode off", () => {
+    const now = Date.now();
+    const mem = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.45,
+          mastery: 45,
+          attempts: 5,
+          correct: 2,
+          incorrect: 3,
+          lastSeen: now,
+          sm2State: {
+            ef: 2.3,
+            interval: 2,
+            reps: 2,
+            prevReview: now - 10 * 86_400_000,
+          },
+          eloState: { rating: 1300, n: 5, lastUpdate: now },
+        },
+        {
+          id: "algebra-equations",
+          label: "Algebra equations",
+          topicId: "algebra",
+          pKnown: 0.92,
+          mastery: 92,
+          attempts: 12,
+          correct: 11,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: {
+            ef: 2.5,
+            interval: 8,
+            reps: 6,
+            prevReview: now - 86_400_000,
+          },
+          eloState: { rating: 1750, n: 12, lastUpdate: now },
+        },
+        {
+          id: "time-conversion",
+          label: "Time conversion",
+          topicId: "measurement",
+          pKnown: 0.3,
+          mastery: 30,
+          attempts: 2,
+          correct: 0,
+          incorrect: 2,
+          lastSeen: now,
+          sm2State: {
+            ef: 2.0,
+            interval: 1,
+            reps: 0,
+            prevReview: now - 2 * 86_400_000,
+          },
+          eloState: { rating: 1100, n: 2, lastUpdate: now },
+        },
+      ],
+      updatedAt: now,
+    });
+    const opener = buildSessionOpener(mem, "acct_a")!;
+    expect(opener.highMasteryMode).toBe(false);
+    expect(opener.kind).not.toBe("challenge");
+  });
 });

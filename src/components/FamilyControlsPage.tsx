@@ -36,6 +36,11 @@ import {
   loadFeynmanDone,
   markFeynmanDone,
 } from "@/lib/feynman-task";
+import {
+  hydrateInterestsFromServer,
+  loadInterests,
+  type InterestRecord,
+} from "@/lib/interest-store";
 
 function severityLabel(s: PatternSeverity): string {
   if (s === "persistent") return "Persistent";
@@ -234,6 +239,7 @@ function GrowthSourcesCard({
  */
 export function FamilyControlsPage() {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
+  const [interests, setInterests] = useState<InterestRecord[]>([]);
   const [accountId, setAccountId] = useState("acct_ryan");
   const [accountName, setAccountName] = useState("Student");
   const [unlocked, setUnlocked] = useState(false);
@@ -248,6 +254,8 @@ export function FamilyControlsPage() {
     setAccountName(acct.profile.name || "Student");
     setMemory(loadLearningMemory(acct.id));
     void hydrateLearningMemoryFromServer(acct.id).then(setMemory);
+    setInterests(loadInterests(acct.id));
+    void hydrateInterestsFromServer(acct.id).then(setInterests);
     const ok = hasParentPin() && isParentSessionUnlocked();
     setUnlocked(ok);
     setCheckMode(loadCheckMode());
@@ -265,8 +273,9 @@ export function FamilyControlsPage() {
     () =>
       buildFamilyReport(memory, {
         accountLabel: accountName,
+        interests,
       }),
-    [memory, accountName],
+    [memory, accountName, interests],
   );
 
   const radarValues = report.radar.map((r) => r.value);
@@ -595,6 +604,29 @@ export function FamilyControlsPage() {
 
           {/* V3 — weekly attribution: which mechanism drove this week */}
           <GrowthSourcesCard attribution={report.weekly.sourceAttribution} />
+
+          {/* P1-4 — curiosity profile + next stretch challenge */}
+          {(report.weekly.interestFocus.length || report.weekly.nextChallenge) ? (
+            <section className="rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/6 p-5">
+              <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+                Curiosity &amp; direction
+              </h2>
+              {report.weekly.interestFocus.length ? (
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--ink)]">
+                  <span className="font-medium">This week&apos;s curiosity:</span>{" "}
+                  {report.weekly.interestFocus.join(" · ")}
+                </p>
+              ) : null}
+              {report.weekly.nextChallenge ? (
+                <p className="mt-2 rounded-xl border border-[var(--coral)]/25 bg-[var(--coral)]/6 px-3 py-2 text-[13px] leading-relaxed text-[var(--ink)]">
+                  <span className="font-medium text-[var(--coral)]">
+                    Next stretch:
+                  </span>{" "}
+                  {report.weekly.nextChallenge.line}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
           {/* Mistake patterns — industry: actionable error analysis */}
           <section>

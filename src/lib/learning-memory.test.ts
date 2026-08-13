@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   attributionBySource,
   emptyLearningMemory,
@@ -11,6 +11,7 @@ import {
   serializeLearningMemoryForChat,
   skillStrengths,
   skillWeaknesses,
+  weekKeyOf,
 } from "./learning-memory";
 
 describe("learning-memory", () => {
@@ -155,7 +156,8 @@ describe("learning-memory", () => {
     expect(frac2?.lastSource).toBe("explore");
   });
 
-  it("V2 attribution: attributionBySource aggregates across skills and drops junk", () => {
+  it("V2 attribution: attributionBySource aggregates weekly buckets across skills and drops junk", () => {
+    const now = Date.now();
     const mem = normalizeMemory({
       skills: [
         {
@@ -174,6 +176,28 @@ describe("learning-memory", () => {
             deepDive: 2,
             junk: 9,
           } as Partial<Record<import("./learning-memory").LearningSource, number>>,
+          sourceCountsWeek: {
+            deepDive: 2,
+            junk: 9,
+          } as Partial<Record<import("./learning-memory").LearningSource, number>>,
+          sourceWeekKey: weekKeyOf(now),
+        },
+        {
+          id: "place-value",
+          label: "Place value",
+          topicId: "place-value",
+          pKnown: 0.7,
+          mastery: 70,
+          attempts: 3,
+          correct: 2,
+          incorrect: 1,
+          lastSeen: Date.now(),
+          sm2State: { ef: 2.3, interval: 2, reps: 1, prevReview: Date.now() },
+          eloState: { rating: 1350, n: 3, lastUpdate: Date.now() },
+          sourceCounts: { deepDive: 1, explore: 1 },
+          sourceCountsWeek: { deepDive: 1, explore: 1 },
+          // Last week's bucket — must NOT leak into this week's attribution.
+          sourceWeekKey: weekKeyOf(now - 7 * 86_400_000),
         },
       ],
       updatedAt: Date.now(),
@@ -182,7 +206,36 @@ describe("learning-memory", () => {
     expect(rows[0]?.source).toBe("deepDive");
     expect(rows[0]?.count).toBe(2);
     expect(rows.some((r) => (r.source as string) === "junk")).toBe(false);
+    expect(rows.some((r) => r.source === "explore")).toBe(false);
     expect(rows[0]?.label).toBe("weekly deep dives");
+  });
+
+  it("V3 attribution: weekly bucket rolls over when the week changes", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-08-10T12:00:00Z")); // Monday
+      let mem = emptyLearningMemory();
+      mem = recordLearningTurnMemory(mem, {
+        userText: "I'm stuck on this fraction problem",
+        source: "deepDive",
+      });
+      let frac = mem.skills.find((s) => s.topicId === "fractions");
+      expect(frac?.sourceWeekKey).toBe("2026-08-10");
+      expect(frac?.sourceCountsWeek?.deepDive).toBe(1);
+
+      vi.setSystemTime(new Date("2026-08-17T12:00:00Z")); // next Monday
+      mem = recordLearningTurnMemory(mem, {
+        userText: "more fraction practice",
+        assistantText: "Yes — 1/2 = 2/4, nice work on equivalent fractions.",
+        source: "challenge",
+      });
+      frac = mem.skills.find((s) => s.topicId === "fractions");
+      expect(frac?.sourceWeekKey).toBe("2026-08-17");
+      expect(frac?.sourceCountsWeek?.deepDive).toBeUndefined();
+      expect(frac?.sourceCountsWeek?.challenge).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("V3: serializeLearningMemoryForChat keeps sourceCounts + lastSource", () => {
@@ -206,7 +259,7 @@ describe("learning-memory", () => {
     expect(frac?.lastSource).toBe("variant");
   });
 
-  it("V3: mergeSkill sums sourceCounts and keeps the newer lastSource", () => {
+  it("V3: mergeSkill merges sourceCounts idempotently (max) and keeps the newer lastSource", () => {
     const now = Date.now();
     const a = normalizeMemory({
       skills: [
@@ -251,9 +304,49 @@ describe("learning-memory", () => {
     const merged = mergeLearningMemory(a, b);
     const frac = merged.skills.find((s) => s.id === "fractions-concepts");
     expect(frac?.sourceCounts?.deepDive).toBe(3);
-    expect(frac?.sourceCounts?.wrongbook).toBe(3);
+    expect(frac?.sourceCounts?.wrongbook).toBe(2);
     expect(frac?.sourceCounts?.explore).toBe(1);
     expect(frac?.lastSource).toBe("explore");
+  });
+
+  it("V3: mergeLearningMemory dedups gapHistory by skillId and unions days", () => {
+    const now = Date.now();
+    const gap = (expiresAt: number) => [
+      {
+        skillId: "physics-6-8",
+        label: "Physics 6–8",
+        days: ["2026-08-10"],
+        expiresAt,
+      },
+    ];
+    const a = normalizeMemory({
+      skills: [
+        {
+          id: "physics-6-8",
+          label: "Physics 6–8",
+          topicId: "physics",
+          pKnown: 0.4,
+          mastery: 40,
+          attempts: 2,
+          correct: 1,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.2, interval: 2, reps: 1, prevReview: now },
+          eloState: { rating: 1300, n: 2, lastUpdate: now },
+        },
+      ],
+      gapHistory: gap(now + 86_400_000),
+      updatedAt: now,
+    });
+    const b = normalizeMemory({
+      ...a,
+      gapHistory: gap(now + 2 * 86_400_000),
+      updatedAt: now + 1,
+    });
+    const merged = mergeLearningMemory(a, b);
+    const gaps = merged.gapHistory || [];
+    expect(gaps.filter((g) => g.skillId === "physics-6-8").length).toBe(1);
+    expect(gaps[0]?.expiresAt).toBe(now + 2 * 86_400_000);
   });
 
   it("V3: round-trip through merge preserves attribution end-to-end", () => {

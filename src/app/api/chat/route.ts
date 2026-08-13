@@ -5,7 +5,10 @@ import {
 } from "@/lib/attachments";
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
-import { buildImageOcrSummaries } from "@/lib/image-ocr";
+import {
+  buildImageOcrSummaries,
+  worksheetGradingBlockFromSummaries,
+} from "@/lib/image-ocr";
 import { buildTutorPrompt } from "@/lib/prompts";
 import { normalizeProfile } from "@/lib/student-profile";
 import { filterTutorDelta, preferCompleteTutorText, scrubTutorVisibleText } from "@/lib/tutor-text-filter";
@@ -88,6 +91,9 @@ export async function POST(req: Request) {
   // spellings instead of relying on fuzzy multimodal reading. Never blocks the
   // request: on failure / no key it returns [] and raw vision is the fallback.
   const imageOcrSummaries = await buildImageOcrSummaries(attachments);
+  // P1-2 — when the photo is a numbered worksheet, ask the tutor to grade the
+  // whole page per-item (✓/✗ verdicts + which ones to redo).
+  const worksheetGrading = worksheetGradingBlockFromSummaries(imageOcrSummaries);
 
   // Quoted earlier message — re-send its text + media so the model anchors on it.
   const quote = body.quote && (body.quote.excerpt || body.quote.content)
@@ -178,6 +184,7 @@ export async function POST(req: Request) {
     imageCount: imageAttachments.length || historyImages.length,
     fileSummaries,
     imageOcrSummaries,
+    worksheetGrading: worksheetGrading ?? undefined,
     history,
     historyImageCount: historyImages.length,
     recentTitles,

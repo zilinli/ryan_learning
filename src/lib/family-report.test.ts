@@ -4,7 +4,11 @@ import {
   buildMistakePatterns,
   parentTipForMisconception,
 } from "./family-report";
-import { normalizeMemory, type LearningMemory } from "./learning-memory";
+import {
+  normalizeMemory,
+  weekKeyOf,
+  type LearningMemory,
+} from "./learning-memory";
 
 function mem(): LearningMemory {
   const now = Date.now();
@@ -31,6 +35,8 @@ function mem(): LearningMemory {
           { id: "frac-add-denom", count: 4, lastSeen: now },
         ],
         sourceCounts: { deepDive: 3, wrongbook: 2 },
+        sourceCountsWeek: { deepDive: 3, wrongbook: 2 },
+        sourceWeekKey: weekKeyOf(now),
         lastSource: "deepDive",
       },
       {
@@ -46,6 +52,8 @@ function mem(): LearningMemory {
         sm2State: { ef: 2.5, interval: 4, reps: 2, prevReview: now },
         eloState: { rating: 1400, n: 4, lastUpdate: now },
         sourceCounts: { explore: 1 },
+        sourceCountsWeek: { explore: 1 },
+        sourceWeekKey: weekKeyOf(now),
       },
     ],
     updatedAt: now,

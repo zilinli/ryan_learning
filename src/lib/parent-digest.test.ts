@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeMemory, type LearningMemory } from "./learning-memory";
+import {
+  normalizeMemory,
+  weekKeyOf,
+  type LearningMemory,
+} from "./learning-memory";
 import {
   buildParentDailyDigest,
   buildParentWeeklyDigest,
@@ -174,6 +178,8 @@ describe("parent-digest (D2)", () => {
           sm2State: { ef: 2.2, interval: 3, reps: 2, prevReview: now - 86_400_000 },
           eloState: { rating: 1400, n: 6, lastUpdate: now },
           sourceCounts: { deepDive: 3, explore: 2, wrongbook: 1 },
+          sourceCountsWeek: { deepDive: 3, explore: 2, wrongbook: 1 },
+          sourceWeekKey: weekKeyOf(now),
           lastSource: "deepDive",
         },
         {
@@ -189,6 +195,8 @@ describe("parent-digest (D2)", () => {
           sm2State: { ef: 2.5, interval: 3, reps: 2, prevReview: now },
           eloState: { rating: 1500, n: 4, lastUpdate: now },
           sourceCounts: { deepDive: 2 },
+          sourceCountsWeek: { deepDive: 2 },
+          sourceWeekKey: weekKeyOf(now),
         },
       ],
       updatedAt: now,
@@ -202,5 +210,61 @@ describe("parent-digest (D2)", () => {
     });
     expect(weekly.text).toMatch(/Main drivers/);
     expect(weekly.text).toMatch(/weekly deep dives/);
+  });
+
+  it("P1-4: interestFocus names this week's top explored topics", () => {
+    const now = Date.now();
+    const m = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.5,
+          mastery: 50,
+          attempts: 3,
+          correct: 2,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.3, interval: 2, reps: 1, prevReview: now - 86_400_000 },
+          eloState: { rating: 1300, n: 3, lastUpdate: now },
+        },
+      ],
+      updatedAt: now,
+    });
+    const interests = [
+      { topicId: "space", label: "Space", emoji: "🚀", count: 4, exploredAt: now - 86_400_000 },
+      { topicId: "music", label: "Music", emoji: "🎵", count: 2, exploredAt: now - 2 * 86_400_000 },
+      { topicId: "old", label: "Old hobby", emoji: "🛠️", count: 9, exploredAt: now - 30 * 86_400_000 },
+    ];
+    const weekly = buildParentWeeklyDigest(m, now, interests);
+    expect(weekly.interestFocus).toEqual(["Space", "Music"]);
+    expect(weekly.text).toMatch(/Curiosity/);
+  });
+
+  it("P1-4: nextChallenge suggests the neighbor of a skill mastered this week", () => {
+    const now = Date.now();
+    const m = normalizeMemory({
+      skills: [
+        {
+          id: "division-basics",
+          label: "Division",
+          topicId: "division",
+          pKnown: 0.9,
+          mastery: 90,
+          attempts: 8,
+          correct: 7,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.5, interval: 6, reps: 4, prevReview: now - 86_400_000 },
+          eloState: { rating: 1600, n: 8, lastUpdate: now },
+        },
+      ],
+      updatedAt: now,
+    });
+    const weekly = buildParentWeeklyDigest(m, now);
+    expect(weekly.nextChallenge).not.toBeNull();
+    expect(weekly.nextChallenge?.label).toBe("ratios & proportions");
+    expect(weekly.nextChallenge?.line).toMatch(/Division/);
   });
 });

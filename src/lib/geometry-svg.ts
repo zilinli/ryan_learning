@@ -833,6 +833,42 @@ export function buildGeometryStepSvgs(
   return [{ caption: "Overview", svg: overview }, ...steps];
 }
 
+/**
+ * P2-5 — human-readable labels for the shapes highlighted in a step, so the
+ * step player can say "look at: base AB, height CD" instead of just showing
+ * numbers. Falls back to the shape type when a label is missing.
+ */
+export function describeGeometryShapes(
+  spec: GeometrySpec,
+  indexes: number[],
+): string[] {
+  const out: string[] = [];
+  for (const i of indexes) {
+    const s = spec.shapes?.[i];
+    if (!s) continue;
+    if (s.type === "triangle" || s.type === "polygon") {
+      const labels = (s.labels || []).filter(Boolean).join("·");
+      out.push(labels ? `${s.type} ${labels}` : s.type);
+    } else if (s.type === "line" || s.type === "segment" || s.type === "arrow") {
+      const mid = s.type === "segment" ? s.midLabel : undefined;
+      out.push(mid ? `segment ${mid}` : s.type);
+    } else if (s.type === "circle") {
+      out.push("circle");
+    } else if (s.type === "point") {
+      out.push(s.label ? `point ${s.label}` : "point");
+    } else if (s.type === "angle") {
+      out.push(s.label ? `angle ${s.label}` : "angle");
+    } else if (s.type === "right_angle") {
+      out.push("right angle");
+    } else if (s.type === "bar") {
+      out.push(s.quantityLabel || s.label || "bar");
+    } else if (s.type === "text") {
+      out.push(s.text);
+    }
+  }
+  return out;
+}
+
 export function geometrySpecToMarkdown(spec: GeometrySpec): string {
   const svg = buildGeometrySvg(spec);
   let alt = spec.title || "geometry diagram";

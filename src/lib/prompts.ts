@@ -387,6 +387,8 @@ export function buildTutorPrompt(params: {
   voiceId?: string;
   /** D1 — parent check mode: show full steps / answers */
   checkMode?: boolean;
+  /** P1-2 — full-page grading instructions for a numbered worksheet photo */
+  worksheetGrading?: string;
   /** UX-RPT.10 — optional emotion-rhythm coach note */
   coachNote?: string;
   /** Quoted earlier message this turn is replying to */
@@ -623,6 +625,7 @@ export function buildTutorPrompt(params: {
     "For comic / joke panels with speech text: use a wide enough viewBox (often ≥480) and keep all labels inside the viewBox with margin — text past the right edge gets clipped.",
     ...replyLanguageInstructions(mode),
     ...mediaLines,
+    params.worksheetGrading?.trim() ? params.worksheetGrading.trim() : "",
     ...formatQuote(params.quote),
     ...formatHistory(history),
     ...formatRecentTitles(params.recentTitles),

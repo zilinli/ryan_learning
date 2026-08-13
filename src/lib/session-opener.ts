@@ -9,6 +9,7 @@ import {
 } from "./learning-memory";
 import { buildDailyReviewQueue } from "./review-queue";
 import { pickRecurringGapSkill } from "./knowledge-gaps";
+import { pickChallengeSkills } from "./challenge-mode";
 import { kvGet, kvSet } from "./browser-kv";
 import {
   daysSinceLastActivity,
@@ -21,7 +22,7 @@ import type { LearningSource } from "./learning-memory";
 export type SessionOpener = {
   skillId: string;
   label: string;
-  kind: "review" | "zpd" | "recurring" | "return" | "practice";
+  kind: "review" | "zpd" | "recurring" | "return" | "practice" | "challenge";
   line: string;
   /** Up to 2 extra related skills for the short-practice card */
   practiceTargets?: PracticeTarget[];
@@ -31,6 +32,9 @@ export type SessionOpener = {
   kickoffOverride?: string;
   /** V2 attribution — learning mechanism this opener drives (default "opener"). */
   source?: LearningSource;
+  /** P0-2 — most tracked skills are already mastered; the UI switches its
+   * default supply from warm-up to challenge / adjacent exploration. */
+  highMasteryMode?: boolean;
 };
 
 const DATE_KEY_PREFIX = "spark.opener.date.";
@@ -58,6 +62,28 @@ export function markOpenerShown(accountId: string, now = new Date()): void {
   kvSet(openerDateStorageKey(accountId), localDateKey(now));
 }
 
+/** P0-2 — share of tracked skills already at/above the mastery threshold. */
+export function highMasteryShare(
+  mem: LearningMemory | null | undefined,
+  threshold = 0.8,
+): number {
+  const tracked = (mem?.skills || []).filter((s) => s.attempts > 0);
+  if (!tracked.length) return 0;
+  return tracked.filter((s) => s.pKnown >= threshold).length / tracked.length;
+}
+
+/**
+ * P0-2 — high-mastery ("hunger loop") mode: when most tracked skills are
+ * mastered, the ZPD/review supply lines run dry, so the default opener must
+ * switch from "warm up what you don't know" to "stretch what you do know".
+ */
+export function isHighMasteryMode(
+  mem: LearningMemory | null | undefined,
+  shareThreshold = 0.6,
+): boolean {
+  return highMasteryShare(mem) >= shareThreshold;
+}
+
 export function buildSessionOpener(
   mem: LearningMemory | null | undefined,
   accountId: string,
@@ -65,6 +91,8 @@ export function buildSessionOpener(
 ): SessionOpener | null {
   if (wasOpenerShownToday(accountId, now)) return null;
   if (!mem?.skills?.length) return null;
+
+  const highMastery = isHighMasteryMode(mem);
 
   // A3 — prefer skills weak across ≥2 days (with decay/expiry in gapHistory)
   const recurring = pickRecurringGapSkill(mem.gapHistory, mem);
@@ -74,8 +102,11 @@ export function buildSessionOpener(
     limit: 1,
   })[0]?.skill;
   const review = queueTop ?? needsReviewSkills(mem, 1)[0];
+  // P0-2 — with no real gap or due review, a saturated learner gets a
+  // challenge target instead of a generic warm-up on an already-mastered skill.
+  const challenge = highMastery ? pickChallengeSkills(mem, 1)[0] : undefined;
   const zpd = zpdWarmUpSkills(mem, 1)[0];
-  const skill = recurring ?? review ?? zpd;
+  const skill = recurring ?? review ?? challenge ?? zpd;
   if (!skill) return null;
 
   const idleDays = daysSinceLastActivity(mem, now.getTime());
@@ -88,6 +119,20 @@ export function buildSessionOpener(
       label: skill.label,
       kind: "return",
       line: softReturnOpenerLine(skill.label, idleDays),
+      highMasteryMode: highMastery,
+    };
+  }
+
+  // P0-2 — the "hunger loop" opener: everything's learned, so offer a real
+  // stretch on a mastered skill (challenge kickoff built by the caller).
+  if (challenge && !recurring && !review) {
+    return {
+      skillId: challenge.id,
+      label: challenge.label,
+      kind: "challenge",
+      line: `You've got a lot down already — how about a tougher spin on ${challenge.label}?`,
+      source: "challenge",
+      highMasteryMode: true,
     };
   }
 
@@ -118,6 +163,7 @@ export function buildSessionOpener(
     line,
     practiceTargets: targets.length > 0 ? targets : undefined,
     challengeLine: buildChallengeLine(mem, skill.id),
+    highMasteryMode: highMastery,
   };
 }
 
@@ -154,6 +200,7 @@ export function rotateSessionOpener(
     ],
     challengeLine: opener.challengeLine,
     source: opener.source,
+    highMasteryMode: opener.highMasteryMode,
   };
 }
 

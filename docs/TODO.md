@@ -20,7 +20,33 @@
 > v4 deep analysis 2026-08: **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** (Studio BKT outcome + printable portfolio)
 > Product audit 2026-08: **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** (**多语言 + Code Agent 锁定保留**)
 > TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**  
-> Journal Timeline + Me hub + Stage styles: **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**
+> Journal Timeline + Me hub + Stage styles: **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**  
+> Spark 深度分析落地 P0→P2: **[subsystems/spark-deep-analysis-roadmap.md](subsystems/spark-deep-analysis-roadmap.md)**
+
+---
+
+## 🎯 SPARK-DEEP — 优等生深度体验落地（P0→P2）（2026-08-13）
+
+> **基准报告:** `evaluation/Spark_竞品调研与优等生体验深度分析_2026-08-13.md` §9/§10 路线图  
+> **Design:** [subsystems/spark-deep-analysis-roadmap.md](subsystems/spark-deep-analysis-roadmap.md)  
+> **目标:** P0 归因数据修复 + 高掌握度"饥饿循环" + 视觉默认；P1 错题组卷 + 整页 OCR 批改 + 兴趣雷达 + 家长周报方向栏 + 知识版图；P2 趣味与成长叙事（成长时刻 / 鼓励归因 / 季度方向报告 / 实验室跨内容推荐 / 几何交互可视化）
+
+- [x] **SPARK-DEEP.1 (P0-1 归因修复)** — `mergeSourceCounts` 幂等 `Math.max` 合并；`attributionBySource` 周窗口滚动统计；`gapHistory` 合并去重；清洗脚本 `scripts/reset-attribution.mjs`；`learning-memory.test.ts` 补周窗口/幂等用例
+- [x] **SPARK-DEEP.2 (P0-2 饥饿循环)** — `session-opener.ts` `highMasteryMode`（pKnown≥0.8 ≥60%）→ Challenge me! + 相邻新技能 + 深挖为什么；`ChatThread` 高掌握下相邻卡不被 opener 压制、按钮升主视觉
+- [x] **SPARK-DEEP.3 (P0-3 视觉默认)** — high 先验默认 reactive（仅错题后一次机会、无 idle 推题）；Retry/继续挑战按钮默认高亮样式
+- [x] **SPARK-DEEP.4 (P1-1 本周组卷)** — `wrong-answer-store.ts` `buildWeeklyQuiz` + `WrongAnswerBook` 组卷按钮/打印视图/完成后回写标记重做
+- [x] **SPARK-DEEP.5 (P1-2 整页 OCR 批改)** — `image-ocr.ts` 逐题解析 + 批改指令注入 tutor prompt；错题自动 `addWrongAnswer` 入库；页尾"重做 N 道"按钮
+- [x] **SPARK-DEEP.6 (P1-3 兴趣雷达)** — `interest-store.ts` `buildCuriosityMap` + `InterestRadar` 卡挂载 MeHub（兴趣词 + 最近探索 + 好奇心地图）
+- [x] **SPARK-DEEP.7 (P1-4 家长周报方向栏)** — `parent-digest.ts` `interestFocus` + `nextChallenge`（吃归因：本周已掌握 → 推荐相邻）；`family-report.ts` + `FamilyControlsPage` 渲染
+- [x] **SPARK-DEEP.8 (P1-5 知识版图)** — `dashboard-stats.ts` `buildDashboardExtras`（来源维度 + 相邻推荐）；`LearningDashboard` 空态不再全隐（兴趣足迹常显）
+- [x] **SPARK-DEEP.9 (P2-1 成长时刻)** — `skill-dots.ts` `litThisWeek` + `SkillDots` "本周点亮 N 个圆点 + level-up" 横幅与脉动动画
+- [x] **SPARK-DEEP.10 (P2-2 鼓励归因)** — `JournalTimeline` `PraiseAttribution`："Mom liked your ▶ Rocket launch because …"
+- [x] **SPARK-DEEP.11 (P2-3 季度方向报告)** — `direction-report.ts` `buildSelfDescription` + `DirectionCard` 挂载 MeHub 顶部（兴趣+作品自动生成，可编辑 / 🎲 重新生成）
+- [x] **SPARK-DEEP.12 (P2-4 实验室跨内容推荐)** — `cross-lab.ts` 主题标签路由 + `CrossLabSuggest` 挂载 TED/NatGeo/BBC/RSA 观看与阅读页（"看了黑洞 → 去 NatGeo 看恒星"）
+- [x] **SPARK-DEEP.13 (P2-5 几何交互可视化)** — `geometry-svg.ts` `describeGeometryShapes` + `GeometryStepPlayer` "Where to look" 高亮形状 chips + 测量标注 callout + 步骤切换动画
+- [x] **SPARK-DEEP.14 (tests)** — 新增 direction-report / cross-lab + 扩展 parent-digest / dashboard-stats / skill-dots / geometry-svg；全量测试通过
+- [x] **SPARK-DEEP.15 (docs)** — `spark-deep-analysis-roadmap.md` + TODO 勾选
+- [x] **SPARK-DEEP.16 (release)** — build（smart-build）+ pm2 重启 + 健康检查全 200
 
 ---
 
