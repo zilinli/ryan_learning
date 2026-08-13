@@ -54,6 +54,83 @@ export type TimelineDay = {
   entries: JournalEntry[];
 };
 
+/** Topic key for merging related records: normalized title, else first body line. */
+export function topicKey(
+  e: Pick<JournalEntry, "title" | "body" | "made">,
+): string {
+  const t = (e.title || "").trim().toLowerCase();
+  if (t) return t;
+  const first = e.body
+    .trim()
+    .split(/\n/)[0]
+    ?.slice(0, 72)
+    .trim()
+    .toLowerCase();
+  if (first) return first;
+  const m = e.made?.[0];
+  if (m?.title) return m.title.trim().toLowerCase();
+  return "";
+}
+
+/**
+ * Merge same-topic rows (matching title) so a journal entry and its related
+ * creations stay adjacent even when a creation was recorded as its own row.
+ * Only "made-only" rows (no prose) are absorbed into a matching prose row;
+ * distinct prose rows are kept separate.
+ */
+export function mergeSameTopicEntries(entries: JournalEntry[]): JournalEntry[] {
+  const groups = new Map<string, JournalEntry[]>();
+  for (const e of entries) {
+    const key = topicKey(e) || `__id__${e.id}`;
+    const list = groups.get(key) || [];
+    list.push(e);
+    groups.set(key, list);
+  }
+  const out: JournalEntry[] = [];
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      out.push(list[0]!);
+      continue;
+    }
+    const madeOnly = list.filter((e) => !e.body.trim() && e.made.length > 0);
+    if (madeOnly.length === 0) {
+      out.push(...list);
+      continue;
+    }
+    const anchor = list.find((e) => e.body.trim()) || madeOnly[0]!;
+    const made = [...anchor.made];
+    const seen = new Set(made.map((m) => m.creationId || `${m.kind}:${m.at}`));
+    for (const e of list) {
+      if (e === anchor) continue;
+      for (const m of e.made) {
+        const k = m.creationId || `${m.kind}:${m.at}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          made.push(m);
+        }
+      }
+    }
+    const merged: JournalEntry = {
+      ...anchor,
+      made,
+      updatedAt: list.reduce(
+        (mx, e) => Math.max(mx, e.updatedAt),
+        anchor.updatedAt,
+      ),
+      title: anchor.title || list[0]?.title,
+      source: anchor.body.trim()
+        ? made.length > 0
+          ? "mixed"
+          : "student"
+        : made.length > 0
+          ? "creation"
+          : "student",
+    };
+    out.push(merged);
+  }
+  return out;
+}
+
 /** Facebook-style: group related records by day, newest first. */
 export function buildTimeline(items: JournalEntry[]): TimelineDay[] {
   const byDate = new Map<string, JournalEntry[]>();
@@ -64,7 +141,7 @@ export function buildTimeline(items: JournalEntry[]): TimelineDay[] {
   }
   const dates = [...byDate.keys()].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
   return dates.map((date) => {
-    const entries = (byDate.get(date) || []).sort(
+    const entries = mergeSameTopicEntries(byDate.get(date) || []).sort(
       (a, b) => b.updatedAt - a.updatedAt,
     );
     return {

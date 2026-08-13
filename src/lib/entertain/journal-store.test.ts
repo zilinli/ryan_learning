@@ -185,4 +185,175 @@ describe("journal-store", () => {
     expect(days[1]?.date).toBe("2026-07-01");
     expect(timelineMonths(days)).toEqual(["2026-08", "2026-07"]);
   });
+
+  it("merges a same-title creation row into its journal prose (Formula One case)", () => {
+    const days = buildTimeline([
+      {
+        id: "wc",
+        accountId: ACCT,
+        date: "2026-08-12",
+        createdAt: 1,
+        updatedAt: 3,
+        body: "The World Cup diary",
+        source: "mixed",
+        title: "The World Cup",
+        made: [
+          {
+            kind: "video",
+            creationId: "cr_wc",
+            title: "The World Cup",
+            style: "",
+            bodySnapshot: "",
+            at: 1,
+          },
+        ],
+      },
+      {
+        id: "f1_prose",
+        accountId: ACCT,
+        date: "2026-08-12",
+        createdAt: 2,
+        updatedAt: 4,
+        body: "Formula One diary with lyrics",
+        source: "student",
+        title: "Formula One",
+        made: [],
+      },
+      {
+        id: "f1_song_row",
+        accountId: ACCT,
+        date: "2026-08-12",
+        createdAt: 1,
+        updatedAt: 2,
+        body: "",
+        source: "creation",
+        title: "Formula One",
+        made: [
+          {
+            kind: "song",
+            creationId: "cr_f1_song",
+            title: "Formula One",
+            style: "Indie anthem",
+            bodySnapshot: "[Verse]",
+            audioMediaId: "audio_1",
+            at: 2,
+          },
+        ],
+      },
+    ]);
+    const entries = days[0]!.entries;
+    // Formula One prose + its song become ONE entry, and it sorts before World Cup.
+    expect(entries).toHaveLength(2);
+    const f1 = entries.find((e) => e.title === "Formula One");
+    expect(f1?.id).toBe("f1_prose");
+    expect(f1?.body).toContain("Formula One diary");
+    expect(f1?.made).toHaveLength(1);
+    expect(f1?.made[0]?.creationId).toBe("cr_f1_song");
+    expect(entries[0]?.id).toBe("f1_prose");
+  });
+
+  it("keeps two distinct prose rows separate even when titles match", () => {
+    const days = buildTimeline([
+      {
+        id: "p1",
+        accountId: ACCT,
+        date: "2026-08-12",
+        createdAt: 1,
+        updatedAt: 2,
+        body: "first entry",
+        source: "student",
+        title: "Formula One",
+        made: [],
+      },
+      {
+        id: "p2",
+        accountId: ACCT,
+        date: "2026-08-12",
+        createdAt: 2,
+        updatedAt: 1,
+        body: "second entry",
+        source: "student",
+        title: "Formula One",
+        made: [],
+      },
+    ]);
+    expect(days[0]!.entries).toHaveLength(2);
+  });
+
+  it("attaches a creation to the same-titled journal entry on that day", async () => {
+    const prose = await createJournalEntry(ACCT, {
+      body: "Formula One diary",
+      title: "Formula One",
+      date: "2026-08-05",
+    });
+    await createJournalEntry(ACCT, {
+      body: "World Cup diary",
+      title: "The World Cup",
+      date: "2026-08-05",
+    });
+    const song = await addCreation(ACCT, {
+      type: "song",
+      title: "Formula One",
+      lyrics: "[Chorus]\nx",
+    });
+    const day = await appendCreationToJournal(ACCT, song, "2026-08-05");
+    expect(day.id).toBe(prose.id);
+    expect(day.made).toHaveLength(1);
+    expect(day.made[0]?.title).toBe("Formula One");
+    const store = await loadJournal(ACCT);
+    expect(store.items.filter((e) => e.date === "2026-08-05")).toHaveLength(2);
+  });
+
+  it("loadJournal merges a legacy orphan creation row into its same-title prose", async () => {
+    // Simulate old on-disk data: prose row + orphan creation row with the same
+    // title (created before the same-title matching existed).
+    await fs.writeFile(
+      journalFile,
+      JSON.stringify({
+        version: 1,
+        items: [
+          {
+            id: "f1_prose",
+            accountId: ACCT,
+            date: "2026-08-06",
+            createdAt: 1,
+            updatedAt: 2,
+            body: "Formula One diary",
+            source: "student",
+            title: "Formula One",
+            made: [],
+            writingType: "narrative",
+          },
+          {
+            id: "f1_orphan",
+            accountId: ACCT,
+            date: "2026-08-06",
+            createdAt: 1,
+            updatedAt: 1,
+            body: "",
+            source: "creation",
+            title: "Formula One",
+            made: [
+              {
+                kind: "song",
+                creationId: "cr_f1_orphan",
+                title: "Formula One",
+                style: "Indie anthem",
+                bodySnapshot: "[Verse]",
+                audioMediaId: "audio_1",
+                at: 1,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const store = await loadJournal(ACCT);
+    const day = store.items.filter((e) => e.date === "2026-08-06");
+    expect(day).toHaveLength(1);
+    expect(day[0]?.id).toBe("f1_prose");
+    expect(day[0]?.body).toContain("Formula One diary");
+    expect(day[0]?.made).toHaveLength(1);
+    expect(day[0]?.made[0]?.creationId).toBe("cr_f1_orphan");
+  });
 });

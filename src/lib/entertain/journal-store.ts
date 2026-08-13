@@ -9,6 +9,8 @@ import type { CreationItem } from "./creations-store";
 import {
   isValidDay,
   localDay,
+  mergeSameTopicEntries,
+  topicKey,
   type JournalEntry,
   type JournalMadeBlock,
 } from "./journal-model";
@@ -19,8 +21,10 @@ export {
   isValidDay,
   journalPromptForGrade,
   localDay,
+  mergeSameTopicEntries,
   timelineMonths,
   timelineYears,
+  topicKey,
 } from "./journal-model";
 export type { TimelineDay } from "./journal-model";
 
@@ -68,15 +72,19 @@ export async function loadJournal(accountId: string): Promise<JournalStore> {
     const raw = await fs.readFile(storePath(accountId), "utf8");
     const parsed = JSON.parse(raw) as JournalStore;
     if (!parsed || !Array.isArray(parsed.items)) return empty();
-    return {
-      version: 1,
-      items: parsed.items.map((row) => ({
-        ...row,
-        body: String(row.body || ""),
-        made: Array.isArray(row.made) ? row.made : [],
-        source: row.source || inferSource(row),
-      })),
-    };
+    const rows = parsed.items.map((row) => ({
+      ...row,
+      body: String(row.body || ""),
+      made: Array.isArray(row.made) ? row.made : [],
+      source: row.source || inferSource(row),
+    }));
+    // Merge same-topic rows (e.g. a creation recorded as its own row next to
+    // the matching journal prose) and drop creation rows left empty by the
+    // merge so the Timeline never splits a topic apart.
+    const items = mergeSameTopicEntries(rows).filter(
+      (e) => !(e.source === "creation" && !e.body.trim() && e.made.length === 0),
+    );
+    return { version: 1, items };
   } catch {
     return empty();
   }
@@ -236,7 +244,16 @@ export async function appendCreationToJournal(
   const store = await loadJournal(accountId);
   const date = day && isValidDay(day) ? day : localDay(item.createdAt || Date.now());
   const block = madeFromCreation(item);
-  const existingIdx = store.items.findIndex((e) => e.date === date);
+  // Prefer the same-titled entry that day so the creation lands next to its
+  // journal prose; fall back to the first entry of the day.
+  const creationKey = (block.title || "").trim().toLowerCase();
+  const sameTitleIdx = store.items.findIndex(
+    (e) => e.date === date && topicKey(e) === creationKey,
+  );
+  const existingIdx =
+    sameTitleIdx >= 0
+      ? sameTitleIdx
+      : store.items.findIndex((e) => e.date === date);
   if (existingIdx >= 0) {
     const prev = store.items[existingIdx]!;
     if (prev.made.some((m) => m.creationId && m.creationId === item.id)) {
