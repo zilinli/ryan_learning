@@ -86,6 +86,36 @@ describe("proactive-nudge: eligibility guards", () => {
     ).toBe(false);
   });
 
+  it("suppresses the recent-wrong path for high-prior learners (reactive)", () => {
+    noteWrongAnswerAt(ACCT, 1000);
+    expect(
+      shouldProactiveInvite(ACCT, {
+        reason: "recent-wrong",
+        pendingAt: 1000,
+        turnsSince: PROACTIVE_TURNS,
+        priorTier: "high",
+      }),
+    ).toBe(false);
+    // standard tier keeps the existing behavior
+    expect(
+      shouldProactiveInvite(ACCT, {
+        reason: "recent-wrong",
+        pendingAt: 1000,
+        turnsSince: PROACTIVE_TURNS,
+        priorTier: "standard",
+      }),
+    ).toBe(true);
+  });
+
+  it("still allows idle-return for high-prior learners", () => {
+    expect(
+      shouldProactiveInvite(ACCT, {
+        reason: "idle-return",
+        priorTier: "high",
+      }),
+    ).toBe(true);
+  });
+
   it("rejects the recent-wrong path when no wrong answer is pending", () => {
     expect(
       shouldProactiveInvite(ACCT, {

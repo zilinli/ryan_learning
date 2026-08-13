@@ -78,7 +78,13 @@ export type LearningSource =
   | "variant"
   | "explore"
   | "homework"
-  | "proactive";
+  | "proactive"
+  | "ted"
+  | "writing"
+  | "natgeo"
+  | "bbc"
+  | "rsa"
+  | "creation";
 
 export type SkillMastery = {
   id: string;
@@ -397,6 +403,12 @@ export const LEARNING_SOURCES: LearningSource[] = [
   "explore",
   "homework",
   "proactive",
+  "ted",
+  "writing",
+  "natgeo",
+  "bbc",
+  "rsa",
+  "creation",
 ];
 
 export function isLearningSource(v: unknown): v is LearningSource {
@@ -700,6 +712,22 @@ export function appendDigestToMemory(
 
 // ── Merge ───────────────────────────────────────────────────────────
 
+/** Sum source attribution counts across two skills (keeps both sides). */
+function mergeSourceCounts(
+  a?: Partial<Record<LearningSource, number>>,
+  b?: Partial<Record<LearningSource, number>>,
+): Partial<Record<LearningSource, number>> | undefined {
+  const out: Partial<Record<LearningSource, number>> = {};
+  for (const s of [a, b]) {
+    for (const [src, c] of Object.entries(s || {})) {
+      if (isLearningSource(src) && typeof c === "number" && c > 0) {
+        out[src] = Math.min(9999, (out[src] || 0) + c);
+      }
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
   const newer = a.lastSeen >= b.lastSeen ? a : b;
   const pKnown = Math.max(a.pKnown, b.pKnown);
@@ -712,6 +740,8 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
   for (const h of b.misconceptionHits || []) {
     hits = mergeMisconceptionHit(hits, h);
   }
+  // V2 attribution — keep both sides' counts (sum per source), newer lastSource.
+  const sourceCounts = mergeSourceCounts(a.sourceCounts, b.sourceCounts);
   return {
     id: a.id,
     label: newer.label,
@@ -726,6 +756,8 @@ function mergeSkill(a: SkillMastery, b: SkillMastery): SkillMastery {
     sm2State: mergedSm2,
     eloState: newer.eloState.n > 0 ? newer.eloState : (b.eloState.n > 0 ? b.eloState : a.eloState),
     misconceptionHits: hits.length ? hits : undefined,
+    sourceCounts,
+    lastSource: newer.lastSource ?? a.lastSource ?? b.lastSource,
   };
 }
 
@@ -1003,6 +1035,12 @@ export function sourceLabel(source: LearningSource): string {
     explore: "interest explorations",
     homework: "homework & photos",
     proactive: "proactive reviews",
+    ted: "TED Lab",
+    writing: "Writing Studio",
+    natgeo: "NatGeo Lab",
+    bbc: "BBC Doc Lab",
+    rsa: "RSA Lab",
+    creation: "interest → creation",
   };
   return map[source];
 }
@@ -1483,6 +1521,8 @@ export function serializeLearningMemoryForChat(
       sm2State: s.sm2State,
       eloState: { rating: s.eloState.rating, n: s.eloState.n, lastUpdate: s.eloState.lastUpdate },
       misconceptionHits: s.misconceptionHits?.slice(0, 4),
+      sourceCounts: s.sourceCounts,
+      lastSource: s.lastSource,
     })),
     recentStruggles: m.recentStruggles.slice(0, 4),
     recentWins: m.recentWins.slice(0, 4),

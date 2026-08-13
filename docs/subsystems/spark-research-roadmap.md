@@ -39,6 +39,36 @@
 - 新增：`proactive-nudge.test.ts` / `flow-signals.test.ts`（扩展）/ `explore-catalog.test.ts`（扩展）/ `bkt.test.ts`（扩展）/ `weekly-launchpad.test.ts` / `breadth-map.test.ts`（扩展）/ `connection-card.test.ts`（扩展）/ `journal` route PATCH 测试 / `learning-memory.test.ts`（归因）/ `parent-digest.test.ts`（归因）/ `local-facts.test.ts`（扩展）。
 - 全量 `npm test`：1525 passed / 189 files（唯一失败为已知 `console-composer-camera` flaky 测试，按计划跳过）。
 
+## V3 让学习飞轮"转起来"（归因链路修复 + 主动出击校准 + 验证进化）— 全部实现
+
+> 基准报告：`evaluation/Spark_四维学习力深度调研报告_V3_2026-08-13.md`。
+> 状态：三阶段全部完成（2026-08-13），全量单测 **1587 passed / 193 files**（`npm test -- --no-cache`）。
+> 验收锚点：家长周报出现"本周学力来源 Top 3"；主动出击改为视觉默认按钮（非横幅）、优秀学生 recent-wrong 不再被打扰；AI 回复短而具体；广度触发（连接卡/学科桥）计入 connection 归因；作品墙可收赞且 Me 页展示"收到的鼓励"；兴趣画像跨设备同步。
+
+### V3-P1 — 归因链路修复（让仪表盘亮起来）
+
+- **序列化/合并保留归因**（`learning-memory.ts`）：`serializeLearningMemoryForChat` 把 `sourceCounts` / `lastSource` 序列化进每个 skill（与 `misconceptionHits` 并列）；`mergeSkill` 按 source 求和、`lastSource` 取新者；`pushLearningMemoryToServer` / `hydrateLearningMemoryFromServer` 端到端无损。
+- **补齐 source 写入路径**：`LearningSource` 扩到 `ted / writing / natgeo / bbc / rsa / creation`（+ `sourceLabel` 映射）；`recordStudioLearningTurn` 把 `opts.source` 传入归因（TED/Writing/NatGeo/BBC/RSA 回合现在计入）；`handleStartDeepDive` 按锚点来源落 wrongbook/deepDive；`SessionOpener.source?` 让错题本 "Redo/Variant/Harder" 与学科桥 starter 携带 wrongbook/variant/connection，`onOpenerTry` 回传。
+- **家庭页归因卡**（`FamilyControlsPage`）：`report.weekly.sourceAttribution` Top 3 → "本周学力来源"卡（source label + count + 一句"我注意到……我们一起……"建议），回答"这周孩子从哪个机制学得最多"。
+
+### V3-P2 — 主动出击校准（视觉默认 + 优秀学生 reactive）
+
+- **视觉默认重试按钮**（`ChatThread`）：coral 横幅改为动作/输入行内非阻塞 **Retry this problem** 高亮按钮（视觉默认效应，CHI RCT：+9pp vs 文本 +2pp）；一行副文案保留，无弹窗无打断；`buildProactiveInvite` 逻辑不变。
+- **优秀学生默认 reactive**（`proactive-nudge.ts` + `useTutorSession`）：`shouldProactiveInvite` 支持 `priorTier?: "high" | "standard" | "low"`；`priorTier === "high"` 时 recent-wrong 不再主动邀约（闲置回访 idle-return 仍允许）。
+- **短而具体回复守卫**（`prompts.ts`）：系统指令"回复 ≤2 句且至少一个具体类比/例子/对比；长分析仅限深潜 Explain"。
+- **广度触发进归因**（`TutorShell` + `adjacent-recommend` + `wrong-answer-store`）：subject-bridge / 相邻推荐 opener 发送 `connection`，广度导航可归因。
+
+### V3-P3 — 验证与进化（作品墙点亮 + 兴趣持久化）
+
+- **作品墙点亮**（`JournalTimeline` / `MeHome`）：验证 Everyone 视图 PraiseChip 可赞可评（smoke 覆盖）；Me 页新增"收到的鼓励"入口（账号自身 journal 条目 praise 计数）；"Make it yours" 点击计入 `creation` 归因（`recordCreationOfferAccepted`）。
+- **兴趣画像服务端持久化**（`interest-store.ts` + `src/app/api/interest/route.ts` + `interest-store-server.ts`）：`loadInterests` 先服务端 hydrate 再合并本地；`recordInterest` 上行合并（union，保留 max count / 最新 label）；修复 iPad / Chromebook 跨设备兴趣丢失。
+
+### 测试（V3）
+
+- 新增/扩展：`learning-memory.test.ts`（serialize/merge/round-trip 归因）、`proactive-nudge.test.ts`（high-prior 抑制）、`studio-learning.test.ts`（ted/writing source）、`family-report.test.ts`（Top-3 形状）、`interest-store.test.ts`（mergeInterests）、`creation-offer.test.ts`（creation source）、`src/app/api/interest/route.test.ts`（GET/PUT/union/backward-compat）。
+
+---
+
 ## 四维学习力路线图（2026-08-13）— P0/P1 全部 + P2 全部已实现
 
 > 基准报告：`evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣/心流/深度/广度四维）。

@@ -57,7 +57,12 @@ export function JournalTimeline({
   const [error, setError] = useState<string | null>(null);
   const [jumpMonth, setJumpMonth] = useState<string | null>(null);
   const [newDate, setNewDate] = useState(localDay());
-  const [view, setView] = useState<"mine" | "everyone">("mine");
+  const [view, setView] = useState<"mine" | "everyone">(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("view") === "everyone"
+      ? "everyone"
+      : "mine",
+  );
 
   const load = useCallback(async () => {
     try {

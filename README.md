@@ -67,6 +67,14 @@ The [V2 four-dimension report](evaluation/Spark_四维学习力深度调研报�
 - **P1 — tiered depth & weekly rhythm** — high-aptitude students get a more aggressive BKT prior (faster up-stairing); a weekly **Launchpad** card aggregates deep-dive / connection / Feynman / weekly goal into one strip; a subject bridge map shows "you already know X → try Y over there"; a "turn it into a mini creation?" card closes the interest→work loop.
 - **P2 — curiosity language & attribution** — explore/deep-dive kickoffs open with a knowledge-gap hook (counter-intuitive fact or open mystery); connection cards are generated dynamically from two recently-mastered skills across subjects; the Everyone works wall gains light praise (like + one-line note, no leaderboards); the local fast path covers formulas / percentages / term lookups / history timeline; curriculum sequencing is a pure function separate from LLM dialogue; and every learning turn is attributed to a source (opener/challenge/deepDive/connection/wrongbook/variant/explore/homework/proactive) so the parent weekly report answers "what drove the most learning this week".
 
+### V3 — 让学习飞轮"转起来"（归因修复 · 主动出击校准 · 验证进化）
+
+The [V3 four-dimension report](evaluation/Spark_四维学习力深度调研报告_V3_2026-08-13.md) fixes the attribution chain so the flywheel's dashboard actually lights up, then calibrates outreach and hardens the loop — see [spark-research-roadmap.md](docs/subsystems/spark-research-roadmap.md):
+
+- **Attribution chain repair** — serialization and cross-device merge now preserve per-skill `sourceCounts` and the last learning source; Studio labs (TED / BBC / NatGeo / RSA / Writing) and "Make it yours" clicks are attributed; wrong-answer review, variant, and subject-bridge kickoffs carry their true source; the Family weekly report gains a "what drove this week's growth" Top-3 source card.
+- **Calibrated proactive outreach** — the nudge becomes a visual-default **Retry this problem** button in the composer row (text demoted, no banner, no modal); high-aptitude students go reactive (recent-wrong interruption suppressed; idle-return invites still allowed); tutor replies are kept short and specific (≤2 sentences + a concrete example/contrast, long analysis only during deep-dive Explain); breadth triggers (connection cards / adjacent-topic kickoffs) are attributed as `connection`.
+- **Validated evolution** — the works wall is confirmed tappable (praise + one-line note) and Me now shows "encouragements you've received"; interest profiles move from localStorage to a server-side `/api/interest` store (hydrate + merge + sync), fixing cross-device loss between the iPad and Chromebook.
+
 
 ### Parent Hub (`/family`)
 

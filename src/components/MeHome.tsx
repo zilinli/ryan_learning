@@ -10,10 +10,12 @@ import { WrongAnswerBook } from "./WrongAnswerBook";
 import { WeeklyGoalCard } from "./WeeklyGoalCard";
 import { ReadAlongPractice } from "./ReadAlongPractice";
 import type { CreationItem } from "@/lib/entertain/creations-store";
+import type { JournalEntry } from "@/lib/entertain/journal-model";
 
 export function MeHome() {
   const acct = useActiveStudioAccount();
   const [creations, setCreations] = useState<CreationItem[]>([]);
+  const [praiseReceived, setPraiseReceived] = useState(0);
   const chats = useMemo(
     () =>
       loadConversations(acct.accountId)
@@ -34,6 +36,30 @@ export function MeHome() {
       })
       .catch(() => {
         if (!cancelled) setCreations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [acct.accountId]);
+
+  // V3 — light up the works wall: count encouragement received on this
+  // account's journal entries (seen from the Everyone wall).
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(
+      `/api/journal?accountId=${encodeURIComponent(acct.accountId)}`,
+    )
+      .then((r) => r.json())
+      .then((data: { items?: JournalEntry[] }) => {
+        if (cancelled) return;
+        const total = (data.items || []).reduce(
+          (sum, e) => sum + (e.praise?.count ?? 0),
+          0,
+        );
+        setPraiseReceived(total);
+      })
+      .catch(() => {
+        if (!cancelled) setPraiseReceived(0);
       });
     return () => {
       cancelled = true;
@@ -78,6 +104,22 @@ export function MeHome() {
       <section className="mb-6">
         <JournalTimeline peek />
       </section>
+
+      {praiseReceived > 0 ? (
+        <section className="mb-6">
+          <a
+            href="/me/journal?view=everyone"
+            className="flex items-center justify-between rounded-2xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-4 py-3 text-sm"
+          >
+            <span className="font-medium text-[var(--ink)]">
+              You&apos;ve received {praiseReceived}{" "}
+              {praiseReceived === 1 ? "encouragement" : "encouragements"} on the
+              wall
+            </span>
+            <span className="text-[var(--ink-muted)]">→</span>
+          </a>
+        </section>
+      ) : null}
 
       <section className="mb-6">
         <WeeklyGoalCard accountId={acct.accountId} />

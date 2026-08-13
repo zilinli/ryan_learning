@@ -745,11 +745,16 @@ export function useTutorSession() {
       if (busy) return;
       const pendingAt = loadPendingWrongAt(accountId);
       const turns = turnsSinceLastWrong(messages, pendingAt);
+      // V3 — high-prior students default to reactive: no recent-wrong nudge.
+      const priorTier =
+        learningMemory?.priorTier ??
+        detectPriorTier(loadStudentProfile(), learningMemory);
       if (
         shouldProactiveInvite(accountId, {
           reason: "recent-wrong",
           pendingAt,
           turnsSince: turns,
+          priorTier,
         })
       ) {
         const items = pendingReviewSet(accountId);
@@ -811,6 +816,7 @@ export function useTutorSession() {
               kind: "practice",
               line: `Let's peek at ${subjectKick.label} — one fresh question.`,
               kickoffOverride: subjectKick.starter,
+              source: "connection",
             }
           : variantKick
             ? buildVariantKickoffOpener(variantKick)
@@ -1414,6 +1420,7 @@ export function useTutorSession() {
         if (last) {
           setCreationOffer({
             topicLabel: last.label,
+            topicId: last.topicId,
             createdAt: Date.now(),
           });
         }

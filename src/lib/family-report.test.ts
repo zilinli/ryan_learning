@@ -30,6 +30,8 @@ function mem(): LearningMemory {
         misconceptionHits: [
           { id: "frac-add-denom", count: 4, lastSeen: now },
         ],
+        sourceCounts: { deepDive: 3, wrongbook: 2 },
+        lastSource: "deepDive",
       },
       {
         id: "reading-evidence",
@@ -43,6 +45,7 @@ function mem(): LearningMemory {
         lastSeen: now - 86400000,
         sm2State: { ef: 2.5, interval: 4, reps: 2, prevReview: now },
         eloState: { rating: 1400, n: 4, lastUpdate: now },
+        sourceCounts: { explore: 1 },
       },
     ],
     updatedAt: now,
@@ -64,6 +67,23 @@ describe("family-report", () => {
 
   it("parent tips cover known ids", () => {
     expect(parentTipForMisconception("frac-bigger-denom")).toMatch(/1\/4|1\/8/);
+  });
+
+  it("V3 — weekly sourceAttribution is a top-3 label+count list", () => {
+    const r = buildFamilyReport(mem(), { accountLabel: "Ryan" });
+    const attr = r.weekly.sourceAttribution;
+    expect(attr.length).toBeGreaterThan(0);
+    expect(attr.length).toBeLessThanOrEqual(3);
+    // sorted desc by count; top source is deepDive (3)
+    expect(attr[0]?.source).toBe("deepDive");
+    expect(attr[0]?.count).toBeGreaterThanOrEqual(attr[1]?.count ?? 0);
+    for (const row of attr) {
+      expect(typeof row.label).toBe("string");
+      expect(row.label.length).toBeGreaterThan(0);
+      expect(row.count).toBeGreaterThan(0);
+    }
+    // the weekly text mentions the top driver
+    expect(r.weekly.text).toContain("deep dives");
   });
 
   it("buildMistakePatterns sorts by count", () => {

@@ -8,6 +8,7 @@ import {
   normalizeMemory,
   parseConfidence,
   recordLearningTurnMemory,
+  serializeLearningMemoryForChat,
   skillStrengths,
   skillWeaknesses,
 } from "./learning-memory";
@@ -182,5 +183,122 @@ describe("learning-memory", () => {
     expect(rows[0]?.count).toBe(2);
     expect(rows.some((r) => (r.source as string) === "junk")).toBe(false);
     expect(rows[0]?.label).toBe("weekly deep dives");
+  });
+
+  it("V3: serializeLearningMemoryForChat keeps sourceCounts + lastSource", () => {
+    let mem = emptyLearningMemory();
+    mem = recordLearningTurnMemory(mem, {
+      userText: "I'm stuck on this fraction problem",
+      source: "wrongbook",
+    });
+    mem = recordLearningTurnMemory(mem, {
+      userText: "got it! fractions equivalent",
+      assistantText: "Yes, that's right — nice work!",
+      source: "variant",
+    });
+    const serialized = serializeLearningMemoryForChat(mem);
+    const frac = serialized.skills.find(
+      (s) => s.topicId === "fractions" && s.sourceCounts?.wrongbook,
+    );
+    expect(frac).toBeDefined();
+    expect(frac?.sourceCounts?.wrongbook).toBeGreaterThanOrEqual(1);
+    expect(frac?.sourceCounts?.variant).toBeGreaterThanOrEqual(1);
+    expect(frac?.lastSource).toBe("variant");
+  });
+
+  it("V3: mergeSkill sums sourceCounts and keeps the newer lastSource", () => {
+    const now = Date.now();
+    const a = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.5,
+          mastery: 50,
+          attempts: 2,
+          correct: 1,
+          incorrect: 1,
+          lastSeen: now - 10,
+          sm2State: { ef: 2.2, interval: 2, reps: 1, prevReview: now - 10 },
+          eloState: { rating: 1300, n: 2, lastUpdate: now - 10 },
+          sourceCounts: { deepDive: 3, wrongbook: 1 },
+          lastSource: "deepDive",
+        },
+      ],
+      updatedAt: now,
+    });
+    const b = normalizeMemory({
+      skills: [
+        {
+          id: "fractions-concepts",
+          label: "Fraction concepts",
+          topicId: "fractions",
+          pKnown: 0.6,
+          mastery: 60,
+          attempts: 3,
+          correct: 2,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.3, interval: 3, reps: 2, prevReview: now },
+          eloState: { rating: 1320, n: 3, lastUpdate: now },
+          sourceCounts: { wrongbook: 2, explore: 1 },
+          lastSource: "explore",
+        },
+      ],
+      updatedAt: now,
+    });
+    const merged = mergeLearningMemory(a, b);
+    const frac = merged.skills.find((s) => s.id === "fractions-concepts");
+    expect(frac?.sourceCounts?.deepDive).toBe(3);
+    expect(frac?.sourceCounts?.wrongbook).toBe(3);
+    expect(frac?.sourceCounts?.explore).toBe(1);
+    expect(frac?.lastSource).toBe("explore");
+  });
+
+  it("V3: round-trip through merge preserves attribution end-to-end", () => {
+    let deviceA = emptyLearningMemory();
+    deviceA = recordLearningTurnMemory(deviceA, {
+      userText: "moon phases — why do we see phases?",
+      source: "connection",
+    });
+    deviceA = recordLearningTurnMemory(deviceA, {
+      userText: "got it!",
+      assistantText: "Great — phases come from moon/earth/sun positions.",
+      source: "connection",
+    });
+
+    const deviceB = normalizeMemory({
+      skills: [
+        {
+          id: "earth-moon-sun",
+          label: "Earth–Moon–Sun / space",
+          topicId: "science-space",
+          pKnown: 0.5,
+          mastery: 50,
+          attempts: 1,
+          correct: 0,
+          incorrect: 1,
+          lastSeen: Date.now() - 86_400_000,
+          sm2State: { ef: 2.2, interval: 2, reps: 1, prevReview: Date.now() - 86_400_000 },
+          eloState: { rating: 1300, n: 1, lastUpdate: Date.now() - 86_400_000 },
+          sourceCounts: { explore: 2 },
+          lastSource: "explore",
+        },
+      ],
+      updatedAt: Date.now() - 86_400_000,
+    });
+
+    const merged = mergeLearningMemory(deviceB, deviceA);
+    const space = merged.skills.find((s) => s.id === "earth-moon-sun");
+    expect(space?.sourceCounts?.connection).toBeGreaterThanOrEqual(1);
+    expect(space?.sourceCounts?.explore).toBe(2);
+    expect(space?.lastSource).toBe("connection");
+
+    const restored = normalizeMemory(merged);
+    const space2 = restored.skills.find((s) => s.id === "earth-moon-sun");
+    expect(space2?.sourceCounts?.connection).toBe(space?.sourceCounts?.connection);
+    expect(space2?.sourceCounts?.explore).toBe(2);
+    expect(space2?.lastSource).toBe("connection");
   });
 });

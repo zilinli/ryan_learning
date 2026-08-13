@@ -30,6 +30,7 @@ import {
 } from "@/lib/entertain/ted-challenge-handoff";
 import { engagementSummary } from "@/lib/engagement";
 import { learningMemorySummary } from "@/lib/learning-memory";
+import { recordCreationOfferAccepted } from "@/lib/creation-offer";
 import {
   buildChallengeKickoffMessage,
   challengeGauge as buildChallengeGauge,
@@ -45,7 +46,13 @@ import {
   type ExplorePlan,
   type ExploreTopic,
 } from "@/lib/explore-catalog";
-import { recordInterest, loadInterests } from "@/lib/interest-store";
+import {
+  hydrateInterestsFromServer,
+  loadInterests,
+  pushInterestsToServer,
+  recordInterest,
+  type InterestRecord,
+} from "@/lib/interest-store";
 import { buildAdjacentOpener } from "@/lib/adjacent-recommend";
 import {
   buildDeepDiveOfferForAccount,
@@ -101,6 +108,8 @@ export function TutorShell() {
   const [exploreTopics, setExploreTopics] = useState<ExploreTopic[]>([]);
   // V2 P2 — rule-based explore plan (topic + ZPD start) for the chip kickoffs
   const explorePlansRef = useRef<Map<string, ExplorePlan>>(new Map());
+  // V3 — server-merged interest profile (cross-device continuity)
+  const [interestsState, setInterestsState] = useState<InterestRecord[] | null>(null);
   // P1 — weekly deep-dive project + weekly connection card offers
   const [deepDiveOffer, setDeepDiveOffer] = useState<DeepDiveOffer | null>(null);
   const [connectionOffer, setConnectionOffer] = useState<ConnectionOffer | null>(null);
@@ -110,6 +119,12 @@ export function TutorShell() {
   const [weeklyLaunchpad, setWeeklyLaunchpad] = useState<WeeklyLaunchpadView | null>(
     null,
   );
+
+  // V3 — hydrate interests from the server once per account (merges local).
+  useEffect(() => {
+    setInterestsState(null);
+    void hydrateInterestsFromServer(accountId).then(setInterestsState);
+  }, [accountId]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -125,7 +140,7 @@ export function TutorShell() {
     // from the plan and each plan carries its own ZPD-start kickoff.
     const plans = planExploreSequence(
       learningMemory,
-      loadInterests(accountId),
+      interestsState ?? loadInterests(accountId),
       4,
     );
     explorePlansRef.current = new Map(plans.map((p) => [p.topic.id, p]));
@@ -139,7 +154,7 @@ export function TutorShell() {
     setAdjacentOpener(buildAdjacentOpener(learningMemory));
     setWeeklyLaunchpad(buildWeeklyLaunchpad(accountId, learningMemory));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, accountId, learningMemory]);
+  }, [messages.length, accountId, learningMemory, interestsState]);
 
   // P0 — live challenge mastery gauge while a challenge session is running
   const prevChallengeLevelRef = useRef<ChallengeLevel>(1);
@@ -163,6 +178,8 @@ export function TutorShell() {
       label: topic.label,
       emoji: topic.emoji,
     });
+    // V3 — cross-device interest continuity: push the updated profile up.
+    void pushInterestsToServer(accountId);
     // V2 P2 — the plan (with its ZPD start) decides the kickoff, not a new
     // LLM call here (report §9.3.3).
     const plan = explorePlansRef.current.get(topic.id);
@@ -183,7 +200,10 @@ export function TutorShell() {
     if (!deepDiveOffer) return;
     markDeepDiveDone(accountId);
     setDeepDiveOffer(null);
-    void handleSend({ text: deepDiveOffer.kickoff, attachments: [], source: "deepDive" });
+    // V2 attribution — when the weekly deep dive anchors on a recent wrong
+    // answer, count it under wrongbook (pickDeepDiveAnchor already marks it).
+    const source = deepDiveOffer.source === "wrongbook" ? "wrongbook" : "deepDive";
+    void handleSend({ text: deepDiveOffer.kickoff, attachments: [], source });
   };
 
   const handleSkipDeepDive = () => {
@@ -206,6 +226,13 @@ export function TutorShell() {
     if (!connectionOffer) return;
     markConnectionShownForOffer(accountId, connectionOffer);
     setConnectionOffer(null);
+  };
+
+  // V3 — record "Make it yours" acceptance into attribution, then dismiss.
+  const handleAcceptCreationOffer = () => {
+    if (!creationOffer) return;
+    void recordCreationOfferAccepted(accountId, creationOffer);
+    handleDismissCreationOffer();
   };
 
   // V2 P1 — weekly Launchpad (report §9.3.2): deep-dive & connection reuse the
@@ -414,7 +441,7 @@ export function TutorShell() {
               const text = buildOpenerKickoffMessage(sessionOpener);
               markOpenerShown(accountId);
               setSessionOpener(null);
-              void handleSend({ text, attachments: [], source: "opener" });
+              void handleSend({ text, attachments: [], source: sessionOpener.source ?? "opener" });
             }}
             onOpenerNext={() => {
               if (!sessionOpener) return;
@@ -455,7 +482,7 @@ export function TutorShell() {
               if (!adjacentOpener) return;
               const text = buildOpenerKickoffMessage(adjacentOpener);
               setAdjacentOpener(null);
-              void handleSend({ text, attachments: [], source: "explore" });
+              void handleSend({ text, attachments: [], source: adjacentOpener.source ?? "connection" });
             }}
             challengeGauge={challengeGaugeView}
             onDeepDive={(mode: DeepDiveMode) => {
@@ -514,6 +541,7 @@ export function TutorShell() {
               creationOffer ? creationOfferLine(creationOffer) : null
             }
             onDismissCreationOffer={handleDismissCreationOffer}
+            onAcceptCreationOffer={handleAcceptCreationOffer}
             onQuote={(m) => setQuote(buildQuoteFromMessage(m))}
           />
         </main>

@@ -174,6 +174,61 @@ function FeynmanTeachBack({
   );
 }
 
+/** V3 — "what drove this week's growth" (attribution) card. */
+const SOURCE_NEXT_STEP: Record<string, string> = {
+  opener: "Daily openers led the week — keeping the once-a-day warm-up going is a great habit.",
+  challenge: "Challenge rounds drove the most growth — try one more stretch challenge next week.",
+  deepDive: "Weekly deep dives drove the most growth — next week, try a Connection card too.",
+  connection: "Connection cards drove the most growth — keep bridging what they already know.",
+  wrongbook: "Wrong-answer reviews drove the most growth — strong persistence on tricky ones.",
+  variant: "Variant practice drove the most growth — keep the same-idea-new-numbers rhythm.",
+  explore: "Interest explorations drove the most growth — keep following what they love.",
+  homework: "Homework and photo sessions drove the most growth — keep snapping real work.",
+  proactive: "Proactive two-minute reviews drove growth — keep the check-in rhythm.",
+  ted: "TED Lab drove the most growth this week — keep the watch-and-critique rhythm.",
+  writing: "Writing Studio drove the most growth — keep drafting and revising.",
+  natgeo: "NatGeo Lab drove the most growth — keep reading and inferring.",
+  bbc: "BBC Doc Lab drove the most growth — keep watching and explaining.",
+  rsa: "RSA Lab drove the most growth — keep analyzing arguments.",
+};
+
+function GrowthSourcesCard({
+  attribution,
+}: {
+  attribution: Array<{ source: string; count: number; label: string }>;
+}) {
+  const top = attribution.slice(0, 3);
+  const lead = attribution[0];
+  return (
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+      <h2 className="text-[13px] font-semibold text-[var(--ink)]">
+        What drove this week&apos;s growth?
+      </h2>
+      <ul className="mt-3 space-y-2">
+        {top.map((s) => (
+          <li key={s.source} className="flex items-center justify-between gap-3">
+            <span className="text-[13px]">{s.label}</span>
+            <span className="rounded-full bg-[var(--teal)]/12 px-2.5 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--teal)]">
+              ×{s.count}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {lead ? (
+        <p className="mt-3 rounded-xl bg-[var(--teal)]/8 px-3 py-2 text-[12px] leading-relaxed text-[var(--ink-muted)]">
+          {SOURCE_NEXT_STEP[lead.source] ||
+            `I noticed ${lead.label} contributed the most this week — we can build on that together.`}
+        </p>
+      ) : (
+        <p className="mt-3 text-[12px] text-[var(--ink-muted)]">
+          No growth data yet — after a few tutor chats, Spark shows which
+          activities made this week count.
+        </p>
+      )}
+    </section>
+  );
+}
+
 /**
  * Full-page Family Controls — Khan-style parent hub with narrative + charts.
  */
@@ -537,6 +592,9 @@ export function FamilyControlsPage() {
               )}
             </ul>
           </section>
+
+          {/* V3 — weekly attribution: which mechanism drove this week */}
+          <GrowthSourcesCard attribution={report.weekly.sourceAttribution} />
 
           {/* Mistake patterns — industry: actionable error analysis */}
           <section>

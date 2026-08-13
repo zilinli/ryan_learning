@@ -164,6 +164,8 @@ type Props = {
   creationOffer?: CreationOffer | null;
   creationOfferLine?: string | null;
   onDismissCreationOffer?: () => void;
+  /** V3 — child tapped into Studio/Journal from the creation card (attribution). */
+  onAcceptCreationOffer?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -272,6 +274,7 @@ export function ChatThread({
   creationOffer,
   creationOfferLine,
   onDismissCreationOffer,
+  onAcceptCreationOffer,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -814,35 +817,6 @@ export function ChatThread({
 
   return (
     <div ref={containerRef} className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
-      {proactiveInvite ? (
-        <div
-          className="flex items-start justify-between gap-2 rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2 text-[13px] text-[var(--ink)]"
-          aria-live="polite"
-        >
-          <div className="min-w-0">
-            <p className="font-medium text-[var(--ink)]">{proactiveInvite.line}</p>
-            <p className="mt-0.5 text-[11px] text-[var(--ink-muted)]">
-              Two minutes together — no pressure.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onAcceptProactiveInvite}
-              className="min-h-9 rounded-lg bg-[var(--coral)] px-3 text-[12px] font-semibold text-white transition hover:bg-[var(--coral)]/90 active:scale-95"
-            >
-              Let&apos;s review
-            </button>
-            <button
-              type="button"
-              onClick={onDismissProactiveInvite}
-              className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
-            >
-              Not now
-            </button>
-          </div>
-        </div>
-      ) : null}
       {emotionLine ? (
         <div className="flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/25 bg-[var(--teal)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
           <p>{emotionLine}</p>
@@ -1277,12 +1251,14 @@ export function ChatThread({
           <div className="mt-3 flex flex-wrap gap-2">
             <a
               href="/entertain?hub=studio"
+              onClick={() => onAcceptCreationOffer?.()}
               className="inline-flex min-h-11 items-center rounded-xl bg-[var(--teal)] px-3 text-[13px] font-semibold text-white transition hover:bg-[var(--teal)]/90 active:scale-95"
             >
               Open Writing Studio
             </a>
             <a
               href="/me/journal"
+              onClick={() => onAcceptCreationOffer?.()}
               className="inline-flex min-h-11 items-center rounded-xl border border-[var(--teal)]/45 px-3 text-[13px] font-medium text-[var(--teal)] transition hover:bg-[var(--teal)]/10"
             >
               My journal
@@ -1303,6 +1279,35 @@ export function ChatThread({
           alt={lightbox.alt}
           onClose={() => setLightbox(null)}
         />
+      ) : null}
+      {/* V3 — proactive nudge as a visual default (CHI 2026 RCT): a highlighted
+          "Retry this problem" action near the composer instead of a full-width
+          persuasion banner. Text is demoted to secondary. */}
+      {proactiveInvite ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--coral)]/40 bg-[var(--surface-muted)] px-3 py-2 shadow-sm animate-fade-up"
+          aria-live="polite"
+        >
+          <p className="min-w-0 flex-1 text-[12px] leading-snug text-[var(--ink-muted)]">
+            {proactiveInvite.line}
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onAcceptProactiveInvite}
+              className="min-h-11 rounded-xl bg-[var(--coral)] px-4 text-[13px] font-semibold text-white shadow-[0_0_0_3px_color-mix(in_srgb,var(--coral)_30%,transparent)] transition hover:bg-[var(--coral)]/90 active:scale-95"
+            >
+              Retry this problem
+            </button>
+            <button
+              type="button"
+              onClick={onDismissProactiveInvite}
+              className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
       ) : null}
       {/* Scroll anchor */}
       <div ref={bottomRef} />

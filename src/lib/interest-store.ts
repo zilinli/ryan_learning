@@ -84,3 +84,70 @@ export function recordInterest(
 export function recentInterests(accountId: string, limit = 5): InterestRecord[] {
   return loadInterests(accountId).slice(0, Math.max(1, limit));
 }
+
+// ── Server sync (V3) — cross-device interest continuity ─────────────
+
+/**
+ * Union two interest lists by topicId: newest label/emoji wins, counts and
+ * exploredAt take the max. Used for local ↔ server merge.
+ */
+export function mergeInterests(
+  a: InterestRecord[],
+  b: InterestRecord[],
+): InterestRecord[] {
+  const map = new Map<string, InterestRecord>();
+  for (const r of [...a, ...b]) {
+    const prev = map.get(r.topicId);
+    if (!prev) {
+      map.set(r.topicId, r);
+      continue;
+    }
+    const newer = prev.exploredAt >= r.exploredAt ? prev : r;
+    map.set(r.topicId, {
+      ...newer,
+      exploredAt: Math.max(prev.exploredAt, r.exploredAt),
+      count: Math.max(prev.count, r.count),
+    });
+  }
+  return [...map.values()]
+    .sort((x, y) => y.exploredAt - x.exploredAt)
+    .slice(0, MAX_INTERESTS);
+}
+
+/** Pull interests from the server and merge with local (writes back). */
+export async function hydrateInterestsFromServer(
+  accountId: string,
+): Promise<InterestRecord[]> {
+  if (typeof window === "undefined") return loadInterests(accountId);
+  const local = loadInterests(accountId);
+  try {
+    const res = await fetch(
+      `/api/interest?accountId=${encodeURIComponent(accountId)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return local;
+    const data = (await res.json()) as { interests?: InterestRecord[] };
+    const merged = mergeInterests(local, data.interests || []);
+    saveInterests(accountId, merged);
+    return merged;
+  } catch {
+    return local;
+  }
+}
+
+/** Push the current local interest profile to the server (best-effort). */
+export async function pushInterestsToServer(accountId: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    await fetch("/api/interest", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accountId,
+        interests: loadInterests(accountId),
+      }),
+    });
+  } catch {
+    /* local-only ok */
+  }
+}

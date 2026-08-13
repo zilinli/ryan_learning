@@ -49,6 +49,27 @@
 
 ---
 
+## 🎯 SPARK-V3 — 让学习飞轮"转起来"（归因链路修复 + 主动出击校准 + 验证进化）（2026-08-13）
+
+> **基准报告:** `evaluation/Spark_四维学习力深度调研报告_V3_2026-08-13.md`  
+> **Design:** [subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) § V3 三阶段  
+> **目标:** P0 归因链路修复（序列化/合并保字段 + 补齐 source 写入 + 家庭页学力来源卡）；P0/P1 主动出击校准（视觉默认重试按钮 + 优秀学生 reactive + 短而具体回复 + 广度触发归因）；P1/P2 验证进化（作品墙点亮 + 兴趣画像服务端持久化）
+
+- [x] **SPARK-V3.1 (P0-attribution)** — `serializeLearningMemoryForChat`/`mergeSkill` 保留 `sourceCounts` + `lastSource`（sum + 取新）；`LearningSource` 扩到 ted/writing/natgeo/bbc/rsa/creation
+- [x] **SPARK-V3.2 (P0-source-writes)** — `recordStudioLearningTurn` 传 source；`handleStartDeepDive` 锚点落 wrongbook/deepDive；`SessionOpener.source` 让错题本/变式/学科桥 kickoff 携带 wrongbook/variant/connection
+- [x] **SPARK-V3.3 (P0-family-card)** — `FamilyControlsPage`「本周学力来源」Top 3 卡（label + count + 一句"我注意到……我们一起……"建议）
+- [x] **SPARK-V3.4 (P0-nudge-visual)** — proactive 邀请从 coral 横幅改为动作行内视觉默认 "Retry this problem" 按钮（CHI RCT 视觉默认 +9pp vs 文本 +2pp）
+- [x] **SPARK-V3.5 (P0-nudge-reactive)** — `shouldProactiveInvite` 支持 `priorTier`，high-prior 学生 recent-wrong 不再主动邀约（idle-return 仍允许）
+- [x] **SPARK-V3.6 (P1-short-reply)** — `buildTutorPrompt` 短而具体守卫（≤2 句 + 具体类比/例子/对比，长分析仅限深潜 Explain）
+- [x] **SPARK-V3.7 (P1-breadth-attr)** — subject-bridge / adjacent opener 发送 `connection` source，广度导航可归因
+- [x] **SPARK-V3.8 (P1-works-wall)** — 验证 Everyone PraiseChip 可赞可评 + Me 页"收到的鼓励"入口 + Make-it-yours 计入 creation 归因
+- [x] **SPARK-V3.9 (P2-interest-sync)** — `/api/interest`（GET/PUT）+ `interest-store-server.ts` 服务端持久化，跨设备 hydrate + merge + 上行
+- [x] **SPARK-V3.10 (tests)** — 新增/扩展 7 套件（learning-memory / proactive-nudge / studio-learning / family-report / interest-store / creation-offer / api-interest）；全量 **1587 passed / 193 files**（`npm test -- --no-cache`）
+- [x] **SPARK-V3.11 (docs)** — roadmap + TODO + DESIGN + README 同步 V3
+- [x] **SPARK-V3.12 (release)** — publish develop/master（推 GitHub 两分支）
+
+---
+
 ## 🎯 SPARK-4D — 四维学习力 P0→P2（2026-08-13）
 
 > **基准报告:** `evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣 / 心流 / 深度 / 广度）  

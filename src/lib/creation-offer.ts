@@ -6,6 +6,14 @@
  * signal-detection lives here (unit-testable); session state lives in the hook.
  */
 
+import {
+  hydrateLearningMemoryFromServer,
+  loadLearningMemory,
+  pushLearningMemoryToServer,
+  saveLearningMemory,
+  type LearningMemory,
+} from "./learning-memory";
+
 /** Enthusiasm signals in the child's own words. */
 const LIKE_RE =
   /(?:^|[\s.,!?])(enjoy(?:ed)?|love(?:d)?|like(?:d)?|fun|cool|awesome|amazing|interesting)\b|好玩|喜欢|喜歡|中意|鍾意|有趣|爱|愛/i;
@@ -25,10 +33,51 @@ export function likesTopicSignal(
 export type CreationOffer = {
   /** The topic/interest label this creation would build on. */
   topicLabel: string;
+  /** The interest topic id (for attribution look-up into learning memory). */
+  topicId: string;
   createdAt: number;
 };
 
 /** Kid-facing headline for the creation card. */
 export function creationOfferLine(offer: CreationOffer): string {
   return `You nailed "${offer.topicLabel}" and it sounded like fun — want to turn it into a mini creation?`;
+}
+
+/**
+ * V3 — count a "Make it yours" acceptance into attribution so the works-wall
+ * conversion is visible: bumps the matching skill's `creation` source count.
+ */
+export async function recordCreationOfferAccepted(
+  accountId: string,
+  offer: CreationOffer,
+): Promise<void> {
+  if (typeof window === "undefined") return;
+  const id = String(accountId || "acct_ryan").trim() || "acct_ryan";
+  try {
+    await hydrateLearningMemoryFromServer(id);
+  } catch {
+    /* local-only ok */
+  }
+  const mem = loadLearningMemory(id);
+  if (!mem?.skills?.length) return;
+  const target =
+    mem.skills.find((s) => offer.topicId && s.topicId === offer.topicId) ||
+    mem.skills.find((s) => s.label === offer.topicLabel);
+  if (!target) return;
+  const skills = mem.skills.map((s) =>
+    s.id === target.id
+      ? {
+          ...s,
+          sourceCounts: {
+            ...(s.sourceCounts || {}),
+            creation: (s.sourceCounts?.creation || 0) + 1,
+          },
+          lastSource: "creation" as const,
+          lastSeen: Math.max(s.lastSeen, Date.now()),
+        }
+      : s,
+  );
+  const next: LearningMemory = { ...mem, skills, updatedAt: Date.now() };
+  saveLearningMemory(next, id);
+  void pushLearningMemoryToServer(next, id);
 }

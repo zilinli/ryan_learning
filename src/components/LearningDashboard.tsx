@@ -23,7 +23,7 @@ import {
   type SubjectBridge,
   type SubjectFootprint,
 } from "@/lib/breadth-map";
-import { recentInterests } from "@/lib/interest-store";
+import { recentInterests, hydrateInterestsFromServer, type InterestRecord } from "@/lib/interest-store";
 
 const SUBJECT_META_EMOJI: Record<SubjectFootprint["subject"], string> = {
   math: "🔢",
@@ -52,6 +52,15 @@ export function LearningDashboard() {
     () => (memory ? buildMistakePatterns(memory, 6) : []),
     [memory],
   );
+  // V3 — cross-device interest continuity: merge the server profile in.
+  const [serverInterests, setServerInterests] = useState<
+    InterestRecord[] | null
+  >(null);
+  useEffect(() => {
+    setServerInterests(null);
+    void hydrateInterestsFromServer(accountId).then(setServerInterests);
+  }, [accountId]);
+
   const footprint = useMemo(
     () => buildBreadthFootprint(memory, accountId),
     [memory, accountId],
@@ -61,7 +70,7 @@ export function LearningDashboard() {
   const bridges = useMemo(() => buildSubjectBridges(memory), [memory]);
   const interests = useMemo(
     () => recentInterests(accountId, 5),
-    [accountId],
+    [accountId, serverInterests],
   );
 
   const radarValues = model.radar.map((r) => r.value);

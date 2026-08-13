@@ -283,6 +283,7 @@ export function buildWrongReviewOpener(items: WrongAnswer[]): SessionOpener {
     kind: "practice",
     line: "Let's redo the ones that tripped you up — one at a time.",
     kickoffOverride: buildWrongReviewKickoffMessage(items),
+    source: "wrongbook",
   };
 }
 
@@ -309,5 +310,6 @@ export function buildVariantKickoffOpener(
         ? `Lift "${v.skillLabel}" up a level — one harder twist.`
         : `One more try on "${v.skillLabel}" — same idea, new numbers.`,
     kickoffOverride: buildVariantKickoffMessage(row, v.action),
+    source: "variant",
   };
 }

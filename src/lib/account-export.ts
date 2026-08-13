@@ -27,6 +27,8 @@ export type AccountLearningExport = {
     incorrect: number;
     lastSeen: number;
     misconceptionHits?: Array<{ id: string; count: number; lastSeen: number }>;
+    sourceCounts?: Partial<Record<string, number>>;
+    lastSource?: string;
   }>;
   recentWins: string[];
   recentStruggles: string[];
@@ -48,6 +50,10 @@ function slimSkill(s: SkillMastery): AccountLearningExport["skills"][number] {
     ...(s.misconceptionHits?.length
       ? { misconceptionHits: s.misconceptionHits.map((h) => ({ ...h })) }
       : {}),
+    ...(s.sourceCounts && Object.keys(s.sourceCounts).length
+      ? { sourceCounts: { ...s.sourceCounts } }
+      : {}),
+    ...(s.lastSource ? { lastSource: s.lastSource } : {}),
   };
 }
 

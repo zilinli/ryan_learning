@@ -16,6 +16,7 @@ import {
   softReturnOpenerLine,
 } from "./idle-nudge";
 import { pickPracticeTargets, type PracticeTarget } from "./session-practice";
+import type { LearningSource } from "./learning-memory";
 
 export type SessionOpener = {
   skillId: string;
@@ -28,6 +29,8 @@ export type SessionOpener = {
   challengeLine?: string;
   /** P1 — custom kickoff message used instead of the default opener line */
   kickoffOverride?: string;
+  /** V2 attribution — learning mechanism this opener drives (default "opener"). */
+  source?: LearningSource;
 };
 
 const DATE_KEY_PREFIX = "spark.opener.date.";
@@ -150,6 +153,7 @@ export function rotateSessionOpener(
       { skillId: opener.skillId, label: opener.label },
     ],
     challengeLine: opener.challengeLine,
+    source: opener.source,
   };
 }
 

@@ -3,6 +3,7 @@ import { kvClearMemory } from "./browser-kv";
 import {
   interestStorageKey,
   loadInterests,
+  mergeInterests,
   recentInterests,
   recordInterest,
 } from "./interest-store";
@@ -45,5 +46,39 @@ describe("interest-store", () => {
       recordInterest(ACCT, { topicId: id, label: id, emoji: "✨" });
     }
     expect(recentInterests(ACCT, 5)).toHaveLength(5);
+  });
+
+  it("V3 — mergeInterests unions by topic and keeps max count + newest label", () => {
+    const local = [
+      {
+        topicId: "space",
+        label: "Space & planets",
+        emoji: "🚀",
+        exploredAt: 1000,
+        count: 2,
+      },
+    ];
+    const remote = [
+      {
+        topicId: "space",
+        label: "Space & planets",
+        emoji: "🚀",
+        exploredAt: 3000,
+        count: 5,
+      },
+      {
+        topicId: "music",
+        label: "Music",
+        emoji: "🎵",
+        exploredAt: 2000,
+        count: 1,
+      },
+    ];
+    const merged = mergeInterests(local, remote);
+    expect(merged).toHaveLength(2);
+    const space = merged.find((i) => i.topicId === "space");
+    expect(space?.count).toBe(5);
+    expect(space?.exploredAt).toBe(3000);
+    expect(merged[0]?.topicId).toBe("space"); // newest first
   });
 });

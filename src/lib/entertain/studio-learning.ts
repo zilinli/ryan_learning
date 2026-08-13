@@ -115,6 +115,9 @@ export async function recordStudioLearningTurn(opts: {
               ? `RSA · ${opts.title}`.slice(0, 80)
               : `Writing · ${opts.title}`.slice(0, 80),
     outcome: opts.outcome,
+    // V2 attribution — count Studio turns under their mechanism so the
+    // parent weekly report can see TED/NatGeo/BBC/RSA/Writing as drivers.
+    source: opts.source,
   });
   saveLearningMemory(next, accountId);
   void pushLearningMemoryToServer(next, accountId);

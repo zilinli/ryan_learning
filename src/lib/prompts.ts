@@ -310,6 +310,20 @@ function crossDisciplineLines(): string {
   ].join("\n");
 }
 
+function vocabListCoachingLines(): string {
+  return [
+    "",
+    "[Vocabulary / word-list photos (FCE, spelling, word banks) — high-value flow]",
+    "If a photo shows a vocabulary or spelling list (a numbered/column list of single words, possibly with phonetics or short definitions):",
+    "1) TRANSCRIBE every word EXACTLY as printed, in order — use the OCR text above as ground truth, never guess a spelling.",
+    "2) Do NOT skip words. If a word is genuinely unclear even with the OCR text, ask the student to confirm it before teaching it.",
+    "3) Emit a worksheet-plan fence that lists EVERY word in order (status pending), with total = the exact word count.",
+    "4) Tutor ONE word at a time: spelling first (student covers the word, then types it), then meaning, then one example sentence.",
+    "5) Never dump all the definitions at once — one word per turn.",
+    "",
+  ].join("\n");
+}
+
 function confidenceMismatchPromptLines(mem?: LearningMemory | null, studentName?: string): string[] {
   const name = studentName || "the student";
   if (!mem) return [];
@@ -358,6 +372,8 @@ export function buildTutorPrompt(params: {
   imageCount: number;
   historyImageCount?: number;
   fileSummaries?: string[];
+  /** OCR-extracted text for photographed pages (word lists / worksheets) */
+  imageOcrSummaries?: string[];
   history?: HistoryTurn[];
   /** Titles of other recent chats for cross-session continuity */
   recentTitles?: string[];
@@ -384,8 +400,15 @@ export function buildTutorPrompt(params: {
     imageCount?: number;
   };
 }): string {
-  const { userText, imageCount, fileSummaries = [], history } = params;
-  const hasHomework = imageCount > 0 || fileSummaries.length > 0;
+  const {
+    userText,
+    imageCount,
+    fileSummaries = [],
+    imageOcrSummaries = [],
+    history,
+  } = params;
+  const hasHomework =
+    imageCount > 0 || fileSummaries.length > 0 || imageOcrSummaries.length > 0;
   const profile = params.studentProfile || RYAN_PROFILE;
 
   const mode: ReplyLangMode =
@@ -411,6 +434,15 @@ export function buildTutorPrompt(params: {
     mediaLines.push("Document text extracted from uploads:");
     for (const s of fileSummaries) mediaLines.push(s);
   }
+  if (imageOcrSummaries.length > 0) {
+    mediaLines.push(
+      "Recognized text extracted from the photos by OCR — treat these as the EXACT words/spellings on the page (ground truth). The student photographed a word list / worksheet:",
+    );
+    for (const s of imageOcrSummaries) mediaLines.push(s);
+    mediaLines.push(
+      "Use the OCR text for every word's spelling and order. If what you see in the image seems to differ from the OCR text, trust the OCR text for spelling.",
+    );
+  }
 
   const cue = findThisCue(mode);
   const formatRules = [
@@ -422,6 +454,7 @@ export function buildTutorPrompt(params: {
     "  Display: $$\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$$",
     "- Voice / TTS: also say the math in plain words once (e.g. “square root of 2”) beside the LaTeX — kids follow by ear.",
     "- Keep spoken-friendly chunks: aim for 2–3 short sentences, then a question (pause for the student).",
+    "- Reply length guard (V3): replies stay ≤2 sentences + ONE question, and include at least one concrete analogy / example / contrast (a specific example beats abstraction — micro-feedback evidence). Reserve longer analytical text for deep-dive Explain phases only; long replies reduce understanding, so cut before it gets long.",
     "- Geometry / figures: call draw_geometry with a stable diagramId + rising revision, then paste its markdown image UNCHANGED (no code fence).",
     "  Alt text is set as geo:<diagramId>:<revision> Title — the app replaces older same-id figures (CA-8).",
     "  After the figure: ask what they notice AND invite a ‘measuring’ move (e.g. “If you had a ruler, what would you measure first?” / “Point to the right angle”).",
@@ -579,6 +612,7 @@ export function buildTutorPrompt(params: {
     ...curriculumPromptLines(profile),
     ...subjectCoachingLines(profile.gradeBand),
     ...crossDisciplineLines(),
+    vocabListCoachingLines(),
     ...sparkPromptLines(),
     ...learningMemoryPromptLines(params.learningMemory),
     ...confidenceMismatchPromptLines(params.learningMemory, profile.name),

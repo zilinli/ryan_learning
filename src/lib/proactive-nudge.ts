@@ -13,6 +13,7 @@
 
 import { kvGet, kvRemove, kvSet } from "./browser-kv";
 import type { ChatMessage } from "./types";
+import type { PriorTier } from "./bkt";
 import {
   buildWrongReviewKickoffMessage,
   loadWrongAnswers,
@@ -178,6 +179,8 @@ export function shouldProactiveInvite(
     pendingAt?: number | null;
     turnsSince?: number;
     now?: number;
+    /** V3 — prior tier; high-prior learners default to reactive (report §9.2.2). */
+    priorTier?: PriorTier;
   },
 ): boolean {
   if (dismissedProactiveToday(accountId)) return false;
@@ -185,7 +188,10 @@ export function shouldProactiveInvite(
     return false;
   }
   if (opts.reason === "idle-return") return true;
-  // recent-wrong
+  // recent-wrong — high-prior students are on reactive by default: proactive
+  // interruption has ~zero marginal benefit for them and can break flow
+  // (mixed human-AI tiering + flow evidence). They still get idle-return.
+  if (opts.priorTier === "high") return false;
   if (opts.pendingAt == null) return false;
   if (opts.turnsSince == null || opts.turnsSince < PROACTIVE_TURNS) return false;
   return true;

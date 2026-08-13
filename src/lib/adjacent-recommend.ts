@@ -113,5 +113,6 @@ export function buildAdjacentOpener(
     kind: "zpd",
     line: rec.line,
     kickoffOverride: buildAdjacentKickoffMessage(rec, mem),
+    source: "connection",
   };
 }
