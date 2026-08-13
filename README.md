@@ -45,6 +45,18 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
 - **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain`. See [entertainments.md](docs/subsystems/entertainments.md).
 
+### Four-Dimension Learning (兴趣 · 心流 · 深度 · 广度)
+
+Research-driven learning loops from the [four-dimension report](evaluation/Spark_四维学习力深度调研报告_2026-08-13.md) — see [spark-research-roadmap.md](docs/subsystems/spark-research-roadmap.md):
+
+- **Interest self-selection loop** — empty chat shows "Today, I want to explore…" topic chips (curated kid-friendly topics mapped to skills); picks feed an interest profile shown in the Me Hub.
+- **Flow-aware difficulty** — in-session signals (fast-correct streaks, slow/hesitant turns) dynamically nudge challenge bands up/down; a kid-visible **mastery gauge** turns level-ups into "growth moments".
+- **Ask-and-answer fast path** — local deterministic lookups answer instantly (arithmetic tables, Celsius/Fahrenheit, common-fraction decimals, rectangle/square perimeter & area, doubling/tripling) before any model call.
+- **Weekly deep-dive day** — each week one 5E-structured deep-dive project anchored on the student's wrong answers or mastered skills.
+- **Wrong answer → variant / concept lift** — every wrong-answer-book entry can be retried as a *variant* (same skill, new numbers) or *harder* (half-level transfer twist).
+- **Weekly connection card + subject map** — a weekly cross-subject link card plus a subject breadth footprint in the Me Hub; tapping an unexplored subject starts a guided exploration.
+
+
 ### Parent Hub (`/family`)
 
 PIN-gated family dashboard — inspired by Khan Academy's parent view: weekly narrative report, effort radar chart, mistake coaching with severity ranking and actionable tips, learning data export (JSON + printable HTML portfolio), and parent-to-student messaging with Markdown/Mermaid support and read receipts.
@@ -373,6 +385,7 @@ Design documents live in `docs/subsystems/`. Key reads:
 | [faq-feedback-panel](docs/subsystems/faq-feedback-panel.md) | Help & feedback system |
 | [product-audit-2026-08-roadmap](docs/subsystems/product-audit-2026-08-roadmap.md) | Product audit & roadmap |
 | [ux-competitor-report-2026-08-feasibility](docs/subsystems/ux-competitor-report-2026-08-feasibility.md) | UX competitor analysis |
+| [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1 + 竞品调研路线图 |
 
 Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.
 

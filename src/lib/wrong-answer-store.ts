@@ -45,10 +45,10 @@ export function loadWrongAnswers(accountId: string): WrongAnswer[] {
         id: String(w.id || `wa_${w.createdAt || Date.now()}`),
         accountId: String(w.accountId || accountId),
         skillId: String(w.skillId).slice(0, 48),
-        skillLabel: sliceText(w.skillLabel || w.skillId, 56),
-        question: sliceText(w.question, 400),
-        studentAnswer: sliceText(w.studentAnswer, 400),
-        assistantText: sliceText(w.assistantText, 800),
+        skillLabel: sliceText(w.skillLabel || w.skillId || "General", 56),
+        question: sliceText(w.question || "", 400),
+        studentAnswer: sliceText(w.studentAnswer || "", 400),
+        assistantText: sliceText(w.assistantText || "", 800),
         createdAt: Number(w.createdAt) || 0,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -71,7 +71,7 @@ export function skillLabelForText(text: string): { skillId: string; skillLabel: 
 
 export function addWrongAnswer(
   accountId: string,
-  entry: Omit<WrongAnswer, "id" | "accountId" | "createdAt">,
+  entry: Omit<WrongAnswer, "id" | "accountId" | "createdAt"> & { createdAt?: number },
 ): WrongAnswer {
   const items = loadWrongAnswers(accountId);
   const row: WrongAnswer = {
@@ -82,7 +82,7 @@ export function addWrongAnswer(
     question: sliceText(entry.question, 400),
     studentAnswer: sliceText(entry.studentAnswer, 400),
     assistantText: sliceText(entry.assistantText, 800),
-    createdAt: Date.now(),
+    createdAt: entry.createdAt ?? Date.now(),
   };
   items.unshift(row);
   saveWrongAnswers(accountId, items);
@@ -137,6 +137,73 @@ export function buildWrongReviewKickoffMessage(items: WrongAnswer[]): string {
     ...lines,
     "Give them to me ONE at a time, Socratic hints only, no spoilers. Check my new answer against what I said before.",
   ].join("\n");
+}
+
+// ── P1 — wrong answer → variant / harder path (report §9.3.2) ─────────
+
+export type WrongAnswerAction = "variant" | "harder";
+
+/**
+ * Build the kickoff for a single wrong answer:
+ * - "variant" re-tests the SAME skill with new numbers/situation (does the
+ *   student really know it, or just this question?).
+ * - "harder" steps up half a level: transfer the skill to a new context or a
+ *   slightly harder extension (concept lift).
+ */
+export function buildVariantKickoffMessage(
+  w: WrongAnswer,
+  action: WrongAnswerAction,
+): string {
+  if (action === "variant") {
+    return [
+      `I got this one wrong before — now try a VARIANT of it (${w.skillLabel}):`,
+      `Original: ${w.question}`,
+      "Give me ONE new question like this with different numbers and a fresh situation.",
+      "Check whether I really understand it or just remembered the answer. Socratic hints only, no spoilers.",
+    ].join("\n");
+  }
+  return [
+    `I got this one wrong before — now lift it UP half a level (${w.skillLabel}):`,
+    `Original: ${w.question}`,
+    "Give me ONE harder question that transfers this skill to a new context (real life, another subject, a tricky wording).",
+    "If I'm stuck, nudge me — but make it genuinely harder than the original. No spoilers.",
+  ].join("\n");
+}
+
+/** Stash a one-shot variant/harder kickoff for the homepage chat. */
+export function stashVariantKickoff(
+  w: WrongAnswer,
+  action: WrongAnswerAction,
+): void {
+  writeKickoff(JSON.stringify({ action, skillId: w.skillId, skillLabel: w.skillLabel, question: w.question }));
+}
+
+export function consumeVariantKickoff(): {
+  action: WrongAnswerAction;
+  skillId: string;
+  skillLabel: string;
+  question: string;
+} | null {
+  const raw = readKickoff();
+  clearKickoff();
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as {
+      action?: WrongAnswerAction;
+      skillId?: string;
+      skillLabel?: string;
+      question?: string;
+    };
+    if (!p || (p.action !== "variant" && p.action !== "harder")) return null;
+    return {
+      action: p.action,
+      skillId: String(p.skillId || "general").slice(0, 48),
+      skillLabel: sliceText(p.skillLabel || p.skillId || "General", 56),
+      question: sliceText(p.question || "", 400),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ── Chat handoff (sessionStorage one-shot, like practice kickoff) ───
@@ -198,7 +265,7 @@ export function consumeWrongReviewKickoff(): WrongAnswer[] | null {
       accountId: "local",
       skillId: String(w.skillId || "general").slice(0, 48),
       skillLabel: sliceText(w.skillLabel || w.skillId || "General", 56),
-      question: sliceText(w.question, 400),
+      question: sliceText(w.question || "", 400),
       studentAnswer: "",
       assistantText: "",
       createdAt: Date.now(),
@@ -216,5 +283,31 @@ export function buildWrongReviewOpener(items: WrongAnswer[]): SessionOpener {
     kind: "practice",
     line: "Let's redo the ones that tripped you up — one at a time.",
     kickoffOverride: buildWrongReviewKickoffMessage(items),
+  };
+}
+
+/** Opener card for a single wrong answer's variant / harder kickoff. */
+export function buildVariantKickoffOpener(
+  v: NonNullable<ReturnType<typeof consumeVariantKickoff>>,
+): SessionOpener {
+  const row: WrongAnswer = {
+    id: `vr_${Date.now()}`,
+    accountId: "local",
+    skillId: v.skillId,
+    skillLabel: v.skillLabel,
+    question: v.question,
+    studentAnswer: "",
+    assistantText: "",
+    createdAt: Date.now(),
+  };
+  return {
+    skillId: v.skillId,
+    label: v.skillLabel,
+    kind: "practice",
+    line:
+      v.action === "harder"
+        ? `Lift "${v.skillLabel}" up a level — one harder twist.`
+        : `One more try on "${v.skillLabel}" — same idea, new numbers.`,
+    kickoffOverride: buildVariantKickoffMessage(row, v.action),
   };
 }

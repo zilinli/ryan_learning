@@ -24,6 +24,23 @@
 
 ---
 
+## 🎯 SPARK-4D — 四维学习力 P0→P1（2026-08-13）
+
+> **基准报告:** `evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣 / 心流 / 深度 / 广度）  
+> **Design:** [subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) § 四维学习力路线图  
+> **目标:** P0 兴趣选择回路 + 心流难度微调 + 问即答快速路径；P1 深度探究日 + 错题变式/概念提升 + 跨学科连接卡与学科足迹地图
+
+- [x] **SPARK-4D.1 (P0-interest)** — `explore-catalog.ts` 探索主题（12 条，映射 `SkillDef`）+ `interest-store.ts` 兴趣档案 + 空聊天「Today, I want to explore…」chips
+- [x] **SPARK-4D.2 (P0-flow)** — `flow-signals.ts` 连对/连错/快答/慢答信号 + `TutorShell` 延迟采集 + `challenge-mode` 难度升/降档 + `challengeGauge` 掌握度仪表
+- [x] **SPARK-4D.3 (P0-fastpath)** — `local-facts.ts` 扩容：小算术/温度换算/分数小数/矩形周长面积/双倍三倍（中英双语、确定性、歧义回退 Agent）
+- [x] **SPARK-4D.4 (P1-deep)** — `deep-dive-week.ts` 每周深度探究日（每周三、5E 流程 kickoff、错题/掌握技能锚点）+ 每周深度项目卡
+- [x] **SPARK-4D.5 (P1-wrongbook)** — `wrong-answer-store.ts` variant/harder 路径 + `WrongAnswerBook`「Variant — new numbers / Harder — level up」按钮
+- [x] **SPARK-4D.6 (P1-breadth)** — `connection-card.ts` 每周跨学科连接卡 + `breadth-map.ts` 学科足迹地图 + `LearningDashboard`「Your subject map / exploration footprint」
+- [x] **SPARK-4D.7 (tests)** — 新增 6 个测试套件 + 扩展 3 个（flow/explore/interest/deep-dive/connection/breadth + local-facts/challenge-mode/wrong-answer-store）
+- [ ] **SPARK-4D.8** — `run_tests` → apply_changes → publish_develop → deploy_live（待本轮发布）
+
+---
+
 ## 🎯 SPARK-ROADMAP — 竞品调研路线图 P0→P3（2026-08-13）
 
 > **基准报告:** `/root/AI教学产品调研与Spark分析报告.md` §9 三阶段路线图  

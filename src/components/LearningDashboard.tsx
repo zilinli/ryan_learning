@@ -15,13 +15,21 @@ import {
 import { stashPracticeKickoff } from "@/lib/idle-nudge";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { buildMistakePatterns } from "@/lib/family-report";
+import {
+  buildBreadthFootprint,
+  stashSubjectStarter,
+  type SubjectFootprint,
+} from "@/lib/breadth-map";
+import { recentInterests } from "@/lib/interest-store";
 
 export function LearningDashboard() {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
   const [accountLabel, setAccountLabel] = useState("student");
+  const [accountId, setAccountId] = useState("default");
 
   useEffect(() => {
     const id = getActiveAccount(loadAccounts()).id;
+    setAccountId(id);
     setAccountLabel(id.replace(/^acct_/, ""));
     setMemory(loadLearningMemory(id));
     void hydrateLearningMemoryFromServer(id).then(setMemory);
@@ -32,9 +40,22 @@ export function LearningDashboard() {
     () => (memory ? buildMistakePatterns(memory, 6) : []),
     [memory],
   );
+  const footprint = useMemo(
+    () => buildBreadthFootprint(memory, accountId),
+    [memory, accountId],
+  );
+  const interests = useMemo(
+    () => recentInterests(accountId, 5),
+    [accountId],
+  );
 
   const radarValues = model.radar.map((r) => r.value);
   const poly = radarPolygonPoints(radarValues.length ? radarValues : [0], 100, 100, 80);
+
+  const trySubject = (f: SubjectFootprint) => {
+    stashSubjectStarter(f);
+    window.location.href = "/";
+  };
 
   return (
     <div className="mx-auto min-h-dvh max-w-3xl px-4 py-6 text-[var(--ink)]">
@@ -284,6 +305,70 @@ export function LearningDashboard() {
               )}
             </ul>
           </section>
+
+          {/* P1 — subject breadth footprint (report §9.4.2) */}
+          <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+            <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+              Your subject map
+            </h2>
+            <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+              Where you've been — and one door into a subject you haven't tried.
+            </p>
+            <ul className="mt-3 space-y-2">
+              {footprint.map((f) => (
+                <li key={f.subject} className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2 text-[13px]">
+                    <span aria-hidden>{f.emoji}</span>
+                    <span className="truncate">{f.label}</span>
+                    {f.skillCount > 0 ? (
+                      <span className="shrink-0 rounded-full bg-[var(--teal)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--teal)]">
+                        {f.skillCount} skill{f.skillCount > 1 ? "s" : ""}
+                      </span>
+                    ) : null}
+                  </span>
+                  {f.explored ? (
+                    <span className="shrink-0 rounded-full bg-[var(--teal)]/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--teal)]">
+                      Explored
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => trySubject(f)}
+                      className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-3 text-[11px] font-semibold text-[var(--coral)] transition hover:bg-[var(--coral)]/20"
+                    >
+                      Try it
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* P0 — exploration footprint (report §9.1.3) */}
+          {interests.length > 0 ? (
+            <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+              <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+                Your exploration footprint
+              </h2>
+              <p className="mt-1 text-[11px] text-[var(--ink-muted)]">
+                Topics you chose to explore — it grows every time you pick one.
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {interests.map((i) => (
+                  <li
+                    key={i.topicId}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[12px] text-[var(--ink)]"
+                  >
+                    <span aria-hidden>{i.emoji}</span>
+                    {i.label}
+                    {i.count > 1 ? (
+                      <span className="text-[10px] text-[var(--ink-muted)]">×{i.count}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       )}
     </div>

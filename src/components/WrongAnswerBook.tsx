@@ -5,9 +5,11 @@ import {
   buildWrongAnswerReviewSet,
   deleteWrongAnswer,
   loadWrongAnswers,
+  stashVariantKickoff,
   stashWrongReviewKickoff,
   wrongAnswersBySkill,
   type WrongAnswer,
+  type WrongAnswerAction,
 } from "@/lib/wrong-answer-store";
 
 function timeAgo(ts: number): string {
@@ -42,6 +44,12 @@ export function WrongAnswerBook({
 
   const reviewInChat = (list: WrongAnswer[]) => {
     stashWrongReviewKickoff(list.slice(0, 5));
+    window.location.href = "/";
+  };
+
+  // P1 — wrong answer → variant / harder one-question handoff (report §9.3.2)
+  const liftInChat = (w: WrongAnswer, action: WrongAnswerAction) => {
+    stashVariantKickoff(w, action);
     window.location.href = "/";
   };
 
@@ -85,25 +93,43 @@ export function WrongAnswerBook({
                 Redo in chat
               </button>
             </div>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2 space-y-2">
               {g.items.slice(0, 3).map((w) => (
-                <li key={w.id} className="group flex items-start gap-2">
-                  <p className="flex-1 text-[12px] leading-snug text-[var(--ink-muted)]">
-                    <span className="mr-1 text-[10px] opacity-60">{timeAgo(w.createdAt)}</span>
-                    {w.question}
-                  </p>
-                  <button
-                    type="button"
-                    aria-label="Remove from review box"
-                    title="Remove from review box"
-                    onClick={() => remove(w.id)}
-                    className="rounded p-0.5 text-[var(--ink-muted)] opacity-0 transition hover:text-[var(--coral)] group-hover:opacity-100"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                <li key={w.id} className="group rounded-lg border border-[var(--line)]/50 bg-[var(--surface)] px-2 py-1.5">
+                  <div className="flex items-start gap-2">
+                    <p className="flex-1 text-[12px] leading-snug text-[var(--ink-muted)]">
+                      <span className="mr-1 text-[10px] opacity-60">{timeAgo(w.createdAt)}</span>
+                      {w.question}
+                    </p>
+                    <button
+                      type="button"
+                      aria-label="Remove from review box"
+                      title="Remove from review box"
+                      onClick={() => remove(w.id)}
+                      className="rounded p-0.5 text-[var(--ink-muted)] opacity-0 transition hover:text-[var(--coral)] group-hover:opacity-100"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => liftInChat(w, "variant")}
+                      className="rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-2 py-0.5 text-[10px] font-medium text-[var(--teal)] transition hover:bg-[var(--teal)]/15"
+                    >
+                      Variant — new numbers
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => liftInChat(w, "harder")}
+                      className="rounded-full border border-[var(--coral)]/35 bg-[var(--coral)]/8 px-2 py-0.5 text-[10px] font-medium text-[var(--coral)] transition hover:bg-[var(--coral)]/15"
+                    >
+                      Harder — level up
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

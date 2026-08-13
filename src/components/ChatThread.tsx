@@ -14,6 +14,9 @@ import { parseSparkFence, stripSparkFence } from "@/lib/spark-moment";
 import { collapseDiagramsInMessages } from "@/lib/diagram-lifecycle";
 import type { PendingPracticeOffer } from "@/lib/session-practice";
 import type { SessionOpener } from "@/lib/session-opener";
+import type { ExploreTopic } from "@/lib/explore-catalog";
+import type { DeepDiveOffer } from "@/lib/deep-dive-week";
+import type { ConnectionOffer } from "@/lib/connection-card";
 import {
   buildDeepDivePrompt,
   DEEP_DIVE_LABELS,
@@ -76,6 +79,26 @@ type Props = {
   speakingMessageId?: string | null;
   /** Quote an earlier message to reply with focused context */
   onQuote?: (message: ChatMessage) => void;
+  /** P0 — interest-led exploration ("今天想探索什么") chips in the empty state */
+  exploreTopics?: ExploreTopic[];
+  onExplore?: (topic: ExploreTopic) => void;
+  /** P1 — weekly deep-dive project (5E) */
+  deepDiveOffer?: DeepDiveOffer | null;
+  onStartDeepDive?: () => void;
+  onSkipDeepDive?: () => void;
+  /** P1 — weekly cross-subject connection card */
+  connectionOffer?: ConnectionOffer | null;
+  onShowConnection?: () => void;
+  onDismissConnection?: () => void;
+  /** P0 — live challenge mastery gauge (while a challenge session is active) */
+  challengeGauge?: {
+    level: number;
+    levelLabel: string;
+    streak: number;
+    progress: number;
+    toNext: number | null;
+    growthLine?: string | null;
+  } | null;
 };
 
 function formatTime(epochMs: number): string {
@@ -163,6 +186,15 @@ export function ChatThread({
   breakNudge,
   onDismissBreakNudge,
   onQuote,
+  exploreTopics,
+  onExplore,
+  deepDiveOffer,
+  onStartDeepDive,
+  onSkipDeepDive,
+  connectionOffer,
+  onShowConnection,
+  onDismissConnection,
+  challengeGauge,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -548,6 +580,90 @@ export function ChatThread({
             </p>
           </div>
         ) : null}
+
+        {deepDiveOffer ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--coral)]/45 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--coral)]">
+              Weekly deep project
+            </p>
+            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+              Go deep on “{deepDiveOffer.topicLabel}” — 5 steps, one big idea.
+            </p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              Explore, explain, apply, then turn it into a small poster or summary.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onStartDeepDive}
+                className="min-h-11 rounded-xl bg-[var(--coral)]/90 px-3 text-sm font-medium text-white"
+              >
+                Start deep dive
+              </button>
+              <button
+                type="button"
+                onClick={onSkipDeepDive}
+                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink-muted)]"
+              >
+                Not this week
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {connectionOffer ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/55 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              Connection of the week
+            </p>
+            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+              {connectionOffer.card.title}
+            </p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              {connectionOffer.card.blurb}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onShowConnection}
+                className="min-h-11 rounded-xl border border-[var(--teal)]/55 bg-[var(--teal)]/10 px-3 text-sm font-medium text-[var(--teal)]"
+              >
+                Show me the link
+              </button>
+              <button
+                type="button"
+                onClick={onDismissConnection}
+                className="min-h-11 rounded-xl px-3 text-sm text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Later
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {exploreTopics && exploreTopics.length > 0 ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              Today, I want to explore…
+            </p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              Pick a spark — Spark turns it into a question at your level.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {exploreTopics.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onExplore?.(t)}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-3 text-[12px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/60 hover:bg-[var(--teal)]/15"
+                >
+                  <span aria-hidden>{t.emoji}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -571,6 +687,36 @@ export function ChatThread({
           >
             OK
           </button>
+        </div>
+      ) : null}
+      {challengeGauge ? (
+        <div
+          className="sticky top-0 z-[5] -mx-1 flex justify-center"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--surface-muted)] px-3 py-2 shadow-sm">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <p className="font-medium text-[var(--teal)]">
+                Challenge · {challengeGauge.levelLabel}
+              </p>
+              <p className="tabular-nums text-[var(--ink-muted)]">
+                {challengeGauge.toNext == null
+                  ? "expert level"
+                  : `${challengeGauge.toNext} to next level`}
+              </p>
+            </div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
+              <div
+                className="h-full rounded-full bg-[var(--teal)] transition-all duration-500"
+                style={{ width: `${Math.round(challengeGauge.progress * 100)}%` }}
+              />
+            </div>
+            {challengeGauge.growthLine ? (
+              <p className="mt-1.5 text-[11px] font-medium text-[var(--coral)]">
+                {challengeGauge.growthLine}
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {showPlanChip && worksheetPlan ? (

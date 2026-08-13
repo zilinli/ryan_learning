@@ -9,12 +9,16 @@ import {
 import { tryLocalRecall } from "@/lib/local-recall";
 import { tryLocalFacts } from "@/lib/local-facts";
 import { recordChallengeOutcome } from "@/lib/challenge-mode";
+import { recordFlowTurn } from "@/lib/flow-signals";
 import {
   addWrongAnswer,
+  buildVariantKickoffOpener,
   buildWrongReviewOpener,
+  consumeVariantKickoff,
   consumeWrongReviewKickoff,
   skillLabelForText,
 } from "@/lib/wrong-answer-store";
+import { consumeSubjectStarter } from "@/lib/breadth-map";
 import { reconcileWeeklyGoal } from "@/lib/weekly-goal";
 import {
   emotionPromptLines,
@@ -231,6 +235,8 @@ export function useTutorSession() {
   const deepLinkAccountRef = useRef<string | null>(null);
   const tedKickoffHandledRef = useRef(false);
   const pendingTedKickoffRef = useRef<string | null>(null);
+  /** P0 — when the last assistant message finished, for answer-latency flow signals */
+  const lastAssistantAtRef = useRef<number>(Date.now());
 
   useEffect(() => {
     checkModeRef.current = checkMode;
@@ -689,15 +695,27 @@ export function useTutorSession() {
     setPracticeOffer(offer);
     if (!offer) {
       const mem = learningMemory || loadLearningMemory(accountId);
-      // P1 — wrong-answer review handoff takes priority over practice kickoff
-      const wrongKick = consumeWrongReviewKickoff();
+      // P1 — subject-starter (breadth map) > variant/harder > review > practice kickoff
+      const subjectKick = consumeSubjectStarter();
+      const variantKick = subjectKick ? null : consumeVariantKickoff();
+      const wrongKick = variantKick ? null : consumeWrongReviewKickoff();
       const kick = wrongKick ? null : consumePracticeKickoff();
       setSessionOpener(
-        wrongKick
-          ? buildWrongReviewOpener(wrongKick)
-          : kick
-            ? buildPracticeKickoffOpener(kick)
-            : buildSessionOpener(mem, accountId),
+        subjectKick
+          ? {
+              skillId: "explore",
+              label: subjectKick.label,
+              kind: "practice",
+              line: `Let's peek at ${subjectKick.label} — one fresh question.`,
+              kickoffOverride: subjectKick.starter,
+            }
+          : variantKick
+            ? buildVariantKickoffOpener(variantKick)
+            : wrongKick
+              ? buildWrongReviewOpener(wrongKick)
+              : kick
+                ? buildPracticeKickoffOpener(kick)
+                : buildSessionOpener(mem, accountId),
       );
     } else {
       setSessionOpener(null);
@@ -983,6 +1001,10 @@ export function useTutorSession() {
     // Start focus timer on first message of the session
     startSessionTimer();
 
+    // P0 — flow signal: how long the student took to answer the last question.
+    // Captured at send time (their answer latency), used after outcome classify.
+    const answerLatencyMs = Date.now() - lastAssistantAtRef.current;
+
     // UX-RPT.7 / P0 — narrow local fast-path (no Agent): arithmetic facts
     // first, then unit/formula/power-table facts (report §8.2).
     const recall =
@@ -1022,6 +1044,7 @@ export function useTutorSession() {
       );
       const streak = noteEmotionOutcome("win");
       setEmotionLine(emotionUiLine(streak));
+      lastAssistantAtRef.current = Date.now();
       setBusy(false);
       return;
     }
@@ -1203,6 +1226,7 @@ export function useTutorSession() {
       );
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
+      lastAssistantAtRef.current = Date.now();
       setEngagement(recordLearningTurn(undefined, accountId));
       let nextMem = recordLearningTurnMemory(mem, {
         userText: payload.text,
@@ -1226,9 +1250,14 @@ export function useTutorSession() {
       reconcileWeeklyGoal(accountId, nextMem);
 
       const outcome = classifyTurnOutcome(payload.text, full);
-      // P1 — auto difficulty ramp: correct answers bump the challenge streak,
-      // wrong answers drop it back (only while a challenge session is active).
-      recordChallengeOutcome(accountId, outcome);
+      // P0 — in-session flow: record answer latency, get step-up/step-down advice
+      const flowAdvice = recordFlowTurn(outcome, { latencyMs: answerLatencyMs });
+      // P1 — auto difficulty ramp: fast correct streaks climb faster; slow or
+      // wrong streaks drop back (only while a challenge session is active).
+      recordChallengeOutcome(accountId, outcome, {
+        fast: flowAdvice === "step-up",
+        slow: flowAdvice === "step-down",
+      });
       // P1 — wrong-answer book: log incorrect turns with the question asked.
       if (outcome === "incorrect") {
         const lastAssistant = [...messages]

@@ -3,6 +3,10 @@
  * Picks high-BKT skills (P≥0.8), carries a per-skill "consecutive correct"
  * streak that auto-raises the difficulty band, and builds a kickoff message
  * that asks the AI teacher for multi-step / transfer questions.
+ *
+ * P0 (§9.2.1) — flow-aware: fast correct answers raise the band faster;
+ * a "growth moment" line (§9.3.3) reframes a band-up as progress, and
+ * `challengeProgress` powers a kid-visible mastery gauge.
  */
 
 import type { LearningMemory, SkillMastery } from "./learning-memory";
@@ -121,10 +125,17 @@ export function endChallengeSession(): void {
 export function recordChallengeOutcome(
   accountId: string,
   outcome: "correct" | "incorrect" | "practice",
+  opts?: { fast?: boolean; slow?: boolean },
 ): number | null {
   const active = peekChallengeSession();
   if (!active || active.accountId !== accountId) return null;
-  if (outcome === "correct") return bumpChallengeStreak(accountId, active.skillId);
+  if (outcome === "correct") {
+    // P0 — high-confidence fast answers climb the band twice as fast (§9.2.1)
+    if (opts?.fast) {
+      bumpChallengeStreak(accountId, active.skillId);
+    }
+    return bumpChallengeStreak(accountId, active.skillId);
+  }
   if (outcome === "incorrect") {
     resetChallengeStreak(accountId, active.skillId);
   }
@@ -148,4 +159,45 @@ export function buildChallengeKickoffMessage(
     "No spoilers: ask me to reason out loud first, check my steps, then reveal. If I'm stuck, give a small nudge instead of the answer.",
     `After each correct answer, keep the difficulty. After a wrong answer, drop back to the warm level.${nextHint}`,
   ].join("\n");
+}
+
+// ── P0 — mastery gauge (IXL SmartScore-style, kid-visible) ───────────
+
+export type ChallengeGauge = {
+  level: ChallengeLevel;
+  levelLabel: string;
+  streak: number;
+  /** Progress within the current band, 0–1 */
+  progress: number;
+  /** Correct answers until the next band (null at max band) */
+  toNext: number | null;
+  /** Growth-moment line when the band just rose (§9.3.3) */
+  growthLine: string | null;
+};
+
+/**
+ * Kid-visible "how am I doing" view of the running challenge. `previousLevel`
+ * lets the UI detect that the band rose this turn and show a growth moment.
+ */
+export function challengeGauge(
+  accountId: string,
+  skillId: string,
+  previousLevel?: ChallengeLevel,
+): ChallengeGauge {
+  const streak = getChallengeStreak(accountId, skillId);
+  const level = challengeLevelForStreak(streak);
+  const nextAt = level === 3 ? null : CHALLENGE_BAND * level;
+  const progress = nextAt == null ? 1 : Math.min(1, streak / nextAt);
+  const growthLine =
+    previousLevel != null && level > previousLevel
+      ? `This is a level-up: harder questions, and you earned it. 🎉`
+      : null;
+  return {
+    level,
+    levelLabel: challengeLevelLabel(level),
+    streak,
+    progress,
+    toNext: nextAt == null ? null : Math.max(0, nextAt - streak),
+    growthLine,
+  };
 }

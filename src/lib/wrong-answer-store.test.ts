@@ -2,13 +2,17 @@ import { afterEach, describe, expect, it } from "vitest";
 import { kvClearMemory } from "./browser-kv";
 import {
   addWrongAnswer,
+  buildVariantKickoffMessage,
+  buildVariantKickoffOpener,
   buildWrongAnswerReviewSet,
   buildWrongReviewKickoffMessage,
   buildWrongReviewOpener,
+  consumeVariantKickoff,
   consumeWrongReviewKickoff,
   deleteWrongAnswer,
   loadWrongAnswers,
   skillLabelForText,
+  stashVariantKickoff,
   stashWrongReviewKickoff,
   wrongAnswersBySkill,
   wrongAnswerStorageKey,
@@ -101,5 +105,49 @@ describe("wrong-answer-store", () => {
 
   it("storage key is namespaced per account", () => {
     expect(wrongAnswerStorageKey("a")).not.toBe(wrongAnswerStorageKey("b"));
+  });
+
+  describe("variant / harder path (P1 §9.3.2)", () => {
+    function wa() {
+      return addWrongAnswer(ACCT, {
+        skillId: "fractions-concepts",
+        skillLabel: "Fraction concepts",
+        question: "What is 1/2 + 1/4?",
+        studentAnswer: "2/3",
+        assistantText: "Not quite",
+      });
+    }
+
+    it("variant kickoff re-tests the same skill with new numbers", () => {
+      const msg = buildVariantKickoffMessage(wa(), "variant");
+      expect(msg).toMatch(/VARIANT/);
+      expect(msg).toMatch(/different numbers/);
+      expect(msg).toMatch(/no spoilers/);
+    });
+
+    it("harder kickoff lifts the skill half a level", () => {
+      const msg = buildVariantKickoffMessage(wa(), "harder");
+      expect(msg).toMatch(/lift it UP half a level/);
+      expect(msg).toMatch(/new context/);
+    });
+
+    it("stash/consume variant kickoff is one-shot and round-trips", () => {
+      const w = wa();
+      stashVariantKickoff(w, "harder");
+      const k = consumeVariantKickoff();
+      expect(k?.action).toBe("harder");
+      expect(k?.skillId).toBe("fractions-concepts");
+      expect(k?.question).toMatch(/1\/2 \+ 1\/4/);
+      expect(consumeVariantKickoff()).toBeNull();
+    });
+
+    it("variant opener carries a kickoff override", () => {
+      const w = wa();
+      stashVariantKickoff(w, "variant");
+      const k = consumeVariantKickoff()!;
+      const opener = buildVariantKickoffOpener(k);
+      expect(opener.kind).toBe("practice");
+      expect(opener.kickoffOverride).toMatch(/VARIANT/);
+    });
   });
 });

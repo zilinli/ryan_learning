@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatThread } from "./ChatThread";
 import { Composer } from "./Composer";
 import { HistorySidebar } from "./HistorySidebar";
@@ -31,10 +31,29 @@ import { engagementSummary } from "@/lib/engagement";
 import { learningMemorySummary } from "@/lib/learning-memory";
 import {
   buildChallengeKickoffMessage,
+  challengeGauge as buildChallengeGauge,
   getChallengeStreak,
+  peekChallengeSession,
   pickChallengeSkills,
   startChallengeSession,
+  type ChallengeLevel,
 } from "@/lib/challenge-mode";
+import {
+  pickExploreTopics,
+  buildExploreKickoffMessage,
+  type ExploreTopic,
+} from "@/lib/explore-catalog";
+import { recordInterest } from "@/lib/interest-store";
+import {
+  buildDeepDiveOfferForAccount,
+  markDeepDiveDone,
+  type DeepDiveOffer,
+} from "@/lib/deep-dive-week";
+import {
+  buildConnectionOffer,
+  markConnectionShown,
+  type ConnectionOffer,
+} from "@/lib/connection-card";
 import {
   buildDeepDivePrompt,
   type DeepDiveMode,
@@ -64,6 +83,79 @@ export function TutorShell() {
   useEffect(() => {
     setQuote(null);
   }, [sessionId]);
+
+  // P0 — interest-led exploration chips for the empty chat
+  const [exploreTopics, setExploreTopics] = useState<ExploreTopic[]>([]);
+  // P1 — weekly deep-dive project + weekly connection card offers
+  const [deepDiveOffer, setDeepDiveOffer] = useState<DeepDiveOffer | null>(null);
+  const [connectionOffer, setConnectionOffer] = useState<ConnectionOffer | null>(null);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setExploreTopics([]);
+      setDeepDiveOffer(null);
+      setConnectionOffer(null);
+      return;
+    }
+    setExploreTopics(pickExploreTopics(learningMemory, 4));
+    setDeepDiveOffer(buildDeepDiveOfferForAccount(accountId, learningMemory));
+    setConnectionOffer(buildConnectionOffer(accountId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, accountId, learningMemory]);
+
+  // P0 — live challenge mastery gauge while a challenge session is running
+  const prevChallengeLevelRef = useRef<ChallengeLevel>(1);
+  const challengeGaugeView = useMemo(() => {
+    const active = peekChallengeSession();
+    if (!active || active.accountId !== accountId) {
+      prevChallengeLevelRef.current = 1;
+      return null;
+    }
+    const prev = prevChallengeLevelRef.current;
+    const g = buildChallengeGauge(accountId, active.skillId, prev);
+    prevChallengeLevelRef.current = g.level;
+    return g;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, accountId]);
+
+  const handleExplore = (topic: ExploreTopic) => {
+    if (!learningMemory) return;
+    recordInterest(accountId, {
+      topicId: topic.id,
+      label: topic.label,
+      emoji: topic.emoji,
+    });
+    const text = buildExploreKickoffMessage(topic, learningMemory);
+    markOpenerShown(accountId);
+    setSessionOpener(null);
+    setExploreTopics([]);
+    void handleSend({ text, attachments: [] });
+  };
+
+  const handleStartDeepDive = () => {
+    if (!deepDiveOffer) return;
+    markDeepDiveDone(accountId);
+    setDeepDiveOffer(null);
+    void handleSend({ text: deepDiveOffer.kickoff, attachments: [] });
+  };
+
+  const handleSkipDeepDive = () => {
+    markDeepDiveDone(accountId);
+    setDeepDiveOffer(null);
+  };
+
+  const handleShowConnection = () => {
+    if (!connectionOffer) return;
+    markConnectionShown(accountId, connectionOffer.weekOf);
+    setConnectionOffer(null);
+    void handleSend({ text: connectionOffer.card.kickoff, attachments: [] });
+  };
+
+  const handleDismissConnection = () => {
+    if (!connectionOffer) return;
+    markConnectionShown(accountId, connectionOffer.weekOf);
+    setConnectionOffer(null);
+  };
 
   if (!ready || !store) {
     return (
@@ -277,6 +369,15 @@ export function TutorShell() {
             canChallenge={Boolean(
               learningMemory && pickChallengeSkills(learningMemory, 1).length > 0,
             )}
+            exploreTopics={messages.length === 0 ? exploreTopics : []}
+            onExplore={handleExplore}
+            deepDiveOffer={messages.length === 0 ? deepDiveOffer : null}
+            onStartDeepDive={handleStartDeepDive}
+            onSkipDeepDive={handleSkipDeepDive}
+            connectionOffer={messages.length === 0 ? connectionOffer : null}
+            onShowConnection={handleShowConnection}
+            onDismissConnection={handleDismissConnection}
+            challengeGauge={challengeGaugeView}
             onDeepDive={(mode: DeepDiveMode) => {
               void handleSend({
                 text: buildDeepDivePrompt(mode),

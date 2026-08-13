@@ -4,6 +4,7 @@ import { normalizeMemory } from "./learning-memory";
 import {
   bumpChallengeStreak,
   buildChallengeKickoffMessage,
+  challengeGauge,
   challengeLevelForStreak,
   challengeStreakStorageKey,
   endChallengeSession,
@@ -107,5 +108,34 @@ describe("challenge-mode", () => {
     expect(msg).toMatch(/Algebra equations/);
     expect(msg).toMatch(/harder — multi-step/i);
     expect(msg).toMatch(/transfer/);
+  });
+
+  it("fast correct answers climb the band twice as fast (P0 flow)", () => {
+    startChallengeSession({ accountId: ACCT, skillId: "algebra-equations", label: "Algebra", startedAt: Date.now() });
+    expect(recordChallengeOutcome(ACCT, "correct", { fast: true })).toBe(2);
+    expect(getChallengeStreak(ACCT, "algebra-equations")).toBe(2);
+    expect(recordChallengeOutcome(ACCT, "correct", { fast: true })).toBe(4);
+    expect(challengeLevelForStreak(4)).toBe(2);
+  });
+
+  it("slow flag doesn't change correct outcomes (still +1)", () => {
+    startChallengeSession({ accountId: ACCT, skillId: "algebra-equations", label: "Algebra", startedAt: Date.now() });
+    expect(recordChallengeOutcome(ACCT, "correct", { slow: true })).toBe(1);
+  });
+
+  it("challengeGauge reports level, progress and growth moment", () => {
+    startChallengeSession({ accountId: ACCT, skillId: "algebra-equations", label: "Algebra", startedAt: Date.now() });
+    bumpChallengeStreak(ACCT, "algebra-equations"); // streak 1
+    const g1 = challengeGauge(ACCT, "algebra-equations", 1);
+    expect(g1.level).toBe(1);
+    expect(g1.toNext).toBe(2);
+    expect(g1.progress).toBeCloseTo(1 / 3);
+    expect(g1.growthLine).toBeNull();
+    // Reach level 2 (streak >= 3)
+    bumpChallengeStreak(ACCT, "algebra-equations");
+    bumpChallengeStreak(ACCT, "algebra-equations");
+    const g2 = challengeGauge(ACCT, "algebra-equations", 1);
+    expect(g2.level).toBe(2);
+    expect(g2.growthLine).toMatch(/level-up/i);
   });
 });

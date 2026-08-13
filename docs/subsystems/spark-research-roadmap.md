@@ -3,6 +3,47 @@
 > 基准报告：`/root/AI教学产品调研与Spark分析报告.md` §9 路线图。
 > 状态：全部 12 项已实现（2026-08-13），每项带 vitest 单元测试。
 
+## 四维学习力路线图（2026-08-13）— P0 全部 + P1 全部已实现
+
+> 基准报告：`evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣/心流/深度/广度四维）。
+> 状态：P0（兴趣自主选择回路 · 心流信号采集与难度微调 · 快速路径「问即答」）与 P1（每周深度探究日 · 错题→变式→概念提升 · 每周跨学科连接卡 + 学科广度足迹地图）全部完成（2026-08-13），带 vitest 单元测试。
+
+### P0.1 — 兴趣自主选择回路（报告 §8.1）
+
+- `explore-catalog.ts`：12 个孩子友好探索主题（`ExploreTopic`），每条映射到既有 `SkillDef`，提供 ZPD 语境化 kickoff（`buildExploreKickoffMessage`）。
+- `interest-store.ts`：`recordInterest` / `recentInterests`（localStorage，按账号命名空间），形成「兴趣档案」，供开场卡与 Me 页展示。
+- `ChatThread` 空状态渲染「Today, I want to explore…」主题 chips；点击 → 新会话自动发送探索 kickoff。
+
+### P0.2 — 心流信号采集 + 难度动态微调（报告 §8.2 / §9.2.1）
+
+- `flow-signals.ts`：`FlowState` 追踪连对/连错/快答/慢答；`flowAdviceFor` 输出 step-up / step-down / hold；`recordFlowTurn` 按 `answerLatencyMs` 与正确性更新。
+- `TutorShell` 计算每条助理回复的 `answerLatencyMs` → `recordFlowTurn`；`challenge-mode.ts` 消费 flow advice：快答连对升档更快，慢答/犹豫累计触发降档。
+- `challengeGauge`：孩子可见的掌握度进度条（`ChallengeLevel` + `growthLine`「成长时刻」话术）。
+
+### P0.3 — 快速路径扩容到「问即答」（报告 §8.2）
+
+- `local-facts.ts` 扩容：`tryArithmeticTable`（小算术表）、`tryTemperature`（摄氏/华氏互转）、`tryFractionDecimal`（常见分数小数）、`tryShapesFormulas`（矩形/正方形周长面积）、`tryDoubleTriple`（双倍/三倍）。全部确定性、本地、中英双语，拒绝歧义输入回退 Agent。
+
+### P1.1 — 每周深度探究日（报告 §8.3 / §9.3.1）
+
+- `deep-dive-week.ts`：`DEEP_DIVE_DAY`（本地每周三）；`pickDeepDiveAnchor` 从错题/掌握技能选锚点；`buildDeepDiveOffer` 生成 5E 结构 kickoff（Engage/Explore/Explain/Elaborate/Evaluate）；`markDeepDiveDone` 每周一次。
+- `ChatThread` 每周深度项目卡（`--coral` 强调），支持 Start / Not today。
+
+### P1.2 — 错题 → 变式 → 概念提升自动路径（报告 §8.4 / §9.3.2）
+
+- `wrong-answer-store.ts`：`WrongAnswerAction = "variant" | "harder"`；`buildVariantKickoffMessage` 生成「换数字变式 / 升半级概念提升」kickoff；`stashVariantKickoff` / `consumeVariantKickoff` 单次交接。
+- `WrongAnswerBook` 每条错题新增两个按钮：**Variant — new numbers** / **Harder — level up**，点击后回到空聊天自动开新会话。
+
+### P1.3 — 每周跨学科连接卡 + 学科广度足迹地图（报告 §8.5 / §9.3.4）
+
+- `connection-card.ts`：`CONNECTION_CARDS` 每周确定性选卡；`buildConnectionOffer` + `markConnectionShown`（每周一次）。
+- `breadth-map.ts`：`buildBreadthFootprint` 输出 `SubjectFootprint[]`（已探索/未探索 + 各科锚点）；`stashSubjectStarter` / `consumeSubjectStarter` 一键把学科起点交接到聊天。
+- `LearningDashboard` 新增「Your subject map」与「Your exploration footprint」区块。
+
+### 测试
+
+- 新增：`flow-signals.test.ts` / `explore-catalog.test.ts` / `interest-store.test.ts` / `deep-dive-week.test.ts` / `connection-card.test.ts` / `breadth-map.test.ts`；扩展 `local-facts.test.ts` / `challenge-mode.test.ts` / `wrong-answer-store.test.ts`。
+
 ## 新增需求（优先）
 
 ### R.0 — Me 时间线删除单条记录

@@ -83,3 +83,65 @@ describe("tryLocalFacts — rejects wordy/ambiguous", () => {
     expect(tryLocalFacts("")).toBeNull();
   });
 });
+
+describe("tryLocalFacts — arithmetic & multiplication table", () => {
+  it("multiplication facts (symbolic / EN / 中文)", () => {
+    expect(tryLocalFacts("7×8")?.answer).toBe("56");
+    expect(tryLocalFacts("7 x 8")?.answer).toBe("56");
+    expect(tryLocalFacts("7*8")?.answer).toBe("56");
+    expect(tryLocalFacts("7 times 8")?.answer).toBe("56");
+    expect(tryLocalFacts("7乘8")?.answer).toBe("56");
+  });
+
+  it("addition / subtraction / division", () => {
+    expect(tryLocalFacts("8+3")?.answer).toBe("11");
+    expect(tryLocalFacts("8加3")?.answer).toBe("11");
+    expect(tryLocalFacts("12-5")?.answer).toBe("7");
+    expect(tryLocalFacts("12减5")?.answer).toBe("7");
+    expect(tryLocalFacts("24÷6")?.answer).toBe("4");
+    expect(tryLocalFacts("24除以6")?.answer).toBe("4");
+  });
+
+  it("rejects non-integer division and big operands", () => {
+    expect(tryLocalFacts("7÷2")).toBeNull();
+    expect(tryLocalFacts("13×99")).toBeNull();
+  });
+});
+
+describe("tryLocalFacts — temperature", () => {
+  it("C→F and F→C", () => {
+    expect(tryLocalFacts("100°C to F")?.answer).toBe("212");
+    expect(tryLocalFacts("20摄氏度等于多少华氏度")?.answer).toBe("68");
+    expect(tryLocalFacts("68°F in C")?.answer).toBe("20");
+  });
+});
+
+describe("tryLocalFacts — fraction decimals", () => {
+  it("1/2 and 3/4 as decimals", () => {
+    expect(tryLocalFacts("1/2 as a decimal")?.answer).toBe("0.5");
+    expect(tryLocalFacts("3/4是多少")?.answer).toBe("0.75");
+    expect(tryLocalFacts("1/3 as a decimal")?.answer).toBe("0.33");
+  });
+});
+
+describe("tryLocalFacts — shapes formulas", () => {
+  it("rectangle perimeter & area", () => {
+    expect(tryLocalFacts("perimeter of rectangle 4 and 6")?.answer).toBe("20");
+    expect(tryLocalFacts("周长 4 和 6")?.answer).toBe("20");
+    expect(tryLocalFacts("area of rectangle 3 5")?.answer).toBe("15");
+    expect(tryLocalFacts("面积 长3 宽5")?.answer).toBe("15");
+  });
+
+  it("square area", () => {
+    expect(tryLocalFacts("area of square 5")?.answer).toBe("25");
+  });
+});
+
+describe("tryLocalFacts — double & triple", () => {
+  it("double / triple", () => {
+    expect(tryLocalFacts("double 6")?.answer).toBe("12");
+    expect(tryLocalFacts("triple 8")?.answer).toBe("24");
+    expect(tryLocalFacts("6的两倍")?.answer).toBe("12");
+    expect(tryLocalFacts("6的3倍")?.answer).toBe("18");
+  });
+});
