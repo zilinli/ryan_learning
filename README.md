@@ -43,7 +43,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain`. See [entertainments.md](docs/subsystems/entertainments.md).
+- **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain` — **Learning Games** (Fraction Voyager · Eco Genesis · Time Vault) + board games & puzzles. See [entertainments.md](docs/subsystems/entertainments.md) and [learning-games.md](docs/subsystems/learning-games.md).
 
 ### Four-Dimension Learning (兴趣 · 心流 · 深度 · 广度)
 
@@ -114,7 +114,17 @@ Sidebar: **Family | Me** on one row; **Progress** full width; **Studio | Games**
 | Route | Content |
 |-------|---------|
 | `/studio` | **Studio** — TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio, My Creations |
-| `/entertain` | **Games** — board / arcade / logic games only (`?hub=studio` redirects to `/studio`) |
+| `/entertain` | **Games** — Learning Games (prominent), then board / arcade / logic games (`?hub=studio` redirects to `/studio`) |
+
+**Learning Games** are the flagship practice-with-purpose section at the top of `/entertain`. Three games follow the "mechanic is the lesson" principle — no input boxes or dropdowns, wrong answers get visible world consequences, difficulty adapts to each account's BKT mastery, and every round feeds back into the student's Progress skills:
+
+| Game | What you do | What it teaches |
+|------|-------------|-----------------|
+| 🚀 **Fraction Voyager** | Fly a ship along the number line — place, compare, and slice fractions | Number-line partitioning, fraction magnitude, equivalent fractions |
+| 🌍 **Eco Genesis** | Build a food web in a habitat, predict, then watch a real population simulation run | Food chains, energy flow, population dynamics, systems thinking |
+| 📜 **Time Vault** | Reconstruct scrambled history — place events on a timeline, cite the proving sentence | Chronological reasoning, reading for evidence, ancient civilizations |
+
+Design: [learning-games.md](docs/subsystems/learning-games.md). All three are ZPD-adaptive from BKT `pKnown`, use Answer-Until-Correct retry, and record attributed turns via `recordStudioLearningTurn` (same path as tutor chat) — visible on **Progress**.
 
 **Account-scoped learning:** Studio pages show the **active account** chip (avatar · name · grade). TED, NatGeo, BBC, RSA answers and Writing Studio coach/structure turns update that account’s **BKT subject skills** the same way tutor chat does — visible on **Progress**.
 
@@ -279,8 +289,7 @@ Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tena
 | Voice | Local STT service (Whisper + SenseVoice) + Edge neural TTS via `/api/tts` + cloud dialect TTS (Formospeech Hakka, iFlytek, Bailian) |
 | Storage | localStorage (per-account namespaced), IndexedDB, server-side JSON files (history, media, learning memory, creations, journal, messages) |
 | Ops | systemd service supervision (`spark-tutor`, `spark-stt`, `spark-acc`), health-check gating, auto-git pipeline |
-| Tests | Vitest unit tests (200+ files, 1200+ tests) + `verify:*` end-to-end scripts |
-
+| Tests | Vitest unit tests (190+ files, 1500+ tests) + `verify:*` end-to-end scripts |
 ---
 
 ## Quick start
@@ -365,6 +374,7 @@ List models available to your key: `GET /api/models`.
 │   └── lib/                        # prompts, entertain/*, parent-messages, messages-sync, deapi-client,
 │                                   #   fun-music, volc-gensong, media-store, learning-memory, family-report,
 │                                   #   journal-store, review-queue, coach-state, …
+│                                   #   entertain/fraction-voyager.ts · eco-genesis.ts · time-vault.ts (Learning Games)
 ├── agent-chat/                     # Standalone Agent Chat Console (Next.js, port 3001)
 │   ├── public/index.html           # Vanilla JS SPA frontend
 │   └── src/
@@ -390,6 +400,7 @@ Design documents live in `docs/subsystems/`. Key reads:
 | Doc | Topic |
 |-----|-------|
 | [entertainments](docs/subsystems/entertainments.md) | Studio Learning + games engine architecture |
+| [learning-games](docs/subsystems/learning-games.md) | Learning Games — Fraction Voyager / Eco Genesis / Time Vault |
 | [journal-and-me-hub](docs/subsystems/journal-and-me-hub.md) | Journal, Timeline, Me Hub, Stage styles |
 | [dictionary-api](docs/subsystems/dictionary-api.md) | Multilingual dictionary + LLM translation |
 | [code-agent-pipeline](docs/subsystems/code-agent-pipeline.md) | Code Agent delivery pipeline |
@@ -443,7 +454,7 @@ The restart script stops services in reverse dependency order, then starts and h
 ## Development
 
 ```bash
-npm test                 # unit tests (Vitest) — 200+ files, 1200+ tests
+npm test                 # unit tests (Vitest) — 190+ files, 1500+ tests
 npm run lint
 npm run verify:all       # unit + history/upload/tts/stt/voice/diagrams/system/sse/file-locking
 ```

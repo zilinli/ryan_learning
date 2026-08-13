@@ -1,6 +1,6 @@
 # Spark AI Tutor — System Design Overview
 
-> Version 0.3.3 · August 2026  
+> Version 0.3.4 · August 2026  
 > Repository: [github.com/zilinli/ryan_learning](https://github.com/zilinli/ryan_learning)
 
 ---
@@ -95,6 +95,7 @@ flowchart TB
 | **[subsystems/ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)** | AUDIT8.7/8.8 — Code Agent safe chips + PIN for destructive; voice menu Core/More (no language removal) |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
+| **[subsystems/learning-games.md](subsystems/learning-games.md)** | 🚀 Learning Games — Fraction Voyager / Eco Genesis / Time Vault (mechanic-is-lesson, BKT loop) |
 | **[subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)** | TED Challenge voice → text via MicTranscribeButton |
 | **[subsystems/ted-challenge-prompt-listen.md](subsystems/ted-challenge-prompt-listen.md)** | TED Challenge prompt **Listen** (English TTS, Ryan hard-lock; Auto Listen) |
 | **[subsystems/ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive-difficulty.md)** | TED Challenge difficulty from **grade number (G4 grain)** + English level |
@@ -164,7 +165,7 @@ Spark 已从早期「纯聊天框」演化为 **家庭学习平台**：孩子仍
 | **Progress** (`/dashboard`) | 学生练习入口、雷达/趋势（Practice CTA） |
 | **Me** (`/me`) | 日记时间线、创作归档 |
 | **Studio** (`/studio`) | TED/BBC/RSA/NatGeo/Writing Lab |
-| **Games** (`/entertain`) | 棋类/街机/逻辑，与 Studio 分离 |
+| **Games** (`/entertain`) | 学习游戏（Fraction Voyager / Eco Genesis / Time Vault）+ 棋类/街机/逻辑，与 Studio 分离 |
 
 ### Physical Reference: A Tutor Sitting Next to You
 
