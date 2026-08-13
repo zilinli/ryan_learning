@@ -73,6 +73,22 @@ describe("skill-catalog", () => {
   it("returns empty for non-matching text", () => {
     expect(inferSkillsFromText("I like playing basketball")).toEqual([]);
   });
+
+  it("every adjacent reference resolves to a real catalog skill", () => {
+    const ids = new Set(SKILL_CATALOG.map((s) => s.id));
+    for (const s of SKILL_CATALOG) {
+      for (const adj of s.adjacent || []) {
+        expect(ids.has(adj), `${s.id} → ${adj}`).toBe(true);
+        expect(adj).not.toBe(s.id);
+      }
+    }
+  });
+
+  it("adjacent links are declared on mastered-anchor skills (breadth out of depth)", () => {
+    // The headline P2 pairs from the roadmap: fractions → ratios, astronomy → physics
+    expect(getSkillDef("fractions-concepts")!.adjacent).toContain("ratios-proportions");
+    expect(getSkillDef("earth-moon-sun")!.adjacent).toContain("physics-6-8");
+  });
 });
 
 // ── Phase 12C: activeSkillsForProfile ──────────────────────────

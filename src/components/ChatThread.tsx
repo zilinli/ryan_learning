@@ -42,6 +42,48 @@ type BubbleTranslation = {
   hidden?: boolean;
 };
 
+/** P2 — one-click instant action card (report §9.1.2). Tap → action, no typing. */
+function QuickActionCard({
+  emoji,
+  title,
+  hint,
+  onClick,
+  accent = "default",
+}: {
+  emoji: string;
+  title: string;
+  hint: string;
+  onClick?: () => void;
+  accent?: "default" | "teal" | "coral";
+}) {
+  const accentClass =
+    accent === "teal"
+      ? "border-[var(--teal)]/40 bg-[var(--teal)]/8 text-[var(--teal)]"
+      : accent === "coral"
+        ? "border-[var(--coral)]/40 bg-[var(--coral)]/8 text-[var(--coral)]"
+        : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-24 flex-col items-start justify-between gap-1.5 rounded-2xl border p-3 text-left transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${accentClass}`}
+    >
+      <span className="text-lg leading-none" aria-hidden>
+        {emoji}
+      </span>
+      <span>
+        <span className="block text-[13px] font-semibold leading-tight">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-[var(--ink-muted)]">
+          {hint}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+
 type Props = {
   messages: ChatMessage[];
   streaming?: boolean;
@@ -99,6 +141,9 @@ type Props = {
     toNext: number | null;
     growthLine?: string | null;
   } | null;
+  /** P2 — cross-domain auto-recommendation: a neighbor skill worth peeking at */
+  adjacentOpener?: SessionOpener | null;
+  onAdjacentTry?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -195,6 +240,8 @@ export function ChatThread({
   onShowConnection,
   onDismissConnection,
   challengeGauge,
+  adjacentOpener,
+  onAdjacentTry,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -465,6 +512,50 @@ export function ChatThread({
           </div>
         ) : null}
 
+        {adjacentOpener && !sessionOpener ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--teal)]/6 px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              A neighbor to explore
+            </p>
+            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+              {adjacentOpener.line}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onAdjacentTry}
+                className="min-h-11 rounded-xl border border-[var(--teal)]/55 bg-[var(--teal)]/10 px-3 text-sm font-medium text-[var(--teal)]"
+              >
+                Peek at {adjacentOpener.label}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {exploreTopics && exploreTopics.length > 0 ? (
+          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+              Today, I want to explore…
+            </p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              Pick a spark — Spark turns it into a question at your level.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {exploreTopics.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onExplore?.(t)}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-3 text-[12px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/60 hover:bg-[var(--teal)]/15"
+                >
+                  <span aria-hidden>{t.emoji}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {practiceOffer && practiceOffer.targets.length > 0 ? (
           <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--teal)]/50 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
@@ -539,44 +630,42 @@ export function ChatThread({
                 )}
               </div>
             ) : null}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <QuickActionCard
+                emoji="⚡"
+                title="Quick questions"
+                hint={`3 warm-ups on “${sessionOpener.label}”`}
                 onClick={onOpenerTry}
-                className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
-              >
-                Start 3 quick questions
-              </button>
+              />
               {onOpenerNext &&
               sessionOpener.practiceTargets &&
               sessionOpener.practiceTargets.length > 0 ? (
-                <button
-                  type="button"
+                <QuickActionCard
+                  emoji="🔀"
+                  title="Another topic"
+                  hint="Switch to a different warm-up"
                   onClick={onOpenerNext}
-                  className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
-                >
-                  Another one
-                </button>
+                />
               ) : null}
               {onChallenge && canChallenge ? (
-                <button
-                  type="button"
+                <QuickActionCard
+                  emoji="🏆"
+                  title="Challenge me!"
+                  hint="Push a mastered skill higher"
                   onClick={onChallenge}
-                  className="min-h-11 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/5 px-3 text-sm font-medium text-[var(--teal)]"
-                >
-                  Challenge me!
-                </button>
+                  accent="teal"
+                />
               ) : null}
-              <button
-                type="button"
+              <QuickActionCard
+                emoji="📷"
+                title="Snap homework"
+                hint="Photo a worksheet instead"
                 onClick={onSnapHomework}
-                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
-              >
-                Snap homework today
-              </button>
+                accent="coral"
+              />
             </div>
             <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
-              Quick warm-up on “{sessionOpener.label}”. “Snap homework today” → camera.
+              Tap a card to start instantly — or type / snap anything below.
             </p>
           </div>
         ) : null}
@@ -637,30 +726,6 @@ export function ChatThread({
               >
                 Later
               </button>
-            </div>
-          </div>
-        ) : null}
-
-        {exploreTopics && exploreTopics.length > 0 ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              Today, I want to explore…
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              Pick a spark — Spark turns it into a question at your level.
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {exploreTopics.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onExplore?.(t)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-3 text-[12px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/60 hover:bg-[var(--teal)]/15"
-                >
-                  <span aria-hidden>{t.emoji}</span>
-                  {t.label}
-                </button>
-              ))}
             </div>
           </div>
         ) : null}

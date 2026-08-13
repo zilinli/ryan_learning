@@ -106,7 +106,7 @@ flowchart TB
 | **[subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)** | ✍️ Writing Pad P0 — LanguageTool grammar, Feedback/Stage layout, writing type |
 | **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)** | 📓 Journal Timeline (`/me`, `/me/journal`) + Stage styles (Structure suggests Hip-hop etc.) |
 | **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md)** | 🗺 竞品调研路线图 P0→P3：开场卡/快速路径/SkillDots → Challenge/深挖/错题本 → Feynman/周目标/突破叙事/朗读 → 几何步骤高亮 |
-| **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) · 四维学习力** | 🧭 四维学习力 P0/P1（2026-08-13）：兴趣探索回路 + 心流信号难度微调 + 问即答快速路径 → 每周深度探究日 + 错题变式/概念提升 + 跨学科连接卡与学科足迹地图 |
+| **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md) · 四维学习力** | 🧭 四维学习力 P0/P1/P2（2026-08-13）：兴趣探索回路 + 心流信号难度微调 + 问即答快速路径 → 每周深度探究日 + 错题变式/概念提升 + 跨学科连接卡与学科足迹地图 → 体验精修：一键即玩卡片 + 学习/游戏专注护栏 + 领域间自动推荐 |
 | **[subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)** | Writing Pad → music/image/video — **adapt** language, don’t copy |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |

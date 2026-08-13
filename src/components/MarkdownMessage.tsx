@@ -8,6 +8,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Components } from "react-markdown";
 import { DiagramBlock, isDiagramLanguage } from "./DiagramBlock";
+import { ImageLightbox } from "./ImageLightbox";
 import {
   nodeText,
   splitTutorContent,
@@ -259,21 +260,51 @@ function TutorImg({
     src.startsWith("https://") ||
     src.startsWith("http://") ||
     src.startsWith("data:image/");
+  const [zoom, setZoom] = useState(false);
   if (!ok) return null;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt || "diagram"}
-      className={`tutor-md-img my-2 w-full max-w-full rounded-xl object-contain ${
-        user
-          ? "border border-[var(--surface)]"
-          : "border border-[var(--line)] bg-[var(--surface)]"
-      }`}
-      loading="eager"
-      decoding="async"
-      referrerPolicy="no-referrer"
-    />
+    <>
+      <button
+        type="button"
+        onClick={() => setZoom(true)}
+        className="tutor-md-img-wrap"
+        aria-label="View larger image"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt || "diagram"}
+          className={`tutor-md-img rounded-xl object-contain ${
+            user
+              ? "border border-[var(--surface)]"
+              : "border border-[var(--line)] bg-[var(--surface)]"
+          }`}
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+        <span className="tutor-md-img-zoom-hint" aria-hidden>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+            <line x1="11" y1="8" x2="11" y2="14" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+          </svg>
+        </span>
+      </button>
+      {zoom ? (
+        <ImageLightbox src={src} alt={alt || "Diagram"} onClose={() => setZoom(false)} />
+      ) : null}
+    </>
   );
 }
 

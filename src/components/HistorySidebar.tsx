@@ -6,6 +6,11 @@ import type { LearningMemory } from "@/lib/learning-memory";
 import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
 import { searchConversations } from "@/lib/history-retention";
 import { SPARK_GITHUB_URL, SPARK_FEEDBACK_LABEL } from "@/lib/site";
+import {
+  buildFocusGuardrail,
+  dismissFocusGuardrail,
+  dismissedFocusGuardrailToday,
+} from "@/lib/focus-guardrail";
 import { SkillsPanel } from "./SkillsPanel";
 import { FeedbackPanel } from "./FeedbackPanel";
 
@@ -18,6 +23,8 @@ type Props = {
   onDesktopClose?: () => void;
   conversations: ConversationRecord[];
   activeId: string;
+  /** P2 — active account, used for the focus-guardrail nudge's dismiss gate. */
+  accountId?: string;
   disabled?: boolean;
   onOpenCodeAgent?: () => void;
   engagementLabel?: string;
@@ -48,6 +55,7 @@ export function HistorySidebar({
   onDesktopClose,
   conversations,
   activeId,
+  accountId,
   disabled,
   onOpenCodeAgent,
   engagementLabel,
@@ -66,6 +74,16 @@ export function HistorySidebar({
     () => searchConversations(conversations, query),
     [conversations, query],
   );
+
+  // P2 — non-blocking focus guardrail next to the Games link.
+  const guardrail = useMemo(
+    () => buildFocusGuardrail(accountId, conversations, activeId),
+    [accountId, conversations, activeId],
+  );
+  const [guardrailDismissed, setGuardrailDismissed] = useState(() =>
+    accountId ? dismissedFocusGuardrailToday(accountId) : false,
+  );
+  const showGuardrail = guardrail && !guardrailDismissed;
 
   const searching = query.trim().length > 0;
 
@@ -286,6 +304,31 @@ export function HistorySidebar({
             Games
           </a>
         </div>
+        {showGuardrail ? (
+          <div className="mb-2 rounded-lg border border-[var(--coral)]/35 bg-[var(--coral)]/6 px-3 py-2 text-left">
+            <p className="text-[11px] font-medium leading-snug text-[var(--ink)]">
+              {guardrail.line}
+            </p>
+            <div className="mt-1.5 flex gap-3">
+              <a
+                href="/"
+                className="text-[11px] font-semibold text-[var(--coral)] underline-offset-2 hover:underline"
+              >
+                Back to homework
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (accountId) dismissFocusGuardrail(accountId);
+                  setGuardrailDismissed(true);
+                }}
+                className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="mb-2 grid grid-cols-2 gap-1.5">
           <a
             href={SPARK_GITHUB_URL}

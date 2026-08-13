@@ -18,7 +18,12 @@ import { NatGeoLab } from "./NatGeoLab";
 import { BbcDocLab } from "./BbcDocLab";
 import { RsaShortsLab } from "./RsaShortsLab";
 import { CreationsLibrary } from "./CreationsLibrary";
-import { StudioAccountBar } from "./StudioAccountBar";
+import { StudioAccountBar, useActiveStudioAccount } from "./StudioAccountBar";
+import {
+  buildFocusGuardrail,
+  dismissFocusGuardrail,
+  dismissedFocusGuardrailToday,
+} from "@/lib/focus-guardrail";
 
 interface GameInfo {
   id: GameId;
@@ -176,6 +181,27 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
     }
   }, []);
 
+  // P2 — non-blocking focus guardrail banner at the top of the Games hub.
+  const { accountId } = useActiveStudioAccount();
+  const [guardrail, setGuardrail] = useState<ReturnType<
+    typeof buildFocusGuardrail
+  > | null>(null);
+  const [guardrailDismissed, setGuardrailDismissed] = useState(false);
+
+  useEffect(() => {
+    if (hub !== "games" || activeGame) {
+      setGuardrail(null);
+      return;
+    }
+    const g = buildFocusGuardrail(accountId);
+    const dismissed = accountId ? dismissedFocusGuardrailToday(accountId) : false;
+    setGuardrail(g);
+    setGuardrailDismissed(dismissed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hub, activeGame, accountId]);
+
+  const showFocusGuardrail = guardrail && !guardrailDismissed;
+
   const learningGames = useMemo(
     () => GAMES.filter((g) => g.category === "Learning Games"),
     [],
@@ -231,6 +257,31 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         <p className="mt-1 text-center text-sm text-[var(--ink-muted)]">
           Learning games · board games · puzzles
         </p>
+        {showFocusGuardrail ? (
+          <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--coral)]/35 bg-[var(--coral)]/6 px-4 py-2.5 text-left">
+            <p className="text-[13px] font-medium text-[var(--ink)]">
+              {guardrail.line}
+            </p>
+            <div className="flex shrink-0 items-center gap-3">
+              <a
+                href="/"
+                className="rounded-lg bg-[var(--coral)]/90 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[var(--coral)]"
+              >
+                Back to homework
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (accountId) dismissFocusGuardrail(accountId);
+                  setGuardrailDismissed(true);
+                }}
+                className="text-[12px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="flex-1 overflow-auto px-4 py-6">

@@ -503,12 +503,15 @@ export function useTutorSession() {
     if (!ready || !store) return;
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const delay = busy ? 1500 : 280;
-    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = window.setTimeout(() => {
       saveConversations(store, accountId);
       if (!busy && hydrationDoneRef.current) {
         void (async () => {
           await ingestStorePhotos(store);
           const withMedia = await pushStoreToServer(store, accountId);
+          // The account may have switched while this push was in flight —
+          // never apply a stale store onto the new account's UI.
+          if (accountIdRef.current !== accountId) return;
           if (withMedia !== store) {
             setStore(withMedia);
           }
@@ -528,11 +531,17 @@ export function useTutorSession() {
     if (!ready) return;
     const sync = async () => {
       const cur = storeRef.current;
+      // Snapshot the account at sync start — the async awaits below may cross
+      // an account switch, and reading accountIdRef.current afterwards would
+      // save the previous account's store under the new account's key.
+      const syncAccountId = accountIdRef.current;
       if (!cur || busyRef.current || syncRunningRef.current) return;
       syncRunningRef.current = true;
       try {
         // 1. Sync account list (new accounts / remote deletions)
         const hydratedAccts = await hydrateAccountsFromServer();
+        // Abort if the user switched accounts while this request was in flight.
+        if (accountIdRef.current !== syncAccountId) return;
         // Check for remote account deletions / additions
         const curAcc = accountsRef.current;
         const curIds = new Set(curAcc.map((a) => a.id));
@@ -540,22 +549,23 @@ export function useTutorSession() {
           hydratedAccts.accounts.length !== curAcc.length ||
           !hydratedAccts.accounts.every((a) => curIds.has(a.id));
         // 2. Sync conversations
-        const merged = await hydrateFromServer(cur, accountIdRef.current);
+        const merged = await hydrateFromServer(cur, syncAccountId);
         const restored = await restoreStorePhotosFromVault(merged);
         const fetched = await fetchMissingPhotosFromServer(restored);
         // Upload local-only media (browser has dataUrl, server missing file)
         const { store: repaired } = await repairMissingMedia(
           fetched,
-          accountIdRef.current,
+          syncAccountId,
         );
         const final = repaired !== fetched ? repaired : fetched;
         const convsChanged =
           final.activeId !== cur.activeId ||
           JSON.stringify(final.conversations) !==
             JSON.stringify(cur.conversations);
+        if (accountIdRef.current !== syncAccountId) return;
         if (convsChanged) {
           setStore(final);
-          saveConversations(final, accountIdRef.current);
+          saveConversations(final, syncAccountId);
         }
         if (acctsChanged) {
           setAccounts(hydratedAccts.accounts);
@@ -768,6 +778,11 @@ export function useTutorSession() {
     void hydrateLearningMemoryFromServer(id).then(setLearningMemory);
     // Reset chat to new account's conversations
     const nextStore = loadConversations(id);
+    // Sync the refs in the same tick as accountIdRef — React's store state
+    // and storeRef effect update asynchronously, so a periodic sync firing
+    // right after the switch would read the previous account's store with
+    // the new accountId and cross-contaminate localStorage / the server.
+    storeRef.current = nextStore;
     setStore(nextStore);
     setError("");
     stopSpeakAll();

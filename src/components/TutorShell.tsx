@@ -22,6 +22,7 @@ import {
   buildOpenerKickoffMessage,
   markOpenerShown,
   rotateSessionOpener,
+  type SessionOpener,
 } from "@/lib/session-opener";
 import {
   clearTedChallengeResume,
@@ -44,6 +45,7 @@ import {
   type ExploreTopic,
 } from "@/lib/explore-catalog";
 import { recordInterest } from "@/lib/interest-store";
+import { buildAdjacentOpener } from "@/lib/adjacent-recommend";
 import {
   buildDeepDiveOfferForAccount,
   markDeepDiveDone,
@@ -89,17 +91,21 @@ export function TutorShell() {
   // P1 — weekly deep-dive project + weekly connection card offers
   const [deepDiveOffer, setDeepDiveOffer] = useState<DeepDiveOffer | null>(null);
   const [connectionOffer, setConnectionOffer] = useState<ConnectionOffer | null>(null);
+  // P2 — cross-domain auto-recommendation (neighbor skill of a mastered one)
+  const [adjacentOpener, setAdjacentOpener] = useState<SessionOpener | null>(null);
 
   useEffect(() => {
     if (messages.length > 0) {
       setExploreTopics([]);
       setDeepDiveOffer(null);
       setConnectionOffer(null);
+      setAdjacentOpener(null);
       return;
     }
     setExploreTopics(pickExploreTopics(learningMemory, 4));
     setDeepDiveOffer(buildDeepDiveOfferForAccount(accountId, learningMemory));
     setConnectionOffer(buildConnectionOffer(accountId));
+    setAdjacentOpener(buildAdjacentOpener(learningMemory));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, accountId, learningMemory]);
 
@@ -207,6 +213,7 @@ export function TutorShell() {
         onDesktopClose={() => setDesktopSidebarOpen(false)}
         conversations={store.conversations}
         activeId={store.activeId}
+        accountId={accountId}
         disabled={busy}
         onOpenCodeAgent={handleOpenCodeAgent}
         engagementLabel={
@@ -377,6 +384,15 @@ export function TutorShell() {
             connectionOffer={messages.length === 0 ? connectionOffer : null}
             onShowConnection={handleShowConnection}
             onDismissConnection={handleDismissConnection}
+            adjacentOpener={
+              messages.length === 0 && !practiceOffer ? adjacentOpener : null
+            }
+            onAdjacentTry={() => {
+              if (!adjacentOpener) return;
+              const text = buildOpenerKickoffMessage(adjacentOpener);
+              setAdjacentOpener(null);
+              void handleSend({ text, attachments: [] });
+            }}
             challengeGauge={challengeGaugeView}
             onDeepDive={(mode: DeepDiveMode) => {
               void handleSend({

@@ -14,7 +14,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change the voice?",
-    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (Mandarin), WanLung (Cantonese), Álvaro (Spanish), Henri (French), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
+    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (普通话), WanLung (粤语), Álvaro (Español), Henri (Français), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
   },
   {
     q: "How do I translate a reply into English?",

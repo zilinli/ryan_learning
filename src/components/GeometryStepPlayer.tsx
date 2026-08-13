@@ -14,6 +14,7 @@ import {
   type GeometrySpec,
 } from "@/lib/geometry-svg";
 import { getSharedSpeechEngine } from "@/lib/speech-player";
+import { ImageLightbox } from "./ImageLightbox";
 
 type StepView = { caption: string; svg: string };
 
@@ -45,6 +46,7 @@ export function GeometryStepPlayer({ body }: { body: string }) {
   const spec = useMemo(() => parseGeometryStepsSpec(body), [body]);
   const [active, setActive] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const [zoom, setZoom] = useState(false);
 
   const views: StepView[] = useMemo(() => {
     if (!spec) return [];
@@ -109,14 +111,45 @@ export function GeometryStepPlayer({ body }: { body: string }) {
       </div>
 
       {/* Active figure */}
-      <div className="mt-2 overflow-x-auto rounded-lg bg-[var(--surface)] ring-1 ring-[var(--line)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="tutor-diagram mt-2 !bg-[var(--surface)] !ring-[var(--line)]">
+        <button
+          type="button"
+          className="tutor-diagram-view"
+          onClick={() => setZoom(true)}
+          aria-label="View larger diagram"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={svgDataUri(views[active]!.svg)}
+            alt={views[active]!.caption}
+            className="tutor-diagram-img"
+          />
+        </button>
+        <span className="tutor-diagram-zoom-hint" aria-hidden>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+            <line x1="11" y1="8" x2="11" y2="14" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+          </svg>
+        </span>
+      </div>
+      {zoom ? (
+        <ImageLightbox
           src={svgDataUri(views[active]!.svg)}
           alt={views[active]!.caption}
-          className="mx-auto w-full max-w-full"
+          onClose={() => setZoom(false)}
         />
-      </div>
+      ) : null}
 
       {/* Caption */}
       <p className="mt-2 text-[14px] leading-relaxed text-[var(--ink)]">

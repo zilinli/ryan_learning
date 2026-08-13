@@ -388,22 +388,105 @@ textarea:focus-visible {
   margin-bottom: 0;
 }
 
-.tutor-diagram svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto;
+/* ── Diagram / figure cards ────────────────────────────── */
+.tutor-diagram {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.5rem 0 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+.tutor-diagram:last-child {
+  margin-bottom: 0;
+}
+.tutor-diagram-view {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  outline: none;
+}
+.tutor-diagram-view:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--teal);
 }
 
-.tutor-md-img,
-.tutor-diagram img {
+/* Inline SVG (mermaid / sanitized tutor SVG): keep aspect ratio, never stretch */
+.tutor-diagram svg {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
-  max-height: min(28rem, 70vh);
+  margin: 0 auto;
+}
+/* Mermaid emits inline `style="max-width: 900px"` — force it responsive so
+   narrow bubbles never clip or overlap node labels. */
+.tutor-diagram-inline svg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 0 auto;
+}
+
+/* <img>-based figures (SVG data-URIs, markdown photos): natural size, centered.
+   Never stretch a small figure to the full bubble width. */
+.tutor-md-img,
+.tutor-diagram img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(24rem, 70vh);
+  margin: 0 auto;
   object-fit: contain;
-  object-position: left center;
+  object-position: center;
+}
+.tutor-md-img-wrap {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  text-align: center;
+}
+.tutor-md-img-wrap:last-child {
+  margin-bottom: 0;
+}
+
+/* Zoom affordance badge on hover */
+.tutor-diagram-zoom-hint,
+.tutor-md-img-zoom-hint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.tutor-diagram:hover .tutor-diagram-zoom-hint,
+.tutor-md-img-wrap:hover .tutor-md-img-zoom-hint {
+  opacity: 1;
+}
+.tutor-md-img-wrap {
+  position: relative;
 }
 
 @keyframes slide-up {

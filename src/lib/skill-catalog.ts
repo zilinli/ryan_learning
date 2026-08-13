@@ -18,6 +18,12 @@ export type SkillDef = {
   band: "early" | "elementary" | "middle" | "high";
   /** Prerequisite skill ids (soft — used for tutoring advice) */
   requires?: string[];
+  /**
+   * P2 — adjacent skill ids: nearby-but-different skills that naturally follow
+   * once this one is mastered (breadth grows out of depth). Not prerequisites —
+   * they are fresh territory worth peeking into.
+   */
+  adjacent?: string[];
   /** Keyword matcher */
   re: RegExp;
 };
@@ -113,6 +119,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
     requires: ["multiplication-facts"],
+    adjacent: ["ratios-proportions"],
     re: /\bdivid|÷|除法|除以|long division|余数|餘數/i,
   },
   {
@@ -147,6 +154,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "fractions",
     subject: "math",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
+    adjacent: ["ratios-proportions"],
     re: /\bfract|numerator|denominator|分数|分數|分子|分母/i,
   },
   {
@@ -156,6 +164,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 4, coreGrade: 4, maxGrade: 6, band: "elementary",
     requires: ["fractions-concepts", "multiplication-facts"],
+    adjacent: ["ratios-proportions", "decimals"],
     re: /\bequivalent|\bsimplif|约分|約分|等值分数|同分母|通分/i,
   },
   {
@@ -182,6 +191,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
     requires: ["multiplication-facts"],
+    adjacent: ["physics-6-8", "volume-intro"],
     re: /\bperimeter|area|周长|周長|面积|面積|square unit/i,
   },
   {
@@ -191,6 +201,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 4, coreGrade: 5, maxGrade: 7, band: "elementary",
     requires: ["multiplication-facts", "geometry-measure"],
+    adjacent: ["measurement-units"],
     re: /\bvolume|cubic|cm³|m³|体积|體積/i,
   },
   {
@@ -215,6 +226,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-space",
     subject: "science",
     minGrade: 2, coreGrade: 4, maxGrade: 6, band: "elementary",
+    adjacent: ["physics-6-8", "ecosystems"],
     re: /\bmoon|phase|solar|planet|earth|sun|月亮|月相|太阳系|太陽系|日食|月食/i,
   },
   {
@@ -223,6 +235,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-eco",
     subject: "science",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
+    adjacent: ["biology-6-8", "env-science"],
     re: /\becosystem|habitat|food chain|生态|生態|食物链|食物鏈/i,
   },
   {
@@ -231,6 +244,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "humanities",
     subject: "humanities",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
+    adjacent: ["world-history-i"],
     re: /\begypt|mesopotamia|civilization|pharaoh|埃及|美索不|文明|金字塔/i,
   },
   {
@@ -250,6 +264,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 5, coreGrade: 6, maxGrade: 8, band: "middle",
     requires: ["fractions-concepts", "equivalent-fractions", "multiplication-facts"],
+    adjacent: ["statistics-intro", "prealgebra"],
     re: /\bratio|proportion|unit rate|percent|比例|比率|百分比|\%/i,
   },
   {
@@ -277,6 +292,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 6, coreGrade: 7, maxGrade: 9, band: "middle",
     requires: ["prealgebra", "expressions-equations"],
+    adjacent: ["physics-6-8"],
     re: /\balgebra|linear|slope|y.*=|inequalit|函数|线性|斜率/i,
   },
   {
@@ -294,6 +310,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "math-middle",
     subject: "math",
     minGrade: 6, coreGrade: 7, maxGrade: 12, band: "middle",
+    adjacent: ["scientific-method", "algebra-i"],
     re: /\bmean|median|mode|range|probability|统计|概率|平均数|中位数/i,
   },
   {
@@ -311,6 +328,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-bio",
     subject: "science",
     minGrade: 6, coreGrade: 6, maxGrade: 8, band: "middle",
+    adjacent: ["chemistry-6-8", "ecosystems"],
     re: /\bcell|organism|DNA|genetics|species|细胞|生物|基因|物种/i,
   },
   {
@@ -319,6 +337,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-chem",
     subject: "science",
     minGrade: 6, coreGrade: 7, maxGrade: 8, band: "middle",
+    adjacent: ["physics-6-8", "biology-6-8"],
     re: /\batom|element|reaction|molecule|chemical|原子|元素|反应|化学/i,
   },
   {
@@ -327,6 +346,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-phys",
     subject: "science",
     minGrade: 6, coreGrade: 7, maxGrade: 8, band: "middle",
+    adjacent: ["earth-moon-sun", "geometry-measure"],
     re: /\bforce|motion|energy|wave|gravity|newton|力|运动|能量|波|重力/i,
   },
   {
@@ -343,6 +363,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "humanities",
     subject: "humanities",
     minGrade: 6, coreGrade: 7, maxGrade: 9, band: "middle",
+    adjacent: ["us-history"],
     re: /\brevolution|empire|colony|industrial|renaissance|革命|帝国|殖民|工业|文艺复兴/i,
   },
   {
@@ -360,6 +381,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "ela",
     minGrade: 6, coreGrade: 7, maxGrade: 12, band: "middle",
     requires: ["reading-evidence"],
+    adjacent: ["text-analysis"],
     re: /\bargument|thesis|persuasive|debate|counterclaim|论证|论点|论据|辩论/i,
   },
   {
@@ -369,6 +391,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "ela",
     minGrade: 6, coreGrade: 7, maxGrade: 12, band: "middle",
     requires: ["reading-evidence"],
+    adjacent: ["argumentative-writing"],
     re: /\banaly[sz]|theme|symbol|mood|tone|analysis|分析|主题|象征/i,
   },
   {

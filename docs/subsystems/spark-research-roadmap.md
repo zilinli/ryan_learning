@@ -3,10 +3,10 @@
 > 基准报告：`/root/AI教学产品调研与Spark分析报告.md` §9 路线图。
 > 状态：全部 12 项已实现（2026-08-13），每项带 vitest 单元测试。
 
-## 四维学习力路线图（2026-08-13）— P0 全部 + P1 全部已实现
+## 四维学习力路线图（2026-08-13）— P0/P1 全部 + P2 全部已实现
 
 > 基准报告：`evaluation/Spark_四维学习力深度调研报告_2026-08-13.md`（兴趣/心流/深度/广度四维）。
-> 状态：P0（兴趣自主选择回路 · 心流信号采集与难度微调 · 快速路径「问即答」）与 P1（每周深度探究日 · 错题→变式→概念提升 · 每周跨学科连接卡 + 学科广度足迹地图）全部完成（2026-08-13），带 vitest 单元测试。
+> 状态：P0（兴趣自主选择回路 · 心流信号采集与难度微调 · 快速路径「问即答」）、P1（每周深度探究日 · 错题→变式→概念提升 · 每周跨学科连接卡 + 学科广度足迹地图）与 P2 体验精修（一键即玩卡片 · 学习/游戏专注护栏 · 领域间自动推荐）全部完成（2026-08-13），带 vitest 单元测试。
 
 ### P0.1 — 兴趣自主选择回路（报告 §8.1）
 
@@ -43,6 +43,43 @@
 ### 测试
 
 - 新增：`flow-signals.test.ts` / `explore-catalog.test.ts` / `interest-store.test.ts` / `deep-dive-week.test.ts` / `connection-card.test.ts` / `breadth-map.test.ts`；扩展 `local-facts.test.ts` / `challenge-mode.test.ts` / `wrong-answer-store.test.ts`。
+
+## 四维学习力路线图（P2 体验精修）— 全部 3 项已实现
+
+> 基准报告同 `Spark_四维学习力深度调研报告_2026-08-13.md` §10 第三阶段（体验精修）。
+> 状态：9.1.2 一键即玩卡片、9.2.3 学习/游戏专注护栏、9.4.3 领域间自动推荐全部完成（2026-08-13），带 vitest 单元测试。
+> 已完成无需重做：9.1.3 兴趣足迹可视化（`LearningDashboard`「Your exploration footprint」）、9.3.3 成长时刻标注（`challengeGauge.growthLine`）。
+
+### P2.1 — 一键即玩卡片（报告 §9.1.2）
+
+- `ChatThread` 空状态把原有文字按钮行升级为 **2×2 即时动作卡片网格**（`QuickActionCard`）：`⚡ Quick questions` / `🔀 Another topic` / `🏆 Challenge me!` / `📷 Snap homework`，每卡含 emoji 图标 + 标题 + 一句说明，点击直接触发既有 `onOpenerTry` / `onOpenerNext` / `onChallenge` / `onSnapHomework`。
+- 探索主题 chips（`exploreTopics`）上浮到卡片网格上方，点击即发，无需打字。
+- 卡片视觉：`--teal` / `--coral` 语义色 + 触摸目标 ≥ 44px，保持 `max-w-md` 空状态与移动优先。
+
+### P2.2 — 学习/游戏专注护栏（报告 §9.2.3）
+
+- `focus-guardrail.ts`：
+  - `activeWorksheetPlan(accountId?, conversations?, activeId?)` — 从当前账号的 active conversation 读取 `worksheetPlan`（复用 `isWorksheetComplete` / `formatProgressLabel`），返回 `{ total, current, remaining }` 或 null。
+  - `buildFocusGuardrail` — 生成非阻断文案（"Homework still has N questions — finish, then play?"），**不锁、不罚**。
+  - `dismissFocusGuardrail(accountId)` / `dismissedFocusGuardrailToday(accountId)` — 当天轻提示只出一次，尊重自主。
+  - `resolveGuardrailAccountId` — 账号解析：显式 → URL `?account=` → 活动账号 store → `acct_ryan`。
+- `HistorySidebar` Games 链接旁：存在未完成 worksheet 且今日未 dismiss 时渲染一行非阻断提示条（含 Back to homework / Not now），不拦截跳转。
+- `EntertainPage` Games hub 顶部（`activeGame === null` 时）渲染同一护栏横幅，含「Back to homework」与「Not now」。
+- 数据读取跨页面共用：护栏数据直接从 localStorage（当前账号 active conversation record）读取，`/entertain` 独立页面也能读到。
+
+### P2.3 — 领域间自动推荐（报告 §9.4.3）
+
+- `skill-catalog.ts`：`SkillDef` 新增可选 `adjacent?: string[]`（相邻技能 id）。已为高分技能补齐相邻关系：分数→比例、等值分数→比例、几何测量→物理/体积、天文→物理/生态、生态→生物/环境、代数 I→物理、统计→科学方法/代数、化学→物理/生物、物理→天文/几何、议论文→文本分析、文本分析→议论文、古代文明→世界史、世界史 II→美国史 等。
+- `adjacent-recommend.ts`：
+  - `recommendAdjacent(mem)` — 找 pKnown≥0.8 的高掌握技能 → 取其 `adjacent` 中未掌握技能 → 优先「未触碰」再「跨学科」→ 返回 1 个 `{ fromSkillId, fromLabel, skillId, label, line }`。
+  - `buildAdjacentKickoffMessage(rec, mem)` — 生成「你已掌握 X，要不要顺路看看邻居 Y？」的 ZPD 入门 kickoff。
+  - `buildAdjacentOpener(mem)` — 包装为 `SessionOpener`（`kind: "zpd"` + `kickoffOverride`）。
+- `TutorShell` 空状态 `useEffect`：`messages` 为空时尝试 `buildAdjacentOpener`；`ChatThread` 在 `sessionOpener` 为空时渲染「A neighbor to explore」卡片，点击发送 kickoff。
+
+### 测试（P2）
+
+- 新增：`focus-guardrail.test.ts`（未完成→剩余数 / 已完成→null / 无计划→null / 单复数文案 / 今日 dismiss 门控 / 多账户隔离）、`adjacent-recommend.test.ts`（高掌握→推荐相邻未掌握 / 无相邻→null / 优先未触碰 / 跳过已掌握 / 空记忆 / kickoff 含双技能名 / zpd opener 包装）。
+- 扩展：`skill-catalog.test.ts`（所有 `adjacent` 引用必须是真实技能且不自指；fractions→ratios 与 earth-moon-sun→physics 等头条配对）。
 
 ## 新增需求（优先）
 

@@ -49,8 +49,8 @@ const STAGE_EXPANDED_KEY = "spark.ws.stageExpanded";
 const STT_LANG_OPTIONS: Array<{ id: SttLang; label: string }> = [
   { id: "auto", label: "Auto detect" },
   { id: "en", label: "English" },
-  { id: "zh", label: "中文 Mandarin" },
-  { id: "yue", label: "粵語 Cantonese" },
+  { id: "zh", label: "中文 (普通话)" },
+  { id: "yue", label: "粵語" },
   { id: "es", label: "Español" },
   { id: "fr", label: "Français" },
   { id: "ms", label: "Bahasa Melayu" },

@@ -55,6 +55,9 @@ Research-driven learning loops from the [four-dimension report](evaluation/Spark
 - **Weekly deep-dive day** — each week one 5E-structured deep-dive project anchored on the student's wrong answers or mastered skills.
 - **Wrong answer → variant / concept lift** — every wrong-answer-book entry can be retried as a *variant* (same skill, new numbers) or *harder* (half-level transfer twist).
 - **Weekly connection card + subject map** — a weekly cross-subject link card plus a subject breadth footprint in the Me Hub; tapping an unexplored subject starts a guided exploration.
+- **One-click instant cards** — empty chat's text buttons become a 2×2 card grid (Quick questions · Another topic · Challenge me! · Snap homework): tap once, no typing, and explore-topic chips float above them.
+- **Focus guardrail** — when a worksheet is still in progress, a gentle non-blocking nudge appears next to Games in the sidebar and atop the Games page ("Homework still has N questions — finish, then play?"), dismissible once per day, never locking anything.
+- **Cross-domain auto-recommendation** — once a skill hits high mastery, the opener card suggests a neighboring fresh skill (astronomy → gravity; fractions → ratios), so breadth grows out of depth.
 
 
 ### Parent Hub (`/family`)
@@ -385,7 +388,7 @@ Design documents live in `docs/subsystems/`. Key reads:
 | [faq-feedback-panel](docs/subsystems/faq-feedback-panel.md) | Help & feedback system |
 | [product-audit-2026-08-roadmap](docs/subsystems/product-audit-2026-08-roadmap.md) | Product audit & roadmap |
 | [ux-competitor-report-2026-08-feasibility](docs/subsystems/ux-competitor-report-2026-08-feasibility.md) | UX competitor analysis |
-| [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1 + 竞品调研路线图 |
+| [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1/P2 + 竞品调研路线图 |
 
 Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.
 
