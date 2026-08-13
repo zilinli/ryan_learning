@@ -283,8 +283,6 @@ function TimelineDayBlock({
   onDeleteEntry: (id: string) => void;
   onDeleteMade: (entryId: string, creationId: string) => void;
 }) {
-  const related = day.entries.flatMap((e) => e.made);
-  const prose = day.entries.filter((e) => e.body.trim());
   return (
     <li className="relative mb-6">
       <span
@@ -295,111 +293,126 @@ function TimelineDayBlock({
         {formatDay(day.date)}
       </p>
       <div className="mt-2 space-y-2">
-        {prose.map((e) => (
-          <div
-            key={e.id}
-            className="group relative rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-[var(--teal)]/40"
-          >
-            <a
-              href={studioUrl(e.id)}
-              className="block pr-[4.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            >
-              <p className="text-[11px] font-semibold text-[var(--teal)]">Wrote</p>
-              <p className="mt-0.5 text-sm font-medium text-[var(--ink)]">
-                {e.title || e.body.slice(0, 72)}
-              </p>
-              <p className="mt-1 line-clamp-2 text-[13px] text-[var(--ink-muted)]">
-                {e.body}
-              </p>
-            </a>
-            <DeleteChip
-              label="Delete"
-              busy={busy}
-              onConfirm={() => onDeleteEntry(e.id)}
-            />
-          </div>
+        {day.entries.map((entry) => (
+          <EntryBlock
+            key={entry.id}
+            entry={entry}
+            busy={busy}
+            onDeleteEntry={() => onDeleteEntry(entry.id)}
+            onDeleteMade={(creationId) => onDeleteMade(entry.id, creationId)}
+          />
         ))}
-        {related.map((m, i) => {
-          const entry = day.entries.find((e) =>
-            e.made.some((x) => x.creationId === m.creationId && x.at === m.at),
-          );
-          const entryId = entry?.id || day.entries[0]?.id;
-          return (
-            <div
-              key={`${m.creationId || m.at}-${i}`}
-              className="group relative rounded-xl border border-[var(--line)]/80 bg-[var(--surface-muted)] p-3"
-            >
-              <p className="text-[11px] font-semibold text-[var(--ink-muted)]">
-                Related
-              </p>
-              <p className="mt-0.5 pr-[4.5rem] text-sm font-medium text-[var(--ink)]">
-                {madeLabel(m)}
-                {m.style ? (
-                  <span className="ml-2 text-[11px] font-normal text-[var(--ink-muted)]">
-                    {m.style}
-                  </span>
-                ) : null}
-              </p>
-              {m.bodySnapshot ? (
-                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[12px] text-[var(--ink-muted)]">
-                  {m.bodySnapshot}
-                </p>
-              ) : null}
-              {m.audioMediaId ? (
-                <audio
-                  className="mt-2 w-full"
-                  controls
-                  src={`/api/media/${m.audioMediaId}`}
-                />
-              ) : null}
-              {m.mediaId && m.kind === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`/api/media/${m.mediaId}`}
-                  alt={m.title}
-                  className="mt-2 max-h-40 rounded-lg object-cover"
-                />
-              ) : null}
-              {m.mediaId && m.kind === "video" ? (
-                <video
-                  className="mt-2 max-h-40 w-full rounded-lg"
-                  controls
-                  src={`/api/media/${m.mediaId}`}
-                />
-              ) : null}
-              <a
-                href="/studio?game=creations"
-                className="mt-2 inline-block text-[11px] font-semibold text-[var(--teal)]"
-              >
-                Open in My Creations
-              </a>
-              {entryId && m.creationId ? (
-                <DeleteChip
-                  label="Remove"
-                  busy={busy}
-                  onConfirm={() => onDeleteMade(entryId, m.creationId!)}
-                />
-              ) : null}
-            </div>
-          );
-        })}
-        {!prose.length && !related.length ? (
-          <div className="group relative rounded-xl border border-dashed border-[var(--line)] p-3">
-            <a
-              href={studioUrl(day.entries[0]!.id)}
-              className="block pr-[4.5rem] text-sm text-[var(--ink-muted)]"
-            >
-              Empty day — tap to write
-            </a>
-            <DeleteChip
-              label="Delete"
-              busy={busy}
-              onConfirm={() => onDeleteEntry(day.entries[0]!.id)}
-            />
-          </div>
-        ) : null}
       </div>
     </li>
+  );
+}
+
+/** One day's entry group: the prose card followed by its own related creations. */
+function EntryBlock({
+  entry,
+  busy,
+  onDeleteEntry,
+  onDeleteMade,
+}: {
+  entry: JournalEntry;
+  busy: boolean;
+  onDeleteEntry: () => void;
+  onDeleteMade: (creationId: string) => void;
+}) {
+  const hasProse = entry.body.trim().length > 0;
+  const related = entry.made;
+  const hasAny = hasProse || related.length > 0;
+  return (
+    <div className="space-y-2">
+      {hasProse ? (
+        <div
+          className="group relative rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-[var(--teal)]/40"
+        >
+          <a
+            href={studioUrl(entry.id)}
+            className="block pr-[4.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          >
+            <p className="text-[11px] font-semibold text-[var(--teal)]">Wrote</p>
+            <p className="mt-0.5 text-sm font-medium text-[var(--ink)]">
+              {entry.title || entry.body.slice(0, 72)}
+            </p>
+            <p className="mt-1 line-clamp-2 text-[13px] text-[var(--ink-muted)]">
+              {entry.body}
+            </p>
+          </a>
+          <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+        </div>
+      ) : null}
+      {related.map((m, i) => (
+        <div
+          key={`${m.creationId || m.at}-${i}`}
+          className="group relative rounded-xl border border-[var(--line)]/80 bg-[var(--surface-muted)] p-3"
+        >
+          <p className="text-[11px] font-semibold text-[var(--ink-muted)]">
+            Related
+          </p>
+          <p className="mt-0.5 pr-[4.5rem] text-sm font-medium text-[var(--ink)]">
+            {madeLabel(m)}
+            {m.style ? (
+              <span className="ml-2 text-[11px] font-normal text-[var(--ink-muted)]">
+                {m.style}
+              </span>
+            ) : null}
+          </p>
+          {m.bodySnapshot ? (
+            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-[12px] text-[var(--ink-muted)]">
+              {m.bodySnapshot}
+            </p>
+          ) : null}
+          {m.audioMediaId ? (
+            <audio
+              className="mt-2 w-full"
+              controls
+              src={`/api/media/${m.audioMediaId}`}
+            />
+          ) : null}
+          {m.mediaId && m.kind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/media/${m.mediaId}`}
+              alt={m.title}
+              className="mt-2 max-h-40 rounded-lg object-cover"
+            />
+          ) : null}
+          {m.mediaId && m.kind === "video" ? (
+            <video
+              className="mt-2 max-h-40 w-full rounded-lg"
+              controls
+              src={`/api/media/${m.mediaId}`}
+            />
+          ) : null}
+          <a
+            href="/studio?game=creations"
+            className="mt-2 inline-block text-[11px] font-semibold text-[var(--teal)]"
+          >
+            Open in My Creations
+          </a>
+          {m.creationId ? (
+            <DeleteChip
+              label="Remove"
+              busy={busy}
+              onConfirm={() => onDeleteMade(m.creationId!)}
+            />
+          ) : null}
+        </div>
+      ))}
+      {!hasAny ? (
+        <div className="group relative rounded-xl border border-dashed border-[var(--line)] p-3">
+          <a
+            href={studioUrl(entry.id)}
+            className="block pr-[4.5rem] text-sm text-[var(--ink-muted)]"
+          >
+            Empty day — tap to write
+          </a>
+          <DeleteChip label="Delete" busy={busy} onConfirm={onDeleteEntry} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
