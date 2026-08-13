@@ -50,7 +50,7 @@ export interface ChatQuote {
 | Surface | Behavior |
 |---------|----------|
 | Message action row | Add a **`Quote`** button **in the action row under each message** (right where `Listen` / `English` sit on tutor messages; a matching row is added under user messages). Always visible, mobile-first. |
-| Composer | When a quote is active, show a **teal reply chip** above the textarea: `Replying to — You/The Answer Book: “excerpt…”` with an **×** to dismiss. |
+| Composer | When a quote is active, show a **teal reply chip** above the textarea: `Replying to — You/The Answer Book · AI Tutor: “excerpt…”` with an **×** to dismiss. |
 | Message bubble | A sent message that has a quote renders a **nested reply block** at the top of its bubble (left teal border, small text) so the reply reads in-context. |
 | Prompt | The quote is injected as a dedicated `[Quoted earlier message]` block (snippet + full text + extracted file text + image count); quoted images are re-sent as image blocks so the model anchors on them first. |
 

@@ -278,7 +278,7 @@ Each account gets its own empty state message:
 **New header layout**:
 ```
 ┌──────────────────────────────────────────────┐
-│ ☰  ✨ The Answer Book        [🔊]  [👤 Ryan] │
+│ ☰  ✨ The Answer Book · AI Tutor  [🔊]  [👤 Ryan] │
 │                                              │
 │                Chat area                     │
 │                                              │

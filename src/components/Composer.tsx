@@ -245,7 +245,7 @@ export function Composer({
             </svg>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-                Replying to — {quote.author === "user" ? "You" : "The Answer Book"}
+                Replying to — {quote.author === "user" ? "You" : "The Answer Book · AI Tutor"}
               </p>
               <p className="truncate text-xs text-[var(--ink)]">
                 {quote.excerpt || "(attachment)"}

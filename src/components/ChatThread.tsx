@@ -642,7 +642,7 @@ export function ChatThread({
             } ${isUser ? "items-end" : "items-start"}`}
           >
             <span className="text-xs tracking-wide text-[var(--ink-muted)]">
-              {isUser ? "You" : "The Answer Book"}
+              {isUser ? "You" : "The Answer Book · AI Tutor"}
               {m.createdAt ? (
                 <span className="ml-2 text-[10px] opacity-60">
                   {formatTime(m.createdAt)}
@@ -665,7 +665,7 @@ export function ChatThread({
                   }`}
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
-                    {m.quote.author === "user" ? "You" : "The Answer Book"}
+                    {m.quote.author === "user" ? "You" : "The Answer Book · AI Tutor"}
                   </p>
                   <p
                     className={`line-clamp-2 text-xs ${

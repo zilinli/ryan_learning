@@ -180,7 +180,7 @@ export function TutorShell() {
             )}
           </button>
           <span className="flex-1 truncate text-center font-[family-name:var(--font-display)] text-[17px] tracking-wide text-[var(--ink)] sm:text-lg">
-            ✨ The Answer Book
+            ✨ The Answer Book · AI Tutor
           </span>
           <div className="flex items-center gap-1.5">
             <button

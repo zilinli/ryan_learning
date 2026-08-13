@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "The Answer Book",
+    title: "The Answer Book · AI Tutor",
     statusBarStyle: "default",
   },
   formatDetection: {

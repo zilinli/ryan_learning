@@ -74,7 +74,7 @@ export function HistorySidebar({
       <div className="safe-top flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
-            The Answer Book
+            The Answer Book · AI Tutor
           </p>
           <p className="text-[11px] text-[var(--ink-muted)]">
             All chats · keep newest {MAX_TOTAL_MESSAGES.toLocaleString()} msgs
