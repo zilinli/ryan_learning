@@ -1,7 +1,7 @@
 # Entertainments · Engine Design & Test Plan
 
-> Version 0.8 · 2026-08-11  
-> Scope: `/entertain` — Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski; **Studio · learning** (`/studio`) — TED Lab / Writing Studio / My Creations
+> Version 0.9 · 2026-08-13  
+> Scope: `/entertain` — **Learning Games** (Fraction Voyager / Eco Genesis / Time Vault) + Chess / Xiangqi / Go / Gomoku / Ultimate TTT / Blocks / Snake / Sudoku / Sokoban / Klotski; **Studio · learning** (`/studio`) — TED Lab / Writing Studio / My Creations
 
 ---
 
@@ -79,9 +79,14 @@ src/lib/entertain/          ← pure logic (no React) — UNIT TESTED
   xiangqi.ts / go-logic.ts / gomoku.ts / uttt.ts / …
   *-local.ts                ← client AI (easy|medium|hard)
   game-ai.ts                ← legacy SDK helper (board games no longer call it)
+  fraction-voyager.ts       ← Learning Game 1 (number-line fractions, pure)
+  eco-genesis.ts            ← Learning Game 2 (population-dynamics simulation, pure)
+  time-vault.ts             ← Learning Game 3 (historical timeline cases, pure)
 
 src/components/*Game.tsx    ← UI only; local AI via *-local.ts
 ```
+
+The three **Learning Games** are pure-logic + BKT-integrated play surfaces promoted above the board games on `/entertain` — see [learning-games.md](./learning-games.md) for the full design (mechanic-is-lesson, Answer-Until-Correct, ZPD adaptivity, no leaderboards).
 
 ### 2.1 Ultimate TTT data model
 
@@ -261,9 +266,25 @@ npm test -- src/lib/entertain
 
 ---
 
-## 6. Studio — TED Lab + Writing Studio (v0.9)
+## 6. Learning Games — Fraction Voyager / Eco Genesis / Time Vault (v0.9)
 
-### 6.1 Product shape
+The three flagship **Learning Games** sit at the top of `/entertain` as a distinct "Practice with purpose" section, above board games and puzzles. They replaced the original Fraction Forge / Eco Tower / Timeline Detective.
+
+| Game | Id | One-liner | Mechanic = lesson |
+|------|----|-----------|-------------------|
+| Fraction Voyager | `fraction-voyager` | Fly your ship along the number line. | number-line partition / compare / equivalent slicing |
+| Eco Genesis | `eco-genesis` | Build a food web, predict, watch populations change. | real discrete population-dynamics simulation |
+| Time Vault | `time-vault` | Reconstruct scrambled history, cite the evidence. | timeline ordering + evidence-sentence binding |
+
+Shared principles: **mechanic-is-lesson** (no input boxes/dropdowns), **Answer-Until-Correct** (visible bounce-back consequences), **ZPD adaptivity** from BKT `pKnown` + attributed turns via `recordStudioLearningTurn`, and **private collections** (stars / biomes / artifacts — no leaderboards).
+
+Full design (data models, ZPD ladders, BKT loop, AI resilience, tests): **[learning-games.md](./learning-games.md)**.
+
+---
+
+## 7. Studio — TED Lab + Writing Studio (v0.9)
+
+### 7.1 Product shape
 
 **Studio · learning** is a separate hub (`/studio`), not nested under Entertainments games. Legacy `/entertain?hub=studio` redirects to `/studio`.
 
@@ -282,7 +303,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 
 **Account chrome:** `StudioAccountBar` on Studio hub, Entertainments hub, and every game/studio TopBar. TED + Writing call `recordStudioLearningTurn` → per-account `learning-memory` (subjects for Dashboard).
 
-### 6.2 TED Lab
+### 7.2 TED Lab
 
 - **Live catalog:** `GET /api/ted/search` → TED.com InstantSearch proxy (`/api/search`) — full catalog (~7k+), topic facets, pagination. Curated `ted-catalog.ts` is offline fallback only.
 - **Grade/age list sort:** empty browse puts curated fit first, then live; search/refresh re-rank the page. Never hide talks. See [ted-lab-learner-fit-sort.md](./ted-lab-learner-fit-sort.md).
@@ -295,7 +316,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - **Challenge voice input:** `MicTranscribeButton` beside answer textarea → `/api/transcribe` → `appendVoiceTranscript` (see [ted-challenge-voice-input.md](./ted-challenge-voice-input.md)).
 - **Pedagogy:** Defaults from **numeric grade** (G1–G12) + optional English level + age nudge. UI shows the resolved label (e.g. **G10 · advanced**). G4 is only the fallback when grade is unknown. G3 softer; G5 same developing band but harder cue; G9–G12 advanced with grade grain inside the band.
 
-### 6.3 NatGeo Lab · BBC Doc Lab · RSA Lab (TED parity)
+### 7.3 NatGeo Lab · BBC Doc Lab · RSA Lab (TED parity)
 
 **Shared Challenge UX (TED benchmark):** English captions → hybrid MCQ + essay with mic → **Submit & discuss** inline Socratic coaching via `POST /api/lab/discuss` — see [lab-challenge-ted-parity.md](./lab-challenge-ted-parity.md).
 
@@ -324,7 +345,7 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - BKT integration via `recordStudioLearningTurn` with `source: "natgeo" | "bbc" | "rsa"`
 - Creation types: `natgeo_challenge` | `bbc_challenge` | `rsa_challenge` in `creations-store.ts`
 
-### 6.4 Writing Studio Stage + deAPI text2X
+### 7.4 Writing Studio Stage + deAPI text2X
 
 - Writing pad → Coach (`POST /api/writing-studio/coach` with `target`) → **modality structure** → Stage tabs: **Song / Image / Video**.
   - Music coach returns structured **BASIS report** (`topic` / `detail` / `vocab` / `grammar`, 1–5 scores) rendered in `WritingCoachPanel` (score ring + color bars + craft tip + questions).
@@ -345,18 +366,18 @@ Sidebar: Family|Dashboard row · Studio|Entertainments row · Code Agent bottom.
 - Unconfigured: lyrics-only drafts still save; generate returns 503.
 - **Shipped:** mood/genre lives in **Stage**. **Structure** returns `suggestedStyle` (student can change before Generate). Journal Timeline (`/me/journal`) + My Creations auto-append to that day’s journal. See [journal-and-me-hub.md](journal-and-me-hub.md).
 
-### 6.5 My Creations
+### 7.5 My Creations
 
 - Account JSON: `data/accounts/{id}/creations.json`
 - Types: `ted_challenge` | `natgeo_challenge` | `bbc_challenge` | `rsa_challenge` | `song` | `image` | `video`; media via `/api/media/{mediaId}`
 - APIs: `GET/POST/DELETE /api/creations`
 - **Audio retention:** studio blobs use `sessionId: "writing-studio"` and must **not** be pruned by chat `pruneOrphanMedia`. See [studio-creations-audio-mobile.md](./studio-creations-audio-mobile.md).
 
-### 6.6 Explicit non-goals
+### 7.6 Explicit non-goals
 
 Scrape/download TED video; local music inference on spark-tutor host; streaks/leaderboards; public sharing.
 
-### 6.7 Studio self-verify
+### 7.7 Studio self-verify
 
 ```bash
 # Unit tests (mocked providers)

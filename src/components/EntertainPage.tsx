@@ -9,9 +9,9 @@ import { TetrisGame } from "./TetrisGame";
 import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
-import { FractionForgeGame } from "./FractionForgeGame";
-import { TimelineDetectiveGame } from "./TimelineDetectiveGame";
-import { EcoTowerGame } from "./EcoTowerGame";
+import { FractionVoyagerGame } from "./FractionVoyagerGame";
+import { EcoGenesisGame } from "./EcoGenesisGame";
+import { TimeVaultGame } from "./TimeVaultGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
@@ -35,9 +35,9 @@ interface GameInfo {
 
 const GAMES: GameInfo[] = [
   // ── Learning Games (prominent, first) ──
-  { id: "fraction-forge", title: "Fraction Forge", desc: "Craft gear with fractions — visual bars, adaptive difficulty", icon: "⚒", category: "Learning Games" },
-  { id: "timeline-detective", title: "Timeline Detective", desc: "Solve history mysteries — sort events, cite evidence", icon: "🔍", category: "Learning Games" },
-  { id: "eco-tower", title: "Eco Tower", desc: "Build an ecosystem — food chains, energy flow, disasters", icon: "🌿", category: "Learning Games" },
+  { id: "fraction-voyager", title: "Fraction Voyager", desc: "Fly your ship along the number line — place, compare, slice fractions", icon: "🚀", category: "Learning Games" },
+  { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "🌍", category: "Learning Games" },
+  { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "📜", category: "Learning Games" },
   // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
@@ -118,9 +118,9 @@ const TITLES: Record<GameId, string> = {
   sudoku: "Sudoku",
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
-  "fraction-forge": "Fraction Forge",
-  "timeline-detective": "Timeline Detective",
-  "eco-tower": "Eco Tower",
+  "fraction-voyager": "Fraction Voyager",
+  "eco-genesis": "Eco Genesis",
+  "time-vault": "Time Vault",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",
@@ -236,9 +236,9 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "bbc-lab" && <BbcDocLab />}
         {activeGame === "rsa-lab" && <RsaShortsLab />}
         {activeGame === "creations" && <CreationsLibrary />}
-        {activeGame === "fraction-forge" && <FractionForgeGame />}
-        {activeGame === "timeline-detective" && <TimelineDetectiveGame />}
-        {activeGame === "eco-tower" && <EcoTowerGame />}
+        {activeGame === "fraction-voyager" && <FractionVoyagerGame />}
+        {activeGame === "eco-genesis" && <EcoGenesisGame />}
+        {activeGame === "time-vault" && <TimeVaultGame />}
       </div>
     );
   }

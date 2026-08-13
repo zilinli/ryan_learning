@@ -12,9 +12,9 @@ export type GameId =
   | "bbc-lab"
   | "rsa-lab"
   | "creations"
-  | "fraction-forge"
-  | "timeline-detective"
-  | "eco-tower";
+  | "fraction-voyager"
+  | "eco-genesis"
+  | "time-vault";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 
