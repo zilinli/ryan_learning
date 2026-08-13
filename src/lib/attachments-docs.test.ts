@@ -10,6 +10,12 @@ import {
 } from "./attachments";
 
 describe("document upload allowlist", () => {
+  it("allows short video extensions and MIME", () => {
+    expect(isAllowedAttachment("video/mp4", "clip.mp4")).toBe(true);
+    expect(isAllowedAttachment("", "demo.webm")).toBe(true);
+    expect(isAllowedAttachment("video/quicktime", "phone.mov")).toBe(true);
+  });
+
   it("allows markdown, html, and office open xml", () => {
     expect(isAllowedAttachment("text/markdown", "notes.md")).toBe(true);
     expect(isAllowedAttachment("", "readme.markdown")).toBe(true);

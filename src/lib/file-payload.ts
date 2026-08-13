@@ -1,6 +1,7 @@
 import {
   isAllowedAttachment,
   isOfficeAttachment,
+  isVideoAttachment,
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
   normalizeMime,
@@ -56,7 +57,7 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
       mimeType = file.type || "image/jpeg";
     } else {
       throw new Error(
-        `Unsupported file: ${name || "unknown"}. Use photos, PDF, Markdown, Word, PowerPoint, Excel, HTML, or text.`,
+        `Unsupported file: ${name || "unknown"}. Use photos, short videos (mp4/webm/mov), PDF, Markdown, Word, PowerPoint, Excel, HTML, or text.`,
       );
     }
   }
@@ -112,6 +113,19 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
       id,
       name,
       mimeType,
+      kind: "file",
+      dataUrl,
+      data: stripDataUrlPrefix(dataUrl),
+    };
+  }
+
+  // Short video — binary; server STT + keyframe OCR (never readAsText)
+  if (isVideoAttachment(mimeType, name)) {
+    const dataUrl = await readAsDataURL(file);
+    return {
+      id,
+      name,
+      mimeType: mimeType.startsWith("video/") ? mimeType : "video/mp4",
       kind: "file",
       dataUrl,
       data: stripDataUrlPrefix(dataUrl),

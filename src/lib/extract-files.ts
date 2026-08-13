@@ -8,9 +8,11 @@ import {
   attachmentBase64,
   isHtmlAttachment,
   isOfficeAttachment,
+  isVideoAttachment,
   stripDataUrlPrefix,
   textFromDataUrl,
 } from "./attachments";
+import { extractVideoSummary } from "./extract-video";
 
 const execFileAsync = promisify(execFile);
 const MAX_SUMMARY = 12_000;
@@ -162,6 +164,24 @@ export async function buildFileSummaries(
       } else {
         summaries.push(
           `--- ${label} ---\n(Office file attached but text could not be extracted. Try exporting to PDF or copying the text.)`,
+        );
+      }
+      continue;
+    }
+
+    if (isVideoAttachment(att.mimeType, att.name)) {
+      if (binary) {
+        const text = await extractVideoSummary(binary, att.name);
+        if (text) {
+          summaries.push(`--- ${label} ---\n${text.slice(0, MAX_SUMMARY)}`);
+        } else {
+          summaries.push(
+            `--- ${label} ---\n(Short video attached but speech/on-screen text could not be extracted. Try a clearer clip under 12MB, or photograph key frames.)`,
+          );
+        }
+      } else {
+        summaries.push(
+          `--- ${label} ---\n(Video attached but binary payload was missing.)`,
         );
       }
       continue;

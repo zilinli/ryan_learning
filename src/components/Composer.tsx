@@ -197,7 +197,7 @@ export function Composer({
                 />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--mist)] text-[10px] font-medium text-[var(--ink)]">
-                  FILE
+                  {a.mimeType.startsWith("video/") ? "VID" : "FILE"}
                 </div>
               )}
               <div className="max-w-[6rem]">
@@ -358,7 +358,7 @@ export function Composer({
           <FileAttachControl
             disabled={pickDisabled}
             desktopAccept={FILE_INPUT_ACCEPT}
-            title="Upload file / PDF / Markdown"
+            title="Upload photo / short video / PDF / Markdown"
             ariaLabel="Upload file"
             className="rounded-full text-[var(--ink-muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
             onFiles={(files) => void addFiles(files)}

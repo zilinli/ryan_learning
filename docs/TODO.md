@@ -22,6 +22,21 @@
 > TED list grade fit: **[subsystems/ted-lab-learner-fit-sort.md](subsystems/ted-lab-learner-fit-sort.md)**  
 > Journal Timeline + Me hub + Stage styles: **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**  
 > Spark 深度分析落地 P0→P2: **[subsystems/spark-deep-analysis-roadmap.md](subsystems/spark-deep-analysis-roadmap.md)**
+> Short video upload: **[subsystems/short-video-upload-parse.md](subsystems/short-video-upload-parse.md)**
+
+---
+
+## 🎬 VID — Short video upload & parse（2026-08-13）
+
+> **Design:** [subsystems/short-video-upload-parse.md](subsystems/short-video-upload-parse.md)  
+> **Goal:** Tutor / Code Agent / Ask AI accept short mp4/webm/mov/m4v (≤12MB); server extracts speech (STT) + keyframe OCR into file summaries.
+
+- [x] **VID.1** — Allowlist + MIME + `FILE_INPUT_ACCEPT` (`attachments.ts`)
+- [x] **VID.2** — Client base64 payload for video (`file-payload.ts`)
+- [x] **VID.3** — `extract-video.ts`: ffmpeg audio + frames + Bailian/local STT + OCR
+- [x] **VID.4** — Wire into `buildFileSummaries`
+- [x] **VID.5** — Unit tests (VID-1…VID-7); run_tests
+- [ ] **VID.6** — Commit → publish_develop → deploy_live
 
 ---
 

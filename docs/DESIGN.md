@@ -84,6 +84,7 @@ flowchart TB
 | **[subsystems/faq-feedback-panel.md](subsystems/faq-feedback-panel.md)** | Help & feedback panel — Ask AI + FAQ + GitHub Issues + feasibility → TODO |
 | **[subsystems/ai-faq.md](subsystems/ai-faq.md)** | Ask AI — multilingual help grounded in docs/code (read-only agent) |
 | **[subsystems/document-upload-parse.md](subsystems/document-upload-parse.md)** | Upload MD / Word / PPT / Excel / HTML — allowlist + server text extract |
+| **[subsystems/short-video-upload-parse.md](subsystems/short-video-upload-parse.md)** | 🎬 Short video upload — ffmpeg audio STT + keyframe OCR → tutor prompt |
 | **[subsystems/report-v3-feasibility.md](subsystems/report-v3-feasibility.md)** | Third-party audit R1–R10 feasibility + W1–W3 landing notes |
 | **[subsystems/parent-gate.md](subsystems/parent-gate.md)** | Parent PIN gate + `/family` Family controls (Khan-style) |
 | **[subsystems/audit-2026-08-product-acceptance.md](subsystems/audit-2026-08-product-acceptance.md)** | 2026-08 external product audit — acceptance matrix (错题本/家长台/方言/导出) |

@@ -8,10 +8,16 @@ const TEXT_EXT =
   /\.(txt|md|markdown|csv|json|log|text|html?|ts|tsx|js|jsx|py|mjs|cjs)$/i;
 const PDF_EXT = /\.pdf$/i;
 const OFFICE_EXT = /\.(docx|pptx|xlsx)$/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
 
 /** Shared `<input type="file" accept>` for Tutor + Ask AI */
 export const FILE_INPUT_ACCEPT = [
   "image/*",
+  "video/*",
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".m4v",
   ".pdf",
   ".txt",
   ".md",
@@ -27,6 +33,9 @@ export const FILE_INPUT_ACCEPT = [
   "text/csv",
   "text/html",
   "text/markdown",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -64,6 +73,21 @@ export function isHtmlAttachment(mimeType: string, name: string): boolean {
   return (mimeType || "").toLowerCase() === "text/html";
 }
 
+/** Short phone / screen-record clips (mp4/webm/mov/m4v). */
+export function isVideoAttachment(mimeType: string, name: string): boolean {
+  if (VIDEO_EXT.test(name || "")) return true;
+  const mime = (mimeType || "").toLowerCase();
+  if (!mime.startsWith("video/")) return false;
+  // Allow common short-clip MIME even when extension is missing (iOS Photos)
+  return (
+    mime === "video/mp4" ||
+    mime === "video/webm" ||
+    mime === "video/quicktime" ||
+    mime === "video/x-m4v" ||
+    mime === "video/x-mp4"
+  );
+}
+
 export function guessKind(mimeType: string, name: string): AttachmentKind {
   if (mimeType.startsWith("image/") || IMAGE_EXT.test(name)) return "image";
   return "file";
@@ -72,6 +96,7 @@ export function guessKind(mimeType: string, name: string): AttachmentKind {
 export function isAllowedAttachment(mimeType: string, name: string): boolean {
   const mime = (mimeType || "").toLowerCase();
   if (mime.startsWith("image/")) return true;
+  if (isVideoAttachment(mime, name)) return true;
   // iOS / editors often report markdown as text/* or x-markdown
   if (mime.startsWith("text/")) return true;
   if (
@@ -89,7 +114,8 @@ export function isAllowedAttachment(mimeType: string, name: string): boolean {
     IMAGE_EXT.test(name) ||
     PDF_EXT.test(name) ||
     TEXT_EXT.test(name) ||
-    OFFICE_EXT.test(name)
+    OFFICE_EXT.test(name) ||
+    VIDEO_EXT.test(name)
   ) {
     return true;
   }
@@ -165,6 +191,10 @@ export function normalizeMime(mimeType: string, name: string): string {
     else if (lower.endsWith(".xlsx"))
       mime =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (lower.endsWith(".mp4") || lower.endsWith(".m4v"))
+      mime = "video/mp4";
+    else if (lower.endsWith(".webm")) mime = "video/webm";
+    else if (lower.endsWith(".mov")) mime = "video/quicktime";
     else if (IMAGE_EXT.test(lower)) mime = "image/jpeg";
     else if (TEXT_EXT.test(lower)) mime = "text/plain";
     else mime = "application/octet-stream";
