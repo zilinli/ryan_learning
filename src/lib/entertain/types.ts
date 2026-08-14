@@ -14,7 +14,10 @@ export type GameId =
   | "creations"
   | "fraction-voyager"
   | "eco-genesis"
-  | "time-vault";
+  | "time-vault"
+  | "force-bay"
+  | "energy-chain"
+  | "orbit-scout";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 

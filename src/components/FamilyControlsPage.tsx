@@ -195,6 +195,7 @@ const SOURCE_NEXT_STEP: Record<string, string> = {
   natgeo: "NatGeo Lab drove the most growth — keep reading and inferring.",
   bbc: "BBC Doc Lab drove the most growth — keep watching and explaining.",
   rsa: "RSA Lab drove the most growth — keep analyzing arguments.",
+  game: "Learning Games drove the most growth — keep the predict-then-run physics play going.",
 };
 
 function GrowthSourcesCard({

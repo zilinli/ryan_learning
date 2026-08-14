@@ -80,7 +80,7 @@ describe("breadth-map: subject bridges (report §9.4.1)", () => {
     const toScience = bridges.find((b) => b.to === "science");
     expect(toScience).toBeDefined();
     expect(toScience!.from).toBe("math");
-    expect(toScience!.doorSkillId).toBe("physics-6-8");
+    expect(toScience!.doorSkillId).toBe("forces-motion");
     expect(toScience!.starter).toContain("I already know");
   });
 
@@ -94,6 +94,19 @@ describe("breadth-map: subject bridges (report §9.4.1)", () => {
           topicId: "geometry",
           pKnown: 0.9,
           mastery: 90,
+          attempts: 5,
+          correct: 4,
+          incorrect: 1,
+          lastSeen: now,
+          sm2State: { ef: 2.5, interval: 4, reps: 2, prevReview: now },
+          eloState: { rating: 1500, n: 5, lastUpdate: now },
+        },
+        {
+          id: "forces-motion",
+          label: "forces-motion",
+          topicId: "science-phys",
+          pKnown: 0.85,
+          mastery: 85,
           attempts: 5,
           correct: 4,
           incorrect: 1,

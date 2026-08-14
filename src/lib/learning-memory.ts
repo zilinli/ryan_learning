@@ -84,7 +84,8 @@ export type LearningSource =
   | "natgeo"
   | "bbc"
   | "rsa"
-  | "creation";
+  | "creation"
+  | "game";
 
 export type SkillMastery = {
   id: string;
@@ -420,6 +421,7 @@ export const LEARNING_SOURCES: LearningSource[] = [
   "bbc",
   "rsa",
   "creation",
+  "game",
 ];
 
 export function isLearningSource(v: unknown): v is LearningSource {
@@ -1111,6 +1113,7 @@ export function sourceLabel(source: LearningSource): string {
     bbc: "BBC Doc Lab",
     rsa: "RSA Lab",
     creation: "interest → creation",
+    game: "Learning Games",
   };
   return map[source];
 }

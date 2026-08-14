@@ -12,10 +12,26 @@ import {
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { loadLearningMemory } from "@/lib/learning-memory";
+import { GAME_TOKENS } from "./learning-games/tokens";
+import { useJuice } from "./learning-games/juice";
+
+// Shared Time Vault tokens (learning-games-v2.md §5.2) — single amber accent.
+const {
+  base: BASE,
+  surface: SURFACE,
+  stroke: STROKE,
+  accent: AMBER,
+  danger: CORAL,
+  ink: INK,
+  inkMuted: INK_MUTED,
+  inkFaint: INK_FAINT,
+} = GAME_TOKENS["time-vault"];
+const GREEN = "#6a9a5a";
 
 type Phase = "loading" | "dossier" | "timeline" | "result";
 
 export function TimeVaultGame() {
+  const juice = useJuice();
   const [accountId] = useState(() => {
     try {
       return getActiveAccount(loadAccounts()).id;
@@ -26,12 +42,12 @@ export function TimeVaultGame() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [caseData, setCaseData] = useState<TimeVaultCase | null>(null);
   const [source, setSource] = useState<"ai" | "fallback">("fallback");
-  const [queue, setQueue] = useState<string[]>([]); // event ids not yet placed
-  const [rail, setRail] = useState<string[]>([]);   // event ids in timeline order
+  const [queue, setQueue] = useState<string[]>([]);
+  const [rail, setRail] = useState<string[]>([]);
   const [evidence, setEvidence] = useState<Record<string, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [result, setResult] = useState<ReturnType<typeof validateTimeVault> | null>(null);
-  const [score, setScore] = useState(0);
+  const [cleared, setCleared] = useState(0);
   const [artifacts, setArtifacts] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const loadToken = useRef(0);
@@ -55,18 +71,13 @@ export function TimeVaultGame() {
     const pKnown = readingSkill?.pKnown ?? 0.5;
     const difficulty = difficultyFromPKnown(pKnown);
 
-    // Enter instantly with a static case so the game never blocks.
     let vc = { ...pickFallbackCase(), difficulty };
     setCaseData(vc);
-    setQueue(
-      [...vc.events.map((e) => e.id)].sort(() => Math.random() - 0.5),
-    );
+    setQueue([...vc.events.map((e) => e.id)].sort(() => Math.random() - 0.5));
     setRail([]);
     setSource("fallback");
     setPhase("dossier");
 
-    // Ask for an AI case in the background; swap it in only while the player
-    // is still reading the dossier (before they start placing events).
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 25_000);
     setAiLoading(true);
@@ -95,9 +106,7 @@ export function TimeVaultGame() {
       ) {
         vc = data.case;
         setCaseData(vc);
-        setQueue(
-          [...vc.events.map((e) => e.id)].sort(() => Math.random() - 0.5),
-        );
+        setQueue([...vc.events.map((e) => e.id)].sort(() => Math.random() - 0.5));
         setRail([]);
         setEvidence({});
         setResult(null);
@@ -113,8 +122,7 @@ export function TimeVaultGame() {
   }, [accountId]);
 
   useEffect(() => {
-    // Async case load; the sync setState reset in loadCase is intentional
-    // (same deferral pattern as JournalTimeline/useTutorSession).
+    // Async case load; the sync setState reset in loadCase is intentional.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCase();
   }, [loadCase]);
@@ -145,67 +153,76 @@ export function TimeVaultGame() {
     setResult(r);
     setPhase("result");
     if (r.correct) {
-      setScore((s) => s + 20);
+      juice.playCorrect();
+      setCleared((c) => c + 1);
       setArtifacts((prev) =>
         prev.includes(caseData.civilization) ? prev : [...prev, caseData.civilization],
       );
+    } else {
+      juice.playError();
     }
     void recordStudioLearningTurn({
       accountId,
-      source: "natgeo",
+      source: "game",
       title: `Time Vault · ${caseData.title}`,
       userText: vaultSkillSeed(caseData),
       outcome: r.correct ? "correct" : "incorrect",
     });
   }, [caseData, rail, evidence, accountId]);
 
+  const header = (
+    <header className="shrink-0 border-b border-white/10 px-4 py-2.5 sm:px-6">
+      <div className="mx-auto flex max-w-xl items-center justify-between">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[#d4a15c]/30 bg-[#d4a15c]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#d4a15c]">
+          Time Vault
+        </span>
+        <span className="flex items-center gap-1.5" aria-label={`${cleared} cases sealed`}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <span
+              key={i}
+              className="inline-block h-2 w-2 rounded-full"
+              style={{
+                background: i < cleared ? AMBER : "rgba(255,255,255,0.12)",
+                transition: "background .3s",
+              }}
+            />
+          ))}
+        </span>
+      </div>
+    </header>
+  );
+
   if (phase === "loading") {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-[#1f1710] text-[#e8dcc8]">
-        <p className="text-4xl animate-pulse" aria-hidden>📜</p>
-        <p className="mt-3 text-sm text-[#a8966f]">Opening the archive…</p>
+      <div className="flex flex-1 flex-col bg-[#161009] text-[#e8dcc8]">
+        {header}
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <ArchiveMark />
+          <p className="mt-3 text-sm text-[#8a7a5f]">Opening the archive…</p>
+        </div>
       </div>
     );
   }
 
   if (phase === "dossier" && caseData) {
     return (
-      <div className="flex min-h-dvh flex-col bg-[#1f1710] text-[#e8dcc8]">
-        <header className="shrink-0 border-b border-[#4a3a26]/60 px-4 pb-3 pt-[max(0.9rem,env(safe-area-inset-top))] sm:px-6">
-          <div className="mx-auto flex max-w-xl items-center justify-between">
-            <button
-              type="button"
-              onClick={() => void loadCase()}
-              className="rounded-lg border border-[#5a4a36] px-3 py-1.5 text-xs text-[#c8b08a]"
-            >
-              New case
-            </button>
-            <span className="text-xs text-[#8a7a5f]">
-              {source === "ai"
-                ? "Case file · AI generated"
-                : aiLoading
-                  ? "Case file · preparing AI case…"
-                  : "Case file · archived"}
-            </span>
-          </div>
-        </header>
+      <div className="flex flex-1 flex-col bg-[#161009] text-[#e8dcc8]">
+        {header}
         <div className="mx-auto w-full max-w-xl flex-1 px-4 py-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#b89862]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d4a15c]">
             Classified · {caseData.civilization}
           </p>
-          <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold">
-            {caseData.title}
-          </h2>
-          <p className="mt-1.5 text-sm italic text-[#c8b08a]">{caseData.intro}</p>
+          <h2 className="mt-2 text-2xl font-semibold">{caseData.title}</h2>
+          <p className="mt-1.5 text-sm text-[#c8b08a]">{caseData.intro}</p>
 
-          <div className="mt-6 rounded-xl border border-[#5a4a36] bg-[#241a11] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#b89862]">
+          <div className="mt-6 rounded-xl border p-4" style={{ borderColor: STROKE, background: SURFACE }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#d4a15c]">
               Reading passage · {caseData.events.length} events to date
             </p>
             <div className="mt-2 space-y-2 text-sm leading-relaxed text-[#e8dcc8]">
               {sentences.map((sentence, idx) => (
                 <p key={idx}>
-                  <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm bg-[#3a2e1c] text-[10px] tabular-nums text-[#b89862]">
+                  <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm bg-[#2a2015] text-[10px] tabular-nums text-[#d4a15c]">
                     {idx + 1}
                   </span>
                   {sentence}
@@ -217,9 +234,10 @@ export function TimeVaultGame() {
           <button
             type="button"
             onClick={() => setPhase("timeline")}
-            className="mt-5 min-h-12 w-full rounded-xl bg-[#8a6a3a] text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:bg-[#9a7a4a]"
+            className="mt-5 min-h-12 w-full rounded-xl text-sm font-semibold text-[#161009] transition active:scale-[0.98]"
+            style={{ background: AMBER }}
           >
-            Begin reconstruction →
+            Begin reconstruction
           </button>
         </div>
       </div>
@@ -231,30 +249,16 @@ export function TimeVaultGame() {
     const selectedEv = selectedEvent ? eventById(selectedEvent) : null;
 
     return (
-      <div className="flex min-h-dvh flex-col bg-[#1f1710] text-[#e8dcc8]">
-        <header className="shrink-0 border-b border-[#4a3a26]/60 px-4 pb-3 pt-[max(0.9rem,env(safe-area-inset-top))] sm:px-6">
-          <div className="mx-auto flex max-w-xl items-center justify-between text-sm">
-            <span className="text-[#a8966f]">
-              {caseData.title}
-              <span className="ml-2 text-xs text-[#8a7a5f]">{source === "ai" ? "· AI case" : ""}</span>
-            </span>
-            <span className="tabular-nums font-semibold text-[#e8dcc8]">Score: {score}</span>
-          </div>
-          {artifacts.length > 0 && (
-            <p className="mx-auto mt-1 max-w-xl text-xs text-[#b89862]">
-              Collected: {artifacts.join(" · ")}
-            </p>
-          )}
-        </header>
+      <div className="flex flex-1 flex-col bg-[#161009] text-[#e8dcc8]">
+        {header}
 
         <div className="mx-auto w-full max-w-xl flex-1 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
           {/* Timeline rail */}
-          <div className="relative rounded-xl border border-[#5a4a36] bg-[#241a11] px-3 pb-3 pt-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#b89862]">
+          <div className="relative rounded-xl border px-3 pb-3 pt-2" style={{ borderColor: STROKE, background: SURFACE }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#d4a15c]">
               Timeline · earliest → latest
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-[#8a7a5f]" aria-hidden>◂</span>
               {rail.length === 0 && (
                 <span className="text-xs text-[#8a7a5f]">Empty — place events from the file below.</span>
               )}
@@ -265,37 +269,33 @@ export function TimeVaultGame() {
                 return (
                   <div
                     key={`${id}-${i}`}
-                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition ${
-                      misplaced
-                        ? "border-[#c0392b]/70 bg-[#c0392b]/15"
-                        : correct
-                          ? "border-[#6a9a5a]/70 bg-[#6a9a5a]/15"
-                          : "border-[#5a4a36] bg-[#2e2418]"
-                    }`}
+                    className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition"
+                    style={{
+                      borderColor: misplaced ? "rgba(251,113,133,0.7)" : correct ? "rgba(106,154,90,0.7)" : STROKE,
+                      background: misplaced ? "rgba(251,113,133,0.12)" : correct ? "rgba(106,154,90,0.12)" : "#241b12",
+                    }}
                   >
                     <button
                       type="button"
                       disabled={phase === "result"}
                       onClick={() => popRail(i)}
-                      className="rounded px-1 text-sm hover:text-[#e09a7a]"
+                      className="rounded px-1 text-sm text-[#8a7a5f] hover:text-[#fb7185]"
                       aria-label={`remove ${ev?.label}`}
                     >
-                      ✕
+                      <XMark />
                     </button>
-                    <span className="text-lg" aria-hidden>{ev?.emoji}</span>
+                    <EventMark id={id} />
                     <span className="max-w-[120px] truncate font-medium">{ev?.label}</span>
-                    {misplaced && <span className="text-[#e09a7a]">✗</span>}
                   </div>
                 );
               })}
-              <span className="ml-auto text-xs text-[#8a7a5f]" aria-hidden>▸</span>
             </div>
           </div>
 
           {/* Event queue (unsolved) */}
           {queue.length > 0 && (
-            <div className="mt-3 rounded-xl border border-[#5a4a36] bg-[#241a11] p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#b89862]">
+            <div className="mt-3 rounded-xl border p-3" style={{ borderColor: STROKE, background: SURFACE }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#d4a15c]">
                 Evidence file · {queue.length} unplaced
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -308,12 +308,13 @@ export function TimeVaultGame() {
                       type="button"
                       disabled={phase === "result"}
                       onClick={() => placeNext(id)}
-                      className="flex items-center gap-1.5 rounded-lg border border-[#5a4a36] bg-[#2e2418] px-2.5 py-1.5 text-xs transition hover:border-[#b89862]"
+                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition hover:border-[#d4a15c]"
+                      style={{ borderColor: STROKE, background: "#241b12" }}
                       title={ev?.label}
                     >
-                      <span className="text-lg" aria-hidden>{ev?.emoji}</span>
+                      <EventMark id={id} />
                       <span>{ev?.label}</span>
-                      {chosen && <span className="text-[#6a9a5a]">✓</span>}
+                      {chosen && <CheckMark />}
                     </button>
                   );
                 })}
@@ -323,7 +324,10 @@ export function TimeVaultGame() {
 
           {/* Evidence linking */}
           {selectedEv && (
-            <div className="mt-3 rounded-xl border border-[#b89862]/50 bg-[#3a2e1c]/60 p-3">
+            <div
+              className="mt-3 rounded-xl border p-3"
+              style={{ borderColor: "rgba(212,161,92,0.5)", background: "rgba(212,161,92,0.08)" }}
+            >
               <p className="text-xs font-semibold text-[#e8dcc8]">
                 Which sentence proves the date of{" "}
                 <span className="text-[#f0d9a0]">{selectedEv.label}</span>?
@@ -335,20 +339,19 @@ export function TimeVaultGame() {
                     <button
                       key={idx}
                       type="button"
-                      onClick={() =>
-                        setEvidence((prev) => ({ ...prev, [selectedEv.id]: idx }))
-                      }
-                      className={`flex w-full items-start gap-2 rounded-lg border p-2 text-left text-xs leading-relaxed transition ${
-                        picked
-                          ? "border-[#b89862] bg-[#b89862]/15 text-[#f0d9a0]"
-                          : "border-[#4a3a26] text-[#c8b08a] hover:border-[#8a7a5f]"
-                      }`}
+                      onClick={() => setEvidence((prev) => ({ ...prev, [selectedEv.id]: idx }))}
+                      className="flex w-full items-start gap-2 rounded-lg border p-2 text-left text-xs leading-relaxed transition"
+                      style={{
+                        borderColor: picked ? AMBER : STROKE,
+                        background: picked ? "rgba(212,161,92,0.14)" : "transparent",
+                        color: picked ? "#f0d9a0" : INK_MUTED,
+                      }}
                     >
-                      <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-[#4a3a26] text-[10px] tabular-nums">
+                      <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-[#2a2015] text-[10px] tabular-nums text-[#d4a15c]">
                         {idx + 1}
                       </span>
                       <span>{sentence}</span>
-                      {picked && <span className="ml-auto text-[#f0d9a0]">✓</span>}
+                      {picked && <span className="ml-auto"><CheckMark /></span>}
                     </button>
                   );
                 })}
@@ -356,41 +359,37 @@ export function TimeVaultGame() {
             </div>
           )}
 
-          {/* Hint: tap timeline card to attach evidence */}
           {!selectedEvent && rail.length > 0 && (
             <p className="mt-3 text-center text-xs text-[#8a7a5f]">
               Tap a card on the timeline to attach its evidence sentence.
             </p>
           )}
 
-          {phase === "timeline" && (
-            <>
-              {queue.length === 0 && (
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="mt-4 min-h-12 w-full rounded-xl bg-[#8a6a3a] text-sm font-semibold text-white transition hover:bg-[#9a7a4a]"
-                >
-                  Seal the case 🔒
-                </button>
-              )}
-            </>
+          {phase === "timeline" && queue.length === 0 && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="mt-4 min-h-12 w-full rounded-xl text-sm font-semibold text-[#161009] transition active:scale-[0.98]"
+              style={{ background: AMBER }}
+            >
+              Seal the case
+            </button>
           )}
 
           {/* Result */}
           {phase === "result" && result && (
             <div className="mt-4 space-y-3">
               <div
-                className={`rounded-xl border-2 p-4 ${
-                  result.correct
-                    ? "border-[#6a9a5a]/60 bg-[#6a9a5a]/10"
-                    : "border-[#c0392b]/50 bg-[#c0392b]/10"
-                }`}
+                className="rounded-xl border-2 p-4"
+                style={{
+                  borderColor: result.correct ? "rgba(106,154,90,0.6)" : "rgba(251,113,133,0.5)",
+                  background: result.correct ? "rgba(106,154,90,0.1)" : "rgba(251,113,133,0.1)",
+                }}
               >
                 <p className="text-sm font-semibold text-[#e8dcc8]">
                   {result.correct
-                    ? "🕵️ Case closed — every date matches its evidence!"
-                    : "📎 Not yet — misplaced cards bounced back."}
+                    ? "Case closed — every date matches its evidence."
+                    : "Not yet — misplaced cards bounced back."}
                 </p>
                 <p className="mt-1 text-xs text-[#c8b08a]">{result.message}</p>
               </div>
@@ -401,17 +400,19 @@ export function TimeVaultGame() {
                     setPhase("timeline");
                     setResult(null);
                   }}
-                  className="min-h-11 w-full rounded-xl border border-[#c8b08a]/40 text-sm text-[#e8dcc8]"
+                  className="min-h-11 w-full rounded-xl border text-sm transition active:scale-[0.98]"
+                  style={{ borderColor: "rgba(212,161,92,0.4)", color: INK }}
                 >
-                  Fix the archive ↻
+                  Fix the archive
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => void loadCase()}
-                className="min-h-11 w-full rounded-xl bg-[#8a6a3a] text-sm font-semibold text-white transition hover:bg-[#9a7a4a]"
+                className="min-h-11 w-full rounded-xl text-sm font-semibold text-[#161009] transition active:scale-[0.98]"
+                style={{ background: AMBER }}
               >
-                Next case →
+                Next case
               </button>
             </div>
           )}
@@ -419,7 +420,7 @@ export function TimeVaultGame() {
 
         {/* Evidence attach panel launcher */}
         {phase === "timeline" && rail.length > 0 && (
-          <div className="sticky bottom-0 border-t border-[#4a3a26]/60 bg-[#1f1710]/95 px-4 py-2.5 backdrop-blur pb-[max(0.6rem,env(safe-area-inset-bottom))]">
+          <div className="sticky bottom-0 border-t border-white/10 bg-[#161009]/95 px-4 py-2.5 backdrop-blur pb-[max(0.6rem,env(safe-area-inset-bottom))]">
             <div className="mx-auto flex max-w-xl items-center gap-2 overflow-x-auto">
               {rail.map((id) => {
                 const ev = eventById(id);
@@ -432,17 +433,16 @@ export function TimeVaultGame() {
                       setSelectedEvent((prev) => (prev === id ? null : id));
                       setResult(null);
                     }}
-                    className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition ${
-                      selectedEvent === id
-                        ? "border-[#b89862] bg-[#b89862]/20 text-[#f0d9a0]"
-                        : picked
-                          ? "border-[#6a9a5a]/60 bg-[#6a9a5a]/15 text-[#a8c8a0]"
-                          : "border-[#4a3a26] text-[#c8b08a]"
-                    }`}
+                    className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition"
+                    style={{
+                      borderColor: selectedEvent === id ? AMBER : picked ? "rgba(106,154,90,0.6)" : STROKE,
+                      background: selectedEvent === id ? "rgba(212,161,92,0.2)" : picked ? "rgba(106,154,90,0.15)" : "transparent",
+                      color: selectedEvent === id ? "#f0d9a0" : picked ? "#a8c8a0" : INK_MUTED,
+                    }}
                   >
-                    <span>{ev?.emoji}</span>
+                    <EventMark id={id} small />
                     <span className="max-w-[90px] truncate">{ev?.label}</span>
-                    {picked && <span>✓</span>}
+                    {picked && <CheckMark />}
                   </button>
                 );
               })}
@@ -457,4 +457,52 @@ export function TimeVaultGame() {
   }
 
   return null;
+}
+
+/* ---- geometric glyphs (no emoji) ---- */
+
+function EventMark({ id, small }: { id: string; small?: boolean }) {
+  const size = small ? "h-5 w-5 text-[10px]" : "h-6 w-6 text-[11px]";
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-md border font-bold uppercase ${size}`}
+      style={{
+        borderColor: "rgba(212,161,92,0.5)",
+        background: "rgba(212,161,92,0.1)",
+        color: "#d4a15c",
+      }}
+    >
+      {id}
+    </span>
+  );
+}
+
+function XMark() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 12 12" aria-hidden>
+      <path d="M3 3 L9 9 M9 3 L3 9" stroke="#8a7a5f" strokeWidth={1.6} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden>
+      <path d="M3 7 L6 10 L11 4" fill="none" stroke="#6a9a5a" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ArchiveMark() {
+  return (
+    <svg width={96} height={96} viewBox="0 0 96 96" aria-hidden>
+      <circle cx={48} cy={48} r={46} fill="rgba(212,161,92,0.08)" />
+      <circle cx={48} cy={48} r={46} fill="none" stroke="rgba(212,161,92,0.35)" strokeWidth={2} />
+      <rect x={30} y={28} width={36} height={42} rx={4} fill="none" stroke="#d4a15c" strokeWidth={2} />
+      <line x1={36} y1={40} x2={60} y2={40} stroke="#d4a15c" strokeWidth={1.6} />
+      <line x1={36} y1={48} x2={60} y2={48} stroke="#d4a15c" strokeWidth={1.6} />
+      <line x1={36} y1={56} x2={54} y2={56} stroke="#d4a15c" strokeWidth={1.6} />
+      <rect x={40} y={22} width={16} height={8} rx={2} fill="#d4a15c" />
+    </svg>
+  );
 }

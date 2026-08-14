@@ -80,4 +80,21 @@ describe("studio-learning", () => {
     expect(writingSkills.length).toBeGreaterThan(0);
     expect(writingSkills[0]?.lastSource).toBe("writing");
   });
+
+  it("records Learning Game turns under the game source on forces-motion", async () => {
+    (globalThis as { window?: unknown }).window = {};
+    const mem = await recordStudioLearningTurn({
+      accountId: ACCT,
+      source: "game",
+      title: "Force Bay · push",
+      userText: "push dock 2",
+      skillSeed: "force motion push collide balanced net force 推力 碰撞",
+      outcome: "correct",
+    });
+    expect(mem).not.toBeNull();
+    const gameSkills = (mem?.skills || []).filter((s) => s.sourceCounts?.game);
+    expect(gameSkills.length).toBeGreaterThan(0);
+    expect(gameSkills[0]?.lastSource).toBe("game");
+    expect(gameSkills.some((s) => s.id === "forces-motion")).toBe(true);
+  });
 });

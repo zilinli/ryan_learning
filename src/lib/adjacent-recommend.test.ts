@@ -42,8 +42,8 @@ describe("recommendAdjacent", () => {
   });
 
   it("prefers untouched neighbors over already-touched ones", () => {
-    // earth-moon-sun mastered, adjacent = [physics-6-8, ecosystems]
-    // physics is already touched (pKnown 0.4), ecosystems fresh → ecosystems
+    // earth-moon-sun mastered, adjacent = [forces-motion, physics-6-8, ecosystems]
+    // physics is already touched (pKnown 0.4), forces-motion fresh → forces-motion
     const rec = recommendAdjacent(
       mem([
         { id: "earth-moon-sun", pKnown: 0.9 },
@@ -51,13 +51,14 @@ describe("recommendAdjacent", () => {
       ]),
     );
     expect(rec).not.toBeNull();
-    expect(rec!.skillId).toBe("ecosystems");
+    expect(rec!.skillId).toBe("forces-motion");
   });
 
   it("skips neighbors the student already mastered", () => {
     const rec = recommendAdjacent(
       mem([
         { id: "earth-moon-sun", pKnown: 0.99 },
+        { id: "forces-motion", pKnown: 0.9 },
         { id: "physics-6-8", pKnown: 0.9 },
         { id: "ecosystems", pKnown: 0.2 },
       ]),

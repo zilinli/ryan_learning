@@ -87,6 +87,7 @@ describe("skill-catalog", () => {
   it("adjacent links are declared on mastered-anchor skills (breadth out of depth)", () => {
     // The headline P2 pairs from the roadmap: fractions → ratios, astronomy → physics
     expect(getSkillDef("fractions-concepts")!.adjacent).toContain("ratios-proportions");
+    expect(getSkillDef("earth-moon-sun")!.adjacent).toContain("forces-motion");
     expect(getSkillDef("earth-moon-sun")!.adjacent).toContain("physics-6-8");
   });
 });
@@ -98,6 +99,9 @@ describe("activeSkillsForProfile", () => {
     const skills = activeSkillsForProfile(4);
     expect(skills.length).toBeGreaterThanOrEqual(14); // includes the original 14 + new G3-5 skills
     expect(skills.every((s) => s.band === "elementary" || s.maxGrade >= 4)).toBe(true);
+    expect(skills.some((s) => s.id === "forces-motion")).toBe(true);
+    expect(skills.some((s) => s.id === "energy-transfer")).toBe(true);
+    expect(skills.some((s) => s.id === "physics-6-8")).toBe(false);
   });
 
   it("returns empty for grade 0 (kindergarten, no early skills registered yet)", () => {
@@ -112,7 +116,8 @@ describe("activeSkillsForProfile", () => {
     expect(skills.some((s) => s.id === "biology-6-8")).toBe(true);
     expect(skills.some((s) => s.id === "chemistry-6-8")).toBe(true);
     expect(skills.some((s) => s.id === "physics-6-8")).toBe(true);
-    // Elementary spillover: fraction skills extend to maxGrade 6-7
+    // forces-motion maxGrade is 6 — not in the G7 pool
+    expect(skills.some((s) => s.id === "forces-motion")).toBe(false);
   });
 
   it("returns high-band skills for G11", () => {

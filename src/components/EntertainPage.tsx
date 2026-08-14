@@ -12,6 +12,9 @@ import { KlotskiGame } from "./KlotskiGame";
 import { FractionVoyagerGame } from "./FractionVoyagerGame";
 import { EcoGenesisGame } from "./EcoGenesisGame";
 import { TimeVaultGame } from "./TimeVaultGame";
+import { ForceBayGame } from "./ForceBayGame";
+import { EnergyChainGame } from "./EnergyChainGame";
+import { OrbitScoutGame } from "./OrbitScoutGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
@@ -24,6 +27,7 @@ import {
   dismissFocusGuardrail,
   dismissedFocusGuardrailToday,
 } from "@/lib/focus-guardrail";
+import { GameIcon } from "./learning-games/icons";
 
 interface GameInfo {
   id: GameId;
@@ -35,9 +39,12 @@ interface GameInfo {
 
 const GAMES: GameInfo[] = [
   // ── Learning Games (prominent, first) ──
-  { id: "fraction-voyager", title: "Fraction Voyager", desc: "Fly your ship along the number line — place, compare, slice fractions", icon: "🚀", category: "Learning Games" },
-  { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "🌍", category: "Learning Games" },
-  { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "📜", category: "Learning Games" },
+  { id: "fraction-voyager", title: "Fraction Voyager", desc: "Fly your ship along the number line — place, compare, slice fractions", icon: "", category: "Learning Games" },
+  { id: "force-bay", title: "Force Bay", desc: "Push barges with force arrows — predict the dock, then watch", icon: "", category: "Learning Games" },
+  { id: "energy-chain", title: "Energy Chain", desc: "Snap energy conversions — predict if the machine rings or lights", icon: "", category: "Learning Games" },
+  { id: "orbit-scout", title: "Orbit Scout", desc: "Qualitative gravity — drops, pushes, always toward the planet", icon: "", category: "Learning Games" },
+  { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "", category: "Learning Games" },
+  { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "", category: "Learning Games" },
   // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
@@ -119,6 +126,9 @@ const TITLES: Record<GameId, string> = {
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
   "fraction-voyager": "Fraction Voyager",
+  "force-bay": "Force Bay",
+  "energy-chain": "Energy Chain",
+  "orbit-scout": "Orbit Scout",
   "eco-genesis": "Eco Genesis",
   "time-vault": "Time Vault",
   "ted-lab": "TED Lab",
@@ -237,6 +247,9 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "rsa-lab" && <RsaShortsLab />}
         {activeGame === "creations" && <CreationsLibrary />}
         {activeGame === "fraction-voyager" && <FractionVoyagerGame />}
+        {activeGame === "force-bay" && <ForceBayGame />}
+        {activeGame === "energy-chain" && <EnergyChainGame />}
+        {activeGame === "orbit-scout" && <OrbitScoutGame />}
         {activeGame === "eco-genesis" && <EcoGenesisGame />}
         {activeGame === "time-vault" && <TimeVaultGame />}
       </div>
@@ -360,8 +373,8 @@ function LearningGameCard({ game, onSelect }: { game: GameInfo; onSelect: () => 
       onClick={onSelect}
       className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-[var(--teal)]/30 bg-[var(--teal)]/5 p-4 text-left transition hover:border-[var(--teal)]/55 hover:bg-[var(--teal)]/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
     >
-      <span className="mb-2 text-2xl" aria-hidden>
-        {game.icon}
+      <span className="mb-2 block text-[var(--teal)]" aria-hidden>
+        <GameIcon id={game.id} size={30} />
       </span>
       <span className="text-sm font-semibold text-[var(--ink)]">{game.title}</span>
       <span className="mt-1 text-xs leading-relaxed text-[var(--ink-muted)]">{game.desc}</span>

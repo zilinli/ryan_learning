@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import {
   generateMission,
   validateVoyagerAnswer,
@@ -18,6 +18,19 @@ import {
 } from "@/lib/learning-memory";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
+import { GAME_TOKENS } from "./learning-games/tokens";
+import { useJuice } from "./learning-games/juice";
+
+// Shared Fraction Voyager tokens (learning-games-v2.md §5.2) — single blue accent.
+const {
+  base: BASE,
+  surface: SURFACE,
+  stroke: STROKE,
+  accent: BLUE,
+  ink: INK,
+  inkMuted: INK_MUTED,
+  inkFaint: INK_FAINT,
+} = GAME_TOKENS["fraction-voyager"];
 
 const KIND_ORDER: VoyagerMissionKind[] = ["place", "compare", "partition"];
 
@@ -30,7 +43,6 @@ function gcd(a: number, b: number): number {
   return a || 1;
 }
 
-/** Fraction tick labels for the number line (place missions). */
 function tickLabels(ticks: number, lineMax: number): Array<{ i: number; label: string }> {
   const out: Array<{ i: number; label: string }> = [];
   for (let i = 0; i <= ticks; i++) {
@@ -47,6 +59,7 @@ function tickLabels(ticks: number, lineMax: number): Array<{ i: number; label: s
 }
 
 export function FractionVoyagerGame() {
+  const juice = useJuice();
   const [accountId] = useState(() => {
     try {
       return getActiveAccount(loadAccounts()).id;
@@ -56,15 +69,13 @@ export function FractionVoyagerGame() {
   });
   const [mission, setMission] = useState<VoyagerMission | null>(null);
   const [phase, setPhase] = useState<"idle" | "flying" | "solved">("idle");
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
   const [message, setMessage] = useState("");
   const [misconception, setMisconception] = useState<string | null>(null);
   const [placeTick, setPlaceTick] = useState<number | null>(null);
   const [comparePick, setComparePick] = useState<"left" | "right" | null>(null);
   const [filledPieces, setFilledPieces] = useState(0);
-  const [stars, setStars] = useState(0);
-  const shipRef = useRef<HTMLDivElement>(null);
+  const [sectors, setSectors] = useState(0);
+  const [burst, setBurst] = useState(0);
 
   const startMission = useCallback(
     (kind?: VoyagerMissionKind) => {
@@ -90,7 +101,12 @@ export function FractionVoyagerGame() {
 
   const submitAnswer = useCallback(async () => {
     if (!mission || phase !== "flying") return;
-    let answer: { kind: VoyagerMissionKind; placeTick?: number; comparePick?: "left" | "right"; fillCount?: number };
+    let answer: {
+      kind: VoyagerMissionKind;
+      placeTick?: number;
+      comparePick?: "left" | "right";
+      fillCount?: number;
+    };
     if (mission.kind === "place") {
       if (placeTick === null) return;
       answer = { kind: "place", placeTick };
@@ -107,19 +123,19 @@ export function FractionVoyagerGame() {
 
     void recordStudioLearningTurn({
       accountId,
-      source: "writing",
+      source: "game",
       title: `Fraction Voyager · ${voyagerMissionLabel(mission.kind)} ${mission.target[0]}/${mission.target[1]}`,
       userText: voyagerSkillSeed(mission),
       outcome: result.correct ? "correct" : "incorrect",
     });
 
     if (result.correct) {
+      juice.playCorrect();
       setPhase("solved");
-      setScore((s) => s + 10 + streak * 2);
-      setStreak((s) => s + 1);
-      setStars((s) => s + 1);
+      setSectors((s) => s + 1);
+      setBurst((b) => b + 1);
     } else {
-      setStreak(0);
+      juice.playError();
       if (result.misconceptionId) {
         const mem = loadLearningMemory(accountId);
         const next = applyMisconceptionToMemory(mem, mission.skill, {
@@ -131,9 +147,8 @@ export function FractionVoyagerGame() {
         void pushLearningMemoryToServer(next, accountId);
       }
     }
-  }, [mission, phase, placeTick, comparePick, filledPieces, streak, accountId]);
+  }, [mission, phase, placeTick, comparePick, filledPieces, accountId]);
 
-  // Ship flies to the placed tick when a place mission has a selection.
   const shipLeftPct = useMemo(() => {
     if (!mission || mission.kind !== "place" || placeTick === null) return null;
     return (placeTick / mission.ticks) * 100;
@@ -145,62 +160,55 @@ export function FractionVoyagerGame() {
   );
 
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-[#0a1220] text-[#e8f0ff]">
-      {/* Starfield backdrop */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(90% 60% at 80% -10%, #16305c 0%, transparent 55%), radial-gradient(70% 50% at 10% 110%, #12214a 0%, transparent 50%), linear-gradient(175deg, #0a1220 0%, #0c1830 45%, #070d18 100%)",
-        }}
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            "radial-gradient(1px 1px at 20% 30%, #7fb0ff, transparent), radial-gradient(1px 1px at 80% 20%, #9fc8ff, transparent), radial-gradient(1.5px 1.5px at 60% 70%, #6aa0ff, transparent), radial-gradient(1px 1px at 30% 80%, #cfe0ff, transparent), radial-gradient(1px 1px at 90% 55%, #7fb0ff, transparent)",
-        }}
-        aria-hidden
-      />
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-[#0a0f1a] text-[#e8f0ff]">
+      <style>{`
+        @keyframes vgPulse { 0%,100%{opacity:.25} 50%{opacity:.7} }
+        @keyframes vgGlow {
+          0%,100%{filter:drop-shadow(0 0 0 rgba(77,163,255,0))}
+          45%{filter:drop-shadow(0 0 14px rgba(77,163,255,.85))}
+        }
+        @keyframes vgBurst {
+          from{transform:translate(0,0);opacity:.9}
+          to{transform:translate(var(--dx),var(--dy));opacity:0}
+        }
+      `}</style>
 
-      {/* Top bar */}
-      <header className="relative z-10 shrink-0 px-4 pb-2 pt-[max(0.9rem,env(safe-area-inset-top))] sm:px-6">
-        <div className="mx-auto flex max-w-xl items-center justify-between text-sm">
-          <span className="text-[#8fb0d8]">
-            Score{" "}
-            <span className="tabular-nums font-semibold text-[#e8f0ff]">{score}</span>
+      <header className="shrink-0 border-b border-white/10 px-4 py-2.5 sm:px-6">
+        <div className="mx-auto flex max-w-xl items-center justify-between">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#4da3ff]/30 bg-[#4da3ff]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4da3ff]">
+            {mission ? voyagerMissionLabel(mission.kind) : "Voyager"}
+            {mission && <span className="text-[#5f7a8f]">· L{mission.difficulty}</span>}
           </span>
-          <span className="flex items-center gap-1.5 text-[#ffd66b]">
-            <span aria-hidden>★</span>
-            <span className="tabular-nums font-semibold">{stars}</span>
+          <span className="flex items-center gap-1.5" aria-label={`${sectors} sectors cleared`}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <span
+                key={i}
+                className="inline-block h-2 w-2 rounded-full"
+                style={{
+                  background: i < sectors ? BLUE : "rgba(255,255,255,0.12)",
+                  transition: "background .3s",
+                }}
+              />
+            ))}
           </span>
-          {streak > 1 && (
-            <span className="rounded-full bg-[#ff9d4d]/20 px-2.5 py-0.5 text-[11px] font-semibold text-[#ffb877]">
-              {streak}x streak
-            </span>
-          )}
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6">
         {!mission || phase === "idle" ? (
-          /* ── Mission select / start ── */
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <p className="mb-3 text-6xl" aria-hidden>🚀</p>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold">
-              Fraction Voyager
-            </h2>
-            <p className="mt-2 max-w-xs text-sm leading-relaxed text-[#9fb8da]">
-              Pilot your ship along the fuel gauge. Land on fractions,
-              compare fuel tanks, and slice bars into equal parts.
+            <ShipMark />
+            <p className="mt-5 max-w-xs text-sm leading-relaxed text-[#9fb8da]">
+              Pilot your ship along the fuel gauge. Land on fractions, compare
+              tanks, and slice bars into equal parts.
             </p>
             <button
               type="button"
               onClick={() => startMission()}
-              className="mt-6 min-h-12 rounded-xl bg-[#3f7fd1] px-8 text-sm font-semibold text-white shadow-lg shadow-[#3f7fd1]/30 transition hover:bg-[#4f8fe1]"
+              className="mt-7 min-h-12 rounded-xl px-10 text-sm font-semibold text-[#05182a] transition active:scale-[0.98]"
+              style={{ background: BLUE }}
             >
-              Launch a mission
+              Launch
             </button>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               {KIND_ORDER.map((k) => (
@@ -208,7 +216,8 @@ export function FractionVoyagerGame() {
                   key={k}
                   type="button"
                   onClick={() => startMission(k)}
-                  className="min-h-10 rounded-full border border-[#3f7fd1]/50 px-4 text-xs text-[#9fc8ff] transition hover:bg-[#3f7fd1]/15"
+                  className="min-h-10 rounded-full border px-4 text-xs text-[#9fc8ff] transition hover:bg-[#4da3ff]/15"
+                  style={{ borderColor: "rgba(77,163,255,0.5)" }}
                 >
                   {voyagerMissionLabel(k)}
                 </button>
@@ -218,87 +227,88 @@ export function FractionVoyagerGame() {
         ) : (
           <div className="flex flex-1 flex-col gap-4">
             {/* Mission card */}
-            <div className="rounded-2xl border border-[#3f7fd1]/30 bg-[#0d1830]/80 p-4 shadow-xl shadow-black/30 backdrop-blur">
+            <div
+              className="rounded-2xl border p-4"
+              style={{ borderColor: "rgba(77,163,255,0.3)", background: SURFACE }}
+            >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6aa0ff]">
                   {voyagerMissionLabel(mission.kind)} · level {mission.difficulty}
                 </p>
                 {phase === "solved" && (
-                  <span className="rounded-full bg-[#3fbf7f]/20 px-2.5 py-0.5 text-[11px] font-semibold text-[#7fe0b0]">
-                    ✓ Solved
+                  <span className="rounded-full border border-[#4da3ff]/40 bg-[#4da3ff]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#9fc8ff]">
+                    Docked
                   </span>
                 )}
               </div>
-              <p className="mt-1.5 font-[family-name:var(--font-display)] text-lg font-semibold leading-snug text-[#e8f0ff]">
+              <p className="mt-1.5 text-lg font-semibold leading-snug text-[#e8f0ff]">
                 {mission.prompt}
               </p>
               {phase === "solved" && (
                 <button
                   type="button"
                   onClick={() => startMission()}
-                  className="mt-3 min-h-11 rounded-xl bg-[#3f7fd1] px-5 text-sm font-semibold text-white transition hover:bg-[#4f8fe1]"
+                  className="mt-3 min-h-11 rounded-xl px-5 text-sm font-semibold text-[#05182a] transition active:scale-[0.98]"
+                  style={{ background: BLUE }}
                 >
-                  Next mission →
+                  Next sector
                 </button>
               )}
             </div>
 
-            {/* ── Place: number line ── */}
+            {/* Place: glowing number line */}
             {mission.kind === "place" && (
-              <div className="rounded-2xl border border-[#3f7fd1]/20 bg-[#0d1830]/80 p-4 backdrop-blur">
-                <div className="relative mt-2">
-                  {/* Track */}
-                  <div className="h-2 rounded-full bg-[#1a2c50]" />
+              <div
+                className="relative rounded-2xl border p-4"
+                style={{ borderColor: "rgba(77,163,255,0.2)", background: SURFACE }}
+              >
+                <div className="relative mt-6">
+                  <div className="h-1.5 rounded-full bg-[#16233c]" />
                   <div
-                    className="absolute top-0 h-2 rounded-full bg-gradient-to-r from-[#3f7fd1] to-[#9fc8ff] transition-all duration-700"
+                    className="absolute top-0 h-1.5 rounded-full transition-all duration-500"
                     style={{
                       width: shipLeftPct !== null ? `${shipLeftPct}%` : "0%",
-                      opacity: shipLeftPct !== null ? 1 : 0.35,
+                      opacity: shipLeftPct !== null ? 1 : 0.3,
+                      background: BLUE,
                     }}
                   />
-                  {/* Ticks + tappable segments */}
                   <div className="absolute inset-x-0 top-0 flex">
                     {Array.from({ length: mission.ticks + 1 }).map((_, i) => {
                       const selected = placeTick === i;
-                      const label = labels.find((l) => l.i === i);
                       return (
                         <button
                           key={i}
                           type="button"
                           disabled={phase === "solved"}
                           onClick={() => setPlaceTick(i)}
-                          aria-label={`place at ${label?.label ?? i}`}
+                          aria-label={`place at ${labels.find((l) => l.i === i)?.label ?? i}`}
                           className="group relative flex-1 pt-6 focus-visible:outline-none"
                           style={{ height: 0 }}
                         >
                           <span
                             className={`absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 ${
-                              selected ? "bg-[#9fc8ff]" : "bg-[#3a5b8f]"
+                              selected ? "bg-[#9fc8ff]" : "bg-[#33476b]"
                             }`}
                           />
                           <span
                             className={`absolute -top-1 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full border transition ${
                               selected
-                                ? "border-[#9fc8ff] bg-[#9fc8ff] shadow-[0_0_10px_#9fc8ff]"
-                                : "border-[#3a5b8f] bg-[#0a1220] group-hover:border-[#6aa0ff]"
+                                ? "border-[#9fc8ff] bg-[#9fc8ff]"
+                                : "border-[#33476b] bg-[#0a0f1a] group-hover:border-[#6aa0ff]"
                             }`}
                           />
                         </button>
                       );
                     })}
                   </div>
-                  {/* Ship */}
                   {shipLeftPct !== null && (
                     <div
-                      ref={shipRef}
-                      className="pointer-events-none absolute -top-8 z-10 text-2xl transition-all duration-500"
-                      style={{ left: `calc(${shipLeftPct}% - 12px)` }}
-                      aria-hidden
+                      className="pointer-events-none absolute -top-8 z-10 transition-all duration-500"
+                      style={{ left: `calc(${shipLeftPct}% - 13px)` }}
                     >
-                      🚀
+                      <ShipGlyph />
                     </div>
                   )}
-                  {/* Tick labels */}
                   <div className="mt-6 flex">
                     {labels.map((l) => (
                       <span
@@ -316,7 +326,8 @@ export function FractionVoyagerGame() {
                     type="button"
                     disabled={placeTick === null}
                     onClick={() => void submitAnswer()}
-                    className="mt-4 min-h-12 w-full rounded-xl bg-[#3f7fd1] text-sm font-semibold text-white transition hover:bg-[#4f8fe1] disabled:opacity-40"
+                    className="mt-4 min-h-12 w-full rounded-xl text-sm font-semibold text-[#05182a] transition active:scale-[0.98] disabled:opacity-35"
+                    style={{ background: BLUE }}
                   >
                     Land here
                   </button>
@@ -324,7 +335,7 @@ export function FractionVoyagerGame() {
               </div>
             )}
 
-            {/* ── Compare: two fuel tanks ── */}
+            {/* Compare: two fuel tanks */}
             {mission.kind === "compare" && mission.compareLeft && mission.compareRight && (
               <div className="space-y-3">
                 {(["left", "right"] as const).map((side) => {
@@ -337,25 +348,25 @@ export function FractionVoyagerGame() {
                       type="button"
                       disabled={phase === "solved"}
                       onClick={() => setComparePick(side)}
-                      className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left backdrop-blur transition ${
-                        selected
-                          ? "border-[#9fc8ff] bg-[#1a2c50]/80"
-                          : "border-[#3f7fd1]/25 bg-[#0d1830]/80 hover:border-[#6aa0ff]/50"
-                      }`}
+                      className="flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[0.99]"
+                      style={{
+                        borderColor: selected ? BLUE : "rgba(77,163,255,0.25)",
+                        background: selected ? "rgba(77,163,255,0.12)" : SURFACE,
+                      }}
                     >
-                      <span className="text-2xl" aria-hidden>⛽</span>
+                      <GaugeGlyph ratio={ratio} />
                       <div className="flex-1">
-                        <div className="flex h-9 overflow-hidden rounded-lg border border-[#3a5b8f] bg-[#0a1220]">
+                        <div className="flex h-9 overflow-hidden rounded-lg border border-[#33476b] bg-[#0a0f1a]">
                           <div
-                            className="h-full bg-gradient-to-b from-[#7fe0b0] to-[#3fbf7f] transition-all duration-500"
-                            style={{ width: `${ratio * 100}%` }}
+                            className="h-full transition-all duration-500"
+                            style={{ width: `${ratio * 100}%`, background: BLUE }}
                           />
                         </div>
                         <p className="mt-1.5 text-sm font-semibold tabular-nums text-[#e8f0ff]">
                           {n}/{d}
                         </p>
                       </div>
-                      {selected && <span className="text-[#9fc8ff]">✓</span>}
+                      {selected && <DotMark />}
                     </button>
                   );
                 })}
@@ -364,7 +375,8 @@ export function FractionVoyagerGame() {
                     type="button"
                     disabled={!comparePick}
                     onClick={() => void submitAnswer()}
-                    className="min-h-12 w-full rounded-xl bg-[#3f7fd1] text-sm font-semibold text-white transition hover:bg-[#4f8fe1] disabled:opacity-40"
+                    className="min-h-12 w-full rounded-xl text-sm font-semibold text-[#05182a] transition active:scale-[0.98] disabled:opacity-35"
+                    style={{ background: BLUE }}
                   >
                     Confirm tank
                   </button>
@@ -372,13 +384,20 @@ export function FractionVoyagerGame() {
               </div>
             )}
 
-            {/* ── Partition: slice a bar ── */}
+            {/* Partition: slice a bar */}
             {mission.kind === "partition" && mission.pieceCount && (
-              <div className="rounded-2xl border border-[#3f7fd1]/20 bg-[#0d1830]/80 p-4 backdrop-blur">
+              <div
+                className="rounded-2xl border p-4"
+                style={{ borderColor: "rgba(77,163,255,0.2)", background: SURFACE }}
+              >
                 <p className="mb-3 text-xs text-[#9fb8da]">
-                  Slice into <span className="font-semibold text-[#e8f0ff]">{mission.pieceCount}</span> equal
-                  pieces, then fill{" "}
-                  <span className="font-semibold text-[#e8f0ff]">{mission.target[0]}/{mission.target[1]}</span>.
+                  Slice into{" "}
+                  <span className="font-semibold text-[#e8f0ff]">{mission.pieceCount}</span>{" "}
+                  equal pieces, then fill{" "}
+                  <span className="font-semibold text-[#e8f0ff]">
+                    {mission.target[0]}/{mission.target[1]}
+                  </span>
+                  .
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {Array.from({ length: mission.pieceCount }).map((_, i) => {
@@ -388,15 +407,13 @@ export function FractionVoyagerGame() {
                         key={i}
                         type="button"
                         disabled={phase === "solved"}
-                        onClick={() =>
-                          setFilledPieces((prev) => (i < prev ? i : i + 1))
-                        }
+                        onClick={() => setFilledPieces((prev) => (i < prev ? i : i + 1))}
                         aria-label={`piece ${i + 1} of ${mission.pieceCount}`}
-                        className={`h-9 w-8 rounded-md border transition ${
-                          filled
-                            ? "border-[#9fc8ff] bg-[#3f7fd1]/80 shadow-[0_0_8px_#3f7fd1]/40"
-                            : "border-[#3a5b8f] bg-[#0a1220] hover:border-[#6aa0ff]/60"
-                        }`}
+                        className="h-9 w-8 rounded-md border transition"
+                        style={{
+                          borderColor: filled ? BLUE : "#33476b",
+                          background: filled ? "rgba(77,163,255,0.85)" : "#0a0f1a",
+                        }}
                       />
                     );
                   })}
@@ -413,7 +430,8 @@ export function FractionVoyagerGame() {
                       type="button"
                       disabled={filledPieces === 0}
                       onClick={() => void submitAnswer()}
-                      className="ml-auto min-h-11 rounded-xl bg-[#3f7fd1] px-5 text-sm font-semibold text-white transition hover:bg-[#4f8fe1] disabled:opacity-40"
+                      className="ml-auto min-h-11 rounded-xl px-5 text-sm font-semibold text-[#05182a] transition active:scale-[0.98] disabled:opacity-35"
+                      style={{ background: BLUE }}
                     >
                       Forge slice
                     </button>
@@ -423,30 +441,100 @@ export function FractionVoyagerGame() {
             )}
 
             {/* Feedback */}
-            {message && phase !== "solved" && (
-              <div
-                className={`rounded-xl border px-4 py-3 text-sm backdrop-blur ${
-                  misconception
-                    ? "border-[#ff9d4d]/40 bg-[#ff9d4d]/10 text-[#ffd2a1]"
-                    : "border-[#3fbf7f]/30 bg-[#3fbf7f]/10 text-[#a9e8c8]"
-                }`}
-              >
-                {misconception ? (
-                  <span className="flex items-start gap-2">
-                    <span aria-hidden>💡</span>
-                    <span>{message}</span>
-                  </span>
-                ) : (
-                  message
-                )}
+            {message && phase === "solved" && burst > 0 && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center" aria-hidden>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span
+                    key={`${burst}-${i}`}
+                    className="absolute h-1.5 w-1.5 rounded-full"
+                    style={
+                      {
+                        left: `${50 + (i - 2) * 14}%`,
+                        bottom: 0,
+                        background: BLUE,
+                        animation: "vgBurst .6s ease forwards",
+                        "--dx": "0px",
+                        "--dy": `${-40 - i * 8}px`,
+                      } as CSSProperties
+                    }
+                  />
+                ))}
               </div>
             )}
             {message && phase === "solved" && (
               <p className="text-center text-sm font-medium text-[#7fe0b0]">{message}</p>
             )}
+            {message && phase !== "solved" && (
+              <div
+                className="rounded-xl border px-4 py-3 text-sm"
+                style={{
+                  borderColor: misconception ? "rgba(251,113,133,0.4)" : "rgba(77,163,255,0.3)",
+                  background: misconception ? "rgba(251,113,133,0.08)" : "rgba(77,163,255,0.08)",
+                  color: misconception ? "#ffd2a1" : "#a9e8c8",
+                }}
+              >
+                {message}
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/* ---- geometric SVG glyphs (no emoji) ---- */
+
+function ShipGlyph() {
+  return (
+    <svg width={26} height={30} viewBox="0 0 26 30" aria-hidden>
+      <g style={{ animation: "vgGlow .7s ease" }}>
+        <path d="M13 2 L20 22 L13 17 L6 22 Z" fill="#4da3ff" />
+        <path d="M13 22 L16 28 L13 25 L10 28 Z" fill="#9fc8ff" opacity={0.6} />
+        <rect x={12} y={4} width={2} height={10} rx={1} fill="rgba(255,255,255,0.35)" />
+      </g>
+    </svg>
+  );
+}
+
+function ShipMark() {
+  return (
+    <svg width={120} height={120} viewBox="0 0 96 96" aria-hidden>
+      <circle cx={48} cy={48} r={46} fill="rgba(77,163,255,0.08)" />
+      <circle cx={48} cy={48} r={46} fill="none" stroke="rgba(77,163,255,0.35)" strokeWidth={2} />
+      <g transform="translate(48 46)">
+        <path d="M0 -22 L16 0 L0 6 L-16 0 Z" fill="#4da3ff" />
+        <rect x={-1.5} y={-20} width={3} height={14} rx={1.5} fill="rgba(255,255,255,0.35)" />
+      </g>
+      <g style={{ animation: "vgPulse 1.6s ease infinite" }}>
+        <line x1={18} y1={66} x2={42} y2={66} stroke="#4da3ff" strokeWidth={3} strokeLinecap="round" />
+        <path d="M 42 66 L 36 62 L 36 70 Z" fill="#4da3ff" />
+      </g>
+    </svg>
+  );
+}
+
+function GaugeGlyph({ ratio }: { ratio: number }) {
+  return (
+    <svg width={28} height={28} viewBox="0 0 28 28" aria-hidden>
+      <rect x={3} y={3} width={22} height={22} rx={6} fill="none" stroke="rgba(77,163,255,0.4)" strokeWidth={2} />
+      <rect
+        x={6}
+        y={6}
+        width={16}
+        height={16 * ratio}
+        rx={3}
+        fill="#4da3ff"
+        transform={`translate(0 ${16 - 16 * ratio})`}
+      />
+    </svg>
+  );
+}
+
+function DotMark() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" aria-hidden>
+      <circle cx={8} cy={8} r={6} fill="none" stroke="#4da3ff" strokeWidth={2} />
+    </svg>
   );
 }

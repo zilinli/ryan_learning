@@ -144,6 +144,48 @@ export const MISCONCEPTION_SEED: MisconceptionTag[] = [
     promptHint: "Arrows point to who eats whom wrong. Energy flows TO the eater.",
   },
   {
+    id: "phys-force-to-keep-moving",
+    skillIds: ["forces-motion", "physics-6-8"],
+    label: "Needs a push the whole way",
+    promptHint: "Student thinks motion stops without a continuous push. Show coasting with friction off.",
+  },
+  {
+    id: "phys-heavier-faster",
+    skillIds: ["forces-motion", "physics-6-8"],
+    label: "Heavier always faster",
+    promptHint: "Same push, bigger mass → less speed. Side-by-side carts.",
+  },
+  {
+    id: "phys-heavier-falls-faster",
+    skillIds: ["forces-motion", "physics-6-8"],
+    label: "Heavier falls faster",
+    promptHint: "Two drops, same time. Gravity does not care about mass here.",
+  },
+  {
+    id: "phys-more-force-always",
+    skillIds: ["forces-motion"],
+    label: "Bigger arrow always wins",
+    promptHint: "Student ignores mass. Same chevrons on a heavy craft travel less far.",
+  },
+  {
+    id: "phys-balanced-still-force",
+    skillIds: ["forces-motion"],
+    label: "Still means no forces",
+    promptHint: "Stationary cart can have two equal opposite arrows. Net force is zero.",
+  },
+  {
+    id: "phys-energy-used-up",
+    skillIds: ["energy-transfer", "forces-motion"],
+    label: "Energy disappears",
+    promptHint: "Energy converts (height → motion → heat), it is not used up. Show the moving bar.",
+  },
+  {
+    id: "phys-gravity-gets-stronger",
+    skillIds: ["forces-motion", "earth-moon-sun", "physics-6-8"],
+    label: "Gravity grows as you fall",
+    promptHint: "Keep the downward arrow constant. Falling faster is speed, not stronger gravity.",
+  },
+  {
     id: "decimal-money-cent",
     skillIds: ["decimals", "place-value"],
     label: "Money cents as whole dollars",

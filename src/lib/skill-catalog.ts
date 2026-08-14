@@ -191,7 +191,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
     requires: ["multiplication-facts"],
-    adjacent: ["physics-6-8", "volume-intro"],
+    adjacent: ["volume-intro", "physics-6-8", "forces-motion"],
     re: /\bperimeter|area|周长|周長|面积|面積|square unit/i,
   },
   {
@@ -226,7 +226,7 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-space",
     subject: "science",
     minGrade: 2, coreGrade: 4, maxGrade: 6, band: "elementary",
-    adjacent: ["physics-6-8", "ecosystems"],
+    adjacent: ["forces-motion", "physics-6-8", "ecosystems"],
     re: /\bmoon|phase|solar|planet|earth|sun|月亮|月相|太阳系|太陽系|日食|月食/i,
   },
   {
@@ -254,6 +254,25 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "math",
     minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
     re: /\b(unit|convert|cm|km|mm|dm|kilogram|gram|测量|单位|换算|單位|換算)\b/i,
+  },
+  {
+    id: "forces-motion",
+    label: "forces & motion",
+    topicId: "science-phys",
+    subject: "science",
+    minGrade: 3, coreGrade: 4, maxGrade: 6, band: "elementary",
+    adjacent: ["physics-6-8", "energy-transfer", "earth-moon-sun"],
+    re: /\b(force|motion|push|collide|collision|balanced force|unbalanced|net force|推力|碰撞|力与运动|力與運動)\b|力(?!学)|运动|運動/i,
+  },
+  {
+    id: "energy-transfer",
+    label: "energy transfer",
+    topicId: "science-phys",
+    subject: "science",
+    minGrade: 4, coreGrade: 4, maxGrade: 6, band: "elementary",
+    requires: ["forces-motion"],
+    adjacent: ["physics-6-8", "scientific-method"],
+    re: /\b(energy transfer|kinetic|potential energy|convert energy|energy chain|动能|勢能|势能|能量转换|能量轉換|动能)\b|能量/i,
   },
 
   // ── Middle band (G6-8) ─────────────────────────────────────────
@@ -346,8 +365,9 @@ export const SKILL_CATALOG: SkillDef[] = [
     topicId: "science-phys",
     subject: "science",
     minGrade: 6, coreGrade: 7, maxGrade: 8, band: "middle",
-    adjacent: ["earth-moon-sun", "geometry-measure"],
-    re: /\bforce|motion|energy|wave|gravity|newton|力|运动|能量|波|重力/i,
+    requires: ["forces-motion"],
+    adjacent: ["earth-moon-sun", "geometry-measure", "energy-transfer"],
+    re: /\b(newton|kinematics|inertia|momentum|wave|gravity|牛顿|牛頓|惯性|慣性|动量|動量|波|重力)\b/i,
   },
   {
     id: "world-history-i",

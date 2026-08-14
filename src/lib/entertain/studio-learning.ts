@@ -50,12 +50,65 @@ export function studioOutcomeFromSoftFeedback(feedback: string): TurnOutcome {
   return "practice";
 }
 
-export type StudioLearningSource = "ted" | "writing" | "natgeo" | "bbc" | "rsa";
+export type StudioLearningSource =
+  | "ted"
+  | "writing"
+  | "natgeo"
+  | "bbc"
+  | "rsa"
+  | "game";
 
 /**
  * Record a Studio learning turn into local + server learning memory.
  * Safe to call from client components (browser only).
  */
+function sourcePrefix(source: StudioLearningSource): string {
+  if (source === "ted") return "[TED Lab challenge]";
+  if (source === "natgeo") return "[NatGeo Lab]";
+  if (source === "bbc") return "[BBC Doc Lab]";
+  if (source === "rsa") return "[RSA Lab]";
+  if (source === "game") return "[Learning Game]";
+  return "[Writing Studio]";
+}
+
+function sourceSeed(opts: {
+  source: StudioLearningSource;
+  tedTopics?: TedTopic[];
+  skillSeed?: string;
+}): string {
+  if (opts.skillSeed) return opts.skillSeed;
+  if (opts.source === "ted") return tedTopicsToSkillSeed(opts.tedTopics);
+  if (opts.source === "natgeo") {
+    return "reading comprehension science geography nature animals history vocabulary inference evidence article main idea";
+  }
+  if (opts.source === "bbc") {
+    return "documentary viewing observation explanation sequence vocabulary science nature technology geography history";
+  }
+  if (opts.source === "rsa") {
+    return "critical thinking argument analysis rhetoric debate philosophy psychology society creativity listening comprehension idea evaluation";
+  }
+  if (opts.source === "game") {
+    return "force motion push collide balanced energy gravity science experiment";
+  }
+  return "narrative writing essay paragraph vocabulary grammar reading comprehension argumentative writing";
+}
+
+function sourceChatTitle(source: StudioLearningSource, title: string): string {
+  const tag =
+    source === "ted"
+      ? "TED"
+      : source === "natgeo"
+        ? "NatGeo"
+        : source === "bbc"
+          ? "BBC"
+          : source === "rsa"
+            ? "RSA"
+            : source === "game"
+              ? "Game"
+              : "Writing";
+  return `${tag} · ${title}`.slice(0, 80);
+}
+
 export async function recordStudioLearningTurn(opts: {
   accountId: string;
   source: StudioLearningSource;
@@ -63,34 +116,14 @@ export async function recordStudioLearningTurn(opts: {
   userText: string;
   assistantText?: string;
   tedTopics?: TedTopic[];
+  /** Extra skill-latch text (Learning Games pass forces-motion / energy seeds). */
+  skillSeed?: string;
   outcome?: TurnOutcome;
 }): Promise<LearningMemory | null> {
   if (typeof window === "undefined") return null;
   const accountId = opts.accountId?.trim() || "acct_ryan";
-  const seed =
-    opts.source === "ted"
-      ? tedTopicsToSkillSeed(opts.tedTopics)
-      : opts.source === "natgeo"
-        ? "reading comprehension science geography nature animals history vocabulary inference evidence article main idea"
-        : opts.source === "bbc"
-          ? "documentary viewing observation explanation sequence vocabulary science nature technology geography history"
-          : opts.source === "rsa"
-            ? "critical thinking argument analysis rhetoric debate philosophy psychology society creativity listening comprehension idea evaluation"
-            : "narrative writing essay paragraph vocabulary grammar reading comprehension argumentative writing";
-  const userText = [
-    opts.source === "ted"
-      ? "[TED Lab challenge]"
-      : opts.source === "natgeo"
-        ? "[NatGeo Lab]"
-        : opts.source === "bbc"
-          ? "[BBC Doc Lab]"
-          : opts.source === "rsa"
-            ? "[RSA Lab]"
-            : "[Writing Studio]",
-    opts.title,
-    seed,
-    opts.userText,
-  ]
+  const seed = sourceSeed(opts);
+  const userText = [sourcePrefix(opts.source), opts.title, seed, opts.userText]
     .filter(Boolean)
     .join("\n")
     .slice(0, 8000);
@@ -104,16 +137,7 @@ export async function recordStudioLearningTurn(opts: {
   const next = recordLearningTurnMemory(prev, {
     userText,
     assistantText: opts.assistantText,
-    chatTitle:
-      opts.source === "ted"
-        ? `TED · ${opts.title}`.slice(0, 80)
-        : opts.source === "natgeo"
-          ? `NatGeo · ${opts.title}`.slice(0, 80)
-          : opts.source === "bbc"
-            ? `BBC · ${opts.title}`.slice(0, 80)
-            : opts.source === "rsa"
-              ? `RSA · ${opts.title}`.slice(0, 80)
-              : `Writing · ${opts.title}`.slice(0, 80),
+    chatTitle: sourceChatTitle(opts.source, opts.title),
     outcome: opts.outcome,
     // V2 attribution — count Studio turns under their mechanism so the
     // parent weekly report can see TED/NatGeo/BBC/RSA/Writing as drivers.

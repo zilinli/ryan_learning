@@ -27,11 +27,20 @@ export type ExploreTopic = {
 
 export const EXPLORE_TOPICS: ExploreTopic[] = [
   {
+    id: "physics",
+    label: "Forces & motion",
+    emoji: "⚡",
+    keywords: ["physics", "force", "motion", "gravity", "energy", "push", "物理", "力", "运动", "能量", "重力"],
+    skillIds: ["forces-motion", "energy-transfer", "physics-6-8", "scientific-method"],
+    framing:
+      "Start from a push or a collision: what makes things start, stop, or bounce — predict before you explain.",
+  },
+  {
     id: "space",
     label: "Space & planets",
     emoji: "🚀",
     keywords: ["space", "planet", "moon", "stars", "solar", "宇宙", "太空", "行星", "月亮"],
-    skillIds: ["earth-moon-sun", "physics-6-8", "scientific-method"],
+    skillIds: ["earth-moon-sun", "forces-motion", "physics-6-8", "scientific-method"],
     framing:
       "Start from a wonder question (why is the sky dark at night, how far is the Moon, why do planets orbit).",
   },
@@ -58,7 +67,7 @@ export const EXPLORE_TOPICS: ExploreTopic[] = [
     label: "Cars, planes & machines",
     emoji: "🚗",
     keywords: ["car", "plane", "train", "engine", "machine", "车", "飞机", "汽车", "机器"],
-    skillIds: ["physics-6-8", "measurement-units", "geometry-angles"],
+    skillIds: ["forces-motion", "physics-6-8", "measurement-units", "geometry-angles"],
     framing:
       "Connect to motion and measurement: speed, distance, angles, and how machines multiply force.",
   },

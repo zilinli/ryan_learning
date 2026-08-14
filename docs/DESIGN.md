@@ -98,6 +98,8 @@ flowchart TB
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/learning-games.md](subsystems/learning-games.md)** | 🚀 Learning Games — Fraction Voyager / Eco Genesis / Time Vault (mechanic-is-lesson, BKT loop) |
+| **[subsystems/physics-learning-games.md](subsystems/physics-learning-games.md)** | ⚛ Physics Learning Games — research + design (Force Bay P0; Energy Chain / Orbit Scout deferred) |
+| **[subsystems/learning-games-v2.md](subsystems/learning-games-v2.md)** | 🎨 Learning Games v2 — all six games UI + game-design redesign (de-emoji, single-accent dark UI, juice) — **design only** |
 | **[subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)** | TED Challenge voice → text via MicTranscribeButton |
 | **[subsystems/ted-challenge-prompt-listen.md](subsystems/ted-challenge-prompt-listen.md)** | TED Challenge prompt **Listen** (English TTS, Ryan hard-lock; Auto Listen) |
 | **[subsystems/ted-challenge-adaptive-difficulty.md](subsystems/ted-challenge-adaptive-difficulty.md)** | TED Challenge difficulty from **grade number (G4 grain)** + English level |
