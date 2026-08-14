@@ -127,6 +127,7 @@ flowchart TB
 | **[subsystems/testing.md](subsystems/testing.md)** | 🧪 Test strategy, gap analysis, regression catalog |
 | **[subsystems/code-agent-robustness.md](subsystems/code-agent-robustness.md)** | 🔧 Agent session recovery, retry/timeout/error-handler, atomic file writes |
 | **[subsystems/stt-service-reliability.md](subsystems/stt-service-reliability.md)** | 🎙️ STT/TTS service robustness, systemd supervision, crash recovery |
+| **[subsystems/spark-watchdog.md](subsystems/spark-watchdog.md)** | 🛡️ Spark 系统守护进程 — 30s 健康探测 + 确定性自愈 + Cursor SDK 大模型升级修复（开机自启） |
 | **[code-agent-reliability-design.md](code-agent-reliability-design.md)** | 📐 Code agent reliability architecture design (literature-backed) |
 | **[code-agent-test-design.md](code-agent-test-design.md)** | 🧪 Reliability test plan: unit, integration, chaos, E2E |
 | **[code-agent-v3-enhancements.md](code-agent-v3-enhancements.md)** | 🚀 Code Agent v3 — multi-modal upload, zh/en voice, auto-git, service verification |
