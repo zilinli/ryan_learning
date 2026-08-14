@@ -1382,16 +1382,39 @@ export function useTutorSession() {
           });
         },
       );
+      const fullText = full.text;
       resetNextRef.current = false;
       resetIdsRef.current.delete(sessionId);
       lastAssistantAtRef.current = Date.now();
+      // Backfill the mediaIds the server just wrote for this turn's video/files
+      // so the bubble can play the clip immediately (no debounced push wait).
+      if (full.userMediaIds?.length) {
+        setStore((prev) => {
+          if (!prev) return prev;
+          const cur = getActiveConversation(prev);
+          if (cur.sessionId !== sessionId) return prev;
+          const idToMedia = new Map(
+            full.userMediaIds!.map((x) => [x.attachmentId, x.mediaId]),
+          );
+          const msgs = cur.messages.map((m) => {
+            if (m.id !== userMsg.id || !m.attachments?.length) return m;
+            const attachments = m.attachments.map((a) =>
+              a.mediaId || !idToMedia.has(a.id)
+                ? a
+                : { ...a, mediaId: idToMedia.get(a.id) },
+            );
+            return attachments === m.attachments ? m : { ...m, attachments };
+          });
+          return upsertActive(prev, { messages: msgs });
+        });
+      }
       setEngagement(recordLearningTurn(undefined, accountId));
       // V2 P1 — BKT prior tier (report §9.3.1): high-prior students get more
       // aggressive learning parameters and a more eager auto-advance trigger.
       const priorTier = detectPriorTier(profile, mem);
       let nextMem = recordLearningTurnMemory(mem, {
         userText: payload.text,
-        assistantText: full,
+        assistantText: fullText,
         chatTitle: active?.title || titleFromMessages(messages),
         priorTier,
         source: payload.source,
@@ -1401,22 +1424,22 @@ export function useTutorSession() {
         nextMem = { ...nextMem, advanceSuggestion: suggestion };
       }
       // CA-6 — merge misconception fence into skill hits
-      const mcHit = parseMisconceptionFence(full);
+      const mcHit = parseMisconceptionFence(fullText);
       if (mcHit) {
         const skillGuess =
-          inferSkillsFromText([payload.text, full].join("\n"))[0]?.id;
+          inferSkillsFromText([payload.text, fullText].join("\n"))[0]?.id;
         nextMem = applyMisconceptionToMemory(nextMem, skillGuess, mcHit);
         saveLearningMemory(nextMem, accountId);
       }
       // CA-5 — parse scratch diagnosis (drives prompt via next turns; strip in UI)
-      parseScratchDiagnosisFence(full);
+      parseScratchDiagnosisFence(fullText);
       setLearningMemory(nextMem);
       syncProfileFromSkills(profile, nextMem);
       void pushLearningMemoryToServer(nextMem, accountId);
       // P2 — short-cycle weekly goal: count skills newly mastered this week.
       reconcileWeeklyGoal(accountId, nextMem);
 
-      const outcome = classifyTurnOutcome(payload.text, full);
+      const outcome = classifyTurnOutcome(payload.text, fullText);
       // P0 — in-session flow: record answer latency, get step-up/step-down advice
       const flowAdvice = recordFlowTurn(outcome, { latencyMs: answerLatencyMs });
       // V2 P0 — surface the "growth moment" line and remember the advice for
@@ -1427,7 +1450,7 @@ export function useTutorSession() {
       // a turn right AND sounds enthusiastic, offer a mini-creation card.
       if (
         outcome === "correct" &&
-        likesTopicSignal(payload.text, full) &&
+        likesTopicSignal(payload.text, fullText) &&
         !creationOffer
       ) {
         const last = recentInterests(accountId, 1)[0];
@@ -1458,7 +1481,7 @@ export function useTutorSession() {
           skillLabel: inferred.skillLabel,
           question: lastAssistant?.content || "",
           studentAnswer: payload.text,
-          assistantText: full,
+          assistantText: fullText,
         });
         // V2 P0 — proactive outreach: remember this wrong answer is pending a
         // follow-up review (surfaced as a non-blocking invite later).
@@ -1479,14 +1502,14 @@ export function useTutorSession() {
       setEmotionLine(emotionUiLine(streak));
 
       if (shouldSpeak) {
-        speakApiRef.current?.finish(full);
+        speakApiRef.current?.finish(fullText);
       }
       // Always pin the merged final text so a streamed diagram cannot vanish
       // after done/onReplace/storage races. CA-1: also merge worksheet plan.
       // CA-8: collapse same-diagramId revisions inside the assistant message.
-      const plan = parseWorksheetPlanFence(full);
-      const pinned = full.trim()
-        ? collapseSameDiagramImages(full)
+      const plan = parseWorksheetPlanFence(fullText);
+      const pinned = fullText.trim()
+        ? collapseSameDiagramImages(fullText)
         : "";
       setStore((prev) => {
         if (!prev) return prev;

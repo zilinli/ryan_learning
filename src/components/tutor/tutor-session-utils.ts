@@ -40,21 +40,27 @@ export function buildHistoryPreview(messages: ChatMessage[]): HistoryTurn[] {
     }));
 }
 
+export type ChatStreamResult = {
+  text: string;
+  userMediaIds?: Array<{ attachmentId: string; mediaId: string }>;
+};
+
 export async function consumeChatStream(
   body: unknown,
   onDelta: (text: string) => void,
   onStatus?: (status: string) => void,
   onReplace?: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const payload = JSON.stringify(body);
 
-  const readStream = async (res: Response): Promise<string> => {
+  const readStream = async (res: Response): Promise<ChatStreamResult> => {
     if (!res.body) throw new Error(`Request failed (${res.status})`);
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let full = "";
     let streamError = "";
+    let userMediaIds: ChatStreamResult["userMediaIds"];
 
     const paint = () =>
       new Promise<void>((resolve) => {
@@ -86,6 +92,7 @@ export async function consumeChatStream(
           text?: string;
           error?: string;
           status?: string;
+          userMediaIds?: Array<{ attachmentId: string; mediaId: string }>;
         };
         if (event === "delta" && data.text) {
           full += data.text;
@@ -99,6 +106,9 @@ export async function consumeChatStream(
           streamError = data.error;
         }
         if (event === "done" && data.text) {
+          if (data.userMediaIds?.length) {
+            userMediaIds = data.userMediaIds;
+          }
           let preferred = preferCompleteTutorText(full, data.text);
           if (hasTutorDiagram(full) && !hasTutorDiagram(preferred)) {
             preferred = full;
@@ -118,7 +128,7 @@ export async function consumeChatStream(
     }
 
     if (streamError) throw new Error(streamError);
-    return full;
+    return { text: full, ...(userMediaIds ? { userMediaIds } : {}) };
   };
 
   for (let attempt = 0; attempt < 2; attempt += 1) {

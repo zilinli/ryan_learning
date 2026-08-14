@@ -102,6 +102,10 @@ export async function POST(req: Request) {
   // replaces dataUrl with mediaId) gives the server an authoritative copy that can
   // never be lost by a client push failure.
   const userMsg = body.userMessage;
+  // mediaIds written for this turn's attachments — sent back in the `done` event
+  // so the client can play a just-uploaded video immediately instead of waiting
+  // for the debounced history push to round-trip the mediaId.
+  let turnMediaIds: Array<{ attachmentId: string; mediaId: string }> = [];
   if (userMsg && typeof userMsg.id === "string" && userMsg.role === "user") {
     try {
       // Videos/files arrive as raw base64 `data` (no dataUrl — halves client
@@ -132,7 +136,10 @@ export async function POST(req: Request) {
             createdAt: existing?.createdAt ?? userMsg.createdAt ?? now,
             updatedAt: Math.max(existing?.updatedAt ?? 0, now),
           };
-          await upsertServerConversation(record, accountId);
+          const saved = await upsertServerConversation(record, accountId);
+          turnMediaIds = (saved?.messages[savedIdx]?.attachments || [])
+            .filter((a) => a.mediaId)
+            .map((a) => ({ attachmentId: a.id, mediaId: a.mediaId! }));
         }
       } else {
         const now = Date.now();
@@ -149,7 +156,10 @@ export async function POST(req: Request) {
             now,
           ),
         };
-        await upsertServerConversation(record, accountId);
+        const saved = await upsertServerConversation(record, accountId);
+        turnMediaIds = (saved?.messages.find((m) => m.id === userMsg.id)?.attachments || [])
+          .filter((a) => a.mediaId)
+          .map((a) => ({ attachmentId: a.id, mediaId: a.mediaId! }));
       }
     } catch {
       // Non-fatal: client push remains the normal path.
@@ -385,7 +395,7 @@ export async function POST(req: Request) {
         // Prefer SDK final text when stream filter / deltas lost spaces or figures.
         const merged = preferCompleteTutorText(visible, fullText);
         const finalText = scrubTutorVisibleText(merged);
-        send("done", { agentId, text: finalText });
+        send("done", { agentId, text: finalText, userMediaIds: turnMediaIds });
       } catch (err) {
         if (req.signal.aborted) return;
         const msg = err instanceof Error ? err.message : "Unknown error";
