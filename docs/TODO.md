@@ -37,7 +37,7 @@
 - [x] **UP256.3** — `next.config.ts`: `proxyClientMaxBodySize` + `serverActions.bodySizeLimit` = 512mb
 - [x] **UP256.4** — Unit tests UP-1…UP-3; `run_tests`
 - [x] **UP256.5** — Nginx `client_max_body_size 512m` + reload
-- [ ] **UP256.6** — Commit → publish_develop → deploy_live
+- [x] **UP256.6** — Commit → publish_develop → deploy_live (471c3d3; master merged)
 
 ---
 
