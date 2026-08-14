@@ -6,10 +6,11 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
 
   // Allow large chat/console attachments (256MB file ≈ ~340MB base64 JSON).
-  serverActions: {
-    bodySizeLimit: "512mb",
-  },
+  // Next.js 16 keeps serverActions.bodySizeLimit under `experimental`.
   experimental: {
+    serverActions: {
+      bodySizeLimit: "512mb",
+    },
     proxyClientMaxBodySize: "512mb",
   },
 

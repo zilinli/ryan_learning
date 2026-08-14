@@ -60,6 +60,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const [streamingContent, setStreamingContent] = useState("");
   const [statusText, setStatusText] = useState("");
   const [runningTools, setRunningTools] = useState<ToolCall[]>([]);
+  const [danglingNotice, setDanglingNotice] = useState("");
   const sid = useRef(getConsoleSessionId());
   const ab = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | undefined>(undefined);
@@ -175,6 +176,13 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
       }
       const active = d.activeRun;
       if (!active) {
+        const msgsArr = d.messages ?? [];
+        const hasUnrepliedUser = msgsArr.length > 0
+          && msgsArr[msgsArr.length - 1].role === "user"
+          && !msgsArr.some(m => m.role === "assistant" && m.createdAt >= msgsArr[msgsArr.length - 1].createdAt);
+        if (hasUnrepliedUser) {
+          setDanglingNotice("上次请求可能因服务重启未完成 — 重新发送即可。");
+        }
         if (runIdRef.current) {
           runIdRef.current = undefined;
           lastEventIdRef.current = 0;
@@ -184,6 +192,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
         }
         return;
       }
+      setDanglingNotice("");
       runIdRef.current = active.runId;
       lastEventIdRef.current = Math.max(lastEventIdRef.current, active.lastEventId);
       if (active.status === "running") {
@@ -295,6 +304,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const send = useCallback(async ({ text, attachments, voiceLang }: ComposerSubmit) => {
     setPhase("thinking"); setError(""); setDiff(null);
     setStreamingContent(""); setStatusText("Starting…"); setRunningTools([]);
+    setDanglingNotice("");
     lastEventIdRef.current = 0;
     const userMsg: ConsoleMessage = {
       id: "cm_" + Date.now(), role: "user", content: text,
@@ -372,6 +382,7 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
   const clearSession = useCallback(() => {
     setMsgs([]); setPhase("idle"); setDiff(null); setError("");
     setStreamingContent(""); setStatusText(""); setRunningTools([]);
+    setDanglingNotice("");
     runIdRef.current = undefined; lastEventIdRef.current = 0;
     ab.current?.abort();
     clearCodeAgentPanelContext();
@@ -476,6 +487,13 @@ export function CodeAgentPanel({ open, onClose, onMinimize }: Props) {
         <div className="mx-3 mb-1 rounded-lg border border-[var(--coral)]/30 bg-[var(--coral)]/5 px-3 py-2">
           <p className="text-xs font-medium text-[var(--coral)]">{err}</p>
           <button type="button" onClick={() => { setError(""); setPhase("idle"); }}
+            className="mt-1 text-[11px] font-medium text-[var(--teal)] hover:underline">Dismiss</button>
+        </div>
+      ) : null}
+      {danglingNotice ? (
+        <div className="mx-3 mb-1 rounded-lg border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-3 py-2">
+          <p className="text-xs font-medium text-[var(--coral)]">{danglingNotice}</p>
+          <button type="button" onClick={() => setDanglingNotice("")}
             className="mt-1 text-[11px] font-medium text-[var(--teal)] hover:underline">Dismiss</button>
         </div>
       ) : null}
