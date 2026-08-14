@@ -282,6 +282,38 @@ async function isDeletedSession(
   return isTombstoned(deletions, sessionId);
 }
 
+/**
+ * Carry mediaIds forward from the server copy when an incoming push lost them.
+ *
+ * A client push (PUT /api/history) re-sends conversations from localStorage,
+ * where video attachments intentionally hold NO dataUrl (only raw base64 `data`
+ * is kept client-side for memory safety). If such a push lands AFTER the
+ * /api/chat route already persisted the video (mediaId recorded server-side),
+ * the push's dataUrl-less copy would overwrite the record and orphan the media
+ * file — which pruneOrphanMedia then deletes. Merging the server's mediaId back
+ * keeps the file referenced so the video stays downloadable / playable.
+ */
+function mergeExistingMediaIds(
+  record: ConversationRecord,
+  existing: ConversationRecord | null,
+): ConversationRecord {
+  if (!existing || !record.messages?.length) return record;
+  const existingById = new Map(existing.messages.map((m) => [m.id, m]));
+  const messages = record.messages.map((m) => {
+    const prev = existingById.get(m.id);
+    if (!prev || !m.attachments?.length) return m;
+    const prevById = new Map((prev.attachments || []).map((a) => [a.id, a]));
+    const attachments = m.attachments.map((a) => {
+      if (a.dataUrl || a.mediaId) return a;
+      const prevAtt = prevById.get(a.id);
+      if (prevAtt?.mediaId) return { ...a, mediaId: prevAtt.mediaId };
+      return a;
+    });
+    return attachments === m.attachments ? m : { ...m, attachments };
+  });
+  return messages === record.messages ? record : { ...record, messages };
+}
+
 export async function upsertServerConversation(
   record: ConversationRecord,
   accountId: string = "default",
@@ -295,15 +327,15 @@ export async function upsertServerConversation(
     return null;
   }
   await ensureDir(accountId);
-  const clean = await prepareConversationForServer(
-    { ...record, sessionId: id },
-    accountId,
-  );
-  // Never overwrite a newer server copy with stale device data (cross-device sync).
   const existing = await getServerConversation(id, accountId);
-  if (existing && (existing.updatedAt || 0) > (clean.updatedAt || 0)) {
+  // Never overwrite a newer server copy with stale device data (cross-device sync).
+  if (existing && (existing.updatedAt || 0) > (record.updatedAt || 0)) {
     return existing;
   }
+  const clean = await prepareConversationForServer(
+    mergeExistingMediaIds({ ...record, sessionId: id }, existing),
+    accountId,
+  );
   await lockedWriteJson(filePath(id, accountId), clean);
   await enforceServerRetention(accountId);
   return clean;
@@ -320,15 +352,15 @@ export async function upsertServerConversations(
     const id = safeId(rec.sessionId);
     if (!id || !rec.messages?.length) continue;
     if (isTombstoned(deletions, id)) continue;
-    const clean = await prepareConversationForServer(
-      { ...rec, sessionId: id },
-      accountId,
-    );
     // Cross-device protection: skip if the server already has a newer copy.
     const existing = await getServerConversation(id, accountId);
-    if (existing && (existing.updatedAt || 0) > (clean.updatedAt || 0)) {
+    if (existing && (existing.updatedAt || 0) > (rec.updatedAt || 0)) {
       continue;
     }
+    const clean = await prepareConversationForServer(
+      mergeExistingMediaIds({ ...rec, sessionId: id }, existing),
+      accountId,
+    );
     await lockedWriteJson(filePath(id, accountId), clean);
     saved.push(clean);
   }

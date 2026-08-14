@@ -175,4 +175,104 @@ describe("history-store server persistence", () => {
     const { readMedia } = await import("./media-store");
     expect(await readMedia(mediaId!)).toBeNull();
   });
+
+  it("keeps mediaId when a client push overwrites a chat whose media was already written", async () => {
+    const id = `keeps_media_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const now = Date.now();
+    try {
+      // 1) /api/chat path: server writes the video and records a mediaId.
+      const first = await upsertServerConversation({
+        sessionId: id,
+        title: "video",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "watch this",
+            createdAt: now,
+            attachments: [
+              {
+                id: "a1",
+                name: "clip.mov",
+                mimeType: "video/quicktime",
+                kind: "file",
+                dataUrl: "data:video/quicktime;base64," + "A".repeat(2048),
+              },
+            ],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      });
+      const mediaId = first?.messages[0]?.attachments?.[0]?.mediaId;
+      expect(mediaId).toBeTruthy();
+      const { mediaExists } = await import("./media-store");
+      expect(await mediaExists(mediaId!)).toBe(true);
+
+      // 2) Client pushStoreToServer path: localStorage copy has NO dataUrl and
+      //    NO mediaId (videos carry only raw base64 client-side). A newer
+      //    updatedAt simulates the push landing after /api/chat finished.
+      const pushed = await upsertServerConversation({
+        sessionId: id,
+        title: "video",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "watch this",
+            createdAt: now,
+            attachments: [
+              { id: "a1", name: "clip.mov", mimeType: "video/quicktime", kind: "file" },
+            ],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now + 5000,
+      });
+      // The mediaId must survive the overwrite, and the media file must remain.
+      expect(pushed?.messages[0]?.attachments?.[0]?.mediaId).toBe(mediaId);
+      const got = await getServerConversation(id);
+      expect(got?.messages[0]?.attachments?.[0]?.mediaId).toBe(mediaId);
+      expect(await mediaExists(mediaId!)).toBe(true);
+    } finally {
+      await deleteServerConversation(id).catch(() => undefined);
+    }
+  });
+
+  it("keeps an existing mediaId when a push carries no data (client degrades gracefully if file missing)", async () => {
+    const id = `keep_mediaid_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const now = Date.now();
+    try {
+      const pushed = await upsertServerConversation({
+        sessionId: id,
+        title: "orphan",
+        messages: [
+          {
+            id: "m1",
+            role: "user",
+            content: "hi",
+            createdAt: now,
+            attachments: [
+              {
+                id: "a1",
+                name: "x.mov",
+                mimeType: "video/quicktime",
+                kind: "file",
+                mediaId: "fake_session_00000000000000000000",
+              },
+            ],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      });
+      // A mediaId that is present (even without a backing file) is kept as-is;
+      // the client shows an unavailable chip instead of a broken element.
+      expect(pushed?.messages[0]?.attachments?.[0]?.mediaId).toBe(
+        "fake_session_00000000000000000000",
+      );
+    } finally {
+      await deleteServerConversation(id).catch(() => undefined);
+    }
+  });
 });

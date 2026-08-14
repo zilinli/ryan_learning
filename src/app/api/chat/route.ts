@@ -111,8 +111,30 @@ export async function POST(req: Request) {
       const userMsgToSave = hydrateUserMessageMedia(userMsg, attachments);
       const existing = await getServerConversation(sessionId, accountId);
       const existingMsgs = existing?.messages ?? [];
-      const alreadySaved = existingMsgs.some((m) => m.id === userMsg.id);
-      if (!alreadySaved) {
+      const savedIdx = existingMsgs.findIndex((m) => m.id === userMsg.id);
+      if (savedIdx >= 0) {
+        // A client push (PUT /api/history) can land BEFORE this route runs and
+        // save the user turn WITHOUT media (videos carry no dataUrl client-side).
+        // If that saved copy lacks mediaIds while this request carries video
+        // data, upsert the hydrated copy so the clip gets written to disk.
+        const savedMsg = existingMsgs[savedIdx];
+        const savedNeedsMedia = (savedMsg.attachments || []).some(
+          (a) => !a.mediaId && (attachments.some((w) => w.name === a.name)),
+        );
+        if (savedNeedsMedia) {
+          const now = Date.now();
+          const messages = [...existingMsgs];
+          messages[savedIdx] = userMsgToSave;
+          const record: ConversationRecord = {
+            sessionId,
+            title: existing?.title || titleFromMessages(messages),
+            messages,
+            createdAt: existing?.createdAt ?? userMsg.createdAt ?? now,
+            updatedAt: Math.max(existing?.updatedAt ?? 0, now),
+          };
+          await upsertServerConversation(record, accountId);
+        }
+      } else {
         const now = Date.now();
         const record: ConversationRecord = {
           sessionId,
