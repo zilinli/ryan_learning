@@ -221,6 +221,56 @@ describe("history-sync media repair", () => {
     expect(fetchMock.mock.calls.some((c) => c[1]?.method === "PUT")).toBe(false);
   });
 
+  it("repairMissingMedia uploads attachments that have dataUrl but no mediaId (never persisted server-side)", async () => {
+    const noMediaId: ConversationRecord = {
+      sessionId: "nomediaid",
+      title: "no media id",
+      messages: [
+        {
+          id: "m_nomediaid",
+          role: "user",
+          content: "video",
+          createdAt: Date.now(),
+          attachments: [
+            {
+              id: "a_nomediaid",
+              name: "clip.mov",
+              mimeType: "video/quicktime",
+              kind: "file",
+              // dataUrl present (recovered from vault) but the server has never
+              // written this attachment — no mediaId yet.
+              dataUrl: "data:video/quicktime;base64,AAAAAA==",
+            },
+          ],
+        },
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const fetchMock = vi
+      .fn()
+      // PUT /api/history — the upload happens regardless (server assigns mediaId).
+      // (No /api/media/check call: an empty mediaId set short-circuits in
+      // checkMissingMedia, so this is the FIRST fetch.)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ conversations: [noMediaId] }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { repaired } = await repairMissingMedia(
+      { version: 3, activeId: "nomediaid", conversations: [noMediaId] },
+      AID,
+    );
+    expect(repaired).toBe(1);
+    const putCall = fetchMock.mock.calls[0];
+    expect(putCall[0]).toContain("/api/history");
+    const body = JSON.parse(putCall[1]?.body as string) as {
+      conversations: ConversationRecord[];
+    };
+    expect(body.conversations.map((c) => c.sessionId)).toEqual(["nomediaid"]);
+  });
+
   it("repairMissingMedia skips chats with mediaId but no local dataUrl (nothing to upload)", async () => {
     const noDataUrl: ConversationRecord = {
       sessionId: "nodata",

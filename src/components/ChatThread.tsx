@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatAttachment, ChatMessage, ConversationWorksheetPlan } from "@/lib/types";
+import { isVideoAttachment } from "@/lib/attachments";
 import { getPhotoFromVault } from "@/lib/photo-vault";
 import {
   formatProgressLabelOrDone,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/prompts";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
+import { VideoAttachment } from "./VideoAttachment";
 
 function stripHiddenFences(content: string): string {
   return stripSparkFence(
@@ -1136,6 +1138,23 @@ export function ChatThread({
                         >
                           📷 {a.name || "Photo"}
                         </span>
+                      );
+                    }
+
+                    // Video attachments — inline player (play without downloading)
+                    if (isVideoAttachment(a.mimeType, a.name)) {
+                      return (
+                        <VideoAttachment
+                          key={a.id}
+                          attachment={a}
+                          isUser={isUser}
+                          vaultSrc={vaultMap[a.id]}
+                          vaultChecked={Boolean(vaultChecked[a.id])}
+                          loadFailed={Boolean(loadFailed[a.id])}
+                          onLoadFailed={(id) =>
+                            setLoadFailed((prev) => ({ ...prev, [id]: true }))
+                          }
+                        />
                       );
                     }
 

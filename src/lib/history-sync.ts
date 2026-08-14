@@ -63,44 +63,43 @@ export async function checkMissingMedia(mediaIds: string[]): Promise<Set<string>
 }
 
 /**
- * Re-persist conversations where attachments have dataUrl but media files
- * are missing on the server. This repairs orphaned media references after a
- * server rebuild or data/media wipe — if the browser still has the photo
- * (dataUrl in vault/localStorage), it is uploaded to the server again.
+ * Re-persist conversations whose attachments have dataUrl but are not yet
+ * saved server-side. Covers two cases:
+ *
+ * 1. mediaId exists but the media file is missing on the server (orphaned by
+ *    a failed write / data/media wipe) — re-uploads if the browser still has
+ *    the dataUrl (vault/localStorage).
+ * 2. mediaId is absent entirely (the server never persisted this attachment,
+ *    e.g. the write failed during an earlier push) — uploads it now so the
+ *    server generates a mediaId.
+ *
+ * Videos fall through the same path whenever their dataUrl is still present
+ * (e.g. recovered from the IndexedDB vault); video-only clients that dropped
+ * the dataUrl for memory reasons can only be re-uploaded by the user.
  */
 export async function repairMissingMedia(
   store: ConversationsStore,
   accountId: string = RYAN_ACCOUNT,
 ): Promise<{ repaired: number; store: ConversationsStore }> {
-  // Collect conversations that have dataUrl attachments with mediaIds
+  // Conversations that carry dataUrl attachments (with or without mediaId).
   const candidates: ConversationRecord[] = [];
   for (const c of store.conversations) {
-    let hasDataUrl = false;
-    for (const m of c.messages) {
-      for (const a of m.attachments || []) {
-        if (a.mediaId && a.dataUrl) {
-          hasDataUrl = true;
-        }
-      }
-    }
-    if (hasDataUrl) {
-      candidates.push(c);
-    }
+    const hasDataUrl = (c.messages || []).some((m) =>
+      (m.attachments || []).some((a) => a.dataUrl),
+    );
+    if (hasDataUrl) candidates.push(c);
   }
-
   if (!candidates.length) return { repaired: 0, store };
 
-  // Check which mediaIds are missing on the server
-  const allIds = collectStoreMediaIds(store);
-  const missing = await checkMissingMedia(allIds);
+  // Check which mediaIds are missing on the server.
+  const missing = await checkMissingMedia(collectStoreMediaIds(store));
 
-  if (!missing.size) return { repaired: 0, store };
-
-  // Filter to only conversations that have missing media files
+  // Repair attachments that are either server-missing (mediaId known) or
+  // never uploaded (no mediaId yet).
   const toRepair = candidates.filter((c) =>
     c.messages.some((m) =>
       (m.attachments || []).some(
-        (a) => a.mediaId && a.dataUrl && missing.has(a.mediaId),
+        (a) => a.dataUrl && (!a.mediaId || missing.has(a.mediaId)),
       ),
     ),
   );

@@ -85,7 +85,9 @@ export async function mediaExists(mediaId: string): Promise<boolean> {
 function stripDataUrl(dataUrl: string): { mime: string; buf: Buffer } | null {
   const m = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(dataUrl || "");
   if (!m) return null;
-  const mime = m[1] || "image/jpeg";
+  // Empty mime (data:;base64,...) is kept as "" so callers can fall back to
+  // the attachment's real MIME instead of mis-recording a video as image/jpeg.
+  const mime = m[1] || "";
   const isB64 = Boolean(m[2]);
   const payload = m[3] || "";
   try {
@@ -115,7 +117,10 @@ export async function writeMediaFromDataUrl(
   const parsed = stripDataUrl(dataUrl);
   if (!parsed) return null;
   await ensureMediaDir();
-  const mime = parsed.mime || fallbackMime || "application/octet-stream";
+  const mime =
+    parsed.mime ||
+    fallbackMime ||
+    "application/octet-stream";
   await fs.writeFile(binPath(mediaId), parsed.buf);
   const meta: StoredMediaMeta = {
     mediaId,
@@ -370,8 +375,9 @@ export async function persistConversationMedia(
     for (const a of m.attachments || []) {
       if (a.dataUrl) {
         const mediaId = a.mediaId || buildMediaId(sessionId, m.id, a.id);
+        let wrote = false;
         try {
-          await writeMediaFromDataUrl(mediaId, a.dataUrl, a.mimeType, {
+          const meta = await writeMediaFromDataUrl(mediaId, a.dataUrl, a.mimeType, {
             sessionId,
             messageId: m.id,
             attachmentId: a.id,
@@ -379,16 +385,28 @@ export async function persistConversationMedia(
             kind: a.kind,
             accountId,
           });
-        } catch {
-          // Non-fatal: keep the dataUrl so the client can retry on next push.
+          wrote = Boolean(meta && meta.bytes > 0);
+        } catch (err) {
+          console.error(
+            `[media] write failed mediaId=${mediaId} bytes=${Math.round((a.dataUrl || "").length / 4)}`,
+            err instanceof Error ? err.message : String(err),
+          );
         }
-        attachments.push({
-          id: a.id,
-          name: a.name,
-          mimeType: a.mimeType,
-          kind: a.kind,
-          mediaId,
-        });
+        if (wrote) {
+          attachments.push({
+            id: a.id,
+            name: a.name,
+            mimeType: a.mimeType,
+            kind: a.kind,
+            mediaId,
+          });
+        } else {
+          // Write failed — do NOT record a dangling mediaId. Keep the dataUrl so
+          // a later client push / repairMissingMedia can retry the upload.
+          // (sanitizeForServer strips dataUrl before it touches disk, so the
+          // server history never stores base64 — it just has no mediaId yet.)
+          attachments.push(a);
+        }
       } else if (a.mediaId) {
         attachments.push(slimAttMeta(a));
       } else {

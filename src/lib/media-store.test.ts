@@ -435,6 +435,79 @@ describe("media-store", () => {
     expect(await readMedia(mediaId)).toBeNull();
   });
 
+  it("does NOT record a dangling mediaId when the media write fails", async () => {
+    const sessionId = `fail_${Date.now()}`;
+    const prepared = await persistConversationMedia({
+      sessionId,
+      title: "failed write",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "broken upload",
+          createdAt: 1,
+          attachments: [
+            {
+              id: "a1",
+              name: "bad.mov",
+              mimeType: "video/quicktime",
+              kind: "file",
+              // Not a data URL → stripDataUrl fails → write fails
+              dataUrl: "not-a-data-url-at-all",
+            },
+          ],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const att = prepared.messages[0]?.attachments?.[0];
+    expect(att?.mediaId).toBeUndefined();
+    // Original attachment (still carrying dataUrl) is preserved so a later
+    // client push / repairMissingMedia can retry the upload.
+    expect(att?.dataUrl).toBe("not-a-data-url-at-all");
+  });
+
+  it("uses the attachment mimeType when the data URL has no MIME part", async () => {
+    const sessionId = `mime_${Date.now()}`;
+    const b64 = Buffer.from("000000001c667479706d7034", "hex").toString(
+      "base64",
+    );
+    const prepared = await persistConversationMedia({
+      sessionId,
+      title: "bare data url",
+      messages: [
+        {
+          id: "m1",
+          role: "user",
+          content: "video",
+          createdAt: 1,
+          attachments: [
+            {
+              id: "a1",
+              name: "clip.mov",
+              mimeType: "video/quicktime",
+              kind: "file",
+              // Legacy iPhone uploads sometimes produce data:;base64,... with
+              // no MIME — must not be silently recorded as image/jpeg.
+              dataUrl: `data:;base64,${b64}`,
+            },
+          ],
+        },
+      ],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const mediaId = prepared.messages[0]?.attachments?.[0]?.mediaId;
+    expect(mediaId).toBeTruthy();
+    const hit = await readMedia(mediaId!);
+    expect(hit?.mimeType).toBe("video/quicktime");
+
+    const dir = path.join(process.cwd(), "data", "media");
+    await rm(path.join(dir, `${mediaId}.bin`), { force: true });
+    await rm(path.join(dir, `${mediaId}.json`), { force: true });
+  });
+
   it("keeps My Creations mediaIds even if sessionId is not studio-reserved", async () => {
     const { writeMediaBytes, deleteMedia, mediaExists } = await import(
       "./media-store"
