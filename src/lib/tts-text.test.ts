@@ -100,6 +100,46 @@ describe("cleanTutorSpeechText", () => {
     expect(cleanTutorSpeechText("a &amp; b &lt; c &gt; d")).toBe("a b c d");
   });
 
+  it("does not speak worksheet-plan tilde fences (Ryan session regression)", () => {
+    // Production bug: TTS read JSON {"total":14,"current":1,"subject":"ela",…}
+    // because cleanTutorSpeechText only stripped ``` fences, not ~~~.
+    const raw =
+      "Nice work marking your words, Ryan — we’ll go **one word at a time**, starting with your #1.\n\n" +
+      "~~~worksheet-plan\n" +
+      '{"total":14,"current":1,"subject":"ela","items":[{"id":1,"label":"1 methodical","status":"active"},{"id":2,"label":"2 metropolitan","status":"pending"}]}\n' +
+      "~~~\n\n" +
+      "Cover **methodical** with your hand, then type the spelling from memory.";
+    const out = cleanTutorSpeechText(raw);
+    expect(out).not.toMatch(/worksheet-plan|"total"|"subject"|"status"|methodical","status/i);
+    expect(out).not.toMatch(/[{}\[\]]/);
+    expect(out.toLowerCase()).toContain("nice work");
+    expect(out.toLowerCase()).toContain("methodical");
+    expect(out.toLowerCase()).toContain("spelling from memory");
+  });
+
+  it("does not speak incomplete worksheet-plan while streaming", () => {
+    const prefix = "Great question — we’ll learn meanings one word at a time.\n\n";
+    const partial =
+      prefix +
+      "~~~worksheet-plan\n" +
+      '{"total":14,"current":1,"subject":"ela","items":[{"id":1,"label":"1 methodical"';
+    const { ready, rest } = pullSpeakableFromBuffer(partial, {
+      minChars: 20,
+      maxWaitChars: 80,
+    });
+    const spoken = ready.join(" ");
+    expect(spoken).not.toMatch(/worksheet-plan|"total"|"subject"/i);
+    expect(rest).toContain("~~~worksheet-plan");
+    // Closing the fence later must still keep JSON silent
+    const closed =
+      rest +
+      '","status":"active"}]}\n~~~\n\nCan you make one short sentence using methodical?';
+    const done = pullSpeakableFromBuffer(closed, { force: true });
+    const all = [...ready, ...done.ready].join(" ");
+    expect(all).not.toMatch(/"total"|"items"|worksheet-plan/i);
+    expect(all.toLowerCase()).toContain("methodical");
+  });
+
   it("strips bare data:image URIs (no markdown wrapper)", () => {
     expect(cleanTutorSpeechText("你好 data:image/gif;base64,AAAA 世界")).toBe(
       "你好世界",

@@ -60,6 +60,9 @@ export function cleanTutorSpeechText(text: string): string {
   t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*?\)/gi, " ");
   t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*$/gi, " ");
   t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, " ");
+  // Tilde fences (~~~worksheet-plan … ~~~) — agent control JSON; never speak
+  t = t.replace(/~~~[^\n]*\n[\s\S]*?~~~/g, " ");
+  t = t.replace(/~~~[^\n]*\n[\s\S]*$/g, " ");
   t = t.replace(/\bsvg\s*(<svg\b[\s\S]*?<\/svg>)/gi, " ");
   t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, " ");
   t = t.replace(/\bsvg\s*<svg\b[\s\S]*$/gi, " ");
@@ -98,7 +101,15 @@ export function cleanTutorSpeechText(text: string): string {
   t = t.replace(/^\s*[-*+]\s+/gm, "");
   t = t.replace(/^\s*\d+\.\s+/gm, "");
   t = t.replace(/[*_~]+/g, "");
-  // Strip markdown tables (pipe-delimited rows + separator lines)
+  // Strip leftover JSON / code punctuation that TTS would vocalize
+  // (e.g. worksheet-plan body if a fence was only partially stripped)
+  t = t.replace(/\{[^{}]{0,4000}\}/g, (block) =>
+    /"(?:total|current|subject|items|status|label|id)"\s*:/.test(block)
+      ? " "
+      : block,
+  );
+  t = t.replace(/[{}\[\]\\|]+/g, " ");
+  // Markdown tables (pipe-delimited rows + separator lines)
   t = t.replace(/\|[\s\-:|]+\|/g, " ");
   t = t.replace(/\|[^|\n]+\|/g, " ");
   // Horizontal rules
@@ -245,6 +256,7 @@ function maskCompleteDiagrams(text: string): string {
   const blank = (m: string) => DIAGRAM_MASK.repeat(m.length);
   t = t.replace(/!\[[^\]]*\]\(data:image\/[\s\S]*?\)/gi, blank);
   t = t.replace(/```(?:svg|mermaid|xml)?\s*[\s\S]*?```/gi, blank);
+  t = t.replace(/~~~[^\n]*\n[\s\S]*?~~~/g, blank);
   t = t.replace(/\bsvg\s*<svg\b[\s\S]*?<\/svg>/gi, blank);
   t = t.replace(/<svg\b[\s\S]*?<\/svg>/gi, blank);
   return t;
@@ -263,11 +275,19 @@ function incompleteDiagramStart(buf: string): number {
     }
   }
 
-  // Incomplete fenced diagram
+  // Incomplete fenced diagram (backticks)
   for (const m of buf.matchAll(/```(?:svg|xml|mermaid)?[^\n]*\n?/gi)) {
     if (m.index === undefined) continue;
     const after = buf.slice(m.index + m[0].length);
     if (!after.includes("```")) candidates.push(m.index);
+  }
+
+  // Incomplete tilde fences (~~~worksheet-plan …) — hold until closing ~~~.
+  // Only match tagged openers (~~~name), not bare closing ~~~ lines.
+  for (const m of buf.matchAll(/~~~[a-zA-Z][\w-]*[^\n]*\n/g)) {
+    if (m.index === undefined) continue;
+    const after = buf.slice(m.index + m[0].length);
+    if (!/(?:^|\n)~~~(?:\s|$)/.test(after)) candidates.push(m.index);
   }
 
   // Incomplete bare SVG
@@ -394,7 +414,7 @@ export function pullSpeakableFromBuffer(
     } else {
       // Prefer cutting before a complete diagram rather than mid-payload
       const beforeDiag = buf.search(
-        /!\[[^\]]*\]\(data:image\/|<svg\b|```(?:svg|xml|mermaid)\b/i,
+        /!\[[^\]]*\]\(data:image\/|<svg\b|```(?:svg|xml|mermaid)\b|~~~[a-zA-Z-]*\b/i,
       );
       if (beforeDiag >= minChars) {
         take(beforeDiag);
