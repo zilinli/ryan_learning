@@ -8,7 +8,8 @@ import type { ChatAttachment } from "./types";
 const execFileAsync = promisify(execFile);
 
 export const MAX_ATTACHMENTS = 9;
-export const MAX_FILE_BYTES = 12 * 1024 * 1024;
+export const MAX_FILE_BYTES = 256 * 1024 * 1024;
+export const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024));
 const MAX_SUMMARY_BYTES = 12_000;
 
 export function isAllowedAttachment(

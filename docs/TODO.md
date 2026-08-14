@@ -23,6 +23,21 @@
 > Journal Timeline + Me hub + Stage styles: **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)**  
 > Spark 深度分析落地 P0→P2: **[subsystems/spark-deep-analysis-roadmap.md](subsystems/spark-deep-analysis-roadmap.md)**
 > Short video upload: **[subsystems/short-video-upload-parse.md](subsystems/short-video-upload-parse.md)**
+> Upload size 256MB: **[subsystems/upload-size-limit-256mb.md](subsystems/upload-size-limit-256mb.md)**
+
+---
+
+## 📦 UP256 — File upload size limit → 256MB（2026-08-14）
+
+> **Design:** [subsystems/upload-size-limit-256mb.md](subsystems/upload-size-limit-256mb.md)  
+> **Goal:** Raise per-file picker limit to 256MB; align Next body buffer + nginx so base64 JSON payloads succeed.
+
+- [x] **UP256.1** — `MAX_FILE_BYTES` / `MAX_FILE_MB` in `attachments.ts` (+ agent-chat parity)
+- [x] **UP256.2** — Error/hint strings in `file-payload.ts` + `extract-files.ts`
+- [x] **UP256.3** — `next.config.ts`: `proxyClientMaxBodySize` + `serverActions.bodySizeLimit` = 512mb
+- [x] **UP256.4** — Unit tests UP-1…UP-3; `run_tests`
+- [x] **UP256.5** — Nginx `client_max_body_size 512m` + reload
+- [ ] **UP256.6** — Commit → publish_develop → deploy_live
 
 ---
 

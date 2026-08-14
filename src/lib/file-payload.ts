@@ -4,6 +4,7 @@ import {
   isVideoAttachment,
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
+  MAX_FILE_MB,
   normalizeMime,
   stripDataUrlPrefix,
   guessKind,
@@ -62,7 +63,7 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
     }
   }
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error(`Keep each file under 12MB (${name})`);
+    throw new Error(`Keep each file under ${MAX_FILE_MB}MB (${name})`);
   }
 
   const id = newId();

@@ -1,7 +1,9 @@
 import type { AttachmentKind, ChatAttachmentPayload } from "./types";
 
 export const MAX_ATTACHMENTS = 9;
-export const MAX_FILE_BYTES = 12 * 1024 * 1024;
+/** Per-file upload ceiling (picker + client validation). */
+export const MAX_FILE_BYTES = 256 * 1024 * 1024;
+export const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024));
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|heic|heif)$/i;
 const TEXT_EXT =

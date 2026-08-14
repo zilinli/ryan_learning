@@ -9,6 +9,7 @@ import {
   isHtmlAttachment,
   isOfficeAttachment,
   isVideoAttachment,
+  MAX_FILE_MB,
   stripDataUrlPrefix,
   textFromDataUrl,
 } from "./attachments";
@@ -176,7 +177,7 @@ export async function buildFileSummaries(
           summaries.push(`--- ${label} ---\n${text.slice(0, MAX_SUMMARY)}`);
         } else {
           summaries.push(
-            `--- ${label} ---\n(Short video attached but speech/on-screen text could not be extracted. Try a clearer clip under 12MB, or photograph key frames.)`,
+            `--- ${label} ---\n(Short video attached but speech/on-screen text could not be extracted. Try a clearer clip under ${MAX_FILE_MB}MB, or photograph key frames.)`,
           );
         }
       } else {

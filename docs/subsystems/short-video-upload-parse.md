@@ -14,7 +14,7 @@ Cursor SDK multimodal input is **images only** (`SDKImage`) — raw `video/mp4` 
 
 ## Approach
 
-1. **Allowlist** — Short clips only: `.mp4` / `.webm` / `.mov` / `.m4v` + `video/*` MIME. Keep **12MB** per file (same as other attachments) so “short” is enforced by size.
+1. **Allowlist** — Short clips only: `.mp4` / `.webm` / `.mov` / `.m4v` + `video/*` MIME. Per-file ceiling follows shared `MAX_FILE_BYTES` (**256MB**; see [upload-size-limit-256mb.md](upload-size-limit-256mb.md)).
 2. **Client payload** — Binary base64 (same as PDF/Office); never `readAsText`. Preview pill uses a 🎬 label (no autoplay in chat).
 3. **Server extract** (`extractVideoSummary`):
    - Write temp file → **ffprobe** duration (informational)
@@ -43,7 +43,7 @@ Cursor SDK multimodal input is **images only** (`SDKImage`) — raw `video/mp4` 
 - **CPU / latency** — ffmpeg + STT can take 10–60s; chat already has `maxDuration = 300` and heartbeats.
 - **Silent / music-only clips** — STT empty is OK if frame OCR catches text; otherwise honest “could not extract” message.
 - **No ffmpeg** — Host has ffmpeg today; if missing, return clear failure (do not hang).
-- **Payload size** — Base64 in JSON ≈ 1.33× file; nginx `client_max_body_size 50m` covers 12MB clips.
+- **Payload size** — Base64 in JSON ≈ 1.33× file; nginx `client_max_body_size 512m` + Next `proxyClientMaxBodySize` cover one 256MB clip after encoding.
 - **Privacy** — Same as mic STT: audio/frames go to Bailian when configured; only summary text enters the tutor prompt.
 
 ## Test design
@@ -57,5 +57,5 @@ Cursor SDK multimodal input is **images only** (`SDKImage`) — raw `video/mp4` 
 | VID-5 | unit | `extractVideoSummary` with mocked ffmpeg/STT/OCR returns transcript + frame text |
 | VID-6 | unit | Missing binary → honest extract-fail message in `buildFileSummaries` |
 | VID-7 | unit | `fileToAttachment` path treats video as base64 `file` (no textContent) |
-| VID-8 | manual | Tutor: upload ≤12MB phone mp4 with speech → model cites transcript |
+| VID-8 | manual | Tutor: upload phone mp4 (≤256MB) with speech → model cites transcript |
 | VID-9 | manual | Silent screen-record of worksheet → OCR lines appear in reply context |
