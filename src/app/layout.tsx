@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
-
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
@@ -58,7 +57,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        {children}
+      </body>
     </html>
   );
 }

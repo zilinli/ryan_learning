@@ -2,6 +2,7 @@ import {
   MAX_ATTACHMENTS,
   normalizeIncomingAttachments,
   stripDataUrlPrefix,
+  hydrateUserMessageMedia,
 } from "@/lib/attachments";
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
 import { buildFileSummaries } from "@/lib/extract-files";
@@ -23,6 +24,9 @@ import type { ChatRequestBody } from "@/lib/types";
 import type { EngagementState } from "@/lib/engagement";
 import type { SDKImage } from "@cursor/sdk";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
+import { getServerConversation, upsertServerConversation } from "@/lib/history-store";
+import { titleFromMessages } from "@/lib/storage";
+import type { ConversationRecord } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +72,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Missing sessionId" }, { status: 400 });
   }
 
+  const accountId =
+    typeof body.accountId === "string" && body.accountId.trim()
+      ? body.accountId.trim()
+      : "default";
+
   const attachments = normalizeIncomingAttachments(body);
   if ((!message || !message.trim()) && attachments.length === 0) {
     return Response.json(
@@ -82,6 +91,46 @@ export async function POST(req: Request) {
         { error: `Photo "${a.name}" looks empty — try Camera / Photos again.` },
         { status: 400 },
       );
+    }
+  }
+
+  // Best-effort server-side persist of the user turn BEFORE streaming the reply.
+  // Chat history normally relies on the client pushStoreToServer (PUT /api/history),
+  // which is silently dropped when the server is in a crash-loop window — that is
+  // exactly how a video message vanished from acct_ching's de717193 session. Writing
+  // the user message here (persistConversationMedia writes video/images to disk and
+  // replaces dataUrl with mediaId) gives the server an authoritative copy that can
+  // never be lost by a client push failure.
+  const userMsg = body.userMessage;
+  if (userMsg && typeof userMsg.id === "string" && userMsg.role === "user") {
+    try {
+      // Videos/files arrive as raw base64 `data` (no dataUrl — halves client
+      // memory and prevents phone crashes). Rebuild the dataUrl server-side so
+      // persistConversationMedia writes the clip to disk and history stores a
+      // mediaId instead of a dangling reference.
+      const userMsgToSave = hydrateUserMessageMedia(userMsg, attachments);
+      const existing = await getServerConversation(sessionId, accountId);
+      const existingMsgs = existing?.messages ?? [];
+      const alreadySaved = existingMsgs.some((m) => m.id === userMsg.id);
+      if (!alreadySaved) {
+        const now = Date.now();
+        const record: ConversationRecord = {
+          sessionId,
+          title: existing?.title || titleFromMessages([userMsgToSave, ...existingMsgs]),
+          messages: [...existingMsgs, userMsgToSave],
+          createdAt: existing?.createdAt ?? userMsg.createdAt ?? now,
+          // Monotonic: keep the server copy's updatedAt unless this turn is newer,
+          // so the cross-device guard never drops a message-append on slow clocks.
+          updatedAt: Math.max(
+            existing?.updatedAt ?? 0,
+            userMsg.createdAt ?? now,
+            now,
+          ),
+        };
+        await upsertServerConversation(record, accountId);
+      }
+    } catch {
+      // Non-fatal: client push remains the normal path.
     }
   }
 

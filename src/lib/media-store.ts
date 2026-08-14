@@ -370,14 +370,18 @@ export async function persistConversationMedia(
     for (const a of m.attachments || []) {
       if (a.dataUrl) {
         const mediaId = a.mediaId || buildMediaId(sessionId, m.id, a.id);
-        await writeMediaFromDataUrl(mediaId, a.dataUrl, a.mimeType, {
-          sessionId,
-          messageId: m.id,
-          attachmentId: a.id,
-          name: a.name,
-          kind: a.kind,
-          accountId,
-        });
+        try {
+          await writeMediaFromDataUrl(mediaId, a.dataUrl, a.mimeType, {
+            sessionId,
+            messageId: m.id,
+            attachmentId: a.id,
+            name: a.name,
+            kind: a.kind,
+            accountId,
+          });
+        } catch {
+          // Non-fatal: keep the dataUrl so the client can retry on next push.
+        }
         attachments.push({
           id: a.id,
           name: a.name,

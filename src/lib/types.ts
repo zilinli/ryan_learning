@@ -113,6 +113,14 @@ export interface HistoryTurn {
 export interface ChatRequestBody {
   sessionId: string;
   message: string;
+  /** Server-storage account id — lets /api/chat persist the user turn server-side */
+  accountId?: string;
+  /**
+   * The full user message (id + attachments) sent by the client. /api/chat
+   * persists it server-side before streaming the reply, so a client push
+   * failure (e.g. crash window) can never drop the user turn or its media.
+   */
+  userMessage?: ChatMessage;
   attachments?: ChatAttachmentPayload[];
   /** Quoted earlier message this turn replies to (anchors the model's answer) */
   quote?: ChatQuote;

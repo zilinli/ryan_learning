@@ -1,9 +1,18 @@
-import type { AttachmentKind, ChatAttachmentPayload } from "./types";
+import type { AttachmentKind, ChatAttachmentPayload, ChatMessage } from "./types";
 
 export const MAX_ATTACHMENTS = 9;
 /** Per-file upload ceiling (picker + client validation). */
 export const MAX_FILE_BYTES = 256 * 1024 * 1024;
 export const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024));
+/**
+ * Short-video ceiling — deliberately far below MAX_FILE_BYTES. Videos are
+ * sent as base64 inside the JSON chat body; a multi-hundred-MB clip gets
+ * duplicated several times in memory (data + JSON.stringify + transport),
+ * which crashes low-memory phones (the Jieru 499s). 80MB caps the body at
+ * ~107MB base64 — safe on modern phones while still covering short clips.
+ */
+export const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
+export const MAX_VIDEO_MB = Math.round(MAX_VIDEO_BYTES / (1024 * 1024));
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|heic|heif)$/i;
 const TEXT_EXT =
@@ -283,4 +292,31 @@ export function normalizeIncomingAttachments(body: {
     ];
   }
   return [];
+}
+
+/**
+ * Rebuild dataUrl on a user message's attachments from the wire-format base64
+ * `data`. Videos/files are uploaded with only raw `data` (no dataUrl) to halve
+ * client memory; the server reconstructs the dataUrl before persisting so
+ * persistConversationMedia writes the media to disk and history keeps a mediaId.
+ */
+export function hydrateUserMessageMedia(
+  userMsg: ChatMessage,
+  wireAttachments: ChatAttachmentPayload[],
+): ChatMessage {
+  if (!userMsg.attachments?.length || !wireAttachments.length) return userMsg;
+  const byName = new Map(wireAttachments.map((a) => [a.name, a]));
+  const nextAtts = userMsg.attachments.map((a) => {
+    if (a.dataUrl) return a;
+    const src = byName.get(a.name);
+    const base64 = src ? attachmentBase64(src) : "";
+    if (!base64) return a;
+    return {
+      ...a,
+      dataUrl: `data:${a.mimeType || src?.mimeType || "application/octet-stream"};base64,${base64}`,
+    };
+  });
+  return nextAtts.some((a, i) => a !== userMsg.attachments![i])
+    ? { ...userMsg, attachments: nextAtts }
+    : userMsg;
 }

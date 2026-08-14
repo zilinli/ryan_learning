@@ -1225,7 +1225,9 @@ export function useTutorSession() {
     const history = buildHistoryPreview(messages);
     const shouldSpeak = voiceEnabledRef.current;
 
-    // Vault attachments immediately so history stays viewable / downloadable
+    // Vault attachments immediately so history stays viewable / downloadable.
+    // Videos keep no dataUrl (memory safety) so they naturally skip the vault;
+    // after send the server persists media and the client re-fetches by mediaId.
     for (const a of payload.attachments) {
       if (a.dataUrl) {
         void putPhotoInVault({
@@ -1295,6 +1297,8 @@ export function useTutorSession() {
       const full = await consumeChatStream(
         {
           sessionId,
+          accountId,
+          userMessage: userMsg,
           message: payload.text,
           reset: needReset,
           quote: wireQuote,

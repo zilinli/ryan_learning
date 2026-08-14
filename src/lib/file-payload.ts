@@ -5,6 +5,8 @@ import {
   MAX_ATTACHMENTS,
   MAX_FILE_BYTES,
   MAX_FILE_MB,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_MB,
   normalizeMime,
   stripDataUrlPrefix,
   guessKind,
@@ -120,16 +122,26 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
     };
   }
 
-  // Short video — binary; server STT + keyframe OCR (never readAsText)
+  // Short video — binary; server STT + keyframe OCR (never readAsText).
+  // IMPORTANT: only `data` (raw base64) is kept — no `dataUrl`. Holding both
+  // doubles the multi-MB clip in memory and, combined with JSON.stringify,
+  // crashes low-memory phones mid-upload (the 499 page-reloads). Local preview
+  // shows the "VID" chip in Composer; after send the server writes media and
+  // the client re-fetches via mediaId.
   if (isVideoAttachment(mimeType, name)) {
+    if (file.size > MAX_VIDEO_BYTES) {
+      throw new Error(
+        `Keep videos under ${MAX_VIDEO_MB}MB (${name}) — uploads are sent as data and larger clips crash the browser.`,
+      );
+    }
     const dataUrl = await readAsDataURL(file);
+    const data = stripDataUrlPrefix(dataUrl);
     return {
       id,
       name,
       mimeType: mimeType.startsWith("video/") ? mimeType : "video/mp4",
       kind: "file",
-      dataUrl,
-      data: stripDataUrlPrefix(dataUrl),
+      data,
     };
   }
 

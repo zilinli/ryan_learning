@@ -124,6 +124,29 @@ describe("slimMessages", () => {
     expect(slim[0]?.attachments?.[0]?.name).toBe("a.pdf");
   });
 
+  it("strips video dataUrls from localStorage even for the active chat", () => {
+    const messages = [
+      msg({
+        role: "user",
+        content: "watch this",
+        attachments: [
+          {
+            id: "v1",
+            name: "clip.mp4",
+            mimeType: "video/mp4",
+            kind: "file",
+            dataUrl: "data:video/mp4;base64,AAAA",
+          },
+        ],
+      }),
+    ];
+    const slim = slimMessages(messages, true);
+    expect(slim[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    // The reference survives so the IndexedDB vault can restore the clip.
+    expect(slim[0]?.attachments?.[0]?.id).toBe("v1");
+    expect(slim[0]?.attachments?.[0]?.mimeType).toBe("video/mp4");
+  });
+
   it("truncates oversized content", () => {
     const huge = "x".repeat(40_000);
     const slim = slimMessages(
