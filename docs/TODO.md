@@ -9,7 +9,7 @@
 - [x] **LAB-VOICE.2** — `MediaLabChallengeView`: prompt Listen / Auto Listen / Ryan hard-lock + mic barge-in
 - [x] **LAB-VOICE.3** — `LabDiscussDialogue` + `TedDiscussDialogue`: mic + coach Listen/auto (Ryan)
 - [x] **LAB-VOICE.4** — Unit regression `ted-challenge.test.ts` + `run_tests`
-- [ ] **LAB-VOICE.5** — apply_changes → publish_develop → deploy_live
+- [x] **LAB-VOICE.5** — apply_changes → publish_develop → deploy_live
 - [ ] **LAB-VOICE.6** — Manual TM-D1–TM-D5 on live labs
 
 ## 🔧 HAK-FIX: 客家话 TTS FormoSpeech 解释器（2026-08-15）
