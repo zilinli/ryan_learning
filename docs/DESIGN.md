@@ -111,6 +111,7 @@ flowchart TB
 | **[subsystems/lab-challenge-ted-parity.md](subsystems/lab-challenge-ted-parity.md)** | BBC / NatGeo / RSA Challenge — TED parity (CC → voice → discuss) |
 | **[subsystems/lab-discuss-voice-listen.md](subsystems/lab-discuss-voice-listen.md)** | All labs: Discuss mic + prompt/coach British Ryan Listen |
 | **[subsystems/studio-creations-audio-mobile.md](subsystems/studio-creations-audio-mobile.md)** | Studio My Creations audio — prune protect + Range for mobile |
+| **[subsystems/creations-media-download.md](subsystems/creations-media-download.md)** | My Creations / share — Download beside Share link (`?download=1`) |
 | **[subsystems/writing-studio-pad-p0.md](subsystems/writing-studio-pad-p0.md)** | ✍️ Writing Pad P0 — LanguageTool grammar, Feedback/Stage layout, writing type |
 | **[subsystems/journal-and-me-hub.md](subsystems/journal-and-me-hub.md)** | 📓 Journal Timeline (`/me`, `/me/journal`) + Stage styles (Structure suggests Hip-hop etc.) |
 | **[subsystems/spark-research-roadmap.md](subsystems/spark-research-roadmap.md)** | 🗺 竞品调研路线图 P0→P3：开场卡/快速路径/SkillDots → Challenge/深挖/错题本 → Feynman/周目标/突破叙事/朗读 → 几何步骤高亮 |

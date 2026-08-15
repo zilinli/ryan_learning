@@ -72,4 +72,22 @@ describe("GET /api/media/[mediaId] — audio inline", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Disposition")).toMatch(/attachment/);
   });
+
+  it("attaches Content-Disposition for video download=1", async () => {
+    vi.spyOn(mediaStore, "readMedia").mockResolvedValue({
+      buf: Buffer.from("ftypisom"),
+      mimeType: "video/mp4",
+      name: "Music Video.mp4",
+      kind: "file",
+    });
+
+    const res = await GET(
+      new Request("http://localhost/api/media/vid_mv_1?download=1"),
+      { params: Promise.resolve({ mediaId: "vid_mv_1" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("video/mp4");
+    expect(res.headers.get("Content-Disposition")).toMatch(/attachment/);
+    expect(res.headers.get("Content-Disposition")).toMatch(/Music/);
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CreationItem } from "@/lib/entertain/creations-store";
+import { creationDownloadUrl } from "@/lib/entertain/creation-download";
 import {
   notifyCreationsChanged,
   subscribeCreationsChanged,
@@ -118,16 +119,29 @@ function ShareButton({
     }
   };
 
+  const downloadHref = creationDownloadUrl(item);
+
   return (
     <div className="mt-3">
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void share()}
-        className="min-h-9 rounded-lg border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] disabled:opacity-40"
-      >
-        {busy ? "…" : "Share link"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void share()}
+          className="min-h-9 rounded-lg border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] disabled:opacity-40"
+        >
+          {busy ? "…" : "Share link"}
+        </button>
+        {downloadHref && (
+          <a
+            href={downloadHref}
+            download
+            className="inline-flex min-h-9 items-center rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] hover:border-[var(--teal)]/40"
+          >
+            Download
+          </a>
+        )}
+      </div>
       {msg && (
         <p className="mt-1 break-all text-[10px] text-[var(--ink-muted)]">{msg}</p>
       )}

@@ -1,5 +1,15 @@
 # 📋 Downstream Development TODO
 
+## ⬇️ CR-DL — My Creations media download（2026-08-15）
+
+Design: [creations-media-download.md](subsystems/creations-media-download.md)
+
+- [x] **CR-DL.1** — Helper `creationDownloadUrl` (song/video/image; skip missing)
+- [x] **CR-DL.2** — CreationsLibrary: Download button next to Share link
+- [x] **CR-DL.3** — Share page: Download for recipients
+- [x] **CR-DL.4** — Unit tests + run_tests
+- [ ] **CR-DL.5** — apply_changes → publish_develop → deploy_live
+
 ## 🎤 LAB-VOICE — Discuss mic + British Listen (all studios)（2026-08-15）
 
 > **Design:** [subsystems/lab-discuss-voice-listen.md](subsystems/lab-discuss-voice-listen.md)  

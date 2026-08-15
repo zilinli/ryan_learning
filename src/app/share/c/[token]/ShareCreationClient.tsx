@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { withMediaDownloadParam } from "@/lib/entertain/creation-download";
 
 type PublicCreation = {
   id: string;
@@ -137,6 +138,13 @@ export function ShareCreationClient({ token }: { token: string }) {
               >
                 {copied ? "Copied!" : "Copy link"}
               </button>
+              <a
+                href={withMediaDownloadParam(item.mediaUrl)}
+                download
+                className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-4 text-sm font-semibold text-[#eef6f0]"
+              >
+                Download
+              </a>
               <Link
                 href="/studio"
                 className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-4 text-sm text-[#c4d4c8]"
