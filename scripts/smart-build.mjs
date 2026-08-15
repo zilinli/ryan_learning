@@ -212,14 +212,19 @@ function restartAppAfterBuild() {
 function restartHeavyServices() {
   for (const svc of PM2_SERVICES_TO_FREE) {
     try {
-      execSync(`pm2 restart ${svc}`, {
-        cwd: ROOT,
-        stdio: "pipe",
-        timeout: 30000,
-      });
-      log(`Restarted PM2 service: ${svc}`);
+      // startOrReload re-reads ecosystem interpreter/env; plain `pm2 restart`
+      // keeps a stale system-python process (formospeech → No module named TTS).
+      execSync(
+        `pm2 startOrReload ecosystem.config.js --only ${svc} --update-env`,
+        {
+          cwd: ROOT,
+          stdio: "pipe",
+          timeout: 60000,
+        },
+      );
+      log(`Reloaded PM2 service from ecosystem: ${svc}`);
     } catch {
-      log(`Warning: could not restart ${svc}`);
+      log(`Warning: could not reload ${svc}`);
     }
   }
   for (const svc of SYSTEMD_SERVICES_TO_FREE) {

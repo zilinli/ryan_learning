@@ -4,6 +4,7 @@ import {
   joinSpeechParts,
   pullSpeakableFromBuffer,
 } from "./tts-text";
+import { sniffTtsAudioMime } from "./tts-audio-mime";
 import { getTutorVoice, resolveEdgeVoice, type TutorVoiceId } from "./voices";
 
 export type SpeakHandlers = {
@@ -316,7 +317,8 @@ export class NeuralSpeechEngine {
   private async playMp3(ab: ArrayBuffer, gen: number): Promise<void> {
     const a = this.ensureAudio();
     this.revokeUrl();
-    const url = URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" }));
+    const mime = sniffTtsAudioMime(ab);
+    const url = URL.createObjectURL(new Blob([ab], { type: mime }));
     this.objectUrl = url;
     a.src = url;
     a.muted = false;
@@ -516,7 +518,8 @@ export class NeuralSpeechEngine {
     const dialectMax =
       handlers.voiceId != null &&
       (getTutorVoice(handlers.voiceId).lang === "teo" ||
-        getTutorVoice(handlers.voiceId).lang === "hak")
+        getTutorVoice(handlers.voiceId).lang === "hak" ||
+        getTutorVoice(handlers.voiceId).lang === "sha")
         ? 120
         : 280;
     const chunks = chunkForNeuralTts(text, dialectMax);

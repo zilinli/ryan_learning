@@ -1,5 +1,17 @@
 # 📋 Downstream Development TODO
 
+## 🔧 HAK-FIX: 客家话 TTS FormoSpeech 解释器（2026-08-15）
+
+> **Design:** [subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)  
+> **根因:** PM2 `formospeech-tts` 用系统 `python3` → `No module named 'TTS'` → `/tts` 422
+
+- [x] **HAK.1** — `ecosystem.config.js`：interpreter → `.venv-formospeech/bin/python`；修正 `FORMOSPEECH_PORT`
+- [x] **HAK.2** — `smart-build.mjs`：sidecar 用 `pm2 startOrReload ecosystem.config.js`（勿仅 restart）
+- [x] **HAK.3** — `formospeech_server.py`：warm 失败写入 `_error`；`/health` `ok:false`
+- [x] **HAK.4** — 运维：delete+start sidecar；验收 health ready + hak/teo/sha TTS 冒烟
+- [x] **HAK.4b** — 上海话 Qwen WAV MIME sniff（`tts-audio-mime` + player Blob）
+- [ ] **HAK.5** — apply_changes → publish_develop → deploy_live
+
 > Version 0.9.3 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  
 > Status reconciled against codebase on **2026-08-09** (docs-only; no feature work).  

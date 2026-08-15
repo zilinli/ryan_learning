@@ -38,9 +38,10 @@ module.exports = {
       name: "formospeech-tts",
       script: "scripts/formospeech_server.py",
       cwd: "/root/codes/ryan_learning",
-      interpreter: "python3",
+      // Coqui TTS lives only in this venv — system python3 → 422 No module named 'TTS'
+      interpreter: path.join(__dirname, ".venv-formospeech", "bin", "python"),
       env: {
-        FORMASPEECH_PORT: "9876",
+        FORMOSPEECH_PORT: "9876",
       },
     },
   ],

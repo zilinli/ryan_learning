@@ -23,6 +23,8 @@ Shanghainese (`sha`) is a first-class dialect: **STT + TTS both via 阿里云百
 
 `POST /api/tts` with `lang=sha` → `synthesizeDialect` → `X-TTS-Engine: qwen-shanghai` (or `aliyun-clone`).
 
+Qwen3-TTS 常返回 **WAV**（非 MP3）；`/api/tts` 与 `speech-player` 用 `sniffTtsAudioMime` 设正确 `Content-Type` / Blob MIME，避免 iOS 把 WAV 当 MPEG 播失败。
+
 Do **not** run Cantonese `normalizeForTTS` on Bailian Shanghai audio — keep Wu characters (侬 / 阿拉 / …) for Jada.
 
 ```ts

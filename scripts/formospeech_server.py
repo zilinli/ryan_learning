@@ -52,6 +52,7 @@ _g2p = None
 _np = None
 _lock = threading.Lock()
 _state = "cold"
+_error: str | None = None
 
 _DIGIT_ZH = "零一二三四五六七八九"
 
@@ -405,53 +406,60 @@ def split_clauses(text: str, max_chars: int = 28) -> list[str]:
 
 
 def ensure_model():
-    global _model, _g2p, _np, _state
+    global _model, _g2p, _np, _state, _error
     with _lock:
         if _model is not None:
             return
         _state = "loading"
-        if not SPACE.is_dir():
-            raise RuntimeError(f"missing Space checkout: {SPACE}")
-        sys.path.insert(0, str(SPACE))
-        os.chdir(SPACE)
+        _error = None
+        try:
+            if not SPACE.is_dir():
+                raise RuntimeError(f"missing Space checkout: {SPACE}")
+            sys.path.insert(0, str(SPACE))
+            os.chdir(SPACE)
 
-        import numpy as np
-        import torch
-        import TTS
-        from formog2p.hakka import g2p
-        from huggingface_hub import snapshot_download
-        from replace.tts import ChangedVitsConfig
-        from TTS.utils.synthesizer import Synthesizer
+            import numpy as np
+            import torch
+            import TTS
+            from formog2p.hakka import g2p
+            from huggingface_hub import snapshot_download
+            from replace.tts import ChangedVitsConfig
+            from TTS.utils.synthesizer import Synthesizer
 
-        TTS.tts.configs.vits_config.VitsConfig = ChangedVitsConfig
-        model_dir = snapshot_download(MODEL_ID)
-        cfg_path = os.path.join(model_dir, "config.json")
-        with open(cfg_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        content = content.replace("speakers.pth", os.path.join(model_dir, "speakers.pth"))
-        content = content.replace(
-            "language_ids.json", os.path.join(model_dir, "language_ids.json")
-        )
-        content = content.replace(
-            "speaker_embs.pth", os.path.join(model_dir, "speaker_embs.pth")
-        )
-        tmp_cfg = Path(tempfile.gettempdir()) / "formospeech_server_config.json"
-        tmp_cfg.write_text(content, encoding="utf-8")
-        model = Synthesizer(
-            tts_checkpoint=os.path.join(model_dir, "model.pth"),
-            tts_config_path=str(tmp_cfg),
-            use_cuda=torch.cuda.is_available(),
-        )
-        model.tts_model.length_scale = LENGTH_SCALE
-        _model = model
-        _g2p = g2p
-        _np = np
-        _state = "ready"
-        print(
-            f"[formospeech] model ready speaker={SPEAKER} dialect={DIALECT} "
-            f"length_scale={LENGTH_SCALE}",
-            flush=True,
-        )
+            TTS.tts.configs.vits_config.VitsConfig = ChangedVitsConfig
+            model_dir = snapshot_download(MODEL_ID)
+            cfg_path = os.path.join(model_dir, "config.json")
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            content = content.replace("speakers.pth", os.path.join(model_dir, "speakers.pth"))
+            content = content.replace(
+                "language_ids.json", os.path.join(model_dir, "language_ids.json")
+            )
+            content = content.replace(
+                "speaker_embs.pth", os.path.join(model_dir, "speaker_embs.pth")
+            )
+            tmp_cfg = Path(tempfile.gettempdir()) / "formospeech_server_config.json"
+            tmp_cfg.write_text(content, encoding="utf-8")
+            model = Synthesizer(
+                tts_checkpoint=os.path.join(model_dir, "model.pth"),
+                tts_config_path=str(tmp_cfg),
+                use_cuda=torch.cuda.is_available(),
+            )
+            model.tts_model.length_scale = LENGTH_SCALE
+            _model = model
+            _g2p = g2p
+            _np = np
+            _state = "ready"
+            _error = None
+            print(
+                f"[formospeech] model ready speaker={SPEAKER} dialect={DIALECT} "
+                f"length_scale={LENGTH_SCALE}",
+                flush=True,
+            )
+        except Exception as e:
+            _error = str(e)
+            _state = "error"
+            raise
 
 
 def g2p_speak(text: str):
@@ -593,10 +601,12 @@ def create_app():
 
     @app.get("/health")
     def health():
+        ready = _state == "ready" and _model is not None
         return jsonify(
             {
-                "ok": True,
+                "ok": ready,
                 "model": _state,
+                "error": _error,
                 "speaker": SPEAKER,
                 "dialect": DIALECT,
                 "voice": VOICE,
@@ -605,7 +615,7 @@ def create_app():
                 "noise_scale_dur": NOISE_SCALE_DUR,
                 "clause_silence_ms": CLAUSE_SILENCE_MS,
             }
-        )
+        ), (200 if ready or _state in ("loading", "cold") else 503)
 
     @app.post("/tts")
     def tts():
@@ -624,9 +634,12 @@ def create_app():
 
 def main():
     def warm():
+        global _state, _error
         try:
             ensure_model()
         except Exception as e:
+            _error = str(e)
+            _state = "error"
             print(f"[formospeech] warm failed: {e}", flush=True)
 
     threading.Thread(target=warm, daemon=True).start()

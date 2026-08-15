@@ -11,6 +11,7 @@ import {
 } from "@/lib/tts-cache";
 import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
 import { cleanTutorSpeechText } from "@/lib/tts-text";
+import { sniffTtsAudioMime } from "@/lib/tts-audio-mime";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 
 export const runtime = "nodejs";
@@ -204,7 +205,7 @@ export async function POST(req: Request) {
         const { audio, engine } = await synthesizeDialect(text, dialectLang);
         return new Response(new Uint8Array(audio), {
           headers: {
-            "Content-Type": "audio/mpeg",
+            "Content-Type": sniffTtsAudioMime(audio),
             "Cache-Control": "no-store",
             "X-TTS-Engine": engine,
           },
