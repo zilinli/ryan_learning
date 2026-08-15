@@ -88,17 +88,17 @@ export function HistorySidebar({
   const searching = query.trim().length > 0;
 
   const panel = (
-    <aside className="flex h-full w-[min(26rem,85vw)] flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg0)_94%,white)]">
+    <aside className="flex h-full w-[min(28rem,88vw)] flex-col border-r border-[var(--line)] bg-[color-mix(in_srgb,var(--bg0)_94%,white)]">
       <div className="safe-top flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
             The Answer Book · AI Tutor
           </p>
-          <p className="text-[11px] text-[var(--ink-muted)]">
+          <p className="text-xs text-[var(--ink-muted)]">
             All chats · keep newest {MAX_TOTAL_MESSAGES.toLocaleString()} msgs
           </p>
           {engagementLabel ? (
-            <p className="mt-0.5 text-[11px] font-medium text-[var(--teal)]">
+            <p className="mt-0.5 text-xs font-medium text-[var(--teal)]">
               {engagementLabel}
             </p>
           ) : null}
@@ -128,7 +128,7 @@ export function HistorySidebar({
             onNew();
             onClose();
           }}
-          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)] transition hover:opacity-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          className="flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--action-bg)] px-3 text-base font-medium text-[var(--action-ink)] transition hover:opacity-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
         >
           New chat
         </button>
@@ -140,7 +140,7 @@ export function HistorySidebar({
             disabled={disabled}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search chats…"
-            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 pr-9 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-50"
+            className="min-h-11 w-full rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3.5 pr-9 text-base text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-50"
             enterKeyHint="search"
             autoComplete="off"
           />
@@ -161,7 +161,7 @@ export function HistorySidebar({
         {hits.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-2 py-10 text-center">
             <p className="text-2xl">💬</p>
-            <p className="text-sm font-medium text-[var(--ink)]">
+            <p className="text-base font-medium text-[var(--ink)]">
               {searching ? "No matches" : "No conversations yet"}
             </p>
             <p className="max-w-[15rem] text-xs leading-relaxed text-[var(--ink-muted)]">
@@ -171,7 +171,7 @@ export function HistorySidebar({
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-0.5">
+          <ul className="flex flex-col gap-1">
             {hits.map(({ conversation: c, snippet, matchedTitle }) => {
               const active = c.sessionId === activeId;
               return (
@@ -183,26 +183,26 @@ export function HistorySidebar({
                       onSelect(c.sessionId);
                       onClose();
                     }}
-                    className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+                    className={`flex w-full flex-col gap-0.5 rounded-xl px-3 py-3 text-left transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
                       active
                         ? "bg-[var(--surface)] shadow-sm ring-1 ring-[var(--line)]"
                         : "hover:bg-[var(--surface-muted)]"
                     }`}
                   >
-                    <span className="line-clamp-2 pr-6 text-sm text-[var(--ink)]">
+                    <span className="line-clamp-2 pr-7 text-base font-medium leading-snug text-[var(--ink)]">
                       {c.title || "New chat"}
                       {searching && matchedTitle ? (
-                        <span className="ml-1 text-[10px] text-[var(--teal)]">
+                        <span className="ml-1 text-xs font-normal text-[var(--teal)]">
                           title
                         </span>
                       ) : null}
                     </span>
                     {snippet ? (
-                      <span className="line-clamp-2 pr-6 text-[11px] leading-snug text-[var(--ink-muted)]">
+                      <span className="line-clamp-2 pr-7 text-xs leading-snug text-[var(--ink-muted)]">
                         {snippet}
                       </span>
                     ) : null}
-                    <span className="text-[11px] text-[var(--ink-muted)]">
+                    <span className="text-xs text-[var(--ink-muted)]">
                       {relativeTime(c.updatedAt)}
                       {c.messages.length
                         ? ` · ${c.messages.length} msgs`
@@ -228,7 +228,7 @@ export function HistorySidebar({
           </ul>
         )}
         {searching ? (
-          <p className="px-2 pt-2 text-center text-[10px] text-[var(--ink-muted)]">
+          <p className="px-2 pt-2 text-center text-xs text-[var(--ink-muted)]">
             {hits.length} match{hits.length === 1 ? "" : "es"} · max{" "}
             {MAX_CONVERSATIONS} chats listed
           </p>
@@ -237,53 +237,43 @@ export function HistorySidebar({
 
       <SkillsPanel memory={learningMemory ?? null} />
 
-      <div className="shrink-0 border-t border-[var(--line)]/70 px-3 py-3">
-        {/* Row: Family + Me */}
-        <div className="mb-2 grid grid-cols-2 gap-1.5">
+      <div className="shrink-0 border-t border-[var(--line)]/70 px-2.5 py-2">
+        {/* Family · Me · Progress */}
+        <div className="mb-1.5 grid grid-cols-3 gap-1.5">
           <a
             href="/family"
-            className="flex min-h-10 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-2 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-1.5 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Family — parent hub (PIN)"
           >
             Family
           </a>
           <a
             href="/me"
-            className="flex min-h-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Me — journal, creations, progress"
           >
             Me
           </a>
+          <a
+            href="/dashboard"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Progress — skills, practice"
+          >
+            Progress
+          </a>
         </div>
-        <a
-          href="/dashboard"
-          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-          title="Progress — skills, practice"
-        >
-          Progress
-        </a>
-        <a
-          href="/dict"
-          className="mb-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-3 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-          title="Dictionary / Translation"
-        >
-          <span className="truncate sm:hidden">Dict / Translate</span>
-          <span className="hidden truncate sm:inline">
-            Dictionary / Translation
-          </span>
-        </a>
-        {/* Row: Studio + Games */}
-        <div className="mb-2 grid grid-cols-2 gap-1.5">
+        {/* Studio · Games · Dict */}
+        <div className="mb-1.5 grid grid-cols-3 gap-1.5">
           <a
             href="/studio"
-            className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Studio — make & learn"
           >
             Studio
           </a>
           <a
             href="/entertain"
-            className="flex min-h-10 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-2 text-[11px] font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Games — play"
           >
             <svg
@@ -303,16 +293,23 @@ export function HistorySidebar({
             </svg>
             Games
           </a>
+          <a
+            href="/dict"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            title="Dictionary / Translation"
+          >
+            Dict
+          </a>
         </div>
         {showGuardrail ? (
-          <div className="mb-2 rounded-lg border border-[var(--coral)]/35 bg-[var(--coral)]/6 px-3 py-2 text-left">
-            <p className="text-[11px] font-medium leading-snug text-[var(--ink)]">
+          <div className="mb-1.5 rounded-lg border border-[var(--coral)]/35 bg-[var(--coral)]/6 px-3 py-2 text-left">
+            <p className="text-xs font-medium leading-snug text-[var(--ink)]">
               {guardrail.line}
             </p>
             <div className="mt-1.5 flex gap-3">
               <a
                 href="/"
-                className="text-[11px] font-semibold text-[var(--coral)] underline-offset-2 hover:underline"
+                className="text-xs font-semibold text-[var(--coral)] underline-offset-2 hover:underline"
               >
                 Back to homework
               </a>
@@ -322,19 +319,19 @@ export function HistorySidebar({
                   if (accountId) dismissFocusGuardrail(accountId);
                   setGuardrailDismissed(true);
                 }}
-                className="text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+                className="text-xs text-[var(--ink-muted)] underline-offset-2 hover:underline"
               >
                 Not now
               </button>
             </div>
           </div>
         ) : null}
-        <div className="mb-2 grid grid-cols-2 gap-1.5">
+        <div className="mb-1.5 grid grid-cols-2 gap-1.5">
           <a
             href={SPARK_GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:bg-[var(--teal)]/5 hover:text-[var(--teal)]"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:bg-[var(--teal)]/5 hover:text-[var(--teal)]"
           >
             <svg
               className="h-3.5 w-3.5 shrink-0 opacity-90"
@@ -349,7 +346,7 @@ export function HistorySidebar({
           <button
             type="button"
             onClick={() => setFeedbackOpen(true)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-[11px] font-medium text-[var(--ink-muted)] transition hover:border-[var(--coral)]/35 hover:bg-[var(--coral)]/5 hover:text-[var(--coral)]"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--coral)]/35 hover:bg-[var(--coral)]/5 hover:text-[var(--coral)]"
           >
             <svg
               className="h-3.5 w-3.5 shrink-0"
@@ -374,7 +371,7 @@ export function HistorySidebar({
               onOpenCodeAgent();
               onClose();
             }}
-            className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-[11px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
+            className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
           >
             <svg
               width="12"

@@ -281,22 +281,28 @@ User (student):                 Agent (tutor):
 - Strips agent tool narration (`tutor-text-filter.ts`)
 - Supports `~~~step` progressive disclosure fences
 
-### 5.4 HistorySidebar (overlay, 300px)
+### 5.4 HistorySidebar (overlay, ~28rem / 88vw)
 
 **States:** closed (translateX:-100%), open (translateX:0)
 
 **Vertical order (top → bottom) — chat-first:**
 1. **Header:** brand + close (mobile)
 2. **New Chat button:** prominent
-3. **Search:** "Search chats…"
+3. **Search:** "Search chats…" — **16px** input text
 4. **Conversation list:** `flex-1 min-h-0 overflow-y-auto` — the primary surface
-   - Each item: title, timestamp, optional snippet
+   - Title **16px**; snippet/meta **12px**; comfortable row padding
    - Active conversation: highlighted
    - Hover/tap: delete affordance
 5. **SkillsPanel:** collapsed strip above footer (see §5.5)
-6. **Footer:** Code Agent + GitHub link
+6. **Footer (compact grids):**
+   - `Family | Me | Progress`
+   - `Studio | Games | Dict`
+   - `GitHub | Help & feedback`
+   - `Code Agent` (full width)
 
 **Anti-pattern (fixed Aug 2026):** Do **not** place an expanded Learning Dashboard above New chat / history. That pushes the conversation list off-screen and violates “zero cognitive noise.”
+
+**Density (Aug 2026):** Do **not** give Progress or Dictionary a dedicated full-width row — see [sidebar-density.md](sidebar-density.md).
 
 ### 5.5 SkillsPanel (sidebar subsection — collapsible)
 

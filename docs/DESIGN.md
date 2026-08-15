@@ -62,6 +62,7 @@ flowchart TB
 | **[subsystems/voice-tts-stt.md](subsystems/voice-tts-stt.md)** | Multi-language TTS/STT, speech player |
 | **[subsystems/listen-voice-sync-stop.md](subsystems/listen-voice-sync-stop.md)** | Listen 按账号同步音色 + Stop abort/清 src |
 | **[subsystems/ui-architecture.md](subsystems/ui-architecture.md)** | 🎨 Full-page UI — shell, chat, composer, sidebar, responsive, accessibility, animation |
+| **[subsystems/sidebar-density.md](subsystems/sidebar-density.md)** | 📐 Sidebar density — larger chat/search type + compact 3-col footer (Progress not alone) |
 | **[subsystems/ui-composer.md](subsystems/ui-composer.md)** | Composer input chrome spec (merged into ui-architecture §4) |
 | **[subsystems/streaming-render-fix.md](subsystems/streaming-render-fix.md)** | ⚡ Streaming render stability — fix for screen flicker during model output |
 | **[subsystems/v2-enhancements.md](subsystems/v2-enhancements.md)** | 📊 V2 analysis report enhancements — Learning Dashboard, cross-discipline, BKT+confidence |

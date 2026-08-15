@@ -29,6 +29,17 @@
 
 ---
 
+## 🎨 SIDEBAR-DENSITY — Left nav readability + compact footer (2026-08-15)
+
+> **Design:** [subsystems/sidebar-density.md](subsystems/sidebar-density.md)
+
+- [x] SB.1 — Bump Search + conversation title/meta type scale in `HistorySidebar`
+- [x] SB.2 — Compact footer: Progress/Dict into 3-col rows (no dedicated full-width rows)
+- [x] SB.3 — Update README + ui-architecture §5.4 notes
+- [ ] SB.4 — run_tests; deploy_live after src change
+
+---
+
 ## ⚛ PHYS-LG — Physics Learning Games (2026-08-14) — CODE READY, NOT DEPLOYED
 
 > **Design:** [subsystems/physics-learning-games.md](subsystems/physics-learning-games.md)  

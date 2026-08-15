@@ -109,7 +109,7 @@ Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.
 
 ### Studio / Games
 
-Sidebar: **Family | Me** on one row; **Progress** full width; **Studio | Games** on the next; **Code Agent** on the bottom row.
+Sidebar: **Family | Me | Progress** on one row; **Studio | Games | Dict** on the next; **Code Agent** on the bottom row.
 
 | Route | Content |
 |-------|---------|

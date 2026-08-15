@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #1e1e2e;
+  --bg-sidebar: #181825;
+  --bg-card: #313244;
+  --bg-input: #313244;
+  --bg-code: #11111b;
+  --text-primary: #cdd6f4;
+  --text-secondary: #a6adc8;
+  --text-muted: #6c7086;
+  --accent-blue: #89b4fa;
+  --accent-purple: #cba6f7;
+  --accent-red: #f38ba8;
+  --accent-green: #a6e3a1;
+  --accent-yellow: #f9e2af;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+#__next, .app-root {
+  height: 100%;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-card);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Message content markdown */
+.message-content pre {
+  background: var(--bg-code);
+  border: 1px solid var(--bg-card);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.message-content code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9em;
+  background: var(--bg-code);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.message-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+.message-content p {
+  margin: 0 0 8px 0;
+}
+.message-content p:last-child {
+  margin: 0;
+}
+.message-content ul, .message-content ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.message-content li {
+  margin: 2px 0;
+}
+.message-content blockquote {
+  border-left: 3px solid var(--accent-blue);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--text-secondary);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40%           { transform: scale(1); }
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 139, 168, 0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(243, 139, 168, 0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 200ms ease-out;
+}
+.animate-blink {
+  animation: blink 1s infinite;
+}
+.animate-pulse-ring {
+  animation: pulse 1.2s infinite;
+}
+.animate-scale-in {
+  animation: scaleIn 150ms ease-out;
+}
+.animate-slide-right {
+  animation: slideInRight 300ms ease-out;
+}
+
+/* Bouncing dots */
+.dot-bounce {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+.dot-bounce:nth-child(1) { animation-delay: -0.32s; }
+.dot-bounce:nth-child(2) { animation-delay: -0.16s; }
+.dot-bounce:nth-child(3) { animation-delay: 0s; }
+
+/* Streaming cursor */
+.cursor-blink::after {
+  content: "▊";
+  animation: blink 1s infinite;
+  color: var(--accent-blue);
+}
+
+/* File tree styles */
+.file-tree-item {
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-tree-item:hover {
+  background: var(--bg-card);
+}
+.file-tree-item.selected {
+  background: rgba(137, 180, 250, 0.15);
+  color: var(--accent-blue);
+}
+
+/* Tool call card */
+.tool-call-card {
+  background: var(--bg-code);
+  border: 1px solid var(--bg-card);
+  border-radius: 8px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+.tool-call-header {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.tool-call-body {
+  padding: 0 12px 12px;
+  font-size: 13px;
+}
+.tool-call-body pre {
+  margin: 4px 0 0 0;
+  padding: 8px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
