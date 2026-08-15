@@ -9,6 +9,9 @@ import {
   contextFromKickoff,
   type TedDiscussContext,
 } from "@/lib/entertain/ted-discuss";
+import { appendVoiceTranscript } from "@/lib/entertain/ted-challenge";
+import { useRyanBritishListen } from "@/hooks/useRyanBritishListen";
+import { MicTranscribeButton } from "./MicTranscribeButton";
 
 type ChatTurn = {
   id: string;
@@ -17,6 +20,7 @@ type ChatTurn = {
 };
 
 type Props = {
+  accountId?: string;
   kickoff: Pick<
     TedChallengeKickoff,
     | "talkTitle"
@@ -34,6 +38,7 @@ type Props = {
 };
 
 export function TedDiscussDialogue({
+  accountId = "acct_ryan",
   kickoff,
   sessionKey,
   hasNext,
@@ -49,6 +54,15 @@ export function TedDiscussDialogue({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const seededKeyRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastSpokenCoachRef = useRef<string | null>(null);
+  const {
+    auto: coachListenAuto,
+    listening: coachListening,
+    speakingId,
+    play: playCoachListen,
+    stop: stopCoachListen,
+    toggleAuto: toggleCoachListenAuto,
+  } = useRyanBritishListen(accountId);
 
   useEffect(() => {
     if (seededKeyRef.current === sessionKey) return;
@@ -57,6 +71,8 @@ export function TedDiscussDialogue({
     setError(null);
     setCoherent(false);
     setTurns([]);
+    lastSpokenCoachRef.current = null;
+    stopCoachListen();
     setBusy(true);
     let cancelled = false;
     void (async () => {
@@ -104,9 +120,18 @@ export function TedDiscussDialogue({
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns, busy]);
 
+  useEffect(() => {
+    const last = [...turns].reverse().find((t) => t.role === "coach");
+    if (!last || !coachListenAuto) return;
+    if (lastSpokenCoachRef.current === last.id) return;
+    lastSpokenCoachRef.current = last.id;
+    void playCoachListen(last.text, last.id);
+  }, [turns, coachListenAuto, playCoachListen]);
+
   const sendReply = useCallback(async () => {
     const text = reply.trim();
     if (text.length < 1 || busy) return;
+    stopCoachListen();
     setBusy(true);
     setError(null);
     const youTurn: ChatTurn = {
@@ -152,7 +177,7 @@ export function TedDiscussDialogue({
     } finally {
       setBusy(false);
     }
-  }, [reply, busy, turns, ctx]);
+  }, [reply, busy, turns, ctx, stopCoachListen]);
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-[#6db8a8]/40 bg-black/45 shadow-[0_8px_28px_rgba(0,0,0,0.25)]">
@@ -165,13 +190,33 @@ export function TedDiscussDialogue({
             Prompt stays above — keep arguing from your essay
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="min-h-9 shrink-0 rounded-lg px-2 text-xs text-[#a89f92] hover:bg-white/5 hover:text-[#e8e2d8]"
-        >
-          Close
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={toggleCoachListenAuto}
+            className={`min-h-9 rounded-lg px-2 text-[11px] font-medium ${
+              coachListenAuto ? "text-[#6db8a8]" : "text-[#a89f92]"
+            }`}
+            aria-pressed={coachListenAuto}
+            title={
+              coachListenAuto
+                ? "Auto Listen on — coach replies read in British English"
+                : "Auto Listen off"
+            }
+          >
+            {coachListenAuto ? "Auto Listen on" : "Auto Listen off"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              stopCoachListen();
+              onClose();
+            }}
+            className="min-h-9 shrink-0 rounded-lg px-2 text-xs text-[#a89f92] hover:bg-white/5 hover:text-[#e8e2d8]"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
       <div
@@ -198,6 +243,32 @@ export function TedDiscussDialogue({
                 </p>
               )}
               {t.text}
+              {t.role === "coach" ? (
+                <div className="mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (coachListening && speakingId === t.id) {
+                        stopCoachListen();
+                        return;
+                      }
+                      void playCoachListen(t.text, t.id);
+                    }}
+                    className={`inline-flex min-h-8 items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                      coachListening && speakingId === t.id
+                        ? "bg-[#6db8a8]/25 text-[#6db8a8]"
+                        : "text-[#a89f92] hover:text-[#6db8a8]"
+                    }`}
+                    aria-label={
+                      coachListening && speakingId === t.id
+                        ? "Stop reading"
+                        : "Listen to coach reply"
+                    }
+                  >
+                    {coachListening && speakingId === t.id ? "Stop" : "Listen"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         ))}
@@ -224,6 +295,15 @@ export function TedDiscussDialogue({
               }
             }}
           />
+          <MicTranscribeButton
+            language="auto"
+            tone="onDark"
+            disabled={busy}
+            onRecordingStart={stopCoachListen}
+            onTranscript={(t) =>
+              setReply((prev) => appendVoiceTranscript(prev, t))
+            }
+          />
           <button
             type="button"
             disabled={busy || reply.trim().length < 1}
@@ -235,13 +315,16 @@ export function TedDiscussDialogue({
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] text-[#a89f92]">
-            Enter send · Shift+Enter new line
+            Mic or type · Enter send · Shift+Enter new line
           </p>
           {hasNext ? (
             <button
               type="button"
               disabled={busy}
-              onClick={onNextQuestion}
+              onClick={() => {
+                stopCoachListen();
+                onNextQuestion();
+              }}
               className={`min-h-9 rounded-lg px-3 text-[12px] font-semibold ${
                 coherent
                   ? "bg-[#6db8a8] text-[#1a1814]"

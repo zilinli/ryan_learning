@@ -876,6 +876,7 @@ export function TedLab() {
                 </p>
                 {discussKickoff ? (
                   <TedDiscussDialogue
+                    accountId={accountId}
                     kickoff={discussKickoff}
                     sessionKey={discussSessionKey}
                     hasNext={!!challenge && qi + 1 < challenge.items.length}

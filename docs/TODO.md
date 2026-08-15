@@ -1,5 +1,17 @@
 # 📋 Downstream Development TODO
 
+## 🎤 LAB-VOICE — Discuss mic + British Listen (all studios)（2026-08-15）
+
+> **Design:** [subsystems/lab-discuss-voice-listen.md](subsystems/lab-discuss-voice-listen.md)  
+> **Goal:** (1) Discuss reply box mic on TED + BBC/RSA/NatGeo. (2) Prompt + AI coach replies default British Ryan Listen (TED parity for media labs).
+
+- [x] **LAB-VOICE.1** — Docs (design + DESIGN map + this checklist)
+- [x] **LAB-VOICE.2** — `MediaLabChallengeView`: prompt Listen / Auto Listen / Ryan hard-lock + mic barge-in
+- [x] **LAB-VOICE.3** — `LabDiscussDialogue` + `TedDiscussDialogue`: mic + coach Listen/auto (Ryan)
+- [x] **LAB-VOICE.4** — Unit regression `ted-challenge.test.ts` + `run_tests`
+- [ ] **LAB-VOICE.5** — apply_changes → publish_develop → deploy_live
+- [ ] **LAB-VOICE.6** — Manual TM-D1–TM-D5 on live labs
+
 ## 🔧 HAK-FIX: 客家话 TTS FormoSpeech 解释器（2026-08-15）
 
 > **Design:** [subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)  
@@ -10,7 +22,7 @@
 - [x] **HAK.3** — `formospeech_server.py`：warm 失败写入 `_error`；`/health` `ok:false`
 - [x] **HAK.4** — 运维：delete+start sidecar；验收 health ready + hak/teo/sha TTS 冒烟
 - [x] **HAK.4b** — 上海话 Qwen WAV MIME sniff（`tts-audio-mime` + player Blob）
-- [ ] **HAK.5** — apply_changes → publish_develop → deploy_live
+- [x] **HAK.5** — apply_changes → publish_develop → deploy_live
 
 > Version 0.9.3 · 2026-08-09  
 > Priority: 🔴 critical · 🟡 important · 🟢 nice-to-have  

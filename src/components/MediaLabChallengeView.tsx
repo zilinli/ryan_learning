@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   appendVoiceTranscript,
+  challengePromptSpeechText,
   choiceLetter,
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
 import { canSubmitHybrid } from "@/lib/entertain/ted-challenge-handoff";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import type { LabDiscussId } from "@/lib/entertain/lab-discuss";
+import { useRyanBritishListen } from "@/hooks/useRyanBritishListen";
 import { MicTranscribeButton } from "./MicTranscribeButton";
 import { LabDiscussDialogue } from "./LabDiscussDialogue";
 
@@ -66,6 +74,13 @@ export function MediaLabChallengeView({
   );
   const [discussSessionKey, setDiscussSessionKey] = useState(0);
   const [submittingDiscuss, setSubmittingDiscuss] = useState(false);
+  const {
+    auto: promptListenAuto,
+    listening: promptListening,
+    play: playPromptListen,
+    stop: stopPromptListen,
+    toggleAuto: togglePromptListenAuto,
+  } = useRyanBritishListen(accountId || "acct_ryan");
 
   const item = items[qi];
   const frozen = Boolean(discussKickoff);
@@ -105,6 +120,7 @@ export function MediaLabChallengeView({
       setError(gate.reason || "Write your essay first.");
       return;
     }
+    stopPromptListen();
     setError("");
     setSubmittingDiscuss(true);
     const essayTrim = essay.trim();
@@ -153,13 +169,16 @@ export function MediaLabChallengeView({
     title,
     speaker,
     lab,
+    stopPromptListen,
   ]);
 
   const closeDiscuss = useCallback(() => {
+    stopPromptListen();
     setDiscussKickoff(null);
-  }, []);
+  }, [stopPromptListen]);
 
   const goNextAfterDiscuss = useCallback(() => {
+    stopPromptListen();
     setDiscussKickoff(null);
     const next = qi + 1;
     if (next >= items.length) {
@@ -169,7 +188,27 @@ export function MediaLabChallengeView({
     }
     setQi(next);
     setError("");
-  }, [qi, items.length, setQi]);
+  }, [qi, items.length, setQi, stopPromptListen]);
+
+  // Auto-read English prompt when the question changes (TED Listen parity).
+  useEffect(() => {
+    if (!item || discussKickoff) {
+      if (!item) stopPromptListen();
+      return;
+    }
+    if (!promptListenAuto) return;
+    void playPromptListen(challengePromptSpeechText(item), item.id);
+    return () => {
+      stopPromptListen();
+    };
+  }, [
+    item,
+    qi,
+    discussKickoff,
+    promptListenAuto,
+    playPromptListen,
+    stopPromptListen,
+  ]);
 
   if (!item) {
     return (
@@ -234,6 +273,51 @@ export function MediaLabChallengeView({
         <p className="text-[15px] leading-relaxed text-[var(--ink)]">
           {item.prompt}
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (promptListening) {
+                stopPromptListen();
+                return;
+              }
+              void playPromptListen(challengePromptSpeechText(item), item.id);
+            }}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              promptListening
+                ? "bg-[var(--teal)]/20 text-[var(--teal)]"
+                : "border border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--teal)] hover:text-[var(--teal)]"
+            }`}
+            aria-label={promptListening ? "Stop reading" : "Listen to prompt"}
+            title={
+              promptListening
+                ? "Stop reading"
+                : "Listen to prompt (Ryan British)"
+            }
+          >
+            {promptListening ? "Stop" : "Listen"}
+          </button>
+          <button
+            type="button"
+            onClick={togglePromptListenAuto}
+            className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              promptListenAuto
+                ? "border-[var(--teal)]/60 bg-[var(--teal)]/10 text-[var(--teal)]"
+                : "border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--teal)]/50"
+            }`}
+            aria-pressed={promptListenAuto}
+            aria-label={
+              promptListenAuto ? "Auto Listen on" : "Auto Listen off"
+            }
+            title={
+              promptListenAuto
+                ? "Auto Listen on — tap to mute prompt reading"
+                : "Auto Listen off — tap to auto-read English prompts"
+            }
+          >
+            {promptListenAuto ? "Auto Listen on" : "Auto Listen off"}
+          </button>
+        </div>
       </div>
       <div className="space-y-2">
         {item.choices.map((choice, ci) => {
@@ -286,6 +370,7 @@ export function MediaLabChallengeView({
           <MicTranscribeButton
             language="en"
             disabled={busy || frozen}
+            onRecordingStart={stopPromptListen}
             onTranscript={(t) =>
               setEssay(appendVoiceTranscript(essay, t))
             }
@@ -305,6 +390,7 @@ export function MediaLabChallengeView({
       {discussKickoff ? (
         <LabDiscussDialogue
           lab={lab}
+          accountId={accountId}
           kickoff={discussKickoff}
           sessionKey={discussSessionKey}
           hasNext={qi < items.length - 1}

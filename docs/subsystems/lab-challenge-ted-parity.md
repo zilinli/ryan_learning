@@ -8,11 +8,12 @@
 
 ## Goal
 
-BBC Doc Lab, NatGeo Lab, and RSA Lab match TED on three Challenge actions:
+BBC Doc Lab, NatGeo Lab, and RSA Lab match TED on Challenge actions:
 
 1. **Caption-first questions** — Prefer English YouTube CC (manual or auto) before blurbs/article-only generation.
 2. **Voice essay** — 论述 / essay answers accept mic STT via `appendVoiceTranscript` (same as TED).
 3. **Interactive discuss** — After option + essay submit, open inline Socratic coaching (not one-shot “Submit & Next” / unused evaluate dump).
+4. **British Listen + Discuss mic** — Prompt Auto Listen (`en-GB-RyanNeural`) and Discuss reply mic / coach Listen — see [lab-discuss-voice-listen.md](lab-discuss-voice-listen.md).
 
 ## Flow
 
