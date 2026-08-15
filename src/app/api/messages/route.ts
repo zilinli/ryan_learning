@@ -26,7 +26,17 @@ export async function GET(req: Request) {
       return Response.json({ error: "accountId required" }, { status: 400 });
     }
     if (countOnly) {
-      const count = await unreadCount(accountId);
+      const minUrgencyRaw = url.searchParams.get("minUrgency");
+      const minUrgency =
+        minUrgencyRaw === "urgent" ||
+        minUrgencyRaw === "important" ||
+        minUrgencyRaw === "routine"
+          ? minUrgencyRaw
+          : undefined;
+      const count = await unreadCount(
+        accountId,
+        minUrgency ? { minUrgency } : undefined,
+      );
       return Response.json({ unreadCount: count });
     }
     const store = await loadMessages(accountId);

@@ -11,6 +11,10 @@ import { WeeklyGoalCard } from "./WeeklyGoalCard";
 import { ReadAlongPractice } from "./ReadAlongPractice";
 import { InterestRadar } from "./InterestRadar";
 import { DirectionCard } from "./DirectionCard";
+import {
+  focusSessionsThisWeek,
+  recentFocusRecords,
+} from "@/lib/focus-session";
 import type { CreationItem } from "@/lib/entertain/creations-store";
 import type { JournalEntry } from "@/lib/entertain/journal-model";
 
@@ -69,6 +73,9 @@ export function MeHome() {
   }, [acct.accountId]);
 
   const prompt = journalPromptForGrade(acct.grade);
+
+  const focusWeek = focusSessionsThisWeek(acct.accountId);
+  const focusLatest = recentFocusRecords(acct.accountId, 1)[0];
 
   return (
     <div className="mx-auto min-h-dvh max-w-xl px-4 py-6 text-[var(--ink)]">
@@ -135,6 +142,25 @@ export function MeHome() {
       <section className="mb-6">
         <WeeklyGoalCard accountId={acct.accountId} />
       </section>
+
+      {focusWeek > 0 || focusLatest ? (
+        <section className="mb-6 rounded-2xl border border-[var(--teal)]/30 bg-[var(--teal)]/6 px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+            Focus
+          </p>
+          <p className="mt-1 text-sm font-medium text-[var(--ink)]">
+            {focusWeek > 0
+              ? `${focusWeek} focus session${focusWeek === 1 ? "" : "s"} this week`
+              : "You tried a focus session"}
+          </p>
+          {focusLatest ? (
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              Last: {Math.max(1, Math.round(focusLatest.durationMs / 60_000))} min
+              {focusLatest.completed ? " · completed" : " · early end"}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mb-6">
         <SkillDots accountId={acct.accountId} />

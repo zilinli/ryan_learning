@@ -5,12 +5,13 @@ import type { ConversationRecord } from "@/lib/types";
 import type { LearningMemory } from "@/lib/learning-memory";
 import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
 import { searchConversations } from "@/lib/history-retention";
-import { SPARK_GITHUB_URL, SPARK_FEEDBACK_LABEL } from "@/lib/site";
+import { SPARK_GITHUB_URL } from "@/lib/site";
 import {
   buildFocusGuardrail,
   dismissFocusGuardrail,
   dismissedFocusGuardrailToday,
 } from "@/lib/focus-guardrail";
+import { isParentSessionUnlocked } from "@/lib/parent-pin";
 import { SkillsPanel } from "./SkillsPanel";
 import { FeedbackPanel } from "./FeedbackPanel";
 
@@ -25,6 +26,8 @@ type Props = {
   activeId: string;
   /** P2 — active account, used for the focus-guardrail nudge's dismiss gate. */
   accountId?: string;
+  /** UX-V4 — hide Games/Studio exits while Focus Mode is on (soft). */
+  focusMode?: boolean;
   disabled?: boolean;
   onOpenCodeAgent?: () => void;
   engagementLabel?: string;
@@ -56,6 +59,7 @@ export function HistorySidebar({
   conversations,
   activeId,
   accountId,
+  focusMode = false,
   disabled,
   onOpenCodeAgent,
   engagementLabel,
@@ -69,6 +73,8 @@ export function HistorySidebar({
   const [query, setQuery] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const parentUnlocked = isParentSessionUnlocked();
 
   const hits = useMemo(
     () => searchConversations(conversations, query),
@@ -238,67 +244,45 @@ export function HistorySidebar({
       <SkillsPanel memory={learningMemory ?? null} />
 
       <div className="shrink-0 border-t border-[var(--line)]/70 px-2.5 py-2">
-        {/* Family · Me · Progress */}
-        <div className="mb-1.5 grid grid-cols-3 gap-1.5">
-          <a
-            href="/family"
-            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-1.5 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Family — parent hub (PIN)"
-          >
-            Family
-          </a>
+        {/* UX-V4 — kid primary: Me · Progress · Studio · Games */}
+        <div className="mb-1.5 grid grid-cols-4 gap-1.5">
           <a
             href="/me"
-            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Me — journal, creations, progress"
           >
             Me
           </a>
           <a
             href="/dashboard"
-            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
             title="Progress — skills, practice"
           >
             Progress
           </a>
-        </div>
-        {/* Studio · Games · Dict */}
-        <div className="mb-1.5 grid grid-cols-3 gap-1.5">
           <a
             href="/studio"
-            className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Studio — make & learn"
+            className={`flex min-h-9 items-center justify-center rounded-full border px-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+              focusMode
+                ? "pointer-events-none border-[var(--line)]/50 bg-[var(--surface-muted)]/50 text-[var(--ink-muted)] opacity-50"
+                : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--mist)]"
+            }`}
+            title={focusMode ? "Studio paused during Focus" : "Studio — make & learn"}
+            aria-disabled={focusMode || undefined}
           >
             Studio
           </a>
           <a
             href="/entertain"
-            className="flex min-h-9 items-center justify-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Games — play"
+            className={`flex min-h-9 items-center justify-center gap-1 rounded-full border px-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
+              focusMode
+                ? "pointer-events-none border-[var(--line)]/50 bg-[var(--surface-muted)]/50 text-[var(--ink-muted)] opacity-50"
+                : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)] hover:bg-[var(--mist)]"
+            }`}
+            title={focusMode ? "Games paused during Focus" : "Games — play"}
+            aria-disabled={focusMode || undefined}
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className="shrink-0"
-              aria-hidden
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
             Games
-          </a>
-          <a
-            href="/dict"
-            className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-            title="Dictionary / Translation"
-          >
-            Dict
           </a>
         </div>
         {showGuardrail ? (
@@ -326,68 +310,72 @@ export function HistorySidebar({
             </div>
           </div>
         ) : null}
-        <div className="mb-1.5 grid grid-cols-2 gap-1.5">
-          <a
-            href={SPARK_GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:bg-[var(--teal)]/5 hover:text-[var(--teal)]"
-          >
-            <svg
-              className="h-3.5 w-3.5 shrink-0 opacity-90"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            <span className="truncate">GitHub</span>
-          </a>
-          <button
-            type="button"
-            onClick={() => setFeedbackOpen(true)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--coral)]/35 hover:bg-[var(--coral)]/5 hover:text-[var(--coral)]"
-          >
-            <svg
-              className="h-3.5 w-3.5 shrink-0"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden
-            >
-              <circle cx="8" cy="8" r="5.25" />
-              <path d="M6.3 6.2a1.8 1.8 0 0 1 3.4.95c0 1.15-1.7 1.55-1.7 2.55M8 11.35h.01" strokeLinecap="round" />
-            </svg>
-            <span className="truncate">{SPARK_FEEDBACK_LABEL}</span>
-          </button>
-        </div>
-        {/* Bottom row: Code Agent */}
-        {onOpenCodeAgent ? (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => {
-              onOpenCodeAgent();
-              onClose();
-            }}
-            className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] disabled:opacity-40"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              aria-hidden
-            >
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-            Code Agent
-          </button>
+
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          className="mb-1.5 flex min-h-9 w-full items-center justify-center rounded-full border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:text-[var(--teal)]"
+          aria-expanded={moreOpen}
+        >
+          {moreOpen ? "Less" : "More"}
+        </button>
+        {moreOpen ? (
+          <div className="mb-1.5 space-y-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
+              <a
+                href="/family"
+                className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-1.5 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20"
+                title="Family — parent hub (PIN)"
+              >
+                Family
+              </a>
+              <a
+                href="/dict"
+                className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)]"
+                title="Dictionary / Translation"
+              >
+                Dict
+              </a>
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen(true)}
+                className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)]"
+              >
+                Help
+              </button>
+            </div>
+            {parentUnlocked ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                <a
+                  href={SPARK_GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:text-[var(--teal)]"
+                >
+                  GitHub
+                </a>
+                {onOpenCodeAgent ? (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      onOpenCodeAgent();
+                      onClose();
+                    }}
+                    className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 disabled:opacity-40"
+                  >
+                    Code Agent
+                  </button>
+                ) : (
+                  <span className="min-h-9" />
+                )}
+              </div>
+            ) : (
+              <p className="px-1 text-[10px] leading-snug text-[var(--ink-muted)]">
+                Grown-up tools unlock after Family PIN.
+              </p>
+            )}
+          </div>
         ) : null}
       </div>
     </aside>

@@ -7,6 +7,7 @@ import {
   pickExploreTopics,
   planOneExploreTopic,
   planExploreSequence,
+  resolveFreeExploreTopic,
 } from "./explore-catalog";
 import { normalizeMemory, type LearningMemory } from "./learning-memory";
 import type { InterestRecord } from "./interest-store";
@@ -180,5 +181,24 @@ describe("explore-catalog: planExploreSequence (V2 P2 §9.3.3)", () => {
     // de-duplicated topic ids
     const ids = new Set(plans.map((p) => p.topic.id));
     expect(ids.size).toBe(4);
+  });
+});
+
+describe("explore-catalog: resolveFreeExploreTopic", () => {
+  it("returns null for tiny/empty input", () => {
+    expect(resolveFreeExploreTopic("")).toBeNull();
+    expect(resolveFreeExploreTopic("a")).toBeNull();
+  });
+
+  it("maps keyword hits to catalog topics", () => {
+    expect(resolveFreeExploreTopic("Formula One racing cars")?.id).toBe("vehicles");
+    expect(resolveFreeExploreTopic("World Cup football")?.id).toBe("sports");
+  });
+
+  it("builds a custom topic for novel life interests", () => {
+    const t = resolveFreeExploreTopic("origami dragons");
+    expect(t?.id.startsWith("custom:")).toBe(true);
+    expect(t?.label.toLowerCase()).toContain("origami");
+    expect(t?.skillIds.length).toBeGreaterThan(0);
   });
 });

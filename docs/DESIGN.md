@@ -93,6 +93,7 @@ flowchart TB
 | **[subsystems/claude-report-2026-08-feasibility.md](subsystems/claude-report-2026-08-feasibility.md)** | 2026-08-11 Claude deep report — robots/noindex, API rate limit, Socratic integrity |
 | **[subsystems/ux-competitor-report-2026-08-feasibility.md](subsystems/ux-competitor-report-2026-08-feasibility.md)** | 2026-08-11 UX竞品报告 — wait phases / step chips / persona; Ello ASR deferred |
 | **[subsystems/report-v4-feasibility.md](subsystems/report-v4-feasibility.md)** | 2026-08-11 v4 深度分析 — Studio↔BKT outcome + printable Learning Portfolio (AUD.6b) |
+| **[subsystems/ux-v4-experience-p0.md](subsystems/ux-v4-experience-p0.md)** | 🎯 UX V4 体验 P0（2026-08-15）— 首屏 Hero 轮换 + 导航 4+1 + Focus Mode + 自由探索输入 |
 | **[subsystems/product-audit-2026-08-roadmap.md](subsystems/product-audit-2026-08-roadmap.md)** | 2026-08 产品审计路线图 — Coach SM / parent / FSRS-lite / crop；**多语言+Code Agent 锁定保留** |
 | **[subsystems/photo-crop-mobile.md](subsystems/photo-crop-mobile.md)** | 📷 Homework photo crop — mobile `dvh`/safe-area layout + overlay alignment |
 | **[subsystems/ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)** | AUDIT8.7/8.8 — Code Agent safe chips + PIN for destructive; voice menu Core/More (no language removal) |

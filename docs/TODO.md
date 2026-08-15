@@ -29,6 +29,21 @@
 
 ---
 
+## 🎯 UX-V4 — Experience P0: 减法 + Focus Mode（2026-08-15）
+
+> **Design:** [subsystems/ux-v4-experience-p0.md](subsystems/ux-v4-experience-p0.md)  
+> **Source:** Spark 四维学习力深度调研报告 V4（用户体验专项）§6 P0  
+> **Goal:** 首屏单一主行动 + 导航 4+1 + Focus Mode v0 + 自由探索输入。不动苏格拉底 / BKT 归因 / 短回复守卫。
+
+- [x] **UXV4.1** — `hero-action-rotation.ts` + ChatThread 空状态只渲染 1 主卡 + Another suggestion
+- [x] **UXV4.2** — HistorySidebar 一级 Me/Progress/Studio/Games；More 收起 Family/Dict/Help；GitHub/Code Agent 需家长 PIN
+- [x] **UXV4.3** — `focus-session.ts` + TutorShell 专注壳 + MessageBell urgent-only + Me 页专注记录
+- [x] **UXV4.4** — `resolveFreeExploreTopic` + 探索卡自由输入行
+- [x] **UXV4.5** — unit tests + run_tests
+- [ ] **UXV4.6** — apply_changes → publish_develop → deploy_live
+
+---
+
 ## 🎨 SIDEBAR-DENSITY — Left nav readability + compact footer (2026-08-15)
 
 > **Design:** [subsystems/sidebar-density.md](subsystems/sidebar-density.md)
@@ -36,7 +51,7 @@
 - [x] SB.1 — Bump Search + conversation title/meta type scale in `HistorySidebar`
 - [x] SB.2 — Compact footer: Progress/Dict into 3-col rows (no dedicated full-width rows)
 - [x] SB.3 — Update README + ui-architecture §5.4 notes
-- [ ] SB.4 — run_tests; deploy_live after src change
+- [x] SB.4 — run_tests; deploy_live after src change
 
 ---
 

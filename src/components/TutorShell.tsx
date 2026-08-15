@@ -9,6 +9,16 @@ import { ThemePicker } from "./ThemePicker";
 import { SetupPanel } from "./SetupPanel";
 import AccountSwitcher from "./AccountSwitcher";
 import { MessageBell } from "./MessageBell";
+import {
+  DEFAULT_FOCUS_MINUTES,
+  endFocusSession,
+  focusProgress,
+  focusRemainingMs,
+  isFocusExpired,
+  loadActiveFocusSession,
+  startFocusSession,
+  type FocusSessionActive,
+} from "@/lib/focus-session";
 import { MessageList } from "./MessageList";
 import { useTutorSession } from "./tutor/useTutorSession";
 import {
@@ -119,6 +129,71 @@ export function TutorShell() {
   const [weeklyLaunchpad, setWeeklyLaunchpad] = useState<WeeklyLaunchpadView | null>(
     null,
   );
+
+  // UX-V4 — Focus Mode session
+  const [focusSession, setFocusSession] = useState<FocusSessionActive | null>(null);
+  const [focusNow, setFocusNow] = useState(() => Date.now());
+  const [focusSummary, setFocusSummary] = useState<string | null>(null);
+  const focusTurnCountRef = useRef(0);
+
+  useEffect(() => {
+    const active = loadActiveFocusSession();
+    setFocusSession(active && active.accountId === accountId ? active : null);
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!focusSession) return;
+    const id = window.setInterval(() => setFocusNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [focusSession]);
+
+  useEffect(() => {
+    if (!focusSession) return;
+    if (!isFocusExpired(focusSession, focusNow)) return;
+    const result = endFocusSession(accountId, {
+      turns: focusTurnCountRef.current,
+      now: focusNow,
+    });
+    setFocusSession(null);
+    if (result) setFocusSummary(result.summaryLine);
+  }, [focusSession, focusNow, accountId]);
+
+  const focusActive = !!focusSession;
+  const focusPct = focusSession ? focusProgress(focusSession, focusNow) : 0;
+  const focusRemainingLabel = focusSession
+    ? (() => {
+        const ms = focusRemainingMs(focusSession, focusNow);
+        const m = Math.floor(ms / 60_000);
+        const s = Math.floor((ms % 60_000) / 1000);
+        return `${m}:${String(s).padStart(2, "0")}`;
+      })()
+    : null;
+
+  const handleStartFocus = () => {
+    focusTurnCountRef.current = 0;
+    setFocusSummary(null);
+    setFocusSession(
+      startFocusSession(accountId, { minutes: DEFAULT_FOCUS_MINUTES }),
+    );
+    setFocusNow(Date.now());
+  };
+
+  const handleEndFocus = () => {
+    const result = endFocusSession(accountId, {
+      turns: focusTurnCountRef.current,
+    });
+    setFocusSession(null);
+    if (result) setFocusSummary(result.summaryLine);
+  };
+
+  useEffect(() => {
+    if (!focusActive) return;
+    // Count user turns roughly as half of messages (user+assistant pairs).
+    focusTurnCountRef.current = Math.max(
+      focusTurnCountRef.current,
+      Math.floor(messages.filter((m) => m.role === "user").length),
+    );
+  }, [messages, focusActive]);
 
   // V3 — hydrate interests from the server once per account (merges local).
   useEffect(() => {
@@ -305,6 +380,7 @@ export function TutorShell() {
         conversations={store.conversations}
         activeId={store.activeId}
         accountId={accountId}
+        focusMode={focusActive}
         disabled={busy}
         onOpenCodeAgent={handleOpenCodeAgent}
         engagementLabel={
@@ -392,7 +468,7 @@ export function TutorShell() {
               </svg>
             </button>
             <ThemePicker />
-            <MessageBell accountId={accountId} onOpen={() => setMessagesOpen(true)} />
+            <MessageBell accountId={accountId} focusMode={focusActive} onOpen={() => setMessagesOpen(true)} />
             <AccountSwitcher
               accounts={accounts}
               activeId={accountId}
@@ -408,6 +484,14 @@ export function TutorShell() {
           className="mx-auto mt-0.5 w-full max-w-2xl min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 sm:px-0"
         >
           <ChatThread
+            accountId={accountId}
+            focusActive={focusActive}
+            focusProgress={focusPct}
+            focusRemainingLabel={focusRemainingLabel}
+            focusSummary={focusSummary}
+            onStartFocus={handleStartFocus}
+            onEndFocus={handleEndFocus}
+            onDismissFocusSummary={() => setFocusSummary(null)}
             messages={messages}
             streaming={busy}
             worksheetPlan={active?.worksheetPlan ?? null}

@@ -48,11 +48,14 @@ export async function fetchMessages(accountId: string): Promise<{
   } catch { return null; }
 }
 
-export async function fetchUnreadCount(accountId: string): Promise<number> {
+export async function fetchUnreadCount(
+  accountId: string,
+  opts?: { minUrgency?: "routine" | "important" | "urgent" },
+): Promise<number> {
   try {
-    const res = await fetch(
-      `/api/messages?accountId=${encodeURIComponent(accountId)}&countOnly=1`,
-    );
+    const q = new URLSearchParams({ accountId, countOnly: "1" });
+    if (opts?.minUrgency) q.set("minUrgency", opts.minUrgency);
+    const res = await fetch(`/api/messages?${q.toString()}`);
     if (!res.ok) return 0;
     const data = await res.json();
     return typeof data.unreadCount === "number" ? data.unreadCount : 0;

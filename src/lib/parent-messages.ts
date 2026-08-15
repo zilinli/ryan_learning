@@ -97,9 +97,24 @@ export async function markRead(
   return store;
 }
 
-export async function unreadCount(accountId: string): Promise<number> {
+const URGENCY_RANK: Record<MessageUrgency, number> = {
+  routine: 0,
+  important: 1,
+  urgent: 2,
+};
+
+/** Unread count; optional minUrgency filters (Focus Mode: urgent-only badges). */
+export async function unreadCount(
+  accountId: string,
+  opts?: { minUrgency?: MessageUrgency },
+): Promise<number> {
   const store = await loadMessages(accountId);
-  return store.messages.filter((m) => !m.publicReadAt).length;
+  const min = opts?.minUrgency ? URGENCY_RANK[opts.minUrgency] : 0;
+  return store.messages.filter((m) => {
+    if (m.publicReadAt) return false;
+    const rank = URGENCY_RANK[m.urgency] ?? 0;
+    return rank >= min;
+  }).length;
 }
 
 export async function deleteMessage(

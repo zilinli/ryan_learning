@@ -150,6 +150,46 @@ export function getExploreTopic(id: string): ExploreTopic | undefined {
 }
 
 /**
+ * UX-V4 P0 — free-text explore ("Today, I want to explore ___").
+ * Match catalog keywords when possible; otherwise build a temporary custom topic
+ * so life interests (Formula One, World Cup, …) still kick off + land in interest profile.
+ */
+export function resolveFreeExploreTopic(raw: string): ExploreTopic | null {
+  const text = raw.trim().replace(/\s+/g, " ").slice(0, 64);
+  if (text.length < 2) return null;
+  const lower = text.toLowerCase();
+  let best: ExploreTopic | null = null;
+  let bestScore = 0;
+  for (const topic of EXPLORE_TOPICS) {
+    let score = 0;
+    for (const kw of topic.keywords) {
+      const k = kw.toLowerCase();
+      if (lower.includes(k) || k.includes(lower)) {
+        score = Math.max(score, k.length);
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = topic;
+    }
+  }
+  if (best && bestScore >= 3) return best;
+  // Dynamic topic: slug id + general inquiry skills
+  const slug = lower
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "custom";
+  return {
+    id: `custom:${slug}`,
+    label: text.slice(0, 48),
+    emoji: "✨",
+    keywords: [lower],
+    skillIds: ["scientific-method", "multi-step-word-problems", "science-observations"],
+    framing: `Start from a wonder question about "${text}" — predict before you explain, then dig one layer deeper.`,
+  };
+}
+
+/**
  * Kid-friendly curated set (grade-aware-ish): prefer topics whose related
  * skills overlap the student's current catalog band, then pad with fresh ones.
  *

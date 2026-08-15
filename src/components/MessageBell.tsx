@@ -3,19 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchUnreadCount, subscribeMessagesChanged } from "@/lib/messages-sync";
 
-export function MessageBell({ accountId, onOpen }: {
+export function MessageBell({ accountId, onOpen, focusMode = false }: {
   accountId: string;
   onOpen: () => void;
+  /** UX-V4 — during Focus Mode, only urgent unread lights the badge. */
+  focusMode?: boolean;
 }) {
   const [count, setCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     if (!accountId || accountId.startsWith("acct_")) {
-      const n = await fetchUnreadCount(accountId);
+      const n = await fetchUnreadCount(
+        accountId,
+        focusMode ? { minUrgency: "urgent" } : undefined,
+      );
       setCount((prev) => (n !== prev ? n : prev));
     }
-  }, [accountId]);
+  }, [accountId, focusMode]);
 
   useEffect(() => {
     refresh();

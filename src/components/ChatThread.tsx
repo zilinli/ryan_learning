@@ -29,6 +29,7 @@ import {
   DEEP_DIVE_LABELS,
   type DeepDiveMode,
 } from "@/lib/prompts";
+import { EmptyStateHero } from "./EmptyStateHero";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageLightbox } from "./ImageLightbox";
 import { VideoAttachment } from "./VideoAttachment";
@@ -49,50 +50,6 @@ type BubbleTranslation = {
   /** Ready but panel collapsed (button toggles) */
   hidden?: boolean;
 };
-
-/** P2 — one-click instant action card (report §9.1.2). Tap → action, no typing. */
-function QuickActionCard({
-  emoji,
-  title,
-  hint,
-  onClick,
-  accent = "default",
-}: {
-  emoji: string;
-  title: string;
-  hint: string;
-  onClick?: () => void;
-  accent?: "default" | "teal" | "coral" | "action";
-}) {
-  const accentClass =
-    accent === "teal"
-      ? "border-[var(--teal)]/40 bg-[var(--teal)]/8 text-[var(--teal)]"
-      : accent === "coral"
-        ? "border-[var(--coral)]/40 bg-[var(--coral)]/8 text-[var(--coral)]"
-        : accent === "action"
-          ? "border-[var(--action-bg)]/60 bg-[var(--action-bg)] text-[var(--action-ink)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--action-bg)_30%,transparent)]"
-          : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink)]";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex min-h-24 flex-col items-start justify-between gap-1.5 rounded-2xl border p-3 text-left transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${accentClass}`}
-    >
-      <span className="text-lg leading-none" aria-hidden>
-        {emoji}
-      </span>
-      <span>
-        <span className="block text-[13px] font-semibold leading-tight">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-[var(--ink-muted)]">
-          {hint}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 
 type Props = {
   messages: ChatMessage[];
@@ -170,6 +127,16 @@ type Props = {
   onDismissCreationOffer?: () => void;
   /** V3 — child tapped into Studio/Journal from the creation card (attribution). */
   onAcceptCreationOffer?: () => void;
+  /** UX-V4 — account id for hero-action freshness rotation */
+  accountId?: string;
+  /** UX-V4 — Focus Mode controls */
+  focusActive?: boolean;
+  focusProgress?: number;
+  focusRemainingLabel?: string | null;
+  focusSummary?: string | null;
+  onStartFocus?: () => void;
+  onEndFocus?: () => void;
+  onDismissFocusSummary?: () => void;
 };
 
 function formatTime(epochMs: number): string {
@@ -293,6 +260,14 @@ export function ChatThread({
   creationOfferLine,
   onDismissCreationOffer,
   onAcceptCreationOffer,
+  accountId = "default",
+  focusActive,
+  focusProgress = 0,
+  focusRemainingLabel,
+  focusSummary,
+  onStartFocus,
+  onEndFocus,
+  onDismissFocusSummary,
 }: Props) {
   const [lightbox, setLightbox] = useState<{
     src: string;
@@ -495,21 +470,6 @@ export function ChatThread({
   };
 
   if (messages.length === 0) {
-    const openerEyebrow =
-      sessionOpener?.kind === "return"
-        ? "Welcome back"
-        : sessionOpener?.kind === "challenge"
-          ? "Mastered a lot — stretch it"
-          : sessionOpener?.kind === "practice"
-            ? "From learning map"
-            : sessionOpener
-              ? "Today's warm-up"
-              : null;
-    const openerEmphasized =
-      sessionOpener?.kind === "return" ||
-      sessionOpener?.kind === "practice" ||
-      sessionOpener?.kind === "challenge";
-
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center animate-fade-up">
         <div className="text-4xl">📚</div>
@@ -538,13 +498,61 @@ export function ChatThread({
             Pick a voice in the sidebar — dialects stay on that account.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onSnapHomework}
-          className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--action-bg)] px-4 text-sm font-medium text-[var(--action-ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
-        >
-          Snap homework
-        </button>
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onSnapHomework}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--action-bg)] px-4 text-sm font-medium text-[var(--action-ink)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+          >
+            Snap homework
+          </button>
+          {!focusActive && onStartFocus ? (
+            <button
+              type="button"
+              onClick={onStartFocus}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--teal)]/45 bg-[var(--teal)]/10 px-4 text-sm font-medium text-[var(--teal)] focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+            >
+              Focus 20 min
+            </button>
+          ) : null}
+        </div>
+        {focusActive ? (
+          <div className="w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--teal)]/8 px-4 py-3 text-left">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
+                Focus mode
+              </p>
+              <p className="text-xs tabular-nums text-[var(--ink-muted)]">
+                {focusRemainingLabel ?? "…"}
+              </p>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
+              <div
+                className="h-full rounded-full bg-[var(--teal)] transition-all duration-500"
+                style={{ width: `${Math.round(Math.min(1, Math.max(0, focusProgress)) * 100)}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={onEndFocus}
+              className="mt-2 min-h-10 text-[12px] font-medium text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              End focus early
+            </button>
+          </div>
+        ) : null}
+        {focusSummary ? (
+          <div className="w-full max-w-md rounded-2xl border border-[var(--teal)]/35 bg-[var(--surface-muted)] px-4 py-3 text-left">
+            <p className="text-sm text-[var(--ink)]">{focusSummary}</p>
+            <button
+              type="button"
+              onClick={onDismissFocusSummary}
+              className="mt-2 min-h-10 text-[12px] font-medium text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              OK
+            </button>
+          </div>
+        ) : null}
 
         {dailyBlurb ? (
           <div className="mt-2 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left">
@@ -589,280 +597,31 @@ export function ChatThread({
           </div>
         ) : null}
 
-        {/* P0-2 — the adjacent card normally defers to the daily opener; in
-            high-mastery mode the opener is a stretch challenge, so the
-            neighbor recommendation stays visible as the "what next" lane. */}
-        {adjacentOpener &&
-        (!sessionOpener || sessionOpener.highMasteryMode) ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/45 bg-[var(--teal)]/6 px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              A neighbor to explore
-            </p>
-            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
-              {adjacentOpener.line}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onAdjacentTry}
-                className="min-h-11 rounded-xl border border-[var(--teal)]/55 bg-[var(--teal)]/10 px-3 text-sm font-medium text-[var(--teal)]"
-              >
-                Peek at {adjacentOpener.label}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {weeklyLaunchpad ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-                🗓️ This week
-              </p>
-              <p className="text-[11px] tabular-nums text-[var(--ink-muted)]">
-                {weeklyLaunchpad.doneCount}/{weeklyLaunchpad.totalCount} done
-              </p>
-            </div>
-            <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-              {weeklyLaunchpad.items.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => onLaunchpadItem?.(item.action)}
-                  title={item.line}
-                  className={`flex min-h-14 flex-col items-start justify-between gap-1 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)] ${
-                    item.done
-                      ? "border-[var(--teal)]/30 bg-[var(--teal)]/6"
-                      : "border-[var(--line)] bg-[var(--bg0)] hover:border-[var(--teal)]/45"
-                  }`}
-                >
-                  <span className="flex w-full items-center justify-between text-[13px] leading-none">
-                    <span aria-hidden>{item.emoji}</span>
-                    <span
-                      className={`text-[10px] font-semibold ${
-                        item.done ? "text-[var(--teal)]" : "text-[var(--ink-muted)]"
-                      }`}
-                    >
-                      {item.done ? "✓" : "·"}
-                    </span>
-                  </span>
-                  <span className="text-[11px] font-medium leading-tight text-[var(--ink)]">
-                    {item.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {exploreTopics && exploreTopics.length > 0 ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              Today, I want to explore…
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              Pick a spark — Spark turns it into a question at your level.
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {exploreTopics.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onExplore?.(t)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-3 text-[12px] font-medium text-[var(--ink)] transition hover:border-[var(--teal)]/60 hover:bg-[var(--teal)]/15"
-                >
-                  <span aria-hidden>{t.emoji}</span>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {practiceOffer && practiceOffer.targets.length > 0 ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--teal)]/50 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              Practice offer
-            </p>
-            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
-              Practice 3 quick ones?
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              {practiceOffer.targets.map((t) => t.label).join(" · ")}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onPractice}
-                className="min-h-11 rounded-xl bg-[var(--action-bg)] px-3 text-sm font-medium text-[var(--action-ink)]"
-              >
-                Let&apos;s practice
-              </button>
-              <button
-                type="button"
-                onClick={onPracticeTomorrow}
-                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink)]"
-              >
-                Tomorrow
-              </button>
-              <button
-                type="button"
-                onClick={onPracticeDismiss}
-                className="min-h-11 rounded-xl px-3 text-sm text-[var(--ink-muted)] underline-offset-2 hover:underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        ) : sessionOpener ? (
-          <div
-            className={`mt-3 w-full max-w-md rounded-2xl bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm ${
-              openerEmphasized
-                ? "border-2 border-[var(--teal)]/55"
-                : "border border-[var(--line)]"
-            }`}
-          >
-            {openerEyebrow ? (
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-                {openerEyebrow}
-              </p>
-            ) : null}
-            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
-              {sessionOpener.line}
-            </p>
-            {sessionOpener.challengeLine ? (
-              <p className="mt-1.5 text-[12px] leading-snug text-[var(--ink-muted)]">
-                {sessionOpener.challengeLine}
-              </p>
-            ) : null}
-            {sessionOpener.practiceTargets && sessionOpener.practiceTargets.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {[sessionOpener.label, ...sessionOpener.practiceTargets.map((t) => t.label)].map(
-                  (lbl, i) => (
-                    <span
-                      key={i}
-                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-                        i === 0
-                          ? "border-[var(--teal)]/50 bg-[var(--teal)]/10 text-[var(--teal)]"
-                          : "border-[var(--line)] bg-[var(--surface-muted)] text-[var(--ink-muted)]"
-                      }`}
-                    >
-                      {lbl}
-                    </span>
-                  ),
-                )}
-              </div>
-            ) : null}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <QuickActionCard
-                emoji={sessionOpener.kind === "challenge" ? "🏆" : "⚡"}
-                title={
-                  sessionOpener.kind === "challenge"
-                    ? "Go harder"
-                    : "Quick questions"
-                }
-                hint={
-                  sessionOpener.kind === "challenge"
-                    ? `Multi-step ${sessionOpener.label} — no spoilers`
-                    : `3 warm-ups on “${sessionOpener.label}”`
-                }
-                onClick={onOpenerTry}
-                accent={sessionOpener.kind === "challenge" ? "action" : "default"}
-              />
-              {onOpenerNext &&
-              sessionOpener.practiceTargets &&
-              sessionOpener.practiceTargets.length > 0 ? (
-                <QuickActionCard
-                  emoji="🔀"
-                  title="Another topic"
-                  hint="Switch to a different warm-up"
-                  onClick={onOpenerNext}
-                />
-              ) : null}
-              {onChallenge && canChallenge && sessionOpener.kind !== "challenge" ? (
-                <QuickActionCard
-                  emoji="🏆"
-                  title="Challenge me!"
-                  hint="Push a mastered skill higher"
-                  onClick={onChallenge}
-                  accent={
-                    sessionOpener.highMasteryMode ? "action" : "teal"
-                  }
-                />
-              ) : null}
-              <QuickActionCard
-                emoji="📷"
-                title="Snap homework"
-                hint="Photo a worksheet instead"
-                onClick={onSnapHomework}
-                accent="coral"
-              />
-            </div>
-            <p className="mt-2 text-[11px] text-[var(--ink-muted)]">
-              Tap a card to start instantly — or type / snap anything below.
-            </p>
-          </div>
-        ) : null}
-
-        {deepDiveOffer ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border-2 border-[var(--coral)]/45 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--coral)]">
-              Weekly deep project
-            </p>
-            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
-              Go deep on “{deepDiveOffer.topicLabel}” — 5 steps, one big idea.
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              Explore, explain, apply, then turn it into a small poster or summary.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onStartDeepDive}
-                className="min-h-11 rounded-xl bg-[var(--coral)]/90 px-3 text-sm font-medium text-white"
-              >
-                Start deep dive
-              </button>
-              <button
-                type="button"
-                onClick={onSkipDeepDive}
-                className="min-h-11 rounded-xl border border-[var(--line)] px-3 text-sm text-[var(--ink-muted)]"
-              >
-                Not this week
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {connectionOffer ? (
-          <div className="mt-3 w-full max-w-md rounded-2xl border border-[var(--teal)]/55 bg-[var(--surface-muted)] px-4 py-3 text-left shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-              Connection of the week
-            </p>
-            <p className="mt-1 text-sm font-medium text-[var(--ink)]">
-              {connectionOffer.card.title}
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              {connectionOffer.card.blurb}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onShowConnection}
-                className="min-h-11 rounded-xl border border-[var(--teal)]/55 bg-[var(--teal)]/10 px-3 text-sm font-medium text-[var(--teal)]"
-              >
-                Show me the link
-              </button>
-              <button
-                type="button"
-                onClick={onDismissConnection}
-                className="min-h-11 rounded-xl px-3 text-sm text-[var(--ink-muted)] underline-offset-2 hover:underline"
-              >
-                Later
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <EmptyStateHero
+          accountId={accountId}
+          practiceOffer={practiceOffer}
+          sessionOpener={sessionOpener}
+          exploreTopics={exploreTopics}
+          deepDiveOffer={deepDiveOffer}
+          connectionOffer={connectionOffer}
+          adjacentOpener={adjacentOpener}
+          weeklyLaunchpad={weeklyLaunchpad}
+          canChallenge={canChallenge}
+          onPractice={onPractice}
+          onPracticeTomorrow={onPracticeTomorrow}
+          onPracticeDismiss={onPracticeDismiss}
+          onOpenerTry={onOpenerTry}
+          onOpenerNext={onOpenerNext}
+          onChallenge={onChallenge}
+          onSnapHomework={onSnapHomework}
+          onExplore={onExplore}
+          onStartDeepDive={onStartDeepDive}
+          onSkipDeepDive={onSkipDeepDive}
+          onShowConnection={onShowConnection}
+          onDismissConnection={onDismissConnection}
+          onAdjacentTry={onAdjacentTry}
+          onLaunchpadItem={onLaunchpadItem}
+        />
       </div>
     );
   }
@@ -894,6 +653,42 @@ export function ChatThread({
           <button
             type="button"
             onClick={onDismissFlowMoment}
+            className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+          >
+            OK
+          </button>
+        </div>
+      ) : null}
+      {focusActive ? (
+        <div className="sticky top-0 z-[6] -mx-1 flex justify-center">
+          <div className="flex w-full max-w-md items-center gap-3 rounded-2xl border border-[var(--teal)]/45 bg-[var(--surface-muted)] px-3 py-2 shadow-sm">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-[var(--teal)]">
+                Focus · {focusRemainingLabel ?? "…"}
+              </p>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--mist)]">
+                <div
+                  className="h-full rounded-full bg-[var(--teal)] transition-all duration-500"
+                  style={{ width: `${Math.round(Math.min(1, Math.max(0, focusProgress)) * 100)}%` }}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onEndFocus}
+              className="shrink-0 text-[11px] font-medium text-[var(--ink-muted)] underline-offset-2 hover:underline"
+            >
+              End
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {focusSummary && messages.length > 0 ? (
+        <div className="flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/35 bg-[var(--teal)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
+          <p>{focusSummary}</p>
+          <button
+            type="button"
+            onClick={onDismissFocusSummary}
             className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
           >
             OK
