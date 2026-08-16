@@ -1,106 +1,109 @@
-# Word Echo — random word memory game
+# Word Echo — study then spell
 
-> Version 1.0 · 2026-08-16  
-> Scope: new Learning Game on `/entertain` — **Word Echo** (`word-echo`). Memorize a short random word list, then tap the same words among distractors.
+> Version 1.1 · 2026-08-16  
+> Scope: Learning Game on `/entertain` — **Word Echo** (`word-echo`). Memorize a short random word list, then **spell each word from memory** (not tap-recognition).
 
 ---
 
 ## 1. Problem
 
-Ryan needs a light, repeatable **working-memory + vocabulary** drill that fits Games (not Studio labs). Existing Learning Games cover fractions / physics / eco / history; there is no word-recall mechanic.
+v1.0 used **study → tap among distractors** (recognition). That trains working memory + sight ID, but **spelling production** is the higher-value literacy skill for G4. Research (listen-and-spell / generation effect): producing graphemes from memory beats selecting a printed word.
 
 ## 2. Approach
 
-Classic **study → hide → identify among distractors** (Train-the-Brain / Focusfloo pattern), adapted to Spark Learning Games rules:
+Classic **study → hide → spell (type)** loop:
 
-1. **Mechanic = lesson** — the action is recalling the set (tap chips), no typing boxes.
-2. **Answer-Until-Correct** — wrong check flags extras (does not reveal missing targets); adjust and retry.
+1. **Mechanic = lesson** — the action is spelling the echo, not multiple-choice taps.
+2. **Answer-Until-Correct** — wrong spelling keeps the prompt; adjust and retry (no instant full reveal).
 3. **ZPD** — difficulty from BKT `pKnown` on ELA skills (`letter-sounds` / `reading-evidence`).
-4. **Private progress** — echo nodes (1–5) light up; no leaderboard.
-5. **Offline word bank** — curated G4-friendly English words (no live dict API required).
+4. **Scaffolding** — easy levels show letter blanks; mid shows length only; hard has no length hint.
+5. **Private progress** — echo nodes (1–5) light up; no leaderboard.
+6. **Offline word bank** — curated G4-friendly English words.
 
 ### 2.1 Core loop
 
 1. **Study** — show `targetCount` random words for `studyMs`.
-2. **Recall** — shuffled pool = targets + distractors; tap to toggle selection.
-3. **Check** — set equality (difficulty ≤ 3) or **ordered** recall (difficulty ≥ 4).
-4. **Next** — on correct, record BKT turn and advance; bump difficulty via streak / pKnown.
+2. **Spell** — one target at a time (study order). Learner types the word; Check validates.
+3. **Advance** — on correct, next target; after last target, record BKT turn and clear node.
+4. **Next round** — bump difficulty via streak / pKnown.
 
 ### 2.2 Difficulty ladder
 
-| pKnown | Diff | Targets | Distractors | Study ms | Order |
-|--------|------|---------|-------------|----------|-------|
-| < 0.30 | 1 | 3 | 3 | 5000 | set |
-| < 0.50 | 2 | 4 | 4 | 4500 | set |
-| < 0.70 | 3 | 5 | 5 | 4000 | set |
-| < 0.85 | 4 | 6 | 6 | 3500 | ordered |
-| ≥ 0.85 | 5 | 7 | 7 | 3000 | ordered |
+| pKnown | Diff | Targets | Study ms | Hint |
+|--------|------|---------|----------|------|
+| < 0.30 | 1 | 2 | 6000 | blanks (`_ _ _ _`) |
+| < 0.50 | 2 | 3 | 5500 | blanks |
+| < 0.70 | 3 | 3 | 5000 | length only (`5 letters`) |
+| < 0.85 | 4 | 4 | 4500 | none |
+| ≥ 0.85 | 5 | 5 | 4000 | none |
 
 ### 2.3 Data model (pure)
 
 ```ts
+type HintMode = "blanks" | "length" | "none";
+
 type WordEchoRound = {
   id: number;
   difficulty: number;
   targets: string[];
-  pool: string[];       // shuffled targets + distractors
   studyMs: number;
-  requireOrder: boolean;
+  hintMode: HintMode;
   skill: "letter-sounds" | "reading-evidence";
 };
 
-function difficultyFromPKnown(pKnown: number): number;
-function pickRound(difficulty: number, rng?): WordEchoRound;
-function validateEcho(round, selected: string[]): {
+function normalizeSpelling(raw: string): string; // trim + lower + letters only
+function validateSpelling(expected: string, typed: string): {
   correct: boolean;
   outcome: "correct" | "incorrect";
-  missing: string[];
-  extra: string[];
   message: string;
 };
+function spellingHint(word: string, mode: HintMode): string;
+function difficultyFromPKnown(pKnown: number): number;
+function pickRound(difficulty: number, rng?): WordEchoRound;
 ```
+
+Recognition helpers (`pool`, `validateEcho`, `requireOrder`) are removed in v1.1.
 
 ### 2.4 BKT
 
-`recordStudioLearningTurn({ source: "game", skillSeed: "sight word vocabulary …", outcome })`.
+`recordStudioLearningTurn({ source: "game", skillSeed: "… spelling …", outcome })` once per completed round (all targets spelled). Per-word incorrect checks may also record `incorrect` lightly, or only final round outcome — **implementation: record on each Check** (matches v1.0 AUC feedback to memory).
 
 ## 3. Key files
 
 | Path | Role |
 |------|------|
-| `src/lib/entertain/word-echo.ts` | Pure logic + word bank |
+| `src/lib/entertain/word-echo.ts` | Pure logic + word bank + spelling validate |
 | `src/lib/entertain/word-echo.test.ts` | Unit tests |
-| `src/components/WordEchoGame.tsx` | UI (study timer + tap chips) |
-| `src/lib/entertain/types.ts` | `GameId` += `word-echo` |
-| `src/components/EntertainPage.tsx` | Hub card + mount |
+| `src/components/WordEchoGame.tsx` | UI (study timer + spell input) |
+| `src/components/EntertainPage.tsx` | Hub card copy |
+| `src/lib/entertain/types.ts` | `GameId` includes `word-echo` |
 | `src/components/learning-games/tokens.ts` / `icons.tsx` | Accent + SVG mark |
 
-Visual: deep ink base `#0e1218` + cyan accent `#38bdf8` (fits v2 dark single-accent language).
+Visual: deep ink base `#0e1218` + cyan accent `#38bdf8`.
 
 ## 4. Risks
 
 | Risk | Mitigation |
 |------|------------|
-| Word bank too hard / too baby | G4 school + nature + action mix; no slang |
-| Study timer unfair on slow devices | Pause study when tab hidden; min study floor |
-| Ordered mode confusing | Diff ≥ 4 only; numbered slots |
-| Edit budget | Pure logic + one component + registry patches |
+| Typing harder than tapping on mobile | Large input, `inputMode="text"`, autoFocus, Enter to check |
+| Hint leaks too much | blanks only L1–2; L4–5 none |
+| Word bank too hard | Keep G4 mix; length mostly 4–8 |
+| Edit budget | Replace recall path; drop distractor pool |
 
 ## 5. Test design
 
 ### Unit (`word-echo.test.ts`)
 
 - `difficultyFromPKnown` band boundaries
-- `pickRound` target/distractor counts, pool uniqueness, targets ⊆ pool
-- `validateEcho` correct set / wrong missing / wrong extra
-- Ordered mode: correct order vs wrong permutation
+- `pickRound` target counts, hintMode by difficulty, unique targets
+- `normalizeSpelling` / `validateSpelling` exact match, case/space tolerant, wrong letter
+- `spellingHint` blanks / length / none
 - Word bank: all lowercase letters, length ≥ 3, no duplicates
 
 ### Integration / manual
 
-- Hub shows Word Echo under Learning Games; `?game=word-echo` opens it
-- Study → auto-hide → tap → Check → Next; mobile 375px usable
-- Correct turn updates learning memory (optional smoke)
+- Hub copy mentions spell; `?game=word-echo` opens spell flow
+- Study → auto-hide → type → Check → next word → Next echo; mobile 375px usable
 
 ```bash
 npm test -- src/lib/entertain/word-echo.test.ts

@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   WORD_BANK,
   difficultyFromPKnown,
+  normalizeSpelling,
   pickRound,
-  shuffle,
+  spellingHint,
   specForDifficulty,
-  validateEcho,
+  validateSpelling,
   wordEchoSkillSeed,
 } from "./word-echo";
 
@@ -34,18 +35,21 @@ describe("difficultyFromPKnown", () => {
 });
 
 describe("specForDifficulty", () => {
-  it("scales targets and study time", () => {
+  it("scales targets, study time, and hint mode", () => {
     expect(specForDifficulty(1)).toEqual({
+      targetCount: 2,
+      studyMs: 6000,
+      hintMode: "blanks",
+    });
+    expect(specForDifficulty(3)).toEqual({
       targetCount: 3,
-      distractorCount: 3,
       studyMs: 5000,
-      requireOrder: false,
+      hintMode: "length",
     });
     expect(specForDifficulty(5)).toEqual({
-      targetCount: 7,
-      distractorCount: 7,
-      studyMs: 3000,
-      requireOrder: true,
+      targetCount: 5,
+      studyMs: 4000,
+      hintMode: "none",
     });
   });
 });
@@ -61,51 +65,45 @@ describe("WORD_BANK", () => {
 });
 
 describe("pickRound", () => {
-  it("builds a valid pool for each difficulty", () => {
+  it("builds unique targets and hintMode for each difficulty", () => {
     for (let d = 1; d <= 5; d++) {
       const round = pickRound(d, seqRng([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]));
       const spec = specForDifficulty(d);
       expect(round.targets).toHaveLength(spec.targetCount);
-      expect(round.pool).toHaveLength(spec.targetCount + spec.distractorCount);
-      expect(new Set(round.pool).size).toBe(round.pool.length);
-      for (const t of round.targets) {
-        expect(round.pool).toContain(t);
-      }
-      expect(round.requireOrder).toBe(spec.requireOrder);
+      expect(new Set(round.targets).size).toBe(round.targets.length);
+      expect(round.hintMode).toBe(spec.hintMode);
       expect(round.studyMs).toBe(spec.studyMs);
     }
   });
 });
 
-describe("validateEcho", () => {
-  const base = pickRound(2, () => 0.42);
+describe("normalizeSpelling", () => {
+  it("trims, lowers, and strips non-letters", () => {
+    expect(normalizeSpelling("  ApPle! ")).toBe("apple");
+    expect(normalizeSpelling("a-p-p-l-e")).toBe("apple");
+  });
+});
 
-  it("accepts the exact target set (any order)", () => {
-    const selected = shuffle(base.targets, () => 0.7);
-    const res = validateEcho(base, selected);
+describe("spellingHint", () => {
+  it("renders blanks, length, or empty", () => {
+    expect(spellingHint("echo", "blanks")).toBe("_ _ _ _");
+    expect(spellingHint("echo", "length")).toBe("4 letters");
+    expect(spellingHint("echo", "none")).toBe("");
+  });
+});
+
+describe("validateSpelling", () => {
+  it("accepts exact spelling ignoring case and junk", () => {
+    const res = validateSpelling("apple", " Apple ");
     expect(res.correct).toBe(true);
     expect(res.outcome).toBe("correct");
-    expect(res.missing).toEqual([]);
-    expect(res.extra).toEqual([]);
   });
 
-  it("flags missing and extra", () => {
-    const missingOne = base.targets.slice(1);
-    const distractor = base.pool.find((w) => !base.targets.includes(w))!;
-    const res = validateEcho(base, [...missingOne, distractor]);
-    expect(res.correct).toBe(false);
-    expect(res.missing).toContain(base.targets[0]!);
-    expect(res.extra).toContain(distractor);
-  });
-
-  it("requires order on high difficulty", () => {
-    const ordered = pickRound(4, seqRng([0.15, 0.25, 0.35, 0.45, 0.55, 0.65]));
-    expect(ordered.requireOrder).toBe(true);
-    const wrongOrder = [...ordered.targets].reverse();
-    const bad = validateEcho(ordered, wrongOrder);
-    expect(bad.correct).toBe(false);
-    const good = validateEcho(ordered, ordered.targets.slice());
-    expect(good.correct).toBe(true);
+  it("flags empty, wrong length, and wrong letters", () => {
+    expect(validateSpelling("apple", "").correct).toBe(false);
+    expect(validateSpelling("apple", "app").message).toMatch(/short/i);
+    expect(validateSpelling("apple", "apples").message).toMatch(/long/i);
+    expect(validateSpelling("apple", "applx").message).toMatch(/letters/i);
   });
 });
 
@@ -113,7 +111,7 @@ describe("wordEchoSkillSeed", () => {
   it("includes skill and targets", () => {
     const round = pickRound(1, () => 0.2);
     const seed = wordEchoSkillSeed(round);
-    expect(seed).toMatch(/sight word/);
+    expect(seed).toMatch(/spelling/);
     expect(seed).toContain(round.targets[0]!);
   });
 });

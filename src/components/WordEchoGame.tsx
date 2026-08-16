@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   difficultyFromPKnown,
   pickRound,
-  validateEcho,
+  spellingHint,
+  validateSpelling,
   wordEchoSkillSeed,
-  type WordEchoResult,
   type WordEchoRound,
+  type WordEchoSpellResult,
 } from "@/lib/entertain/word-echo";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { loadLearningMemory } from "@/lib/learning-memory";
@@ -25,10 +33,11 @@ const {
   inkMuted: INK_MUTED,
 } = GAME_TOKENS["word-echo"];
 
-type Phase = "idle" | "study" | "recall" | "done";
+type Phase = "idle" | "study" | "spell" | "done";
 
 export function WordEchoGame() {
   const juice = useJuice();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [accountId] = useState(() => {
     try {
       return getActiveAccount(loadAccounts()).id;
@@ -38,8 +47,9 @@ export function WordEchoGame() {
   });
   const [round, setRound] = useState<WordEchoRound | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [selected, setSelected] = useState<string[]>([]);
-  const [result, setResult] = useState<WordEchoResult | null>(null);
+  const [spellIndex, setSpellIndex] = useState(0);
+  const [typed, setTyped] = useState("");
+  const [result, setResult] = useState<WordEchoSpellResult | null>(null);
   const [cleared, setCleared] = useState(0);
   const [studyLeft, setStudyLeft] = useState(0);
 
@@ -51,7 +61,8 @@ export function WordEchoGame() {
     const diff = difficultyFromPKnown(skill?.pKnown ?? 0.45);
     const next = pickRound(diff);
     setRound(next);
-    setSelected([]);
+    setSpellIndex(0);
+    setTyped("");
     setResult(null);
     setPhase("study");
     setStudyLeft(next.studyMs);
@@ -67,50 +78,58 @@ export function WordEchoGame() {
       setStudyLeft(left);
       if (left <= 0) {
         window.clearInterval(tick);
-        setPhase("recall");
+        setPhase("spell");
       }
     }, 50);
     return () => window.clearInterval(tick);
   }, [phase, round]);
 
-  const toggle = useCallback(
-    (word: string) => {
-      if (phase !== "recall" || !round) return;
-      setResult(null);
-      setSelected((prev) => {
-        if (round.requireOrder) {
-          if (prev.includes(word)) return prev.filter((w) => w !== word);
-          if (prev.length >= round.targets.length) return prev;
-          return [...prev, word];
-        }
-        return prev.includes(word)
-          ? prev.filter((w) => w !== word)
-          : [...prev, word];
-      });
-    },
-    [phase, round],
-  );
+  useEffect(() => {
+    if (phase !== "spell") return;
+    const id = window.setTimeout(() => inputRef.current?.focus(), 40);
+    return () => window.clearTimeout(id);
+  }, [phase, spellIndex]);
 
   const check = useCallback(() => {
-    if (!round || phase !== "recall") return;
-    const res = validateEcho(round, selected);
+    if (!round || phase !== "spell") return;
+    const expected = round.targets[spellIndex]!;
+    const res = validateSpelling(expected, typed);
     setResult(res);
     void recordStudioLearningTurn({
       accountId,
       source: "game",
       title: `Word Echo · L${round.difficulty}`,
-      userText: `recall ${selected.join(", ")}`,
+      userText: `spell ${expected} → ${typed}`,
       skillSeed: wordEchoSkillSeed(round),
       outcome: res.outcome,
     });
     if (res.correct) {
       juice.playCorrect();
-      setCleared((c) => Math.min(5, c + 1));
-      setPhase("done");
+      const nextIdx = spellIndex + 1;
+      if (nextIdx >= round.targets.length) {
+        setCleared((c) => Math.min(5, c + 1));
+        setPhase("done");
+      } else {
+        setSpellIndex(nextIdx);
+        setTyped("");
+        setResult(null);
+      }
     } else {
       juice.playError();
     }
-  }, [round, phase, selected, accountId, juice]);
+  }, [round, phase, spellIndex, typed, accountId, juice]);
+
+  const onSubmit = useCallback(
+    (e: FormEvent) => {
+      e.preventDefault();
+      check();
+    },
+    [check],
+  );
+
+  const currentWord = round?.targets[spellIndex] ?? "";
+  const hint =
+    round && currentWord ? spellingHint(currentWord, round.hintMode) : "";
 
   return (
     <div className="flex flex-1 flex-col" style={{ background: BASE, color: INK }}>
@@ -143,7 +162,7 @@ export function WordEchoGame() {
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <EchoMark />
             <p className="mt-5 max-w-xs text-sm leading-relaxed" style={{ color: INK_MUTED }}>
-              Study a short list of random words. Then tap the same words when they hide.
+              Study a short list of words. Then spell each one from memory — typing beats tapping.
             </p>
             <button
               type="button"
@@ -163,7 +182,7 @@ export function WordEchoGame() {
                 Study · {Math.ceil(studyLeft / 1000)}s
               </p>
               <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
-                Remember these words{round.requireOrder ? " in order" : ""}.
+                Remember how each word is spelled. You will type them next.
               </p>
             </Panel>
             <div className="flex flex-wrap justify-center gap-2">
@@ -177,7 +196,7 @@ export function WordEchoGame() {
                     color: INK,
                   }}
                 >
-                  {round.requireOrder ? `${i + 1}. ${w}` : w}
+                  {i + 1}. {w}
                 </span>
               ))}
             </div>
@@ -185,55 +204,62 @@ export function WordEchoGame() {
           </>
         )}
 
-        {(phase === "recall" || phase === "done") && round && (
+        {(phase === "spell" || phase === "done") && round && (
           <>
             <Panel>
               <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-                {phase === "done" ? "Clear" : "Recall"}
+                {phase === "done" ? "Clear" : "Spell"}
               </p>
               <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
-                {round.requireOrder
-                  ? `Tap the ${round.targets.length} words in study order.`
-                  : `Tap all ${round.targets.length} words you studied.`}
+                {phase === "done"
+                  ? `All ${round.targets.length} spellings echoed.`
+                  : `Word ${spellIndex + 1} of ${round.targets.length} — type the spelling.`}
               </p>
-              {round.requireOrder && selected.length > 0 && (
-                <p className="mt-2 text-xs tabular-nums" style={{ color: ACCENT }}>
-                  Order: {selected.map((w, i) => `${i + 1}.${w}`).join(" · ")}
+              {phase === "spell" && hint ? (
+                <p
+                  className="mt-3 font-mono text-lg tracking-[0.2em] tabular-nums"
+                  style={{ color: ACCENT }}
+                  aria-label={`Hint: ${hint}`}
+                >
+                  {hint}
                 </p>
-              )}
+              ) : null}
             </Panel>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {round.pool.map((w) => {
-                const on = selected.includes(w);
-                const extra = result && !result.correct && result.extra.includes(w);
-                return (
-                  <button
-                    key={w}
-                    type="button"
-                    disabled={phase === "done"}
-                    onClick={() => toggle(w)}
-                    className="min-h-12 rounded-xl border text-sm font-semibold transition active:scale-[0.97] disabled:opacity-80"
-                    style={{
-                      borderColor: extra ? CORAL : on ? ACCENT : STROKE,
-                      background: extra
-                        ? "rgba(251,113,133,0.12)"
-                        : on
-                          ? `${ACCENT}22`
-                          : "rgba(255,255,255,0.04)",
-                      color: extra ? CORAL : on ? ACCENT : INK_MUTED,
-                    }}
-                  >
-                    {w}
-                    {round.requireOrder && on ? (
-                      <span className="ml-1 tabular-nums opacity-70">
-                        {selected.indexOf(w) + 1}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
+            {phase === "spell" && (
+              <form onSubmit={onSubmit} className="flex flex-col gap-3">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="off"
+                  value={typed}
+                  onChange={(e) => {
+                    setTyped(e.target.value);
+                    setResult(null);
+                  }}
+                  placeholder="Type the word"
+                  className="min-h-14 w-full rounded-xl border px-4 text-center text-lg font-semibold outline-none"
+                  style={{
+                    borderColor: result && !result.correct ? CORAL : STROKE,
+                    background: "rgba(255,255,255,0.04)",
+                    color: INK,
+                  }}
+                  aria-label={`Spell word ${spellIndex + 1}`}
+                />
+                <button
+                  type="submit"
+                  disabled={typed.trim().length === 0}
+                  className="min-h-12 w-full rounded-xl text-sm font-semibold transition active:scale-[0.98] disabled:opacity-40"
+                  style={{ background: ACCENT, color: BASE }}
+                >
+                  Check spelling
+                </button>
+              </form>
+            )}
 
             {result && (
               <div
@@ -249,8 +275,8 @@ export function WordEchoGame() {
               </div>
             )}
 
-            <div className="mt-auto">
-              {phase === "done" ? (
+            {phase === "done" && (
+              <div className="mt-auto">
                 <button
                   type="button"
                   onClick={start}
@@ -259,18 +285,8 @@ export function WordEchoGame() {
                 >
                   Next echo
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={check}
-                  disabled={selected.length === 0}
-                  className="min-h-12 w-full rounded-xl text-sm font-semibold transition active:scale-[0.98] disabled:opacity-40"
-                  style={{ background: ACCENT, color: BASE }}
-                >
-                  Check
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </>
         )}
       </div>

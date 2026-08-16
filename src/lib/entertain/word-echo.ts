@@ -1,25 +1,24 @@
 /**
- * Word Echo — memorize random words, then recall among distractors.
+ * Word Echo — memorize random words, then spell them from memory.
  * Pure functions only (no React).
  */
 
 export type WordEchoSkill = "letter-sounds" | "reading-evidence";
 
+export type HintMode = "blanks" | "length" | "none";
+
 export type WordEchoRound = {
   id: number;
   difficulty: number;
   targets: string[];
-  pool: string[];
   studyMs: number;
-  requireOrder: boolean;
+  hintMode: HintMode;
   skill: WordEchoSkill;
 };
 
-export type WordEchoResult = {
+export type WordEchoSpellResult = {
   correct: boolean;
   outcome: "correct" | "incorrect";
-  missing: string[];
-  extra: string[];
   message: string;
 };
 
@@ -137,17 +136,15 @@ export function difficultyFromPKnown(pKnown: number): number {
 
 export function specForDifficulty(difficulty: number): {
   targetCount: number;
-  distractorCount: number;
   studyMs: number;
-  requireOrder: boolean;
+  hintMode: HintMode;
 } {
   const d = Math.max(1, Math.min(5, Math.round(difficulty)));
-  return {
-    targetCount: 2 + d, // 3..7
-    distractorCount: 2 + d,
-    studyMs: 5500 - d * 500, // 5000..3000
-    requireOrder: d >= 4,
-  };
+  if (d === 1) return { targetCount: 2, studyMs: 6000, hintMode: "blanks" };
+  if (d === 2) return { targetCount: 3, studyMs: 5500, hintMode: "blanks" };
+  if (d === 3) return { targetCount: 3, studyMs: 5000, hintMode: "length" };
+  if (d === 4) return { targetCount: 4, studyMs: 4500, hintMode: "none" };
+  return { targetCount: 5, studyMs: 4000, hintMode: "none" };
 }
 
 let nextId = 1;
@@ -188,79 +185,70 @@ export function pickRound(
 ): WordEchoRound {
   const spec = specForDifficulty(difficulty);
   const targets = pickUnique(spec.targetCount, new Set(), rng);
-  const exclude = new Set(targets);
-  const distractors = pickUnique(spec.distractorCount, exclude, rng);
-  const pool = shuffle([...targets, ...distractors], rng);
   const skill: WordEchoSkill =
     difficulty >= 4 ? "reading-evidence" : "letter-sounds";
   return {
     id: nextId++,
     difficulty: Math.max(1, Math.min(5, Math.round(difficulty))),
     targets,
-    pool,
     studyMs: spec.studyMs,
-    requireOrder: spec.requireOrder,
+    hintMode: spec.hintMode,
     skill,
   };
 }
 
-export function validateEcho(
-  round: WordEchoRound,
-  selected: string[],
-): WordEchoResult {
-  const targetSet = new Set(round.targets);
-  const selectedSet = new Set(selected);
-  const missing = round.targets.filter((w) => !selectedSet.has(w));
-  const extra = selected.filter((w) => !targetSet.has(w));
+/** Trim, lowercase, keep a–z only. */
+export function normalizeSpelling(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^a-z]/g, "");
+}
 
-  if (round.requireOrder) {
-    const sameLength = selected.length === round.targets.length;
-    const orderOk =
-      sameLength &&
-      round.targets.every((w, i) => selected[i] === w) &&
-      extra.length === 0;
-    if (orderOk) {
-      return {
-        correct: true,
-        outcome: "correct",
-        missing: [],
-        extra: [],
-        message: "Exact order. The echo matches.",
-      };
-    }
+export function spellingHint(word: string, mode: HintMode): string {
+  if (mode === "blanks") {
+    return word
+      .split("")
+      .map(() => "_")
+      .join(" ");
+  }
+  if (mode === "length") {
+    return `${word.length} letters`;
+  }
+  return "";
+}
+
+export function validateSpelling(
+  expected: string,
+  typed: string,
+): WordEchoSpellResult {
+  const want = normalizeSpelling(expected);
+  const got = normalizeSpelling(typed);
+  if (!got) {
     return {
       correct: false,
       outcome: "incorrect",
-      missing,
-      extra,
-      message:
-        missing.length || extra.length
-          ? "Fix the set, then put words in the study order."
-          : "Right words — tap them in the order you studied.",
+      message: "Type the spelling, then check.",
     };
   }
-
-  if (missing.length === 0 && extra.length === 0 && selected.length === round.targets.length) {
+  if (got === want) {
     return {
       correct: true,
       outcome: "correct",
-      missing: [],
-      extra: [],
-      message: "All echoes found.",
+      message: "Spelling matches. Echo clear.",
     };
   }
-
+  if (got.length !== want.length) {
+    return {
+      correct: false,
+      outcome: "incorrect",
+      message:
+        got.length < want.length
+          ? "Too short — a letter may be missing."
+          : "Too long — check for an extra letter.",
+    };
+  }
   return {
     correct: false,
     outcome: "incorrect",
-    missing,
-    extra,
-    message:
-      missing.length && extra.length
-        ? "Some words are missing and some do not belong."
-        : missing.length
-          ? "A few echoes are still missing."
-          : "Drop the words that were not on the study list.",
+    message: "Almost — one or more letters are off. Try again.",
   };
 }
 

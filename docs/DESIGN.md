@@ -101,7 +101,7 @@ flowchart TB
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
 | **[subsystems/arcade-nfs-nintendo.md](subsystems/arcade-nfs-nintendo.md)** | Arcade pack — Nitro Rush (NFS vibe) · Sky Patrol (shmup) · Balloon Float · Snake |
 | **[subsystems/learning-games.md](subsystems/learning-games.md)** | 🚀 Learning Games — Fraction Voyager / Eco Genesis / Time Vault (mechanic-is-lesson, BKT loop) |
-| **[subsystems/word-echo.md](subsystems/word-echo.md)** | 🔤 Word Echo — random word memory (study → tap recall among distractors, BKT) |
+| **[subsystems/word-echo.md](subsystems/word-echo.md)** | 🔤 Word Echo — study → **spell** from memory (scaffolded blanks → free recall, BKT) |
 | **[subsystems/physics-learning-games.md](subsystems/physics-learning-games.md)** | ⚛ Physics Learning Games — research + design (Force Bay P0; Energy Chain / Orbit Scout deferred) |
 | **[subsystems/learning-games-v2.md](subsystems/learning-games-v2.md)** | 🎨 Learning Games v2 — all six games UI + game-design redesign (de-emoji, single-accent dark UI, juice) — **design only** |
 | **[subsystems/ted-challenge-voice-input.md](subsystems/ted-challenge-voice-input.md)** | TED Challenge voice → text via MicTranscribeButton |

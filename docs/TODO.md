@@ -1,13 +1,16 @@
 # 📋 Downstream Development TODO
 
-## 🔤 WORD-ECHO — Random word memory game（2026-08-16）
+## 🔤 WORD-ECHO — Study then spell（2026-08-16）
 
-> Design: **[subsystems/word-echo.md](subsystems/word-echo.md)**
+> Design: **[subsystems/word-echo.md](subsystems/word-echo.md)** v1.1
 
-- [x] Pure engine `word-echo.ts` + unit tests (pick / validate / difficulty)
-- [x] UI `WordEchoGame.tsx` (study timer → tap recall → AUC)
+- [x] Pure engine `word-echo.ts` + unit tests (pick / validate / difficulty) — v1.0 recognition
+- [x] UI `WordEchoGame.tsx` (study timer → tap recall → AUC) — v1.0
 - [x] Register `GameId` + Entertain hub card + icon/tokens
-- [x] `run_tests` green → commit → publish_develop → deploy_live
+- [x] **WE.1** — Engine: replace tap-recall with `normalizeSpelling` / `validateSpelling` / `hintMode`; drop distractor pool
+- [x] **WE.2** — UI: study → spell input (one word at a time, AUC) + hub copy
+- [x] **WE.3** — Unit tests for spelling + hint modes; `run_tests` green
+- [ ] **WE.4** — apply_changes → publish_develop → deploy_live
 
 ## 🏎️ ARCADE-NFS — Nitro Rush · Sky Patrol · Balloon Float · Snake（2026-08-16）
 
