@@ -35,6 +35,9 @@ export function InlineMediaPanel({ kind, draft, accountId, onClose, onBack }: Pr
     setPhase({ stage: "structure" });
     setTitle((draft.split(/\n/)[0] || "").trim().slice(0, 60) || `My ${kind}`);
     try {
+      // UI uses "song"; APIs use "music" | "image" | "video".
+      const apiKind = kind === "song" ? "music" : kind;
+
       // 1) structure the draft into lyrics / visual prompt
       const structRes = await fetch("/api/writing-studio/coach", {
         method: "POST",
@@ -43,7 +46,7 @@ export function InlineMediaPanel({ kind, draft, accountId, onClose, onBack }: Pr
           action: "structure",
           draft,
           genre: "general",
-          target: kind,
+          target: apiKind,
         }),
       });
       if (id !== runIdRef.current) return;
@@ -63,7 +66,7 @@ export function InlineMediaPanel({ kind, draft, accountId, onClose, onBack }: Pr
 
       // 2) generate via /api/studio/generate
       const genBody: Record<string, string> = {
-        kind,
+        kind: apiKind,
         accountId,
         title: title || `My ${kind}`,
       };
