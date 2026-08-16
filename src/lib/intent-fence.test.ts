@@ -114,9 +114,31 @@ describe("detectIntentFromText — keyword fallback", () => {
   it("detects coding as game", () => {
     expect(detectIntentFromText("Can you teach me Scratch coding?")).toEqual({
       kind: "game",
+      gameId: "code-spark",
+      text: "coding",
     });
     expect(detectIntentFromText("我想学编程写个循环")).toEqual({
       kind: "game",
+      gameId: "code-spark",
+      text: "coding",
+    });
+  });
+
+  it("routes Brilliant-style CS phrases to Code Spark", () => {
+    expect(detectIntentFromText("Help me with computational thinking")).toEqual({
+      kind: "game",
+      gameId: "code-spark",
+      text: "coding",
+    });
+    expect(detectIntentFromText("什么是计算思维和变量")).toEqual({
+      kind: "game",
+      gameId: "code-spark",
+      text: "coding",
+    });
+    expect(detectIntentFromText("explain Python functions")).toEqual({
+      kind: "game",
+      gameId: "code-spark",
+      text: "coding",
     });
   });
 

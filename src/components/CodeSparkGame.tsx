@@ -334,6 +334,12 @@ export function CodeSparkGame() {
           <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
             Mission · {level.title}
           </p>
+          <p
+            className="mt-1.5 inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold"
+            style={{ borderColor: `${ACCENT}55`, background: `${ACCENT}14`, color: ACCENT }}
+          >
+            Think · {level.conceptFocus}
+          </p>
           <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
             {level.prompt}
           </p>

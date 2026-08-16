@@ -7,6 +7,16 @@ describe("suggestGame — topic routing", () => {
     expect(r?.gameId).toBe("code-spark");
   });
 
+  it("routes Brilliant CS vocabulary to Code Spark", () => {
+    expect(suggestGame({ text: "computational thinking basics" })?.gameId).toBe(
+      "code-spark",
+    );
+    expect(suggestGame({ text: "学变量和函数" })?.gameId).toBe("code-spark");
+    expect(suggestGame({ text: "what are Python variables" })?.gameId).toBe(
+      "code-spark",
+    );
+  });
+
   it("honors preferredGameId", () => {
     const r = suggestGame({ text: "fractions", preferredGameId: "code-spark" });
     expect(r?.gameId).toBe("code-spark");

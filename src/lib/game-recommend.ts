@@ -15,10 +15,10 @@ export type GameRecommendation = {
 /** Topic keyword → best-fit learning game. First match wins. */
 const GAME_ROUTES: Array<{ re: RegExp; gameId: GameId; title: string; line: string }> = [
   {
-    re: /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript)\b|编程|写代码|写程序|打代码|循环|算法|scratch|积木编程|程序设计/i,
+    re: /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript|variable|variables|function|functions|computational\s+thinking|data\s+structure|cs)\b|\b(for|while)\s+(loop|循环)?\b|编程|写代码|写程序|打代码|循环|算法|scratch|积木编程|程序设计|计算思维|变量|函数|条件判断|计算机科学|学python|学编程/i,
     gameId: "code-spark",
     title: "Code Spark",
-    line: "编程正对味——打开 Code Spark：先拼积木，需要时再进 Python Bridge。",
+    line: "编程正对味——打开 Code Spark：先想清楚再拼积木，需要时再进 Python Bridge。",
   },
   {
     re: /fraction|decimal|percent|ratio|number line|分母|分数|小数|百分比|比例|数轴/i,
@@ -95,7 +95,7 @@ const TITLES: Partial<Record<GameId, string>> = {
 };
 
 const FALLBACK_LINES: Partial<Record<GameId, string>> = {
-  "code-spark": "想放松也想练手?来 Code Spark 先拼积木再 Run——Python Bridge 随时可开。",
+  "code-spark": "想放松也想练手?来 Code Spark 先想路径再拼积木——Python Bridge 随时可开。",
   "fraction-voyager": "想放松也想练手?来开一趟分数飞船。",
   "force-bay": "想放松也想练手?去 Force Bay 推两艘船。",
   "orbit-scout": "想放松也想练手?去 Orbit Scout 转一圈。",

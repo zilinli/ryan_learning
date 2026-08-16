@@ -82,12 +82,13 @@ export function stripIntentFence(text: string): string {
 /**
  * Frontend fallback — keyword intent detection when no fence arrived.
  * Cheap heuristics only; never blocks a normal reply.
+ * Coding / CS hits return gameId code-spark so chat always opens Code Spark.
  */
+const CODING_INTENT_RE =
+  /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript|variable|variables|function|functions|computational\s+thinking|data\s+structure|cs)\b|编程|写代码|写程序|打代码|积木编程|程序设计|学编程|计算思维|变量|函数|条件判断|计算机科学|学python/;
+
 const INTENT_KEYWORDS: Array<[ChatIntentKind, RegExp]> = [
-  [
-    "game",
-    /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug)\b|编程|写代码|写程序|打代码|积木编程|程序设计|学编程/,
-  ],
+  ["game", CODING_INTENT_RE],
   [
     "writing",
     /\b(essay|paragraph|draft|rewrite|polish|composition|poem|writing)\b|作文|作文题|帮我写|帮我改|写一段|写一篇|写个|润色|写作|改作文|日记|写作文/,
@@ -110,7 +111,12 @@ export function detectIntentFromText(text: string): ChatIntent | null {
   if (!text || !text.trim()) return null;
   const trimmed = text.trim().slice(0, 600);
   for (const [kind, re] of INTENT_KEYWORDS) {
-    if (re.test(trimmed)) return { kind };
+    if (re.test(trimmed)) {
+      if (kind === "game" && CODING_INTENT_RE.test(trimmed)) {
+        return { kind: "game", gameId: "code-spark", text: "coding" };
+      }
+      return { kind };
+    }
   }
   return null;
 }

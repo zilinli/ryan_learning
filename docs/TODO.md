@@ -24,7 +24,19 @@
 - [x] **CS.v2.2** — UI：See as Python 对照预览；积木通关 CTA「Try in Python」同关 remake；Scratch 色分区积木
 - [x] **CS.v2.3** — advanced 文案去 Python-default；Entertain / recommend 卡片文案
 - [x] **CS.v2.4** — 单测更新 + run_tests
-- [ ] **CS.v2.5** — apply_changes → publish_develop → deploy_live
+- [x] **CS.v2.5** — apply_changes → publish_develop → deploy_live
+
+### CODE-SPARK v3 — Brilliant concept coaching + chat triggers · 2026-08-16
+
+> **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  
+> **Research:** [Brilliant coding](https://brilliant.org/topics/coding/) / [CS](https://brilliant.org/cs/) — plain-English concepts, intelligent feedback, Thinking in Code path  
+> **Goal:** 概念优先反馈 + Brilliant 轨道命名；主对话编程/CS 词稳定弹出 Code Spark。
+
+- [x] **CS.v3.1** — `conceptFocus` + Brilliant `trackLabel`；`coachFeedback()`；关卡 prompt 概念化
+- [x] **CS.v3.2** — `CodeSparkGame` 概念芯片 + coach 结果文案；Entertain 卡片文案
+- [x] **CS.v3.3** — `intent-fence` / `game-recommend` / `prompts` 扩展触发词；coding → `gameId: code-spark`
+- [x] **CS.v3.4** — 单测（coach / track / triggers）+ run_tests
+- [ ] **CS.v3.5** — apply_changes → publish_develop → deploy_live
 
 ---
 

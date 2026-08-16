@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   availableOps,
   bandFromProfile,
+  coachFeedback,
+  conceptFocusForBand,
   defaultEditorMode,
   generateLevel,
   opsToPython,
@@ -9,6 +11,7 @@ import {
   rateStars,
   runProgram,
   trackFromBand,
+  trackLabel,
   validateProgram,
   type CodeOp,
 } from "./code-spark";
@@ -35,11 +38,18 @@ describe("bandFromProfile", () => {
 });
 
 describe("tracks and editor default", () => {
-  it("maps bands to FCC-style tracks", () => {
+  it("maps bands to Brilliant-style tracks", () => {
     expect(trackFromBand("early")).toBe("foundations");
     expect(trackFromBand("elementary")).toBe("loops");
     expect(trackFromBand("middle")).toBe("branching");
     expect(trackFromBand("advanced")).toBe("text-bridge");
+  });
+
+  it("labels tracks with Brilliant path names", () => {
+    expect(trackLabel("foundations")).toBe("Thinking in Code");
+    expect(trackLabel("loops")).toBe("Loops & Patterns");
+    expect(trackLabel("branching")).toBe("Algorithmic Thinking");
+    expect(trackLabel("text-bridge")).toBe("Python Bridge");
   });
 
   it("always defaults to Blocks (blocks-first)", () => {
@@ -142,6 +152,36 @@ describe("validateProgram + stars", () => {
     const level = generateLevel("early", 1);
     const run = runProgram(level, []);
     expect(rateStars(level, run)).toBe(0);
+  });
+
+  it("levels carry Brilliant conceptFocus", () => {
+    for (const band of ["early", "elementary", "middle", "advanced"] as const) {
+      const level = generateLevel(band, 2);
+      expect(level.conceptFocus).toBe(conceptFocusForBand(band));
+      expect(level.conceptFocus.length).toBeGreaterThan(8);
+    }
+  });
+
+  it("coachFeedback coaches in plain English", () => {
+    const level = generateLevel("early", 1);
+    const n = level.start.r - level.goal.r;
+    const win = runProgram(
+      level,
+      Array.from({ length: n }, () => ({ type: "forward" as const })),
+    );
+    expect(coachFeedback(level, win)).toMatch(/Goal!/);
+    expect(coachFeedback(level, win)).toMatch(/Sequence/);
+
+    const bump = runProgram(level, [
+      { type: "left" },
+      { type: "forward" },
+      { type: "forward" },
+      { type: "forward" },
+    ]);
+    expect(coachFeedback(level, bump)).toMatch(/Bump|Wall/);
+
+    const stuck = runProgram(level, []);
+    expect(coachFeedback(level, stuck)).toMatch(/Stopped short|plain words/);
   });
 });
 

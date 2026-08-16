@@ -1,8 +1,8 @@
 /**
  * Code Spark — lightweight block / Python programming levels (pure functions).
  * Mechanic: arrange tiles or write a tiny Python DSL → run → watch the bot step.
- * Inspired by Code.org (puzzle path), CodeCombat (typed code), Swift Playgrounds
- * (interactive missions), freeCodeCamp tracks (visible skill ladder).
+ * Inspired by Code.org / Scratch (blocks-first), CodeCombat (typed bridge),
+ * Brilliant (plain-English concepts + intelligent coach feedback).
  */
 
 export type CodeBand = "early" | "elementary" | "middle" | "advanced";
@@ -31,6 +31,8 @@ export type CodeLevel = {
   /** RPG-style mission title (CodeCombat / Swift Playgrounds vibe). */
   title: string;
   prompt: string;
+  /** Brilliant-style plain-English concept for this band (one idea per mission). */
+  conceptFocus: string;
   grid: CodeCell[][];
   start: { r: number; c: number; facing: Facing };
   goal: { r: number; c: number };
@@ -117,10 +119,18 @@ export function trackFromBand(band: CodeBand): CodeTrack {
 }
 
 export function trackLabel(track: CodeTrack): string {
-  if (track === "foundations") return "Foundations";
-  if (track === "loops") return "Loops";
-  if (track === "branching") return "Branching";
+  // Brilliant path metaphor: Thinking in Code → … → Algorithmic Thinking → Python
+  if (track === "foundations") return "Thinking in Code";
+  if (track === "loops") return "Loops & Patterns";
+  if (track === "branching") return "Algorithmic Thinking";
   return "Python Bridge";
+}
+
+export function conceptFocusForBand(band: CodeBand): string {
+  if (band === "early") return "Sequence — the order of steps matters";
+  if (band === "elementary") return "Loops — repeat without rewriting";
+  if (band === "middle") return "Conditionals — decide before you move";
+  return "Translate — same idea in typed Python";
 }
 
 export function difficultyFromPKnown(pKnown: number): number {
@@ -255,38 +265,56 @@ export function rateStars(level: CodeLevel, run: CodeRun): 0 | 1 | 2 | 3 {
   return 1;
 }
 
+/**
+ * Brilliant-style coach: plain-English concept feedback, not raw syntax errors.
+ */
+export function coachFeedback(
+  level: CodeLevel,
+  run: CodeRun,
+  _program?: CodeOp[],
+): string {
+  const concept = level.conceptFocus;
+  const stars = rateStars(level, run);
+  if (run.success) {
+    if (stars === 3) {
+      return `Goal! Clean path — you nailed “${concept}.” 3 stars!`;
+    }
+    if (stars === 2) {
+      return `Goal! Solid thinking on “${concept}.” 2 stars — can you tighten the path?`;
+    }
+    return `Goal! You got there. 1 star — rethink “${concept}” with fewer steps.`;
+  }
+  if (run.reason === "bump") {
+    const ops = availableOps(level.band);
+    if (ops.includes("ifClear")) {
+      return `Wall ahead — programmers peek first. Use If clear / if clear():, or turn. (${concept})`;
+    }
+    return `Bump — a wall stopped you. Plan the sequence: turn, then step. (${concept})`;
+  }
+  if (run.reason === "fuel") {
+    return `Out of steps — a loop may be runaway. Shorten or fix Repeat / for-range. (${concept})`;
+  }
+  return `Stopped short of the star. Add the missing moves — think the path in plain words first. (${concept})`;
+}
+
 export function validateProgram(level: CodeLevel, program: CodeOp[]): CodeResult {
   const run = runProgram(level, program);
   const stars = rateStars(level, run);
+  const message = coachFeedback(level, run, program);
   if (run.success) {
-    const starMsg =
-      stars === 3
-        ? " Perfect path — 3 stars!"
-        : stars === 2
-          ? " Nice — 2 stars. Can you tighten it?"
-          : " Goal! 1 star — try fewer steps for more.";
     return {
       correct: true,
       outcome: "correct",
-      message: `Goal! The bot followed your program.${starMsg}`,
+      message,
       run,
       stars,
-    };
-  }
-  if (run.reason === "bump") {
-    return {
-      correct: false,
-      outcome: "incorrect",
-      message: "Bump — wall ahead. Turn or use If clear / if clear():, then try again.",
-      run,
-      stars: 0,
     };
   }
   if (run.reason === "fuel") {
     return {
       correct: false,
       outcome: "practice",
-      message: "Out of steps — shorten the program or fix a loop.",
+      message,
       run,
       stars: 0,
     };
@@ -294,7 +322,7 @@ export function validateProgram(level: CodeLevel, program: CodeOp[]): CodeResult
   return {
     correct: false,
     outcome: "incorrect",
-    message: "Stopped short of the star. Add moves or fix the path.",
+    message,
     run,
     stars: 0,
   };
@@ -339,7 +367,9 @@ export function generateLevel(band: CodeBand, difficulty: number): CodeLevel {
       band,
       difficulty: d,
       title,
-      prompt: "Tap tiles, then Run — guide the bot to the star.",
+      prompt:
+        "Think first: which steps, in what order, reach the star? Then tap blocks and Run.",
+      conceptFocus: conceptFocusForBand(band),
       grid,
       start,
       goal,
@@ -367,7 +397,9 @@ export function generateLevel(band: CodeBand, difficulty: number): CodeLevel {
       band,
       difficulty: d,
       title,
-      prompt: "Use Repeat (or for i in range) to walk farther with fewer tiles.",
+      prompt:
+        "Spot the repeating pattern — use Repeat (or for i in range) so you don’t rewrite every step.",
+      conceptFocus: conceptFocusForBand(band),
       grid,
       start,
       goal,
@@ -397,8 +429,9 @@ export function generateLevel(band: CodeBand, difficulty: number): CodeLevel {
     title,
     prompt:
       band === "advanced"
-        ? "Snap blocks to reach the star — or open Python Bridge when you are ready."
-        : "Wall ahead? Try If clear, or turn around it.",
+        ? "Solve with blocks first — open Python Bridge when you want the same idea in typed words."
+        : "Wall ahead? Decide before you step: If clear, or turn around it.",
+    conceptFocus: conceptFocusForBand(band),
     grid,
     start,
     goal,
