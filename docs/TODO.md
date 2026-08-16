@@ -9,6 +9,10 @@
 - [x] **CS.2** — `CodeSparkGame.tsx` + tokens/icon；EntertainPage **第一张** Learning Game
 - [x] **CS.3** — `game-recommend` + `intent-fence` + prompts + useTutorSession 兜底弹出
 - [x] **CS.4** — InlineGamePanel 接线；run_tests；publish + deploy_live
+- [x] **CS.5** — 趣味闯关：RPG mission 标题 + 1–3 星效率反馈 + 技能轨道芯片（Code.org / Swift / FCC 启发）
+- [x] **CS.6** — `advanced` band + 受限 Python DSL（`parsePythonProgram` / `opsToPython`）+ 单测
+- [x] **CS.7** — UI：Blocks | Python 模式、starter 模板、解析错误提示；卡片文案更新
+- [ ] **CS.8** — run_tests → apply_changes → publish_develop → deploy_live
 
 ---
 

@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   availableOps,
   bandFromProfile,
+  defaultEditorMode,
   generateLevel,
+  opsToPython,
+  parsePythonProgram,
+  rateStars,
   runProgram,
+  trackFromBand,
   validateProgram,
   type CodeOp,
 } from "./code-spark";
@@ -22,6 +27,25 @@ describe("bandFromProfile", () => {
     expect(bandFromProfile({ grade: 7, age: 9 })).toBe("middle");
     expect(bandFromProfile({ grade: 5, age: 13 })).toBe("middle");
   });
+
+  it("maps advanced for high school / teens", () => {
+    expect(bandFromProfile({ grade: 9, age: 12 })).toBe("advanced");
+    expect(bandFromProfile({ grade: 7, age: 15 })).toBe("advanced");
+  });
+});
+
+describe("tracks and editor default", () => {
+  it("maps bands to FCC-style tracks", () => {
+    expect(trackFromBand("early")).toBe("foundations");
+    expect(trackFromBand("elementary")).toBe("loops");
+    expect(trackFromBand("middle")).toBe("branching");
+    expect(trackFromBand("advanced")).toBe("python-hero");
+  });
+
+  it("defaults advanced to Python mode", () => {
+    expect(defaultEditorMode("advanced")).toBe("python");
+    expect(defaultEditorMode("elementary")).toBe("blocks");
+  });
 });
 
 describe("availableOps", () => {
@@ -29,13 +53,13 @@ describe("availableOps", () => {
     expect(availableOps("early")).toEqual(["forward", "left", "right"]);
     expect(availableOps("elementary")).toContain("repeat");
     expect(availableOps("middle")).toContain("ifClear");
+    expect(availableOps("advanced")).toContain("ifClear");
   });
 });
 
 describe("runProgram", () => {
   it("reaches the goal on a straight early path", () => {
     const level = generateLevel("early", 1);
-    // Start bottom row facing north — need (size-1) forwards
     const n = level.start.r - level.goal.r;
     const program: CodeOp[] = Array.from({ length: n }, () => ({ type: "forward" }));
     const run = runProgram(level, program);
@@ -45,11 +69,6 @@ describe("runProgram", () => {
 
   it("bumps into a wall", () => {
     const level = generateLevel("early", 1);
-    const program: CodeOp[] = [
-      { type: "left" },
-      { type: "forward" }, // into edge / wall depending on start
-    ];
-    // Face west from c=1 and walk into c=0 then out — ensure bump by many west forwards
     const west: CodeOp[] = [
       { type: "left" },
       { type: "forward" },
@@ -59,7 +78,6 @@ describe("runProgram", () => {
     const run = runProgram(level, west);
     expect(run.success).toBe(false);
     expect(run.reason).toBe("bump");
-    void program;
   });
 
   it("expands repeat", () => {
@@ -82,8 +100,6 @@ describe("runProgram", () => {
 
   it("ifClear skips body when blocked", () => {
     const level = generateLevel("middle", 1);
-    // Face the mid wall at (2,2) from start (size-1, 2) facing north —
-    // after a few forwards we hit wall; ifClear should not step into it.
     const program: CodeOp[] = [
       { type: "forward" },
       { type: "forward" },
@@ -91,25 +107,127 @@ describe("runProgram", () => {
       { type: "left" },
     ];
     const run = runProgram(level, program);
-    // Should not crash; bump only if a naked forward hits wall
     expect(run.snapshots.length).toBeGreaterThan(1);
     expect(run.reason).not.toBe("fuel");
   });
+
+  it("advanced levels include RPG title", () => {
+    const level = generateLevel("advanced", 2);
+    expect(level.title.length).toBeGreaterThan(3);
+    expect(level.parSteps).toBeGreaterThan(0);
+  });
 });
 
-describe("validateProgram", () => {
-  it("marks correct when goal reached", () => {
+describe("validateProgram + stars", () => {
+  it("marks correct when goal reached with stars", () => {
     const level = generateLevel("early", 1);
     const n = level.start.r - level.goal.r;
     const program: CodeOp[] = Array.from({ length: n }, () => ({ type: "forward" }));
     const res = validateProgram(level, program);
     expect(res.correct).toBe(true);
     expect(res.outcome).toBe("correct");
+    expect(res.stars).toBe(3);
   });
 
   it("marks incorrect when stuck", () => {
     const level = generateLevel("early", 1);
     const res = validateProgram(level, []);
     expect(res.correct).toBe(false);
+    expect(res.stars).toBe(0);
+  });
+
+  it("rateStars returns 0 on failure", () => {
+    const level = generateLevel("early", 1);
+    const run = runProgram(level, []);
+    expect(rateStars(level, run)).toBe(0);
+  });
+});
+
+describe("parsePythonProgram", () => {
+  it("parses simple calls", () => {
+    const r = parsePythonProgram("move_forward()\nturn_left()\nforward()\n");
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.program).toEqual([
+        { type: "forward" },
+        { type: "left" },
+        { type: "forward" },
+      ]);
+    }
+  });
+
+  it("parses for-range and if clear", () => {
+    const src = [
+      "for i in range(3):",
+      "    move_forward()",
+      "if clear():",
+      "    turn_right()",
+      "",
+    ].join("\n");
+    const r = parsePythonProgram(src);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.program).toEqual([
+        {
+          type: "repeat",
+          times: 3,
+          body: [{ type: "forward" }],
+        },
+        { type: "ifClear", body: [{ type: "right" }] },
+      ]);
+    }
+  });
+
+  it("ignores else body", () => {
+    const src = [
+      "if clear():",
+      "    move_forward()",
+      "else:",
+      "    turn_left()",
+      "move_forward()",
+    ].join("\n");
+    const r = parsePythonProgram(src);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.program).toEqual([
+        { type: "ifClear", body: [{ type: "forward" }] },
+        { type: "forward" },
+      ]);
+    }
+  });
+
+  it("rejects unknown statements", () => {
+    const r = parsePythonProgram("import os\n");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.line).toBe(1);
+  });
+
+  it("runs early path from Python", () => {
+    const level = generateLevel("early", 1);
+    const n = level.start.r - level.goal.r;
+    const src = Array.from({ length: n }, () => "move_forward()").join("\n");
+    const parsed = parsePythonProgram(src);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const run = runProgram(level, parsed.program);
+      expect(run.success).toBe(true);
+    }
+  });
+});
+
+describe("opsToPython", () => {
+  it("round-trips a nested program", () => {
+    const ops: CodeOp[] = [
+      {
+        type: "repeat",
+        times: 2,
+        body: [{ type: "forward" }],
+      },
+      { type: "ifClear", body: [{ type: "left" }] },
+    ];
+    const py = opsToPython(ops);
+    const parsed = parsePythonProgram(py);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.program).toEqual(ops);
   });
 });

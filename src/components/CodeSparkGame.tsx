@@ -6,9 +6,15 @@ import {
   bandFromProfile,
   codeSparkSkillSeed,
   countOps,
+  defaultEditorMode,
   difficultyFromPKnown,
   generateLevel,
   opLabel,
+  opsToPython,
+  parsePythonProgram,
+  pythonStarter,
+  trackFromBand,
+  trackLabel,
   validateProgram,
   type CodeBand,
   type CodeLevel,
@@ -33,6 +39,14 @@ const {
 } = GAME_TOKENS["code-spark"];
 
 type Phase = "build" | "running" | "done";
+type EditorMode = "blocks" | "python";
+
+const TRACKS: Array<ReturnType<typeof trackFromBand>> = [
+  "foundations",
+  "loops",
+  "branching",
+  "python-hero",
+];
 
 export function CodeSparkGame() {
   const juice = useJuice();
@@ -49,21 +63,26 @@ export function CodeSparkGame() {
     age: account?.profile.age,
   });
   const opsAllowed = availableOps(band);
+  const track = trackFromBand(band);
 
   const [level, setLevel] = useState<CodeLevel | null>(null);
   const [program, setProgram] = useState<CodeOp[]>([]);
+  const [mode, setMode] = useState<EditorMode>(() => defaultEditorMode(band));
+  const [pythonSrc, setPythonSrc] = useState(() => pythonStarter(band));
+  const [parseError, setParseError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("build");
   const [cursor, setCursor] = useState(0);
   const [snapshots, setSnapshots] = useState<CodeSnapshot[]>([]);
   const [result, setResult] = useState<CodeResult | null>(null);
   const [cleared, setCleared] = useState(0);
+  const [bestStars, setBestStars] = useState(0);
   const [nesting, setNesting] = useState<null | "repeat" | "ifClear">(null);
   const [repeatTimes, setRepeatTimes] = useState<2 | 3 | 4>(2);
 
   const startLevel = useCallback(() => {
     const mem = loadLearningMemory(accountId);
     const skill = mem.skills?.find((s) =>
-      /coding|algorithm|computational|sequence|loop/i.test(
+      /coding|algorithm|computational|sequence|loop|python/i.test(
         `${s.id} ${s.label ?? ""}`,
       ),
     );
@@ -71,6 +90,8 @@ export function CodeSparkGame() {
     const next = generateLevel(band, diff);
     setLevel(next);
     setProgram([]);
+    setPythonSrc(pythonStarter(band));
+    setParseError(null);
     setPhase("build");
     setCursor(0);
     setSnapshots([{ ...next.start, status: "ok" }]);
@@ -82,9 +103,33 @@ export function CodeSparkGame() {
     startLevel();
   }, [startLevel]);
 
+  useEffect(() => {
+    setMode(defaultEditorMode(band));
+  }, [band]);
+
+  const switchMode = useCallback(
+    (next: EditorMode) => {
+      if (phase === "running") return;
+      if (next === "python" && mode === "blocks" && program.length > 0) {
+        setPythonSrc(opsToPython(program) + "\n");
+      }
+      if (next === "blocks" && mode === "python") {
+        const parsed = parsePythonProgram(pythonSrc);
+        if (parsed.ok) {
+          setProgram(parsed.program);
+          setParseError(null);
+        }
+      }
+      setMode(next);
+      setResult(null);
+      setPhase("build");
+    },
+    [mode, phase, program, pythonSrc],
+  );
+
   const pushOp = useCallback(
     (op: CodeOp) => {
-      if (phase === "running") return;
+      if (phase === "running" || mode !== "blocks") return;
       setResult(null);
       setPhase("build");
       if (nesting === "repeat") {
@@ -118,27 +163,46 @@ export function CodeSparkGame() {
       }
       setProgram((prev) => [...prev, op]);
     },
-    [phase, nesting, repeatTimes],
+    [phase, nesting, repeatTimes, mode],
   );
 
   const undo = useCallback(() => {
-    if (phase === "running") return;
+    if (phase === "running" || mode !== "blocks") return;
     setProgram((prev) => prev.slice(0, -1));
     setResult(null);
     setPhase("build");
-  }, [phase]);
+  }, [phase, mode]);
 
   const clearProgram = useCallback(() => {
     if (phase === "running") return;
     setProgram([]);
+    setPythonSrc(pythonStarter(band));
+    setParseError(null);
     setResult(null);
     setPhase("build");
     setNesting(null);
-  }, [phase]);
+  }, [phase, band]);
 
   const run = useCallback(() => {
     if (!level || phase === "running") return;
-    const res = validateProgram(level, program);
+    let ops = program;
+    if (mode === "python") {
+      const parsed = parsePythonProgram(pythonSrc);
+      if (!parsed.ok) {
+        setParseError(
+          parsed.line
+            ? `Line ${parsed.line}: ${parsed.error}`
+            : parsed.error,
+        );
+        juice.playError();
+        return;
+      }
+      setParseError(null);
+      ops = parsed.program;
+      setProgram(ops);
+    }
+    if (ops.length === 0) return;
+    const res = validateProgram(level, ops);
     setResult(res);
     setSnapshots(res.run.snapshots);
     setCursor(0);
@@ -146,14 +210,13 @@ export function CodeSparkGame() {
     void recordStudioLearningTurn({
       accountId,
       source: "game",
-      title: `Code Spark · ${band} L${level.difficulty}`,
-      userText: `program ops=${countOps(program)} → ${res.run.reason}`,
+      title: `Code Spark · ${level.title} · ${band} L${level.difficulty}`,
+      userText: `${mode} ops=${countOps(ops)} → ${res.run.reason} ★${res.stars}`,
       skillSeed: codeSparkSkillSeed(level),
       outcome: res.outcome,
     });
-  }, [level, program, phase, accountId, band]);
+  }, [level, program, phase, accountId, band, mode, pythonSrc, juice]);
 
-  // Animate snapshots
   useEffect(() => {
     if (phase !== "running" || snapshots.length === 0) return;
     if (cursor >= snapshots.length - 1) {
@@ -161,6 +224,9 @@ export function CodeSparkGame() {
       if (last?.status === "goal" || result?.correct) {
         juice.playCorrect();
         setCleared((c) => Math.min(5, c + 1));
+        if (result?.stars) {
+          setBestStars((s) => Math.max(s, result.stars));
+        }
         setPhase("done");
       } else {
         juice.playError();
@@ -184,29 +250,53 @@ export function CodeSparkGame() {
   }
 
   const size = level.grid.length;
+  const canRun =
+    phase !== "running" &&
+    (mode === "blocks" ? program.length > 0 : pythonSrc.trim().length > 0);
 
   return (
     <div className="flex flex-1 flex-col" style={{ background: BASE, color: INK }}>
       <header className="shrink-0 border-b border-white/10 px-4 py-2.5 sm:px-6">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-2">
-          <span
-            className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ borderColor: `${ACCENT}55`, background: `${ACCENT}18`, color: ACCENT }}
-          >
-            Code Spark
-            <span style={{ color: INK_MUTED }}>· {band} · L{level.difficulty}</span>
-          </span>
-          <span className="flex items-center gap-1.5" aria-label={`${cleared} clears`}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <span
-                key={i}
-                className="inline-block h-2 w-2 rounded-full"
-                style={{
-                  background: i < cleared ? ACCENT : "rgba(255,255,255,0.12)",
-                }}
-              />
-            ))}
-          </span>
+        <div className="mx-auto flex max-w-xl flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider"
+              style={{ borderColor: `${ACCENT}55`, background: `${ACCENT}18`, color: ACCENT }}
+            >
+              Code Spark
+              <span style={{ color: INK_MUTED }}>· {band} · L{level.difficulty}</span>
+            </span>
+            <span className="flex items-center gap-1.5" aria-label={`${cleared} clears`}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <span
+                  key={i}
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{
+                    background: i < cleared ? ACCENT : "rgba(255,255,255,0.12)",
+                  }}
+                />
+              ))}
+            </span>
+          </div>
+          {/* freeCodeCamp-style skill track */}
+          <div className="flex flex-wrap gap-1.5" aria-label="Skill track">
+            {TRACKS.map((t) => {
+              const active = t === track;
+              return (
+                <span
+                  key={t}
+                  className="rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                  style={{
+                    borderColor: active ? `${ACCENT}66` : "rgba(255,255,255,0.1)",
+                    background: active ? `${ACCENT}22` : "transparent",
+                    color: active ? ACCENT : INK_MUTED,
+                  }}
+                >
+                  {trackLabel(t)}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </header>
 
@@ -216,11 +306,36 @@ export function CodeSparkGame() {
           style={{ borderColor: STROKE, background: SURFACE }}
         >
           <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-            Mission
+            Mission · {level.title}
           </p>
           <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
             {level.prompt}
           </p>
+          {bestStars > 0 ? (
+            <p className="mt-1.5 text-[11px]" style={{ color: ACCENT }} aria-label={`Best ${bestStars} stars`}>
+              {"★".repeat(bestStars)}
+              <span style={{ color: INK_MUTED }}>{"☆".repeat(3 - bestStars)} session best</span>
+            </p>
+          ) : null}
+        </div>
+
+        {/* Mode toggle — Blocks (Code.org) | Python (CodeCombat) */}
+        <div className="flex gap-1 rounded-xl border p-1" style={{ borderColor: STROKE, background: SURFACE }}>
+          {(["blocks", "python"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => switchMode(m)}
+              disabled={phase === "running"}
+              className="min-h-9 flex-1 rounded-lg text-xs font-semibold capitalize transition disabled:opacity-40"
+              style={{
+                background: mode === m ? ACCENT : "transparent",
+                color: mode === m ? BASE : INK_MUTED,
+              }}
+            >
+              {m === "blocks" ? "Blocks" : "Python"}
+            </button>
+          ))}
         </div>
 
         {/* Grid */}
@@ -275,114 +390,152 @@ export function CodeSparkGame() {
           )}
         </div>
 
-        {/* Program strip */}
-        <div
-          className="min-h-14 rounded-2xl border p-2"
-          style={{ borderColor: STROKE, background: SURFACE }}
-        >
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: INK_MUTED }}>
-            Program {nesting ? `· editing ${nesting}` : ""}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {program.length === 0 ? (
-              <span className="text-xs" style={{ color: INK_MUTED }}>
-                Empty — tap blocks below
-              </span>
-            ) : (
-              program.map((op, i) => (
-                <span
-                  key={i}
-                  className="rounded-lg border px-2 py-1 text-[11px] font-medium"
-                  style={{ borderColor: `${ACCENT}55`, color: ACCENT, background: `${ACCENT}14` }}
-                >
-                  {opLabel(op)}
-                  {op.type === "repeat" || op.type === "ifClear"
-                    ? ` {${op.body.map(opLabel).join(", ")}}`
-                    : ""}
-                </span>
-              ))
-            )}
-          </div>
-        </div>
+        {mode === "blocks" ? (
+          <>
+            <div
+              className="min-h-14 rounded-2xl border p-2"
+              style={{ borderColor: STROKE, background: SURFACE }}
+            >
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: INK_MUTED }}>
+                Program {nesting ? `· editing ${nesting}` : ""}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {program.length === 0 ? (
+                  <span className="text-xs" style={{ color: INK_MUTED }}>
+                    Empty — tap blocks below
+                  </span>
+                ) : (
+                  program.map((op, i) => (
+                    <span
+                      key={i}
+                      className="rounded-lg border px-2 py-1 text-[11px] font-medium"
+                      style={{ borderColor: `${ACCENT}55`, color: ACCENT, background: `${ACCENT}14` }}
+                    >
+                      {opLabel(op)}
+                      {op.type === "repeat" || op.type === "ifClear"
+                        ? ` {${op.body.map(opLabel).join(", ")}}`
+                        : ""}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
 
-        {/* Palette */}
-        <div className="flex flex-wrap gap-2">
-          {opsAllowed.includes("forward") && (
-            <PaletteBtn label="Forward" onClick={() => pushOp({ type: "forward" })} disabled={phase === "running"} />
-          )}
-          {opsAllowed.includes("left") && (
-            <PaletteBtn label="Turn left" onClick={() => pushOp({ type: "left" })} disabled={phase === "running"} />
-          )}
-          {opsAllowed.includes("right") && (
-            <PaletteBtn label="Turn right" onClick={() => pushOp({ type: "right" })} disabled={phase === "running"} />
-          )}
-          {opsAllowed.includes("repeat") && (
-            <>
-              <PaletteBtn
-                label={nesting === "repeat" ? "Done repeat" : `Repeat ×${repeatTimes}`}
-                onClick={() => {
-                  if (nesting === "repeat") {
-                    setNesting(null);
-                    return;
-                  }
-                  setNesting("repeat");
-                  setProgram((prev) => [
-                    ...prev,
-                    { type: "repeat", times: repeatTimes, body: [] },
-                  ]);
-                }}
-                disabled={phase === "running"}
-              />
-              {nesting === "repeat" ? (
+            <div className="flex flex-wrap gap-2">
+              {opsAllowed.includes("forward") && (
+                <PaletteBtn label="Forward" onClick={() => pushOp({ type: "forward" })} disabled={phase === "running"} />
+              )}
+              {opsAllowed.includes("left") && (
+                <PaletteBtn label="Turn left" onClick={() => pushOp({ type: "left" })} disabled={phase === "running"} />
+              )}
+              {opsAllowed.includes("right") && (
+                <PaletteBtn label="Turn right" onClick={() => pushOp({ type: "right" })} disabled={phase === "running"} />
+              )}
+              {opsAllowed.includes("repeat") && (
+                <>
+                  <PaletteBtn
+                    label={nesting === "repeat" ? "Done repeat" : `Repeat ×${repeatTimes}`}
+                    onClick={() => {
+                      if (nesting === "repeat") {
+                        setNesting(null);
+                        return;
+                      }
+                      setNesting("repeat");
+                      setProgram((prev) => [
+                        ...prev,
+                        { type: "repeat", times: repeatTimes, body: [] },
+                      ]);
+                    }}
+                    disabled={phase === "running"}
+                  />
+                  {nesting === "repeat" ? (
+                    <PaletteBtn
+                      label="× cycle"
+                      onClick={() =>
+                        setRepeatTimes((t) => (t === 2 ? 3 : t === 3 ? 4 : 2))
+                      }
+                      disabled={phase === "running"}
+                    />
+                  ) : null}
+                </>
+              )}
+              {opsAllowed.includes("ifClear") && (
                 <PaletteBtn
-                  label="× cycle"
-                  onClick={() =>
-                    setRepeatTimes((t) => (t === 2 ? 3 : t === 3 ? 4 : 2))
-                  }
+                  label={nesting === "ifClear" ? "Done if" : "If clear"}
+                  onClick={() => {
+                    if (nesting === "ifClear") {
+                      setNesting(null);
+                      return;
+                    }
+                    setNesting("ifClear");
+                    setProgram((prev) => [...prev, { type: "ifClear", body: [] }]);
+                  }}
                   disabled={phase === "running"}
                 />
-              ) : null}
-            </>
-          )}
-          {opsAllowed.includes("ifClear") && (
-            <PaletteBtn
-              label={nesting === "ifClear" ? "Done if" : "If clear"}
-              onClick={() => {
-                if (nesting === "ifClear") {
-                  setNesting(null);
-                  return;
-                }
-                setNesting("ifClear");
-                setProgram((prev) => [...prev, { type: "ifClear", body: [] }]);
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: INK_MUTED }}>
+              Python (CodeCombat-style DSL)
+            </label>
+            <textarea
+              value={pythonSrc}
+              onChange={(e) => {
+                setPythonSrc(e.target.value);
+                setParseError(null);
+                setResult(null);
+                setPhase("build");
               }}
               disabled={phase === "running"}
+              spellCheck={false}
+              rows={8}
+              className="w-full resize-y rounded-2xl border p-3 font-mono text-[12px] leading-relaxed outline-none disabled:opacity-60"
+              style={{
+                borderColor: parseError ? `${CORAL}88` : STROKE,
+                background: "rgba(0,0,0,0.35)",
+                color: INK,
+              }}
+              aria-label="Python program"
             />
-          )}
-        </div>
+            {parseError ? (
+              <p className="text-xs" style={{ color: CORAL }}>
+                {parseError}
+              </p>
+            ) : (
+              <p className="text-[11px]" style={{ color: INK_MUTED }}>
+                move_forward · turn_left/right · for i in range(2|3|4) · if clear()
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={run}
-            disabled={phase === "running" || program.length === 0}
+            disabled={!canRun}
             className="min-h-12 flex-1 rounded-xl text-sm font-semibold transition active:scale-[0.98] disabled:opacity-40"
             style={{ background: ACCENT, color: BASE }}
           >
             {phase === "running" ? "Running…" : "Run"}
           </button>
-          <button
-            type="button"
-            onClick={undo}
-            disabled={phase === "running" || program.length === 0}
-            className="min-h-12 rounded-xl border px-4 text-sm font-semibold disabled:opacity-40"
-            style={{ borderColor: STROKE, color: INK_MUTED }}
-          >
-            Undo
-          </button>
+          {mode === "blocks" ? (
+            <button
+              type="button"
+              onClick={undo}
+              disabled={phase === "running" || program.length === 0}
+              className="min-h-12 rounded-xl border px-4 text-sm font-semibold disabled:opacity-40"
+              style={{ borderColor: STROKE, color: INK_MUTED }}
+            >
+              Undo
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={clearProgram}
-            disabled={phase === "running" || program.length === 0}
+            disabled={phase === "running"}
             className="min-h-12 rounded-xl border px-4 text-sm font-semibold disabled:opacity-40"
             style={{ borderColor: STROKE, color: INK_MUTED }}
           >
@@ -398,6 +551,12 @@ export function CodeSparkGame() {
               background: result.correct ? `${ACCENT}14` : "rgba(251,113,133,0.1)",
             }}
           >
+            {result.correct && result.stars > 0 ? (
+              <p className="mb-1 text-base tracking-wide" style={{ color: ACCENT }} aria-label={`${result.stars} stars`}>
+                {"★".repeat(result.stars)}
+                <span style={{ opacity: 0.35 }}>{"☆".repeat(3 - result.stars)}</span>
+              </p>
+            ) : null}
             <p className="text-sm" style={{ color: result.correct ? ACCENT : CORAL }}>
               {result.message}
             </p>

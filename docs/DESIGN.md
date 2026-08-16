@@ -102,7 +102,7 @@ flowchart TB
 | **[subsystems/entertain-static-ssr-fix.md](subsystems/entertain-static-ssr-fix.md)** | `/entertain` 500 — static prerender + middleware hub=studio redirect |
 | **[subsystems/arcade-nfs-nintendo.md](subsystems/arcade-nfs-nintendo.md)** | Arcade pack — Nitro Rush (NFS vibe) · Sky Patrol (shmup) · Balloon Float · Snake |
 | **[subsystems/learning-games.md](subsystems/learning-games.md)** | 🚀 Learning Games — Fraction Voyager / Eco Genesis / Time Vault (mechanic-is-lesson, BKT loop) |
-| **[subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)** | 🧩 Code Spark — 年级/年龄分层积木跑图 + 主对话编程意图弹出 Run |
+| **[subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)** | 🧩 Code Spark — 趣味闯关 + Blocks/Python 双模式（Code.org / CodeCombat / FCC / Swift 启发） |
 | **[subsystems/word-echo.md](subsystems/word-echo.md)** | 🔤 Spell Words (`word-echo`) — study → **spell** from memory (scaffolded blanks → free recall, BKT) |
 | **[subsystems/physics-learning-games.md](subsystems/physics-learning-games.md)** | ⚛ Physics Learning Games — research + design (Force Bay P0; Energy Chain / Orbit Scout deferred) |
 | **[subsystems/learning-games-v2.md](subsystems/learning-games-v2.md)** | 🎨 Learning Games v2 — all six games UI + game-design redesign (de-emoji, single-accent dark UI, juice) — **design only** |
