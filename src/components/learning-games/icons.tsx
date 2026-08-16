@@ -29,6 +29,8 @@ export function GameIcon({
       return <LeafIcon size={size} tone={tone} />;
     case "time-vault":
       return <ArchiveIcon size={size} tone={tone} />;
+    case "word-echo":
+      return <EchoIcon size={size} tone={tone} />;
     default:
       return <DotIcon size={size} tone={tone} />;
   }
@@ -92,6 +94,22 @@ function ArchiveIcon({ size, tone }: { size: number; tone: string }) {
       <rect x={8} y={3} width={8} height={4} rx={1} fill={tone} />
       <line x1={8} y1={11} x2={16} y2={11} stroke={tone} strokeWidth={1.4} />
       <line x1={8} y1={15} x2={16} y2={15} stroke={tone} strokeWidth={1.4} />
+    </svg>
+  );
+}
+
+function EchoIcon({ size, tone }: { size: number; tone: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <circle cx={12} cy={12} r={3} fill={tone} />
+      <path
+        d="M7 12 C9 8, 11 7, 12 7 C13 7, 15 8, 17 12 C15 16, 13 17, 12 17 C11 17, 9 16, 7 12 Z"
+        fill="none"
+        stroke={tone}
+        strokeWidth={1.6}
+      />
+      <path d="M3 12 H6" stroke={tone} strokeWidth={1.6} strokeLinecap="round" opacity={0.55} />
+      <path d="M18 12 H21" stroke={tone} strokeWidth={1.6} strokeLinecap="round" opacity={0.55} />
     </svg>
   );
 }

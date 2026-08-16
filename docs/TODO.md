@@ -1,5 +1,14 @@
 # 📋 Downstream Development TODO
 
+## 🔤 WORD-ECHO — Random word memory game（2026-08-16）
+
+> Design: **[subsystems/word-echo.md](subsystems/word-echo.md)**
+
+- [x] Pure engine `word-echo.ts` + unit tests (pick / validate / difficulty)
+- [x] UI `WordEchoGame.tsx` (study timer → tap recall → AUC)
+- [x] Register `GameId` + Entertain hub card + icon/tokens
+- [x] `run_tests` green → commit → publish_develop → deploy_live
+
 ## 🏎️ ARCADE-NFS — Nitro Rush · Sky Patrol · Balloon Float · Snake（2026-08-16）
 
 Design: [arcade-nfs-nintendo.md](subsystems/arcade-nfs-nintendo.md)

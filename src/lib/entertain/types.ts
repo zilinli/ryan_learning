@@ -21,7 +21,8 @@ export type GameId =
   | "time-vault"
   | "force-bay"
   | "energy-chain"
-  | "orbit-scout";
+  | "orbit-scout"
+  | "word-echo";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 

@@ -19,6 +19,7 @@ import { TimeVaultGame } from "./TimeVaultGame";
 import { ForceBayGame } from "./ForceBayGame";
 import { EnergyChainGame } from "./EnergyChainGame";
 import { OrbitScoutGame } from "./OrbitScoutGame";
+import { WordEchoGame } from "./WordEchoGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
@@ -49,6 +50,7 @@ const GAMES: GameInfo[] = [
   { id: "orbit-scout", title: "Orbit Scout", desc: "Qualitative gravity — drops, pushes, always toward the planet", icon: "", category: "Learning Games" },
   { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "", category: "Learning Games" },
   { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "", category: "Learning Games" },
+  { id: "word-echo", title: "Word Echo", desc: "Memorize random words, then tap them among look-alikes", icon: "", category: "Learning Games" },
   // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
@@ -143,6 +145,7 @@ const TITLES: Record<GameId, string> = {
   "orbit-scout": "Orbit Scout",
   "eco-genesis": "Eco Genesis",
   "time-vault": "Time Vault",
+  "word-echo": "Word Echo",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",
@@ -268,6 +271,7 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "orbit-scout" && <OrbitScoutGame />}
         {activeGame === "eco-genesis" && <EcoGenesisGame />}
         {activeGame === "time-vault" && <TimeVaultGame />}
+        {activeGame === "word-echo" && <WordEchoGame />}
       </div>
     );
   }

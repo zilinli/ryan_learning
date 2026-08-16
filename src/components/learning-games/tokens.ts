@@ -26,7 +26,8 @@ export type LearningGameId =
   | "energy-chain"
   | "orbit-scout"
   | "eco-genesis"
-  | "time-vault";
+  | "time-vault"
+  | "word-echo";
 
 function make(
   accent: string,
@@ -55,4 +56,5 @@ export const GAME_TOKENS: Record<LearningGameId, GameTokens> = {
   "orbit-scout": make("#a78bfa", "#0b0d14", "#121522", "#e8f0ff", "#9fb8da", "#5f6a8a"),
   "eco-genesis": make("#34d399", "#0c1410", "#13201a", "#e8f6ee", "#a9c6b8", "#6d8a7c"),
   "time-vault": make("#d4a15c", "#161009", "#1e1710", "#e8dcc8", "#c8b08a", "#8a7a5f"),
+  "word-echo": make("#38bdf8", "#0e1218", "#151b24", "#e8f4ff", "#9fb8da", "#5f7a8f"),
 };
