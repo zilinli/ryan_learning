@@ -20,6 +20,7 @@ import { ForceBayGame } from "./ForceBayGame";
 import { EnergyChainGame } from "./EnergyChainGame";
 import { OrbitScoutGame } from "./OrbitScoutGame";
 import { WordEchoGame } from "./WordEchoGame";
+import { CodeSparkGame } from "./CodeSparkGame";
 import { TedLab } from "./TedLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
@@ -44,6 +45,7 @@ interface GameInfo {
 
 const GAMES: GameInfo[] = [
   // ── Learning Games (prominent, first) ──
+  { id: "code-spark", title: "Code Spark", desc: "Snap coding blocks, hit Run — guide the bot by age & grade", icon: "", category: "Learning Games" },
   { id: "fraction-voyager", title: "Fraction Voyager", desc: "Fly your ship along the number line — place, compare, slice fractions", icon: "", category: "Learning Games" },
   { id: "force-bay", title: "Force Bay", desc: "Push barges with force arrows — predict the dock, then watch", icon: "", category: "Learning Games" },
   { id: "energy-chain", title: "Energy Chain", desc: "Snap energy conversions — predict if the machine rings or lights", icon: "", category: "Learning Games" },
@@ -146,6 +148,7 @@ const TITLES: Record<GameId, string> = {
   "eco-genesis": "Eco Genesis",
   "time-vault": "Time Vault",
   "word-echo": "Spell Words",
+  "code-spark": "Code Spark",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",
@@ -272,6 +275,7 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "eco-genesis" && <EcoGenesisGame />}
         {activeGame === "time-vault" && <TimeVaultGame />}
         {activeGame === "word-echo" && <WordEchoGame />}
+        {activeGame === "code-spark" && <CodeSparkGame />}
       </div>
     );
   }

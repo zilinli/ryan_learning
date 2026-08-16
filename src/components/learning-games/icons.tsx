@@ -31,6 +31,8 @@ export function GameIcon({
       return <ArchiveIcon size={size} tone={tone} />;
     case "word-echo":
       return <EchoIcon size={size} tone={tone} />;
+    case "code-spark":
+      return <BlocksIcon size={size} tone={tone} />;
     default:
       return <DotIcon size={size} tone={tone} />;
   }
@@ -94,6 +96,17 @@ function ArchiveIcon({ size, tone }: { size: number; tone: string }) {
       <rect x={8} y={3} width={8} height={4} rx={1} fill={tone} />
       <line x1={8} y1={11} x2={16} y2={11} stroke={tone} strokeWidth={1.4} />
       <line x1={8} y1={15} x2={16} y2={15} stroke={tone} strokeWidth={1.4} />
+    </svg>
+  );
+}
+
+function BlocksIcon({ size, tone }: { size: number; tone: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <rect x={3} y={4} width={8} height={5} rx={1.2} fill={tone} />
+      <rect x={13} y={4} width={8} height={5} rx={1.2} fill={tone} opacity={0.55} />
+      <rect x={3} y={11} width={18} height={5} rx={1.2} fill={tone} opacity={0.85} />
+      <rect x={7} y={18} width={10} height={3} rx={1} fill={tone} opacity={0.45} />
     </svg>
   );
 }

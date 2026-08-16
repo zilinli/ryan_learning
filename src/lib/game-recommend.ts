@@ -15,6 +15,12 @@ export type GameRecommendation = {
 /** Topic keyword → best-fit learning game. First match wins. */
 const GAME_ROUTES: Array<{ re: RegExp; gameId: GameId; title: string; line: string }> = [
   {
+    re: /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript)\b|编程|写代码|写程序|打代码|循环|算法|scratch|积木编程|程序设计/i,
+    gameId: "code-spark",
+    title: "Code Spark",
+    line: "编程正对味——打开 Code Spark，拼积木再点 Run 看机器人跑。",
+  },
+  {
     re: /fraction|decimal|percent|ratio|number line|分母|分数|小数|百分比|比例|数轴/i,
     gameId: "fraction-voyager",
     title: "Fraction Voyager",
@@ -64,10 +70,13 @@ export type GameContextHints = {
   tags?: string[];
   /** Free text fallback (last user message / topic). */
   text?: string;
+  /** Explicit game from intent fence — wins over keyword routing. */
+  preferredGameId?: string;
 };
 
 /** Deterministic fallback within learning games. */
 const FALLBACK_GAMES: GameId[] = [
+  "code-spark",
   "fraction-voyager",
   "eco-genesis",
   "orbit-scout",
@@ -75,6 +84,7 @@ const FALLBACK_GAMES: GameId[] = [
 ];
 
 const TITLES: Partial<Record<GameId, string>> = {
+  "code-spark": "Code Spark",
   "fraction-voyager": "Fraction Voyager",
   "force-bay": "Force Bay",
   "energy-chain": "Energy Chain",
@@ -85,6 +95,7 @@ const TITLES: Partial<Record<GameId, string>> = {
 };
 
 const FALLBACK_LINES: Partial<Record<GameId, string>> = {
+  "code-spark": "想放松也想练手?来 Code Spark 拼几块积木再 Run。",
   "fraction-voyager": "想放松也想练手?来开一趟分数飞船。",
   "force-bay": "想放松也想练手?去 Force Bay 推两艘船。",
   "orbit-scout": "想放松也想练手?去 Orbit Scout 转一圈。",
@@ -100,6 +111,15 @@ function hashString(s: string): number {
 }
 
 export function suggestGame(hints: GameContextHints): GameRecommendation | null {
+  const preferred = hints.preferredGameId?.trim();
+  if (preferred && TITLES[preferred as GameId]) {
+    const gameId = preferred as GameId;
+    return {
+      gameId,
+      title: TITLES[gameId] ?? gameId,
+      line: FALLBACK_LINES[gameId] ?? `来玩 ${TITLES[gameId] ?? gameId}。`,
+    };
+  }
   const tagText = (hints.tags || []).join(" ");
   const text = [tagText, hints.text || ""].filter(Boolean).join(" ").slice(0, 400);
   if (!text) {

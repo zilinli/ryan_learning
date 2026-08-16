@@ -85,6 +85,10 @@ export function stripIntentFence(text: string): string {
  */
 const INTENT_KEYWORDS: Array<[ChatIntentKind, RegExp]> = [
   [
+    "game",
+    /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug)\b|编程|写代码|写程序|打代码|积木编程|程序设计|学编程/,
+  ],
+  [
     "writing",
     /\b(essay|paragraph|draft|rewrite|polish|composition|poem|writing)\b|作文|作文题|帮我写|帮我改|写一段|写一篇|写个|润色|写作|改作文|日记|写作文/,
   ],

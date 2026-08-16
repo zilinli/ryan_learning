@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { suggestGame } from "./game-recommend";
 
 describe("suggestGame — topic routing", () => {
+  it("routes coding to Code Spark", () => {
+    const r = suggestGame({ text: "帮我学编程 scratch loop" });
+    expect(r?.gameId).toBe("code-spark");
+  });
+
+  it("honors preferredGameId", () => {
+    const r = suggestGame({ text: "fractions", preferredGameId: "code-spark" });
+    expect(r?.gameId).toBe("code-spark");
+  });
   it("routes fractions to Fraction Voyager", () => {
     const r = suggestGame({ text: "we learned about 分数 and number lines" });
     expect(r?.gameId).toBe("fraction-voyager");
@@ -33,6 +42,7 @@ describe("suggestGame — fallback", () => {
     const r = suggestGame({});
     expect(r).not.toBeNull();
     expect([
+      "code-spark",
       "fraction-voyager",
       "eco-genesis",
       "orbit-scout",

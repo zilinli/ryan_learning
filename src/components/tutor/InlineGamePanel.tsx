@@ -8,6 +8,7 @@ import { ForceBayGame } from "../ForceBayGame";
 import { EnergyChainGame } from "../EnergyChainGame";
 import { OrbitScoutGame } from "../OrbitScoutGame";
 import { WordEchoGame } from "../WordEchoGame";
+import { CodeSparkGame } from "../CodeSparkGame";
 import { GameIcon } from "../learning-games/icons";
 
 type Props = {
@@ -25,6 +26,7 @@ const TITLES: Partial<Record<GameId, string>> = {
   "eco-genesis": "Eco Genesis",
   "time-vault": "Time Vault",
   "word-echo": "Spell Words",
+  "code-spark": "Code Spark",
 };
 
 /**
@@ -73,6 +75,7 @@ export function InlineGamePanel({ gameId, title, onClose }: Props) {
         {gameId === "energy-chain" && <EnergyChainGame />}
         {gameId === "orbit-scout" && <OrbitScoutGame />}
         {gameId === "word-echo" && <WordEchoGame />}
+        {gameId === "code-spark" && <CodeSparkGame />}
       </div>
     </div>
   );

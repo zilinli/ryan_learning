@@ -1,5 +1,17 @@
 # 📋 Downstream Development TODO
 
+## CODE-SPARK — Learning Games 首位编程游戏 + 主对话弹出 · 2026-08-16
+
+> **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  
+> **Goal:** 按账号年级/年龄分层的积木跑图（兴趣向）；主对话涉及编程时主动弹出可 Run 的 InlineGamePanel。
+
+- [x] **CS.1** — `code-spark.ts` + tests（band / run / repeat / ifClear）
+- [x] **CS.2** — `CodeSparkGame.tsx` + tokens/icon；EntertainPage **第一张** Learning Game
+- [x] **CS.3** — `game-recommend` + `intent-fence` + prompts + useTutorSession 兜底弹出
+- [x] **CS.4** — InlineGamePanel 接线；run_tests；publish + deploy_live
+
+---
+
 ## ENT-SSR — `/entertain` 500 (static prerender + middleware redirect) · 2026-08-16
 
 > **Design:** [subsystems/entertain-static-ssr-fix.md](subsystems/entertain-static-ssr-fix.md)  

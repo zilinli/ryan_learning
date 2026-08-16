@@ -168,6 +168,7 @@ import {
   tedLabResumeHref,
 } from "@/lib/entertain/ted-challenge-handoff";
 import {
+  detectIntentFromText,
   parseIntentFence,
   stripIntentFence,
   type ChatIntent,
@@ -1536,7 +1537,10 @@ export function useTutorSession() {
       parseScratchDiagnosisFence(fullText);
       // Collab hub — assistant may flag a writing/media/game/lab intent via a
       // hidden fence; resolve it into a rich offer the chat renders inline.
-      const intent = parseIntentFence(fullText);
+      const intent =
+        parseIntentFence(fullText) ||
+        detectIntentFromText(payload.text) ||
+        detectIntentFromText(fullText);
       if (intent) {
         const lastUserText = payload.text;
         const draftText = intent.text?.trim() || lastUserText.trim() || "";
@@ -1545,7 +1549,10 @@ export function useTutorSession() {
           draft: draftText.slice(0, 2000),
           gameRecommendation:
             intent.kind === "game"
-              ? suggestGame({ text: draftText || undefined }) ?? undefined
+              ? suggestGame({
+                  text: draftText || undefined,
+                  preferredGameId: intent.gameId,
+                }) ?? undefined
               : undefined,
           labRecommendation:
             intent.kind === "lab"

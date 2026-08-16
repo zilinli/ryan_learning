@@ -22,7 +22,8 @@ export type GameId =
   | "force-bay"
   | "energy-chain"
   | "orbit-scout"
-  | "word-echo";
+  | "word-echo"
+  | "code-spark";
 
 export type GameCategory = "board" | "arcade" | "puzzle" | "studio";
 

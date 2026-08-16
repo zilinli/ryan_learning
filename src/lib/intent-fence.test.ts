@@ -111,6 +111,15 @@ describe("detectIntentFromText — keyword fallback", () => {
     });
   });
 
+  it("detects coding as game", () => {
+    expect(detectIntentFromText("Can you teach me Scratch coding?")).toEqual({
+      kind: "game",
+    });
+    expect(detectIntentFromText("我想学编程写个循环")).toEqual({
+      kind: "game",
+    });
+  });
+
   it("detects lab", () => {
     expect(detectIntentFromText("Can you recommend a TED talk about space?")).toEqual({
       kind: "lab",
