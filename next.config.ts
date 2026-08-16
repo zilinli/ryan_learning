@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@cursor/sdk"],
+  serverExternalPackages: ["@cursor/sdk", "@volcengine/openapi"],
   // Low-RAM hosts OOM during `next build` typecheck; unit tests cover the critical paths.
   typescript: { ignoreBuildErrors: true },
 
