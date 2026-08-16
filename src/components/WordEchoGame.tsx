@@ -98,7 +98,7 @@ export function WordEchoGame() {
     void recordStudioLearningTurn({
       accountId,
       source: "game",
-      title: `Word Echo · L${round.difficulty}`,
+      title: `Spell Words · L${round.difficulty}`,
       userText: `spell ${expected} → ${typed}`,
       skillSeed: wordEchoSkillSeed(round),
       outcome: res.outcome,
@@ -139,7 +139,7 @@ export function WordEchoGame() {
             className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider"
             style={{ borderColor: `${ACCENT}55`, background: `${ACCENT}18`, color: ACCENT }}
           >
-            Word Echo
+            Spell Words
             {round && <span style={{ color: INK_MUTED }}>· L{round.difficulty}</span>}
           </span>
           <span className="flex items-center gap-1.5" aria-label={`${cleared} echoes collected`}>
@@ -162,7 +162,7 @@ export function WordEchoGame() {
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <EchoMark />
             <p className="mt-5 max-w-xs text-sm leading-relaxed" style={{ color: INK_MUTED }}>
-              Study a short list of words. Then spell each one from memory — typing beats tapping.
+              Study a short list of words. Then spell each one from memory — typing is the lesson.
             </p>
             <button
               type="button"
@@ -170,7 +170,7 @@ export function WordEchoGame() {
               className="mt-7 min-h-12 rounded-xl px-10 text-sm font-semibold transition active:scale-[0.98]"
               style={{ background: ACCENT, color: BASE }}
             >
-              Start echo
+              Start spelling
             </button>
           </div>
         )}
@@ -283,7 +283,7 @@ export function WordEchoGame() {
                   className="min-h-12 w-full rounded-xl text-sm font-semibold transition active:scale-[0.98]"
                   style={{ background: ACCENT, color: BASE }}
                 >
-                  Next echo
+                  Next round
                 </button>
               </div>
             )}

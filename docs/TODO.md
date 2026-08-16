@@ -2,15 +2,18 @@
 
 ## 🔤 WORD-ECHO — Study then spell（2026-08-16）
 
-> Design: **[subsystems/word-echo.md](subsystems/word-echo.md)** v1.1
+> Design: **[subsystems/word-echo.md](subsystems/word-echo.md)** v1.2
+>
+> Display name **Spell Words** (id `word-echo`). Study → type each spelling.
 
 - [x] Pure engine `word-echo.ts` + unit tests (pick / validate / difficulty) — v1.0 recognition
-- [x] UI `WordEchoGame.tsx` (study timer → tap recall → AUC) — v1.0
-- [x] Register `GameId` + Entertain hub card + icon/tokens
+- [x] UI `WordEchoGame.tsx` (study timer → spell input → AUC) — v1.1
+- [x] Hub card + deep link `?game=word-echo`
 - [x] **WE.1** — Engine: replace tap-recall with `normalizeSpelling` / `validateSpelling` / `hintMode`; drop distractor pool
 - [x] **WE.2** — UI: study → spell input (one word at a time, AUC) + hub copy
 - [x] **WE.3** — Unit tests for spelling + hint modes; `run_tests` green
-- [ ] **WE.4** — apply_changes → publish_develop → deploy_live
+- [x] **WE.4a** — Rename display to **Spell Words** (keep id `word-echo`)
+- [x] **WE.4** — apply_changes → publish_develop → deploy_live (fix: live still served tap-recall)
 
 ## 🏎️ ARCADE-NFS — Nitro Rush · Sky Patrol · Balloon Float · Snake（2026-08-16）
 

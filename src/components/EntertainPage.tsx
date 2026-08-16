@@ -50,7 +50,7 @@ const GAMES: GameInfo[] = [
   { id: "orbit-scout", title: "Orbit Scout", desc: "Qualitative gravity — drops, pushes, always toward the planet", icon: "", category: "Learning Games" },
   { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "", category: "Learning Games" },
   { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "", category: "Learning Games" },
-  { id: "word-echo", title: "Word Echo", desc: "Memorize random words, then spell each one from memory", icon: "", category: "Learning Games" },
+  { id: "word-echo", title: "Spell Words", desc: "Study a short list, then type each spelling from memory", icon: "", category: "Learning Games" },
   // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
@@ -145,7 +145,7 @@ const TITLES: Record<GameId, string> = {
   "orbit-scout": "Orbit Scout",
   "eco-genesis": "Eco Genesis",
   "time-vault": "Time Vault",
-  "word-echo": "Word Echo",
+  "word-echo": "Spell Words",
   "ted-lab": "TED Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",

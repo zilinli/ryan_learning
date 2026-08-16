@@ -1,13 +1,15 @@
-# Word Echo — study then spell
+# Spell Words (Word Echo) — study then spell
 
-> Version 1.1 · 2026-08-16  
-> Scope: Learning Game on `/entertain` — **Word Echo** (`word-echo`). Memorize a short random word list, then **spell each word from memory** (not tap-recognition).
+> Version 1.2 · 2026-08-16  
+> Scope: Learning Game on `/entertain` — display name **Spell Words** (internal id `word-echo`). Memorize a short random word list, then **spell each word from memory** (not tap-recognition).
 
 ---
 
 ## 1. Problem
 
 v1.0 used **study → tap among distractors** (recognition). That trains working memory + sight ID, but **spelling production** is the higher-value literacy skill for G4. Research (listen-and-spell / generation effect): producing graphemes from memory beats selecting a printed word.
+
+**Release gap (v1.1→1.2):** Spelling landed in source (`72a664d`) but production `.next` still served tap-recall until `publish_develop` + `deploy_live`. Hub title **Word Echo** did not signal spelling — rename display to **Spell Words**.
 
 ## 2. Approach
 
@@ -19,6 +21,7 @@ Classic **study → hide → spell (type)** loop:
 4. **Scaffolding** — easy levels show letter blanks; mid shows length only; hard has no length hint.
 5. **Private progress** — echo nodes (1–5) light up; no leaderboard.
 6. **Offline word bank** — curated G4-friendly English words.
+7. **Naming** — UI title **Spell Words**; keep `GameId` `word-echo` for deep links (`?game=word-echo`).
 
 ### 2.1 Core loop
 
@@ -66,7 +69,7 @@ Recognition helpers (`pool`, `validateEcho`, `requireOrder`) are removed in v1.1
 
 ### 2.4 BKT
 
-`recordStudioLearningTurn({ source: "game", skillSeed: "… spelling …", outcome })` once per completed round (all targets spelled). Per-word incorrect checks may also record `incorrect` lightly, or only final round outcome — **implementation: record on each Check** (matches v1.0 AUC feedback to memory).
+`recordStudioLearningTurn({ source: "game", skillSeed: "… spelling …", outcome })` on each Check.
 
 ## 3. Key files
 
@@ -75,7 +78,7 @@ Recognition helpers (`pool`, `validateEcho`, `requireOrder`) are removed in v1.1
 | `src/lib/entertain/word-echo.ts` | Pure logic + word bank + spelling validate |
 | `src/lib/entertain/word-echo.test.ts` | Unit tests |
 | `src/components/WordEchoGame.tsx` | UI (study timer + spell input) |
-| `src/components/EntertainPage.tsx` | Hub card copy |
+| `src/components/EntertainPage.tsx` | Hub card: **Spell Words** |
 | `src/lib/entertain/types.ts` | `GameId` includes `word-echo` |
 | `src/components/learning-games/tokens.ts` / `icons.tsx` | Accent + SVG mark |
 
@@ -88,7 +91,8 @@ Visual: deep ink base `#0e1218` + cyan accent `#38bdf8`.
 | Typing harder than tapping on mobile | Large input, `inputMode="text"`, autoFocus, Enter to check |
 | Hint leaks too much | blanks only L1–2; L4–5 none |
 | Word bank too hard | Keep G4 mix; length mostly 4–8 |
-| Edit budget | Replace recall path; drop distractor pool |
+| Source ≠ live | Always `deploy_live` after spelling UI changes |
+| Old name hid the skill | Display **Spell Words** |
 
 ## 5. Test design
 
@@ -102,8 +106,9 @@ Visual: deep ink base `#0e1218` + cyan accent `#38bdf8`.
 
 ### Integration / manual
 
-- Hub copy mentions spell; `?game=word-echo` opens spell flow
-- Study → auto-hide → type → Check → next word → Next echo; mobile 375px usable
+- Hub title **Spell Words**; desc mentions spell; `?game=word-echo` opens type-to-spell flow (not tap chips)
+- Study → auto-hide → type → Check spelling → next word → Next round; mobile 375px usable
+- After deploy: production bundle contains `Check spelling` / `Type the word`, not tap-among-distractors copy
 
 ```bash
 npm test -- src/lib/entertain/word-echo.test.ts

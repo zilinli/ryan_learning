@@ -1,5 +1,5 @@
 /**
- * Word Echo — memorize random words, then spell them from memory.
+ * Spell Words (id: word-echo) — memorize random words, then spell them from memory.
  * Pure functions only (no React).
  */
 
