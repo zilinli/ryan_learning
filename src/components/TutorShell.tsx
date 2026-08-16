@@ -107,7 +107,7 @@ export function TutorShell() {
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
-    collabOffer, handleDismissCollab,
+    collabOffer, handleDismissCollab, handleCodingResult,
     labReturn, setLabReturn,
   } = useTutorSession();
 
@@ -659,6 +659,7 @@ export function TutorShell() {
             onAcceptCreationOffer={handleAcceptCreationOffer}
             collabOffer={collabOffer}
             onDismissCollab={handleDismissCollab}
+            onCodingResult={handleCodingResult}
             onQuote={(m) => setQuote(buildQuoteFromMessage(m))}
           />
         </main>

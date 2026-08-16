@@ -55,6 +55,19 @@ describe("parseIntentFence — validation", () => {
       kind: "lab",
     });
   });
+
+  it("parses coding fence with concept and scope", () => {
+    const text =
+      '~~~intent {"kind":"coding","concept":"loop","scope":"full"} ~~~';
+    expect(parseIntentFence(text)).toEqual({
+      kind: "coding",
+      concept: "loop",
+      scope: "full",
+    });
+    expect(
+      parseIntentFence('~~~intent {"kind":"coding","concept":"sequence"} ~~~'),
+    ).toEqual({ kind: "coding", concept: "sequence" });
+  });
 });
 
 describe("stripIntentFence", () => {
@@ -111,34 +124,60 @@ describe("detectIntentFromText — keyword fallback", () => {
     });
   });
 
-  it("detects coding as game", () => {
+  it("detects coding as a micro challenge", () => {
     expect(detectIntentFromText("Can you teach me Scratch coding?")).toEqual({
-      kind: "game",
-      gameId: "code-spark",
-      text: "coding",
+      kind: "coding",
+      scope: "micro",
+      concept: "sequence",
     });
     expect(detectIntentFromText("我想学编程写个循环")).toEqual({
-      kind: "game",
-      gameId: "code-spark",
-      text: "coding",
+      kind: "coding",
+      scope: "micro",
+      concept: "loop",
     });
   });
 
-  it("routes Brilliant-style CS phrases to Code Spark", () => {
+  it("maps coding concept from keywords", () => {
+    expect(detectIntentFromText("循环怎么用")).toEqual({
+      kind: "coding",
+      scope: "micro",
+      concept: "loop",
+    });
+    expect(detectIntentFromText("if 条件判断怎么写")).toEqual({
+      kind: "coding",
+      scope: "micro",
+      concept: "conditional",
+    });
+  });
+
+  it("detects explicit whole-lesson coding asks as full scope", () => {
+    expect(detectIntentFromText("我想玩一关 Code Spark")).toEqual({
+      kind: "coding",
+      scope: "full",
+      concept: "sequence",
+    });
+    expect(detectIntentFromText("open code spark game")).toEqual({
+      kind: "coding",
+      scope: "full",
+      concept: "sequence",
+    });
+  });
+
+  it("routes Brilliant-style CS phrases to a micro challenge", () => {
     expect(detectIntentFromText("Help me with computational thinking")).toEqual({
-      kind: "game",
-      gameId: "code-spark",
-      text: "coding",
+      kind: "coding",
+      scope: "micro",
+      concept: "sequence",
     });
     expect(detectIntentFromText("什么是计算思维和变量")).toEqual({
-      kind: "game",
-      gameId: "code-spark",
-      text: "coding",
+      kind: "coding",
+      scope: "micro",
+      concept: "sequence",
     });
     expect(detectIntentFromText("explain Python functions")).toEqual({
-      kind: "game",
-      gameId: "code-spark",
-      text: "coding",
+      kind: "coding",
+      scope: "micro",
+      concept: "sequence",
     });
   });
 

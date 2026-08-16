@@ -110,6 +110,15 @@ function hashString(s: string): number {
   return h;
 }
 
+/** Dedicated full-course recommendation for coding "whole lesson" intents. */
+export function suggestCodeSparkFull(): GameRecommendation {
+  return {
+    gameId: "code-spark",
+    title: "Code Spark",
+    line: "想上一整节编程课?打开 Code Spark——Blocks 起步、按轨道闯关,Python Bridge 随时切换。",
+  };
+}
+
 export function suggestGame(hints: GameContextHints): GameRecommendation | null {
   const preferred = hints.preferredGameId?.trim();
   if (preferred && TITLES[preferred as GameId]) {

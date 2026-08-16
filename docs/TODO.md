@@ -38,6 +38,20 @@
 - [x] **CS.v3.4** — 单测（coach / track / triggers）+ run_tests
 - [ ] **CS.v3.5** — apply_changes → publish_develop → deploy_live
 
+### CODE-SPARK v4 — Conversational coding tiers · 2026-08-16
+
+> **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  
+> **Goal:** 主对话提到编程不再「自动内嵌完整游戏」，改为三级递进（默认纯对话 / 概念贴题微挑战 / 整课推荐）+ 结果回传形成双向 coach。
+
+- [x] **CS.v4.1** — `code-spark.ts`：`CodeConcept` / `conceptFromText` / `bandForConcept` / `generateMicroLevel` / `codingResultPromptNote`
+- [x] **CS.v4.2** — `intent-fence.ts`：新增 `coding` kind + `concept`/`scope`；`detectIntentFromText` 三级兜底（micro / full）
+- [x] **CS.v4.3** — `prompts.ts`：重写编程 intent fence 指引（Tier 0/1/2）
+- [x] **CS.v4.4** — 新建 `InlineCodingCard.tsx`（微挑战，`onResult`）+ `GameRecommendCard.tsx`（整课推荐）
+- [x] **CS.v4.5** — `ChatThread` CollabPanels 分支 + `onCodingResult` 透传（TutorShell）
+- [x] **CS.v4.6** — `useTutorSession`：`codingContextRef` + `handleCodingResult` + `coachNote` 注入
+- [x] **CS.v4.7** — 单测（concept / micro-level / intent coding / suggestCodeSparkFull）+ run_tests
+- [ ] **CS.v4.8** — apply_changes → publish_develop → deploy_live → push develop + master
+
 ---
 
 ## ENT-SSR — `/entertain` 500 (static prerender + middleware redirect) · 2026-08-16

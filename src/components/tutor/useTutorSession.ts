@@ -173,8 +173,16 @@ import {
   stripIntentFence,
   type ChatIntent,
 } from "@/lib/intent-fence";
-import { suggestGame, type GameRecommendation } from "@/lib/game-recommend";
+import {
+  suggestGame,
+  suggestCodeSparkFull,
+  type GameRecommendation,
+} from "@/lib/game-recommend";
 import { suggestLabFromText, type LabRecommendation } from "@/lib/lab-recommend";
+import {
+  codingResultPromptNote,
+  type CodingResultNote,
+} from "@/lib/entertain/code-spark";
 import {
   buildLabChallengeKickoffMessage,
   consumeLabChallengeKickoff,
@@ -278,6 +286,8 @@ export function useTutorSession() {
   const [creationOffer, setCreationOffer] = useState<CreationOffer | null>(null);
   /** Collab hub — an assistant turn flagged a writing/media/game/lab intent. */
   const [collabOffer, setCollabOffer] = useState<CollabOffer | null>(null);
+  /** Collab hub — last coding micro-challenge result, fed into the next coach note. */
+  const codingContextRef = useRef<CodingResultNote | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
@@ -925,6 +935,11 @@ export function useTutorSession() {
     setCollabOffer(null);
   }, []);
 
+  // Collab hub — coding micro-challenge finished; remember it for the next turn.
+  const handleCodingResult = useCallback((note: CodingResultNote) => {
+    codingContextRef.current = note;
+  }, []);
+
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
 
   const handleSwitchAccount = (id: string) => {
@@ -1380,9 +1395,14 @@ export function useTutorSession() {
       const coachNote = [
         emotionPromptLines().filter(Boolean).join("\n"),
         flowAdvicePromptNote(flowAdviceRef.current),
+        codingContextRef.current
+          ? codingResultPromptNote(codingContextRef.current)
+          : undefined,
       ]
         .filter(Boolean)
         .join("\n") || undefined;
+      // One-shot: the coding note describes the turn the student just did.
+      codingContextRef.current = null;
 
       const wireQuote = payload.quote
         ? resolveQuoteForSend(payload.quote, messages)
@@ -1548,12 +1568,14 @@ export function useTutorSession() {
           intent,
           draft: draftText.slice(0, 2000),
           gameRecommendation:
-            intent.kind === "game"
-              ? suggestGame({
-                  text: draftText || undefined,
-                  preferredGameId: intent.gameId,
-                }) ?? undefined
-              : undefined,
+            intent.kind === "coding" && intent.scope === "full"
+              ? suggestCodeSparkFull()
+              : intent.kind === "game"
+                ? suggestGame({
+                    text: draftText || undefined,
+                    preferredGameId: intent.gameId,
+                  }) ?? undefined
+                : undefined,
           labRecommendation:
             intent.kind === "lab"
               ? suggestLabFromText(draftText || intent.text || "") ?? undefined
@@ -1714,6 +1736,6 @@ export function useTutorSession() {
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
-    collabOffer, handleDismissCollab,
+    collabOffer, handleDismissCollab, handleCodingResult,
   };
 }

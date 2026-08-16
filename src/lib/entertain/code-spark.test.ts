@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   availableOps,
+  bandForConcept,
   bandFromProfile,
   coachFeedback,
+  codingResultPromptNote,
   conceptFocusForBand,
+  conceptFromText,
   defaultEditorMode,
   generateLevel,
+  generateMicroLevel,
   opsToPython,
   parsePythonProgram,
   rateStars,
@@ -14,6 +18,7 @@ import {
   trackLabel,
   validateProgram,
   type CodeOp,
+  type CodingResultNote,
 } from "./code-spark";
 
 describe("bandFromProfile", () => {
@@ -271,5 +276,58 @@ describe("opsToPython", () => {
     const parsed = parsePythonProgram(py);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.program).toEqual(ops);
+  });
+});
+
+describe("conversational coding concepts", () => {
+  it("conceptFromText maps loop / conditional / sequence", () => {
+    expect(conceptFromText("how do for loops work")).toBe("loop");
+    expect(conceptFromText("循环怎么用 repeat")).toBe("loop");
+    expect(conceptFromText("if 条件判断")).toBe("conditional");
+    expect(conceptFromText("what is a variable")).toBe("sequence");
+    expect(conceptFromText("")).toBe("sequence");
+  });
+
+  it("bandForConcept hosts each concept", () => {
+    expect(bandForConcept("sequence")).toBe("early");
+    expect(bandForConcept("loop")).toBe("elementary");
+    expect(bandForConcept("conditional")).toBe("middle");
+  });
+
+  it("generateMicroLevel aligns ops with concept", () => {
+    const loop = generateMicroLevel("loop", 2);
+    expect(loop.title).toBe("Repeat It");
+    expect(availableOps(loop.band)).toContain("repeat");
+    expect(loop.conceptFocus).toMatch(/Loop/);
+
+    const cond = generateMicroLevel("conditional", 2);
+    expect(cond.title).toBe("Decide It");
+    expect(availableOps(cond.band)).toContain("ifClear");
+    expect(cond.conceptFocus).toMatch(/Conditional/);
+
+    const seq = generateMicroLevel("sequence", 2);
+    expect(seq.title).toBe("Order It");
+    expect(availableOps(seq.band)).not.toContain("repeat");
+  });
+
+  it("micro levels are small and fast", () => {
+    const lvl = generateMicroLevel("loop", 2);
+    expect(lvl.grid.length).toBeLessThanOrEqual(5);
+    expect(lvl.maxSteps).toBeLessThanOrEqual(26);
+  });
+
+  it("codingResultPromptNote mentions the concept", () => {
+    const note: CodingResultNote = {
+      concept: "loop",
+      outcome: "correct",
+      stars: 3,
+      steps: 4,
+      mode: "blocks",
+      levelTitle: "Repeat It",
+    };
+    const line = codingResultPromptNote(note);
+    expect(line).toMatch(/loops/);
+    expect(line).toMatch(/Repeat It/);
+    expect(line).toMatch(/outcome=correct/);
   });
 });

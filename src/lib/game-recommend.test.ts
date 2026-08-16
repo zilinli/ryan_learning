@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { suggestGame } from "./game-recommend";
+import { suggestCodeSparkFull, suggestGame } from "./game-recommend";
+
+describe("suggestCodeSparkFull", () => {
+  it("recommends Code Spark with a course-oriented line", () => {
+    const r = suggestCodeSparkFull();
+    expect(r.gameId).toBe("code-spark");
+    expect(r.title).toBe("Code Spark");
+    expect(r.line).toMatch(/编程课|Code Spark/);
+  });
+});
 
 describe("suggestGame — topic routing", () => {
   it("routes coding to Code Spark", () => {

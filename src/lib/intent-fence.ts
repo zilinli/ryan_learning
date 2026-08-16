@@ -5,7 +5,9 @@
  * experiment fence pattern: agent emits, client parses + strips.
  */
 
-export type ChatIntentKind = "writing" | "media" | "game" | "lab";
+import { conceptFromText } from "./entertain/code-spark";
+
+export type ChatIntentKind = "writing" | "media" | "game" | "lab" | "coding";
 
 export type ChatIntent = {
   kind: ChatIntentKind;
@@ -15,6 +17,10 @@ export type ChatIntent = {
   gameId?: string;
   /** Optional explicit lab id (ted-lab | bbc-lab | natgeo-lab | rsa-lab | writing-studio). */
   labId?: string;
+  /** Coding micro-challenge concept: sequence | loop | conditional. */
+  concept?: string;
+  /** Coding scope: "micro" (inline 30s card) or "full" (recommend full Code Spark). */
+  scope?: "micro" | "full";
 };
 
 const KINDS = new Set<string>([
@@ -22,6 +28,7 @@ const KINDS = new Set<string>([
   "media",
   "game",
   "lab",
+  "coding",
 ]);
 
 /**
@@ -46,6 +53,12 @@ function parseIntentBody(json: string): ChatIntent | null {
     }
     if (typeof o.labId === "string" && o.labId.trim()) {
       intent.labId = o.labId.trim().slice(0, 64);
+    }
+    if (typeof o.concept === "string" && o.concept.trim()) {
+      intent.concept = o.concept.trim().slice(0, 32);
+    }
+    if (o.scope === "micro" || o.scope === "full") {
+      intent.scope = o.scope;
     }
     return intent;
   } catch {
@@ -82,13 +95,17 @@ export function stripIntentFence(text: string): string {
 /**
  * Frontend fallback — keyword intent detection when no fence arrived.
  * Cheap heuristics only; never blocks a normal reply.
- * Coding / CS hits return gameId code-spark so chat always opens Code Spark.
+ * Coding / CS hits return a coding intent: "micro" for a quick on-topic
+ * try-it card, "full" only when the student explicitly wants a whole lesson.
  */
 const CODING_INTENT_RE =
-  /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript|variable|variables|function|functions|computational\s+thinking|data\s+structure|cs)\b|编程|写代码|写程序|打代码|积木编程|程序设计|学编程|计算思维|变量|函数|条件判断|计算机科学|学python/;
+  /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript|variable|variables|function|functions|computational\s+thinking|data\s+structure|cs)\b|编程|写代码|写程序|打代码|积木编程|程序设计|学编程|计算思维|变量|函数|条件判断|计算机科学|学python|循环|重复|条件|判断|分支|算法|调试/;
+
+/** Explicit "whole course" ask → recommend full Code Spark, don't auto-embed. */
+const CODING_FULL_RE =
+  /玩一关|玩个关|打开\s*code\s*spark|打开code spark|上编程课|编程课|整关|闯关|完整|从头学|play\s+a\s+level|open\s+code\s*spark|code\s*spark\s+game/i;
 
 const INTENT_KEYWORDS: Array<[ChatIntentKind, RegExp]> = [
-  ["game", CODING_INTENT_RE],
   [
     "writing",
     /\b(essay|paragraph|draft|rewrite|polish|composition|poem|writing)\b|作文|作文题|帮我写|帮我改|写一段|写一篇|写个|润色|写作|改作文|日记|写作文/,
@@ -110,11 +127,21 @@ const INTENT_KEYWORDS: Array<[ChatIntentKind, RegExp]> = [
 export function detectIntentFromText(text: string): ChatIntent | null {
   if (!text || !text.trim()) return null;
   const trimmed = text.trim().slice(0, 600);
+  // Coding wins over the generic "play a game" route, but is split by scope:
+  // explicit full-course asks recommend the whole Code Spark; everything else
+  // that merely mentions coding becomes a quick on-topic micro-challenge.
+  if (CODING_FULL_RE.test(trimmed)) {
+    return { kind: "coding", scope: "full", concept: conceptFromText(trimmed) };
+  }
+  if (CODING_INTENT_RE.test(trimmed)) {
+    return {
+      kind: "coding",
+      scope: "micro",
+      concept: conceptFromText(trimmed),
+    };
+  }
   for (const [kind, re] of INTENT_KEYWORDS) {
     if (re.test(trimmed)) {
-      if (kind === "game" && CODING_INTENT_RE.test(trimmed)) {
-        return { kind: "game", gameId: "code-spark", text: "coding" };
-      }
       return { kind };
     }
   }

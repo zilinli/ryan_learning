@@ -29,6 +29,9 @@ import { InlineWritingPanel } from "./tutor/InlineWritingPanel";
 import { InlineMediaPanel } from "./tutor/InlineMediaPanel";
 import { InlineGamePanel } from "./tutor/InlineGamePanel";
 import { LabRecommendCard } from "./tutor/LabRecommendCard";
+import { GameRecommendCard } from "./tutor/GameRecommendCard";
+import { InlineCodingCard } from "./tutor/InlineCodingCard";
+import type { CodeConcept, CodingResultNote } from "@/lib/entertain/code-spark";
 import type { CollabOffer } from "./tutor/useTutorSession";
 import {
   buildDeepDivePrompt,
@@ -138,6 +141,8 @@ type Props = {
   /** Collab hub — assistant flagged an inline writing/media/game/lab intent. */
   collabOffer?: CollabOffer | null;
   onDismissCollab?: () => void;
+  /** Collab hub — coding micro-challenge result → feed back into next turn. */
+  onCodingResult?: (note: CodingResultNote) => void;
   /** UX-V4 — account id for hero-action freshness rotation */
   accountId?: string;
   /** UX-V4 — Focus Mode controls */
@@ -273,6 +278,7 @@ export function ChatThread({
   onAcceptCreationOffer,
   collabOffer,
   onDismissCollab,
+  onCodingResult,
   accountId = "default",
   focusActive,
   focusProgress = 0,
@@ -1196,6 +1202,7 @@ export function ChatThread({
           offer={collabOffer}
           accountId={accountId}
           onDismiss={onDismissCollab}
+          onCodingResult={onCodingResult}
         />
       ) : null}
       {lightbox ? (
@@ -1340,10 +1347,12 @@ function CollabPanels({
   offer,
   accountId,
   onDismiss,
+  onCodingResult,
 }: {
   offer: CollabOffer;
   accountId?: string;
   onDismiss?: () => void;
+  onCodingResult?: (note: CodingResultNote) => void;
 }) {
   const acct = accountId && accountId !== "default" ? accountId : "acct_ryan";
   const { intent, draft, gameRecommendation, labRecommendation } = offer;
@@ -1357,6 +1366,21 @@ function CollabPanels({
     return labRecommendation ? (
       <LabRecommendCard recommendation={labRecommendation} onDismiss={close} />
     ) : null;
+  }
+  if (intent.kind === "coding") {
+    if (intent.scope === "full") {
+      return gameRecommendation ? (
+        <GameRecommendCard recommendation={gameRecommendation} onDismiss={close} />
+      ) : null;
+    }
+    return (
+      <InlineCodingCard
+        concept={(intent.concept as CodeConcept) || "sequence"}
+        accountId={acct}
+        onResult={onCodingResult ?? (() => {})}
+        onClose={close}
+      />
+    );
   }
   if (intent.kind === "game") {
     return gameRecommendation ? (
