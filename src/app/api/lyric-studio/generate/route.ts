@@ -170,11 +170,15 @@ export async function POST(req: Request) {
     lyrics,
     caption: caption || undefined,
     audioMediaId: mediaId,
-    writingBody: body.writingBody
-      ? String(body.writingBody).slice(0, 12000)
-      : undefined,
-    lang: body.lang ? String(body.lang).slice(0, 16) : undefined,
-    notes: result.provider ? `provider:${result.provider}` : undefined,
+    notes: [
+      result.provider ? `provider:${result.provider}` : "",
+      body.lang ? `lang:${String(body.lang).slice(0, 16)}` : "",
+      body.writingBody
+        ? `writing:${String(body.writingBody).slice(0, 200)}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" | ") || undefined,
   });
 
   return Response.json({
