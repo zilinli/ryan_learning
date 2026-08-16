@@ -12,7 +12,19 @@
 - [x] **CS.5** — 趣味闯关：RPG mission 标题 + 1–3 星效率反馈 + 技能轨道芯片（Code.org / Swift / FCC 启发）
 - [x] **CS.6** — `advanced` band + 受限 Python DSL（`parsePythonProgram` / `opsToPython`）+ 单测
 - [x] **CS.7** — UI：Blocks | Python 模式、starter 模板、解析错误提示；卡片文案更新
-- [ ] **CS.8** — run_tests → apply_changes → publish_develop → deploy_live
+- [x] **CS.8** — run_tests → apply_changes → publish_develop → deploy_live
+
+### CODE-SPARK v2 — Blocks-first + Python Bridge · 2026-08-16
+
+> **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  
+> **Research:** [知乎 148424141](https://zhuanlan.zhihu.com/p/148424141)（Code.org / ScratchJr / Scratch / Blockly → CodeCombat Python → Codecademy / Khan）  
+> **Goal:** 默认永远 Blocks；Python 保留为 Bridge（对照预览 + 同关 remake），不按年龄默认文本。
+
+- [x] **CS.v2.1** — `defaultEditorMode` → 全 band `blocks`；track `python-hero` → `text-bridge` / label Python Bridge
+- [x] **CS.v2.2** — UI：See as Python 对照预览；积木通关 CTA「Try in Python」同关 remake；Scratch 色分区积木
+- [x] **CS.v2.3** — advanced 文案去 Python-default；Entertain / recommend 卡片文案
+- [x] **CS.v2.4** — 单测更新 + run_tests
+- [ ] **CS.v2.5** — apply_changes → publish_develop → deploy_live
 
 ---
 

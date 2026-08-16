@@ -1,87 +1,94 @@
-# Code Spark — 趣味闯关 + Python 进阶
+# Code Spark — Blocks-first 闯关 + Python Bridge
 
-> Date: 2026-08-16 · Status: implementing (v1.1 gamify + Python)  
-> GameId: `code-spark` · First card in Learning Games on `/entertain`
+> Date: 2026-08-16 · Status: implementing (v2 blocks-first refactor)  
+> GameId: `code-spark` · First card in Learning Games on `/entertain`  
+> Research seed: [知乎 · 5–14岁 8 个免费国外编程站](https://zhuanlan.zhihu.com/p/148424141) + 站内深度调研
 
 ## Problem
 
-积木跑图已能入门，但趣味与高阶衔接不足：
+v1 已有积木跑图 + 受限 Python DSL，但仍有偏差：
 
-1. 缺少 Code.org / Swift Playgrounds 式「闯关叙事 + 星级反馈」；
-2. 缺少 CodeCombat 式「写真实 Python 驱动角色」；
-3. 缺少 freeCodeCamp 中文社区式「网页/语言技能轨道」的可见进阶线索。
+1. **`advanced` band 默认 Python** — 与少儿编程主流路径（积木启蒙 → 文本进阶）相反；
+2. 积木与 Python 是「二选一切换」，缺少 Scratch/MakeCode 式 **对照翻译（bridge）**；
+3. 通关后缺少 CodeCombat 式「同一关再写一遍文本」的 remake 动机；
+4. 文案偏「Python Hero」，弱化了 Code.org / Scratch / Blockly 的积木主路径。
 
-## Approach
+## Research summary (P1)
 
-保留轻量积木引擎（不嵌 Blockly / 不首版塞 Pyodide WASM），叠加三层体验：
+原文推荐的 8 站隐含年龄阶梯：
 
-### A. 趣味闯关（Code.org + Swift Playgrounds）
+| # | Site | Age cue | Modality | Takeaway for Code Spark |
+|---|------|---------|----------|-------------------------|
+| 1 | **Code.org** | 4–15 | 游戏化积木闯关、按年级、Hour of Code | 任务叙事 + 即时 Run + 证书/星级反馈 |
+| 2 | **ScratchJr** | 5–7 | 图形块、无文本 | `early`：仅序列积木、极简 UI |
+| 3 | **Scratch** | 6–12 | 视觉积木、创作/社区 | 积木是默认母语；创造力 > 语法 |
+| 4 | **Blockly Games** | 8+ | 一关一概念、立刻看结果 | band 解锁 ops；每步概念聚焦 |
+| 5 | **CodeCombat** | 10+ | **文本** Python/JS + RPG | Python **保留**，但是**进阶轨**，非默认 |
+| 6 | Code Monster | ~12 | 双栏代码→结果 | 对照预览启发 |
+| 7–8 | Codecademy / Khan | 14+ | 专业文本课 | 远期 Lab，本游戏不做 |
 
-- 每关 **RPG 任务名** + 一句剧情 brief（不是冷冰冰的 prompt）。
-- 通关后按程序长度给 **1–3 星**（效率奖励，非排行榜焦虑）。
-- 顶部显示当前 **技能轨道** 芯片（Sequence → Loops → Conditionals → Python）。
+补充证据：Weintrop & Wilensky（积木组学习增益更高）；CircuitMess / Kids Coding Tutor — **先积木再 Python 是翻译不是跳跃**；MakeCode/Tynker — 双模对照是过渡标配。
 
-### B. 积木 ↔ Python（CodeCombat 风格）
+**产品约束（用户）：** Python 必须保留；**默认永远是 Blocks**（类似 Scratch/Code.org），不按年龄把文本设为默认。
 
-- UI 模式：`Blocks` | `Python`。
-- **受限 Python DSL**（纯 TS 解析）映射到同一套 `CodeOp` / `runProgram`：
-  - `move_forward()` / `turn_left()` / `turn_right()`
-  - `for i in range(N):` + 缩进 body（N = 2|3|4）
-  - `if clear():` + 缩进 body
-- 积木可一键「Show as Python」帮助过渡；高阶学生默认 Python。
-- **不做**完整 CPython：无任意 `import`、无 `eval`；安全、可测、零 WASM 体积。
-- 远期可选：Pyodide REPL 作为独立 Lab（本设计明确延期）。
+## Approach (v2)
 
-### C. 技能轨道（freeCodeCamp 中文启发）
+### A. Blocks-first（硬规则）
 
-可见轨道（UI 标签，与 band 绑定）：
+- `defaultEditorMode(*)` → **始终 `"blocks"`**（含 `advanced`）。
+- Band 只决定 **关卡尺寸 / 可用积木 / 文案难度**，不决定编辑器默认模式。
+- Python 始终可选手动切换；从不自动进文本模式。
 
-| Track | Band cue | Focus |
-|-------|----------|-------|
-| Foundations | early | 序列 / 因果 |
-| Loops | elementary | `repeat` / `for` |
-| Branching | middle | `if clear` |
-| Python Hero | advanced | 文本代码闯关 |
+### B. Python Bridge（对照 + Remake）
 
-Band 扩展：`advanced` = grade ≥ 8 **or** age ≥ 14（默认可切 Blocks；Python 优先展示）。
+- 积木模式下显示可折叠 **See as Python** 预览（`opsToPython` 实时对照）——对齐 MakeCode / Code Monster「一边改一边看」。
+- 积木通关后 CTA：**Try in Python**（同关 remake：把当前 program 写入 textarea）+ **Next mission**。
+- 技能轨道末段改名：**Python Bridge**（原 `python-hero` → `text-bridge`），表示「翻译轨」而非「默认文本英雄」。
 
-### Band table
+### C. 关卡阶梯（对齐原文年龄隐喻）
 
-| Band | Profile cue | Blocks / Python | Grid | Focus |
-|------|-------------|-----------------|------|-------|
-| `early` | grade ≤ 2 **or** age ≤ 7 | blocks only | 4×4 | 序列 |
-| `elementary` | grade 3–5 | + repeat / for | 5×5 | 循环 |
-| `middle` | grade 6–7 **or** age ≥ 12 | + ifClear | 6×6 | 条件 |
-| `advanced` | grade ≥ 8 **or** age ≥ 14 | Python 默认 + 全指令 | 6×6 | 文本代码 |
+| Band | Profile cue | Ops | Grid | Focus |
+|------|-------------|-----|------|-------|
+| `early` | grade ≤ 2 **or** age ≤ 7 | forward/left/right | 4×4 | ScratchJr 式序列 |
+| `elementary` | grade 3–5 | + repeat | 5×5 | Scratch / Blockly 循环 |
+| `middle` | grade 6–7 **or** age ≥ 12 | + ifClear | 6×6 | Blockly 条件 |
+| `advanced` | grade ≥ 8 **or** age ≥ 14 | 全指令；**仍默认 Blocks** | 6×6 | 可选手动进 Python Bridge |
+
+仍保留受限 Python DSL（无 `eval` / 无 Pyodide）；远期完整 CPython Lab 延期。
+
+### D. UX 细节
+
+- 积木色块分区（Motion / Control / Sensing）— Scratch 色觉提示，不嵌 Blockly WASM。
+- 嵌套 body 缩进展示，贴近视觉积木栈。
+- 卡片/推荐文案：Blocks first，Python optional bridge。
 
 ## Key files
 
 | File | Role |
 |------|------|
-| `src/lib/entertain/code-spark.ts` | band, levels, run, **Python DSL**, stars, mission titles |
-| `src/lib/entertain/code-spark.test.ts` | Unit tests incl. Python parse |
-| `src/components/CodeSparkGame.tsx` | Blocks/Python UI + stars + track chips |
-| `src/lib/game-recommend.ts` | coding / python keywords |
+| `src/lib/entertain/code-spark.ts` | band/levels/run、DSL、`defaultEditorMode`→blocks、`text-bridge` track |
+| `src/lib/entertain/code-spark.test.ts` | 默认模式 + track + DSL 回归 |
+| `src/components/CodeSparkGame.tsx` | Blocks-first UI、See as Python、Remake CTA |
+| `src/lib/game-recommend.ts` / `EntertainPage.tsx` | 文案 |
 
 ## Risks
 
-- Scope creep → full IDE / Pyodide — **mitigate**: fixed DSL only; document Pyodide as future Lab.
-- Python indent errors frustrate kids — **mitigate**: starter template + clear parse errors + Blocks fallback.
-- Star pressure — **mitigate**: stars celebrate efficiency; Answer-Until-Correct still primary; no leaderboard.
+- 大龄学生觉得积木「不真实」→ **mitigate**：显眼 Python Bridge 切换 + Remake CTA，不强制锁死。
+- 双栏预览挤占手机屏 → **mitigate**：默认折叠预览；通关后再强调 Python。
+- Scope creep → 真 Blockly/Scratch 编辑器 → **mitigate**：保持轻量 chip/stack；不引 WASM。
 
 ## Test design
 
 ### Unit
-- `bandFromProfile` includes `advanced`
-- `parsePythonProgram`: forwards, for-range, if-clear, indent errors
-- `opsToPython` round-trips simple programs
-- `rateStars` efficiency thresholds
-- existing `runProgram` / `validateProgram` regression
+- `defaultEditorMode` 对所有 band 返回 `"blocks"`
+- `trackFromBand("advanced") === "text-bridge"`；`trackLabel` = `Python Bridge`
+- 既有 `parsePythonProgram` / `opsToPython` / `runProgram` 回归
 
 ### Integration
-- Vitest on `code-spark.test.ts`; recommend still maps `python` → `code-spark`
+- Vitest `code-spark.test.ts`；`game-recommend` 仍映射 coding → code-spark
 
 ### Manual
-- `/entertain` Code Spark：任务名 + 星级；切 Python 写 `for` 通关
-- 高年级账号默认 Python 模式
-- 主对话「学 Python」仍弹出 Inline Code Spark
+- 任意年级打开 Code Spark → **默认 Blocks**
+- 拼积木时打开 See as Python，预览同步
+- 积木通关 → Try in Python 同关 remake 再 Run
+- 手动切 Python 仍可用 DSL 通关

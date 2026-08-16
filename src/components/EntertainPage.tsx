@@ -45,7 +45,7 @@ interface GameInfo {
 
 const GAMES: GameInfo[] = [
   // ── Learning Games (prominent, first) ──
-  { id: "code-spark", title: "Code Spark", desc: "Blocks or Python missions — Code.org vibes, CodeCombat-style typed code", icon: "", category: "Learning Games" },
+  { id: "code-spark", title: "Code Spark", desc: "Blocks-first missions (Code.org / Scratch vibes) — Python Bridge when ready", icon: "", category: "Learning Games" },
   { id: "fraction-voyager", title: "Fraction Voyager", desc: "Fly your ship along the number line — place, compare, slice fractions", icon: "", category: "Learning Games" },
   { id: "force-bay", title: "Force Bay", desc: "Push barges with force arrows — predict the dock, then watch", icon: "", category: "Learning Games" },
   { id: "energy-chain", title: "Energy Chain", desc: "Snap energy conversions — predict if the machine rings or lights", icon: "", category: "Learning Games" },

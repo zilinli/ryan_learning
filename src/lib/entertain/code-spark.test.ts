@@ -39,12 +39,14 @@ describe("tracks and editor default", () => {
     expect(trackFromBand("early")).toBe("foundations");
     expect(trackFromBand("elementary")).toBe("loops");
     expect(trackFromBand("middle")).toBe("branching");
-    expect(trackFromBand("advanced")).toBe("python-hero");
+    expect(trackFromBand("advanced")).toBe("text-bridge");
   });
 
-  it("defaults advanced to Python mode", () => {
-    expect(defaultEditorMode("advanced")).toBe("python");
+  it("always defaults to Blocks (blocks-first)", () => {
+    expect(defaultEditorMode("early")).toBe("blocks");
     expect(defaultEditorMode("elementary")).toBe("blocks");
+    expect(defaultEditorMode("middle")).toBe("blocks");
+    expect(defaultEditorMode("advanced")).toBe("blocks");
   });
 });
 

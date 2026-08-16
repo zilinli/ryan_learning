@@ -22,7 +22,7 @@ export type CodeTrack =
   | "foundations"
   | "loops"
   | "branching"
-  | "python-hero";
+  | "text-bridge";
 
 export type CodeLevel = {
   id: number;
@@ -90,7 +90,7 @@ const MISSIONS: Record<CodeBand, string[]> = {
     "If-Wall Keep",
   ],
   advanced: [
-    "Python Hero Quest",
+    "Bridge Quest",
     "Syntax Spire",
     "Indent Dungeon",
     "CodeCombat Arena",
@@ -113,14 +113,14 @@ export function trackFromBand(band: CodeBand): CodeTrack {
   if (band === "early") return "foundations";
   if (band === "elementary") return "loops";
   if (band === "middle") return "branching";
-  return "python-hero";
+  return "text-bridge";
 }
 
 export function trackLabel(track: CodeTrack): string {
   if (track === "foundations") return "Foundations";
   if (track === "loops") return "Loops";
   if (track === "branching") return "Branching";
-  return "Python Hero";
+  return "Python Bridge";
 }
 
 export function difficultyFromPKnown(pKnown: number): number {
@@ -138,8 +138,9 @@ export function availableOps(band: CodeBand): Array<CodeOp["type"]> {
   return ["forward", "left", "right", "repeat", "ifClear"];
 }
 
-export function defaultEditorMode(band: CodeBand): "blocks" | "python" {
-  return band === "advanced" ? "python" : "blocks";
+/** Blocks-first hard rule — age/band never auto-opens Python. */
+export function defaultEditorMode(_band?: CodeBand): "blocks" | "python" {
+  return "blocks";
 }
 
 function blankGrid(n: number): CodeCell[][] {
@@ -396,7 +397,7 @@ export function generateLevel(band: CodeBand, difficulty: number): CodeLevel {
     title,
     prompt:
       band === "advanced"
-        ? "Write Python: move_forward(), turn_left/right(), for / if clear()."
+        ? "Snap blocks to reach the star — or open Python Bridge when you are ready."
         : "Wall ahead? Try If clear, or turn around it.",
     grid,
     start,
@@ -414,7 +415,7 @@ export function codeSparkSkillSeed(level: CodeLevel): string {
         ? "loop repeat pattern algorithm"
         : level.band === "middle"
           ? "conditional if clear branch algorithm debugging"
-          : "python for range if clear typed code algorithm debugging";
+          : "python bridge for range if clear typed code algorithm debugging";
   return `coding programming blocks robot path ${bandBits} computational thinking`;
 }
 
@@ -475,7 +476,7 @@ export function pythonStarter(band: CodeBand): string {
     );
   }
   return (
-    "# Python Hero — drive the bot\n" +
+    "# Python Bridge — same ideas as blocks\n" +
     "for i in range(2):\n" +
     "    move_forward()\n" +
     "turn_left()\n" +

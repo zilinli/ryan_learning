@@ -18,7 +18,7 @@ const GAME_ROUTES: Array<{ re: RegExp; gameId: GameId; title: string; line: stri
     re: /\b(code|coding|program|programming|scratch|blockly|algorithm|loop|debug|python|javascript)\b|编程|写代码|写程序|打代码|循环|算法|scratch|积木编程|程序设计/i,
     gameId: "code-spark",
     title: "Code Spark",
-    line: "编程正对味——打开 Code Spark：积木或 Python 闯关，点 Run 看机器人跑。",
+    line: "编程正对味——打开 Code Spark：先拼积木，需要时再进 Python Bridge。",
   },
   {
     re: /fraction|decimal|percent|ratio|number line|分母|分数|小数|百分比|比例|数轴/i,
@@ -95,7 +95,7 @@ const TITLES: Partial<Record<GameId, string>> = {
 };
 
 const FALLBACK_LINES: Partial<Record<GameId, string>> = {
-  "code-spark": "想放松也想练手?来 Code Spark 拼积木或写 Python 再 Run。",
+  "code-spark": "想放松也想练手?来 Code Spark 先拼积木再 Run——Python Bridge 随时可开。",
   "fraction-voyager": "想放松也想练手?来开一趟分数飞船。",
   "force-bay": "想放松也想练手?去 Force Bay 推两艘船。",
   "orbit-scout": "想放松也想练手?去 Orbit Scout 转一圈。",

@@ -45,8 +45,17 @@ const TRACKS: Array<ReturnType<typeof trackFromBand>> = [
   "foundations",
   "loops",
   "branching",
-  "python-hero",
+  "text-bridge",
 ];
+
+/** Scratch-inspired palette colors (Motion / Control / Sensing). */
+const BLOCK_COLOR: Record<CodeOp["type"], string> = {
+  forward: "#4C97FF",
+  left: "#4C97FF",
+  right: "#4C97FF",
+  repeat: "#FFAB19",
+  ifClear: "#5CB1D6",
+};
 
 export function CodeSparkGame() {
   const juice = useJuice();
@@ -78,6 +87,7 @@ export function CodeSparkGame() {
   const [bestStars, setBestStars] = useState(0);
   const [nesting, setNesting] = useState<null | "repeat" | "ifClear">(null);
   const [repeatTimes, setRepeatTimes] = useState<2 | 3 | 4>(2);
+  const [showPyPreview, setShowPyPreview] = useState(false);
 
   const startLevel = useCallback(() => {
     const mem = loadLearningMemory(accountId);
@@ -97,6 +107,7 @@ export function CodeSparkGame() {
     setSnapshots([{ ...next.start, status: "ok" }]);
     setResult(null);
     setNesting(null);
+    setShowPyPreview(false);
   }, [accountId, band]);
 
   useEffect(() => {
@@ -126,6 +137,21 @@ export function CodeSparkGame() {
     },
     [mode, phase, program, pythonSrc],
   );
+
+  /** CodeCombat-style remake: same mission, typed Python from current blocks. */
+  const remakeInPython = useCallback(() => {
+    if (phase === "running" || !level) return;
+    const src =
+      program.length > 0 ? opsToPython(program) + "\n" : pythonStarter(band);
+    setPythonSrc(src);
+    setMode("python");
+    setParseError(null);
+    setResult(null);
+    setPhase("build");
+    setSnapshots([{ ...level.start, status: "ok" }]);
+    setCursor(0);
+    setShowPyPreview(false);
+  }, [phase, level, program, band]);
 
   const pushOp = useCallback(
     (op: CodeOp) => {
@@ -319,7 +345,7 @@ export function CodeSparkGame() {
           ) : null}
         </div>
 
-        {/* Mode toggle — Blocks (Code.org) | Python (CodeCombat) */}
+        {/* Mode toggle — Blocks default (Scratch/Code.org) | Python Bridge (CodeCombat) */}
         <div className="flex gap-1 rounded-xl border p-1" style={{ borderColor: STROKE, background: SURFACE }}>
           {(["blocks", "python"] as const).map((m) => (
             <button
@@ -327,13 +353,13 @@ export function CodeSparkGame() {
               type="button"
               onClick={() => switchMode(m)}
               disabled={phase === "running"}
-              className="min-h-9 flex-1 rounded-lg text-xs font-semibold capitalize transition disabled:opacity-40"
+              className="min-h-9 flex-1 rounded-lg text-xs font-semibold transition disabled:opacity-40"
               style={{
                 background: mode === m ? ACCENT : "transparent",
                 color: mode === m ? BASE : INK_MUTED,
               }}
             >
-              {m === "blocks" ? "Blocks" : "Python"}
+              {m === "blocks" ? "Blocks" : "Python Bridge"}
             </button>
           ))}
         </div>
@@ -399,23 +425,14 @@ export function CodeSparkGame() {
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: INK_MUTED }}>
                 Program {nesting ? `· editing ${nesting}` : ""}
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-1">
                 {program.length === 0 ? (
                   <span className="text-xs" style={{ color: INK_MUTED }}>
-                    Empty — tap blocks below
+                    Empty — tap blocks below (Scratch-style)
                   </span>
                 ) : (
                   program.map((op, i) => (
-                    <span
-                      key={i}
-                      className="rounded-lg border px-2 py-1 text-[11px] font-medium"
-                      style={{ borderColor: `${ACCENT}55`, color: ACCENT, background: `${ACCENT}14` }}
-                    >
-                      {opLabel(op)}
-                      {op.type === "repeat" || op.type === "ifClear"
-                        ? ` {${op.body.map(opLabel).join(", ")}}`
-                        : ""}
-                    </span>
+                    <BlockChip key={i} op={op} />
                   ))
                 )}
               </div>
@@ -423,18 +440,19 @@ export function CodeSparkGame() {
 
             <div className="flex flex-wrap gap-2">
               {opsAllowed.includes("forward") && (
-                <PaletteBtn label="Forward" onClick={() => pushOp({ type: "forward" })} disabled={phase === "running"} />
+                <PaletteBtn label="Forward" color={BLOCK_COLOR.forward} onClick={() => pushOp({ type: "forward" })} disabled={phase === "running"} />
               )}
               {opsAllowed.includes("left") && (
-                <PaletteBtn label="Turn left" onClick={() => pushOp({ type: "left" })} disabled={phase === "running"} />
+                <PaletteBtn label="Turn left" color={BLOCK_COLOR.left} onClick={() => pushOp({ type: "left" })} disabled={phase === "running"} />
               )}
               {opsAllowed.includes("right") && (
-                <PaletteBtn label="Turn right" onClick={() => pushOp({ type: "right" })} disabled={phase === "running"} />
+                <PaletteBtn label="Turn right" color={BLOCK_COLOR.right} onClick={() => pushOp({ type: "right" })} disabled={phase === "running"} />
               )}
               {opsAllowed.includes("repeat") && (
                 <>
                   <PaletteBtn
                     label={nesting === "repeat" ? "Done repeat" : `Repeat ×${repeatTimes}`}
+                    color={BLOCK_COLOR.repeat}
                     onClick={() => {
                       if (nesting === "repeat") {
                         setNesting(null);
@@ -451,6 +469,7 @@ export function CodeSparkGame() {
                   {nesting === "repeat" ? (
                     <PaletteBtn
                       label="× cycle"
+                      color={BLOCK_COLOR.repeat}
                       onClick={() =>
                         setRepeatTimes((t) => (t === 2 ? 3 : t === 3 ? 4 : 2))
                       }
@@ -462,6 +481,7 @@ export function CodeSparkGame() {
               {opsAllowed.includes("ifClear") && (
                 <PaletteBtn
                   label={nesting === "ifClear" ? "Done if" : "If clear"}
+                  color={BLOCK_COLOR.ifClear}
                   onClick={() => {
                     if (nesting === "ifClear") {
                       setNesting(null);
@@ -474,11 +494,42 @@ export function CodeSparkGame() {
                 />
               )}
             </div>
+
+            {/* MakeCode / Code Monster style side-by-side translation */}
+            <div
+              className="rounded-2xl border"
+              style={{ borderColor: STROKE, background: SURFACE }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowPyPreview((v) => !v)}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: INK_MUTED }}
+                aria-expanded={showPyPreview}
+              >
+                <span>See as Python</span>
+                <span aria-hidden>{showPyPreview ? "▾" : "▸"}</span>
+              </button>
+              {showPyPreview ? (
+                <pre
+                  className="overflow-x-auto border-t px-3 py-2 font-mono text-[11px] leading-relaxed"
+                  style={{
+                    borderColor: STROKE,
+                    color: ACCENT,
+                    background: "rgba(0,0,0,0.28)",
+                  }}
+                >
+                  {program.length === 0
+                    ? "# tap blocks — Python appears here"
+                    : opsToPython(program)}
+                </pre>
+              ) : null}
+            </div>
           </>
         ) : (
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: INK_MUTED }}>
-              Python (CodeCombat-style DSL)
+              Python Bridge (CodeCombat-style DSL)
             </label>
             <textarea
               value={pythonSrc}
@@ -560,7 +611,7 @@ export function CodeSparkGame() {
             <p className="text-sm" style={{ color: result.correct ? ACCENT : CORAL }}>
               {result.message}
             </p>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {!result.correct ? (
                 <button
                   type="button"
@@ -576,14 +627,26 @@ export function CodeSparkGame() {
                   Edit &amp; run again
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={startLevel}
-                  className="min-h-11 flex-1 rounded-xl text-sm font-semibold"
-                  style={{ background: ACCENT, color: BASE }}
-                >
-                  Next mission
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={startLevel}
+                    className="min-h-11 flex-1 rounded-xl text-sm font-semibold"
+                    style={{ background: ACCENT, color: BASE }}
+                  >
+                    Next mission
+                  </button>
+                  {mode === "blocks" ? (
+                    <button
+                      type="button"
+                      onClick={remakeInPython}
+                      className="min-h-11 flex-1 rounded-xl border px-3 text-sm font-semibold"
+                      style={{ borderColor: `${ACCENT}88`, color: ACCENT }}
+                    >
+                      Try in Python
+                    </button>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
@@ -593,22 +656,43 @@ export function CodeSparkGame() {
   );
 }
 
+function BlockChip({ op, depth = 0 }: { op: CodeOp; depth?: number }) {
+  const color = BLOCK_COLOR[op.type];
+  return (
+    <div style={{ marginLeft: depth * 12 }}>
+      <span
+        className="inline-flex rounded-lg px-2 py-1 text-[11px] font-semibold text-white"
+        style={{ background: color }}
+      >
+        {opLabel(op)}
+      </span>
+      {(op.type === "repeat" || op.type === "ifClear") &&
+        op.body.map((child, i) => (
+          <BlockChip key={i} op={child} depth={depth + 1} />
+        ))}
+    </div>
+  );
+}
+
 function PaletteBtn({
   label,
   onClick,
   disabled,
+  color,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  color?: string;
 }) {
+  const fill = color ?? ACCENT;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-10 rounded-xl border px-3 text-xs font-semibold transition active:scale-[0.98] disabled:opacity-40"
-      style={{ borderColor: `${ACCENT}55`, color: ACCENT, background: `${ACCENT}12` }}
+      className="min-h-10 rounded-xl border px-3 text-xs font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+      style={{ borderColor: `${fill}99`, background: fill }}
     >
       {label}
     </button>
