@@ -12,7 +12,7 @@
 - [x] **COLLAB.5** — `game-recommend.ts` + `InlineGamePanel` 内嵌游戏(60vh 容器 + Fullscreen 链接)
 - [x] **COLLAB.6** — ChatThread/useTutorSession/TutorShell 接线(TTS strip、pinned strip、dismiss、labReturn 横幅)
 - [x] **COLLAB.7** — 单测全绿(intent-fence / game-recommend / lab-recommend / lab-challenge-handoff)
-- [ ] **COLLAB.8** — apply_changes → publish_develop → deploy_live
+- [x] **COLLAB.8** — apply_changes → publish_develop → deploy_live
 
 ## 🔤 WORD-ECHO — Study then spell（2026-08-16）
 
