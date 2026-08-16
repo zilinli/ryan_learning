@@ -1,5 +1,5 @@
 /**
- * Spell Words (id: word-echo) — memorize random words, then spell them from memory.
+ * Spell Words (id: word-echo) — peek one word, hear it, then spell it.
  * Pure functions only (no React).
  */
 
@@ -11,7 +11,8 @@ export type WordEchoRound = {
   id: number;
   difficulty: number;
   targets: string[];
-  studyMs: number;
+  /** Per-word peek duration before spell (not a whole-list study timer). */
+  peekMs: number;
   hintMode: HintMode;
   skill: WordEchoSkill;
 };
@@ -126,6 +127,110 @@ export const WORD_BANK: readonly string[] = [
   "nest",
 ] as const;
 
+/** Short meaning cues — identify the lemma without printing its letters. */
+export const WORD_GLOSS: Readonly<Record<string, string>> = {
+  apple: "a crunchy red fruit",
+  brave: "not afraid",
+  cloud: "white fluff in the sky",
+  dance: "move to a beat",
+  eagle: "a large hunting bird",
+  flame: "bright fire tongue",
+  grape: "small fruit in a bunch",
+  happy: "feeling joyful",
+  island: "land with water all around",
+  jungle: "thick wild forest",
+  kitten: "a baby cat",
+  lemon: "sour yellow fruit",
+  music: "songs and melodies",
+  night: "time after sunset",
+  ocean: "huge salty sea",
+  pencil: "tool for writing",
+  quiet: "almost no sound",
+  river: "fresh water that flows",
+  sunny: "bright with sunshine",
+  tiger: "big striped cat",
+  under: "below something",
+  violet: "purple flower color",
+  water: "clear drink we need",
+  yellow: "color of a ripe banana",
+  zebra: "horse with black stripes",
+  bridge: "path over a river",
+  candle: "wax stick that burns",
+  dragon: "storybook fire lizard",
+  forest: "many trees together",
+  garden: "place to grow plants",
+  hammer: "tool for hitting nails",
+  invite: "ask someone to come",
+  jacket: "coat for cool weather",
+  ladder: "steps you climb",
+  magnet: "metal that sticks to iron",
+  number: "how many — like 1, 2, 3",
+  orange: "round citrus fruit",
+  planet: "world that orbits a star",
+  rocket: "craft that flies to space",
+  silver: "shiny gray metal",
+  tunnel: "passage under ground",
+  umbrella: "keeps rain off you",
+  valley: "low land between hills",
+  window: "glass in a wall",
+  yogurt: "creamy cultured milk",
+  anchor: "heavy hook for a boat",
+  balloon: "air-filled rubber ball",
+  camera: "device that takes photos",
+  desert: "very dry sandy land",
+  engine: "machine that makes power",
+  feather: "soft covering on a bird",
+  glider: "plane with no engine",
+  harbor: "safe place for ships",
+  insect: "tiny six-legged bug",
+  jewel: "precious shiny stone",
+  kettle: "pot for boiling tea",
+  lantern: "portable light",
+  marble: "small glass play ball",
+  needle: "thin sewing point",
+  orchid: "fancy tropical flower",
+  pirate: "sea robber in stories",
+  quiver: "case for arrows",
+  ribbon: "pretty strip of cloth",
+  saddle: "seat on a horse",
+  turtle: "shell-backed reptile",
+  velvet: "soft fuzzy fabric",
+  whisper: "speak very softly",
+  compass: "tool that finds north",
+  dolphin: "smart sea mammal",
+  echo: "sound that comes back",
+  falcon: "fast hunting bird",
+  glacier: "huge slow river of ice",
+  horizon: "where sky meets earth",
+  iguana: "green climbing lizard",
+  jasper: "reddish stone",
+  koala: "fuzzy tree marsupial",
+  lizard: "scaly four-legged reptile",
+  meadow: "open grassy field",
+  nectar: "sweet juice in flowers",
+  otter: "playful river mammal",
+  pebble: "small smooth stone",
+  quartz: "hard clear mineral",
+  raven: "large black bird",
+  sparrow: "small common bird",
+  thunder: "loud boom after lightning",
+  urchin: "spiky sea creature",
+  voyage: "long trip by ship",
+  willow: "tree with drooping branches",
+  crystal: "clear pointed mineral",
+  dawn: "first light of morning",
+  ember: "glowing bit of fire",
+  frost: "icy white on cold mornings",
+  glow: "soft steady light",
+  hive: "home for bees",
+  ivory: "creamy white material",
+  jade: "green gemstone",
+  kite: "toy that flies on a string",
+  lotus: "water flower on a pad",
+  moss: "soft green plant on rocks",
+  nest: "home birds build",
+};
+
 export function difficultyFromPKnown(pKnown: number): number {
   if (pKnown < 0.3) return 1;
   if (pKnown < 0.5) return 2;
@@ -136,15 +241,15 @@ export function difficultyFromPKnown(pKnown: number): number {
 
 export function specForDifficulty(difficulty: number): {
   targetCount: number;
-  studyMs: number;
+  peekMs: number;
   hintMode: HintMode;
 } {
   const d = Math.max(1, Math.min(5, Math.round(difficulty)));
-  if (d === 1) return { targetCount: 2, studyMs: 6000, hintMode: "blanks" };
-  if (d === 2) return { targetCount: 3, studyMs: 5500, hintMode: "blanks" };
-  if (d === 3) return { targetCount: 3, studyMs: 5000, hintMode: "length" };
-  if (d === 4) return { targetCount: 4, studyMs: 4500, hintMode: "none" };
-  return { targetCount: 5, studyMs: 4000, hintMode: "none" };
+  if (d === 1) return { targetCount: 1, peekMs: 3500, hintMode: "blanks" };
+  if (d === 2) return { targetCount: 2, peekMs: 3000, hintMode: "blanks" };
+  if (d === 3) return { targetCount: 2, peekMs: 2500, hintMode: "length" };
+  if (d === 4) return { targetCount: 3, peekMs: 2000, hintMode: "length" };
+  return { targetCount: 3, peekMs: 1500, hintMode: "none" };
 }
 
 let nextId = 1;
@@ -191,7 +296,7 @@ export function pickRound(
     id: nextId++,
     difficulty: Math.max(1, Math.min(5, Math.round(difficulty))),
     targets,
-    studyMs: spec.studyMs,
+    peekMs: spec.peekMs,
     hintMode: spec.hintMode,
     skill,
   };
@@ -215,6 +320,14 @@ export function spellingHint(word: string, mode: HintMode): string {
   return "";
 }
 
+/** Meaning cue for the current target (never equal to the spelling). */
+export function wordGloss(word: string): string {
+  const key = normalizeSpelling(word);
+  const gloss = WORD_GLOSS[key];
+  if (gloss && normalizeSpelling(gloss) !== key) return gloss;
+  return "Listen, then type what you heard.";
+}
+
 export function validateSpelling(
   expected: string,
   typed: string,
@@ -232,7 +345,7 @@ export function validateSpelling(
     return {
       correct: true,
       outcome: "correct",
-      message: "Spelling matches. Echo clear.",
+      message: "Spelling matches. Nice work.",
     };
   }
   if (got.length !== want.length) {
@@ -253,5 +366,5 @@ export function validateSpelling(
 }
 
 export function wordEchoSkillSeed(round: WordEchoRound): string {
-  return `sight word vocabulary spelling reading phonics letter sound memory recall ${round.skill} ${round.targets.join(" ")}`;
+  return `sight word vocabulary spelling reading phonics letter sound dictation hear spell ${round.skill} ${round.targets.join(" ")}`;
 }

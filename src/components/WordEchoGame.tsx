@@ -14,11 +14,13 @@ import {
   spellingHint,
   validateSpelling,
   wordEchoSkillSeed,
+  wordGloss,
   type WordEchoRound,
   type WordEchoSpellResult,
 } from "@/lib/entertain/word-echo";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { loadLearningMemory } from "@/lib/learning-memory";
+import { getSharedSpeechEngine } from "@/lib/speech-player";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { GAME_TOKENS } from "./learning-games/tokens";
 import { useJuice } from "./learning-games/juice";
@@ -33,7 +35,7 @@ const {
   inkMuted: INK_MUTED,
 } = GAME_TOKENS["word-echo"];
 
-type Phase = "idle" | "study" | "spell" | "done";
+type Phase = "idle" | "peek" | "spell" | "done";
 
 export function WordEchoGame() {
   const juice = useJuice();
@@ -51,7 +53,54 @@ export function WordEchoGame() {
   const [typed, setTyped] = useState("");
   const [result, setResult] = useState<WordEchoSpellResult | null>(null);
   const [cleared, setCleared] = useState(0);
-  const [studyLeft, setStudyLeft] = useState(0);
+  const [peekLeft, setPeekLeft] = useState(0);
+  const [hearing, setHearing] = useState(false);
+
+  const stopSpeech = useCallback(() => {
+    try {
+      getSharedSpeechEngine().stop();
+    } catch {
+      // ignore
+    }
+    setHearing(false);
+  }, []);
+
+  useEffect(() => () => stopSpeech(), [stopSpeech]);
+
+  const hearWord = useCallback(
+    async (word: string) => {
+      if (!word) return;
+      const engine = getSharedSpeechEngine();
+      try {
+        engine.stop();
+      } catch {
+        // ignore
+      }
+      setHearing(true);
+      try {
+        await engine.unlock().catch(() => undefined);
+        await engine.speak(word, {
+          voiceId: "ryan",
+          onError: () => setHearing(false),
+        });
+      } catch {
+        // ignore
+      } finally {
+        setHearing(false);
+      }
+    },
+    [],
+  );
+
+  const beginPeek = useCallback((next: WordEchoRound, index: number) => {
+    stopSpeech();
+    setRound(next);
+    setSpellIndex(index);
+    setTyped("");
+    setResult(null);
+    setPhase("peek");
+    setPeekLeft(next.peekMs);
+  }, [stopSpeech]);
 
   const start = useCallback(() => {
     const mem = loadLearningMemory(accountId);
@@ -60,35 +109,42 @@ export function WordEchoGame() {
     );
     const diff = difficultyFromPKnown(skill?.pKnown ?? 0.45);
     const next = pickRound(diff);
-    setRound(next);
-    setSpellIndex(0);
-    setTyped("");
-    setResult(null);
-    setPhase("study");
-    setStudyLeft(next.studyMs);
-  }, [accountId]);
+    void getSharedSpeechEngine().unlock().catch(() => undefined);
+    beginPeek(next, 0);
+  }, [accountId, beginPeek]);
+
+  const goSpell = useCallback(() => {
+    if (!round) return;
+    setPhase("spell");
+    // Auto-hear runs in the spell-phase effect.
+  }, [round]);
 
   useEffect(() => {
-    if (phase !== "study" || !round) return;
-    let left = round.studyMs;
-    setStudyLeft(left);
+    if (phase !== "peek" || !round) return;
+    let left = round.peekMs;
+    setPeekLeft(left);
     const tick = window.setInterval(() => {
       if (document.hidden) return;
       left = Math.max(0, left - 50);
-      setStudyLeft(left);
+      setPeekLeft(left);
       if (left <= 0) {
         window.clearInterval(tick);
         setPhase("spell");
       }
     }, 50);
     return () => window.clearInterval(tick);
-  }, [phase, round]);
+  }, [phase, round, spellIndex]);
 
+  // Auto-hear when entering spell (including after peek timer).
   useEffect(() => {
-    if (phase !== "spell") return;
+    if (phase !== "spell" || !round) return;
+    const word = round.targets[spellIndex]!;
+    void hearWord(word);
     const id = window.setTimeout(() => inputRef.current?.focus(), 40);
-    return () => window.clearTimeout(id);
-  }, [phase, spellIndex]);
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [phase, spellIndex, round, hearWord]);
 
   const check = useCallback(() => {
     if (!round || phase !== "spell") return;
@@ -107,17 +163,25 @@ export function WordEchoGame() {
       juice.playCorrect();
       const nextIdx = spellIndex + 1;
       if (nextIdx >= round.targets.length) {
+        stopSpeech();
         setCleared((c) => Math.min(5, c + 1));
         setPhase("done");
       } else {
-        setSpellIndex(nextIdx);
-        setTyped("");
-        setResult(null);
+        beginPeek(round, nextIdx);
       }
     } else {
       juice.playError();
     }
-  }, [round, phase, spellIndex, typed, accountId, juice]);
+  }, [
+    round,
+    phase,
+    spellIndex,
+    typed,
+    accountId,
+    juice,
+    beginPeek,
+    stopSpeech,
+  ]);
 
   const onSubmit = useCallback(
     (e: FormEvent) => {
@@ -130,6 +194,7 @@ export function WordEchoGame() {
   const currentWord = round?.targets[spellIndex] ?? "";
   const hint =
     round && currentWord ? spellingHint(currentWord, round.hintMode) : "";
+  const gloss = currentWord ? wordGloss(currentWord) : "";
 
   return (
     <div className="flex flex-1 flex-col" style={{ background: BASE, color: INK }}>
@@ -142,7 +207,7 @@ export function WordEchoGame() {
             Spell Words
             {round && <span style={{ color: INK_MUTED }}>· L{round.difficulty}</span>}
           </span>
-          <span className="flex items-center gap-1.5" aria-label={`${cleared} echoes collected`}>
+          <span className="flex items-center gap-1.5" aria-label={`${cleared} rounds cleared`}>
             {Array.from({ length: 5 }, (_, i) => (
               <span
                 key={i}
@@ -162,7 +227,7 @@ export function WordEchoGame() {
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <EchoMark />
             <p className="mt-5 max-w-xs text-sm leading-relaxed" style={{ color: INK_MUTED }}>
-              Study a short list of words. Then spell each one from memory — typing is the lesson.
+              Peek one word, hear it spoken, then type the spelling — one word at a time.
             </p>
             <button
               type="button"
@@ -175,32 +240,37 @@ export function WordEchoGame() {
           </div>
         )}
 
-        {phase === "study" && round && (
+        {phase === "peek" && round && (
           <>
             <Panel>
               <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-                Study · {Math.ceil(studyLeft / 1000)}s
+                Peek · word {spellIndex + 1} of {round.targets.length} · {Math.ceil(peekLeft / 1000)}s
               </p>
               <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
-                Remember how each word is spelled. You will type them next.
+                Look carefully. Next you will hear it and spell it.
               </p>
             </Panel>
-            <div className="flex flex-wrap justify-center gap-2">
-              {round.targets.map((w, i) => (
-                <span
-                  key={w}
-                  className="min-h-12 rounded-xl border px-4 py-3 text-base font-semibold tabular-nums"
-                  style={{
-                    borderColor: `${ACCENT}55`,
-                    background: `${ACCENT}14`,
-                    color: INK,
-                  }}
-                >
-                  {i + 1}. {w}
-                </span>
-              ))}
+            <div className="flex flex-1 flex-col items-center justify-center gap-4">
+              <span
+                className="min-h-16 rounded-2xl border px-8 py-5 text-3xl font-semibold tracking-wide"
+                style={{
+                  borderColor: `${ACCENT}55`,
+                  background: `${ACCENT}14`,
+                  color: INK,
+                }}
+              >
+                {currentWord}
+              </span>
+              <button
+                type="button"
+                onClick={goSpell}
+                className="min-h-11 rounded-xl border px-6 text-sm font-semibold transition active:scale-[0.98]"
+                style={{ borderColor: STROKE, color: ACCENT }}
+              >
+                I&apos;m ready — spell it
+              </button>
             </div>
-            <StudyBar fraction={studyLeft / round.studyMs} />
+            <StudyBar fraction={peekLeft / round.peekMs} />
           </>
         )}
 
@@ -212,53 +282,77 @@ export function WordEchoGame() {
               </p>
               <p className="mt-1 text-sm" style={{ color: INK_MUTED }}>
                 {phase === "done"
-                  ? `All ${round.targets.length} spellings echoed.`
-                  : `Word ${spellIndex + 1} of ${round.targets.length} — type the spelling.`}
+                  ? `All ${round.targets.length} spellings done.`
+                  : `Word ${spellIndex + 1} of ${round.targets.length} — hear it, then type.`}
               </p>
-              {phase === "spell" && hint ? (
-                <p
-                  className="mt-3 font-mono text-lg tracking-[0.2em] tabular-nums"
-                  style={{ color: ACCENT }}
-                  aria-label={`Hint: ${hint}`}
-                >
-                  {hint}
-                </p>
+              {phase === "spell" ? (
+                <>
+                  <p className="mt-3 text-base font-medium leading-snug" style={{ color: INK }}>
+                    {gloss}
+                  </p>
+                  {hint ? (
+                    <p
+                      className="mt-2 font-mono text-lg tracking-[0.2em] tabular-nums"
+                      style={{ color: ACCENT }}
+                      aria-label={`Hint: ${hint}`}
+                    >
+                      {hint}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
             </Panel>
 
             {phase === "spell" && (
-              <form onSubmit={onSubmit} className="flex flex-col gap-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  inputMode="text"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  autoComplete="off"
-                  value={typed}
-                  onChange={(e) => {
-                    setTyped(e.target.value);
-                    setResult(null);
-                  }}
-                  placeholder="Type the word"
-                  className="min-h-14 w-full rounded-xl border px-4 text-center text-lg font-semibold outline-none"
-                  style={{
-                    borderColor: result && !result.correct ? CORAL : STROKE,
-                    background: "rgba(255,255,255,0.04)",
-                    color: INK,
-                  }}
-                  aria-label={`Spell word ${spellIndex + 1}`}
-                />
+              <>
                 <button
-                  type="submit"
-                  disabled={typed.trim().length === 0}
-                  className="min-h-12 w-full rounded-xl text-sm font-semibold transition active:scale-[0.98] disabled:opacity-40"
-                  style={{ background: ACCENT, color: BASE }}
+                  type="button"
+                  onClick={() => void hearWord(currentWord)}
+                  disabled={hearing}
+                  className="min-h-12 w-full rounded-xl border text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60"
+                  style={{
+                    borderColor: `${ACCENT}66`,
+                    background: hearing ? `${ACCENT}28` : `${ACCENT}14`,
+                    color: ACCENT,
+                  }}
+                  aria-label={hearing ? "Playing pronunciation" : "Hear the word again"}
                 >
-                  Check spelling
+                  {hearing ? "Hearing…" : "Hear again"}
                 </button>
-              </form>
+
+                <form onSubmit={onSubmit} className="flex flex-col gap-3">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    inputMode="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={typed}
+                    onChange={(e) => {
+                      setTyped(e.target.value);
+                      setResult(null);
+                    }}
+                    placeholder="Type the word you heard"
+                    className="min-h-14 w-full rounded-xl border px-4 text-center text-lg font-semibold outline-none"
+                    style={{
+                      borderColor: result && !result.correct ? CORAL : STROKE,
+                      background: "rgba(255,255,255,0.04)",
+                      color: INK,
+                    }}
+                    aria-label={`Spell word ${spellIndex + 1}`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={typed.trim().length === 0}
+                    className="min-h-12 w-full rounded-xl text-sm font-semibold transition active:scale-[0.98] disabled:opacity-40"
+                    style={{ background: ACCENT, color: BASE }}
+                  >
+                    Check spelling
+                  </button>
+                </form>
+              </>
             )}
 
             {result && (

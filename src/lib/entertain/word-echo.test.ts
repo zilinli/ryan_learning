@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   WORD_BANK,
+  WORD_GLOSS,
   difficultyFromPKnown,
   normalizeSpelling,
   pickRound,
@@ -8,6 +9,7 @@ import {
   specForDifficulty,
   validateSpelling,
   wordEchoSkillSeed,
+  wordGloss,
 } from "./word-echo";
 
 function seqRng(seq: number[]): () => number {
@@ -35,20 +37,20 @@ describe("difficultyFromPKnown", () => {
 });
 
 describe("specForDifficulty", () => {
-  it("scales targets, study time, and hint mode", () => {
+  it("scales targets, peek time, and hint mode for one-word practice", () => {
     expect(specForDifficulty(1)).toEqual({
-      targetCount: 2,
-      studyMs: 6000,
+      targetCount: 1,
+      peekMs: 3500,
       hintMode: "blanks",
     });
     expect(specForDifficulty(3)).toEqual({
-      targetCount: 3,
-      studyMs: 5000,
+      targetCount: 2,
+      peekMs: 2500,
       hintMode: "length",
     });
     expect(specForDifficulty(5)).toEqual({
-      targetCount: 5,
-      studyMs: 4000,
+      targetCount: 3,
+      peekMs: 1500,
       hintMode: "none",
     });
   });
@@ -64,15 +66,31 @@ describe("WORD_BANK", () => {
   });
 });
 
+describe("WORD_GLOSS / wordGloss", () => {
+  it("covers every bank word with a non-leaking cue", () => {
+    for (const w of WORD_BANK) {
+      expect(WORD_GLOSS[w]).toBeTruthy();
+      const gloss = wordGloss(w);
+      expect(gloss.length).toBeGreaterThan(3);
+      expect(normalizeSpelling(gloss)).not.toBe(w);
+      expect(gloss.toLowerCase()).not.toContain(w);
+    }
+  });
+
+  it("falls back for unknown words", () => {
+    expect(wordGloss("zzzznotaword")).toMatch(/listen/i);
+  });
+});
+
 describe("pickRound", () => {
-  it("builds unique targets and hintMode for each difficulty", () => {
+  it("builds unique targets and peekMs for each difficulty", () => {
     for (let d = 1; d <= 5; d++) {
       const round = pickRound(d, seqRng([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]));
       const spec = specForDifficulty(d);
       expect(round.targets).toHaveLength(spec.targetCount);
       expect(new Set(round.targets).size).toBe(round.targets.length);
       expect(round.hintMode).toBe(spec.hintMode);
-      expect(round.studyMs).toBe(spec.studyMs);
+      expect(round.peekMs).toBe(spec.peekMs);
     }
   });
 });
@@ -112,6 +130,7 @@ describe("wordEchoSkillSeed", () => {
     const round = pickRound(1, () => 0.2);
     const seed = wordEchoSkillSeed(round);
     expect(seed).toMatch(/spelling/);
+    expect(seed).toMatch(/hear/);
     expect(seed).toContain(round.targets[0]!);
   });
 });

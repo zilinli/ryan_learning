@@ -50,7 +50,7 @@ const GAMES: GameInfo[] = [
   { id: "orbit-scout", title: "Orbit Scout", desc: "Qualitative gravity — drops, pushes, always toward the planet", icon: "", category: "Learning Games" },
   { id: "eco-genesis", title: "Eco Genesis", desc: "Build a living ecosystem, predict, and watch populations change", icon: "", category: "Learning Games" },
   { id: "time-vault", title: "Time Vault", desc: "Reconstruct scrambled history — place events, cite the evidence", icon: "", category: "Learning Games" },
-  { id: "word-echo", title: "Spell Words", desc: "Study a short list, then type each spelling from memory", icon: "", category: "Learning Games" },
+  { id: "word-echo", title: "Spell Words", desc: "Peek one word, hear it, then type the spelling — one at a time", icon: "", category: "Learning Games" },
   // ── Logic & Fun ──
   { id: "chess", title: "Chess", desc: "International chess — local AI, 3 levels", icon: "♚", category: "Board Games" },
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },

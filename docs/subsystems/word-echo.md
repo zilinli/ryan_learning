@@ -1,44 +1,48 @@
-# Spell Words (Word Echo) — study then spell
+# Spell Words (Word Echo) — hear & spell one word at a time
 
-> Version 1.2 · 2026-08-16  
-> Scope: Learning Game on `/entertain` — display name **Spell Words** (internal id `word-echo`). Memorize a short random word list, then **spell each word from memory** (not tap-recognition).
+> Version 1.3 · 2026-08-16  
+> Scope: Learning Game on `/entertain` — display name **Spell Words** (internal id `word-echo`).  
+> **v1.3 shift:** drop batch list-memory; align with dictation / spelling-bee practice (one word identity via peek + audio + gloss).
 
 ---
 
 ## 1. Problem
 
-v1.0 used **study → tap among distractors** (recognition). That trains working memory + sight ID, but **spelling production** is the higher-value literacy skill for G4. Research (listen-and-spell / generation effect): producing graphemes from memory beats selecting a printed word.
+v1.2 used **study a list → hide → spell word N of M from memory**. Learners reported:
 
-**Release gap (v1.1→1.2):** Spelling landed in source (`72a664d`) but production `.next` still served tap-recall until `publish_develop` + `deploy_live`. Hub title **Word Echo** did not signal spelling — rename display to **Spell Words**.
+- Too many words at once (working-memory overload).
+- Even when they know spellings, they cannot tell **which** word is expected — blanks/length alone do not identify the lemma.
 
-## 2. Approach
+Industry practice (Scripps-style bee, EZSpell Dictation Coach, Duolingo Listen & Type):
 
-Classic **study → hide → spell (type)** loop:
+1. **One word at a time** — never quiz order recall of a hidden list.
+2. **Identity cue** — pronounce the word (TTS); optional definition / sentence.
+3. **Production** — type the graphemes (answer-until-correct).
+4. **Replay** — hear again on demand.
 
-1. **Mechanic = lesson** — the action is spelling the echo, not multiple-choice taps.
-2. **Answer-Until-Correct** — wrong spelling keeps the prompt; adjust and retry (no instant full reveal).
-3. **ZPD** — difficulty from BKT `pKnown` on ELA skills (`letter-sounds` / `reading-evidence`).
-4. **Scaffolding** — easy levels show letter blanks; mid shows length only; hard has no length hint.
-5. **Private progress** — echo nodes (1–5) light up; no leaderboard.
-6. **Offline word bank** — curated G4-friendly English words.
-7. **Naming** — UI title **Spell Words**; keep `GameId` `word-echo` for deep links (`?game=word-echo`).
+---
 
-### 2.1 Core loop
+## 2. Approach (v1.3)
 
-1. **Study** — show `targetCount` random words for `studyMs`.
-2. **Spell** — one target at a time (study order). Learner types the word; Check validates.
-3. **Advance** — on correct, next target; after last target, record BKT turn and clear node.
-4. **Next round** — bump difficulty via streak / pKnown.
+### 2.1 Core loop (per target)
+
+1. **Peek** — show **only the current word** for `peekMs` (learner may skip early).
+2. **Spell** — hide letters; auto-play English TTS; show **gloss** (meaning cue) + scaffolding hint + **Hear again**.
+3. **Check** — answer-until-correct; on correct, advance to next target’s peek (or clear round).
+
+Round still batches 1–3 words for progress dots, but **never** requires remembering the whole set at once.
 
 ### 2.2 Difficulty ladder
 
-| pKnown | Diff | Targets | Study ms | Hint |
-|--------|------|---------|----------|------|
-| < 0.30 | 1 | 2 | 6000 | blanks (`_ _ _ _`) |
-| < 0.50 | 2 | 3 | 5500 | blanks |
-| < 0.70 | 3 | 3 | 5000 | length only (`5 letters`) |
-| < 0.85 | 4 | 4 | 4500 | none |
-| ≥ 0.85 | 5 | 5 | 4000 | none |
+| pKnown | Diff | Targets | Peek ms | Hint |
+|--------|------|---------|---------|------|
+| < 0.30 | 1 | 1 | 3500 | blanks |
+| < 0.50 | 2 | 2 | 3000 | blanks |
+| < 0.70 | 3 | 2 | 2500 | length |
+| < 0.85 | 4 | 3 | 2000 | length |
+| ≥ 0.85 | 5 | 3 | 1500 | none |
+
+Gloss + Hear are always available (identity ≠ letter leak).
 
 ### 2.3 Data model (pure)
 
@@ -49,66 +53,61 @@ type WordEchoRound = {
   id: number;
   difficulty: number;
   targets: string[];
-  studyMs: number;
+  peekMs: number; // was studyMs (list study)
   hintMode: HintMode;
   skill: "letter-sounds" | "reading-evidence";
 };
 
-function normalizeSpelling(raw: string): string; // trim + lower + letters only
-function validateSpelling(expected: string, typed: string): {
-  correct: boolean;
-  outcome: "correct" | "incorrect";
-  message: string;
-};
+function wordGloss(word: string): string; // short EN meaning cue
 function spellingHint(word: string, mode: HintMode): string;
-function difficultyFromPKnown(pKnown: number): number;
-function pickRound(difficulty: number, rng?): WordEchoRound;
+function validateSpelling(expected: string, typed: string): WordEchoSpellResult;
 ```
 
-Recognition helpers (`pool`, `validateEcho`, `requireOrder`) are removed in v1.1.
+### 2.4 Audio
 
-### 2.4 BKT
+UI calls `getSharedSpeechEngine()` with English voice (`voiceId` suitable for EN, e.g. `alvaro` / auto EN). Unlock on Start / Hear. Stop on unmount.
 
-`recordStudioLearningTurn({ source: "game", skillSeed: "… spelling …", outcome })` on each Check.
+### 2.5 BKT
+
+Unchanged: `recordStudioLearningTurn` on each Check.
+
+---
 
 ## 3. Key files
 
 | Path | Role |
 |------|------|
-| `src/lib/entertain/word-echo.ts` | Pure logic + word bank + spelling validate |
+| `src/lib/entertain/word-echo.ts` | Bank, gloss, pickRound, validate |
 | `src/lib/entertain/word-echo.test.ts` | Unit tests |
-| `src/components/WordEchoGame.tsx` | UI (study timer + spell input) |
-| `src/components/EntertainPage.tsx` | Hub card: **Spell Words** |
-| `src/lib/entertain/types.ts` | `GameId` includes `word-echo` |
-| `src/components/learning-games/tokens.ts` / `icons.tsx` | Accent + SVG mark |
+| `src/components/WordEchoGame.tsx` | Peek → Hear → Spell UI |
+| `src/components/EntertainPage.tsx` | Hub card copy |
 
-Visual: deep ink base `#0e1218` + cyan accent `#38bdf8`.
+---
 
 ## 4. Risks
 
 | Risk | Mitigation |
 |------|------------|
-| Typing harder than tapping on mobile | Large input, `inputMode="text"`, autoFocus, Enter to check |
-| Hint leaks too much | blanks only L1–2; L4–5 none |
-| Word bank too hard | Keep G4 mix; length mostly 4–8 |
-| Source ≠ live | Always `deploy_live` after spelling UI changes |
-| Old name hid the skill | Display **Spell Words** |
+| TTS latency / fail | Hear button retry; gloss still identifies word |
+| Gloss leaks spelling | Keep gloss semantic ("a red fruit"), never the word letters |
+| Peek still too hard | Skip button; L1 = 1 word |
+| Source ≠ live | `deploy_live` after UI changes |
+
+---
 
 ## 5. Test design
 
-### Unit (`word-echo.test.ts`)
+### Unit
 
-- `difficultyFromPKnown` band boundaries
-- `pickRound` target counts, hintMode by difficulty, unique targets
-- `normalizeSpelling` / `validateSpelling` exact match, case/space tolerant, wrong letter
-- `spellingHint` blanks / length / none
-- Word bank: all lowercase letters, length ≥ 3, no duplicates
+- `specForDifficulty` / `pickRound`: new counts + `peekMs` + hintMode
+- `wordGloss`: every bank word has non-empty gloss that does not equal the word
+- Existing normalize / validate / spellingHint
 
-### Integration / manual
+### Manual
 
-- Hub title **Spell Words**; desc mentions spell; `?game=word-echo` opens type-to-spell flow (not tap chips)
-- Study → auto-hide → type → Check spelling → next word → Next round; mobile 375px usable
-- After deploy: production bundle contains `Check spelling` / `Type the word`, not tap-among-distractors copy
+- Start → peek one word → spell with Hear + gloss → next word (no list quiz)
+- Hub desc mentions hear / spell, not "memorize a list"
+- Mobile 375px: large input + Hear button usable
 
 ```bash
 npm test -- src/lib/entertain/word-echo.test.ts

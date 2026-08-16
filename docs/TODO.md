@@ -1762,3 +1762,15 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 3. **Phase G / 15 remaining** — Teochew family clone ID (**15.2.6**); optional G.3/G.4 only if cloud quality insufficient
 4. **TEO Teochew STT** — run A/B eval TEO.0 (internet Teochew samples → human-scored); TEO.5 wired; TEO.1-3 routing only if iFlytek wins
 4. **Phase 10.3 / Phase 6** — CI + coverage gaps when hardening
+
+---
+
+## 🔤 Spell Words v1.3 — one-word hear & spell (2026-08-16)
+
+> **Design:** [subsystems/word-echo.md](subsystems/word-echo.md) v1.3
+
+- [x] SW.1 — `word-echo.ts`: `peekMs`, fewer targets (1–3), `WORD_GLOSS` + `wordGloss()`
+- [x] SW.2 — `WordEchoGame.tsx`: per-word peek → auto Hear → gloss + spell (drop list-memory)
+- [x] SW.3 — Hub card copy: hear & spell one word at a time
+- [x] SW.4 — Unit tests for ladder + gloss; `run_tests`
+- [ ] SW.5 — apply_changes → publish_develop → deploy_live
