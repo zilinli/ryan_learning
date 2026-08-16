@@ -224,3 +224,37 @@ describe("isWordProblem", () => {
     expect(isWordProblem("What is 2+2?")).toBe(false);
   });
 });
+
+// ── Code Spark concept skills (cs-*) ─────────────────────────────
+
+describe("cs-* concept skills", () => {
+  it("registers five coding skills under the coding topic", () => {
+    const ids = ["cs-sequence", "cs-loop", "cs-conditional", "cs-compose", "cs-python"];
+    for (const id of ids) {
+      const def = getSkillDef(id);
+      expect(def, id).toBeDefined();
+      expect(def!.topicId).toBe("coding");
+      expect(def!.subject).toBe("cs");
+    }
+  });
+
+  it("mirrors the curriculum prerequisite chain", () => {
+    expect(getSkillDef("cs-sequence")!.requires).toBeUndefined();
+    expect(getSkillDef("cs-loop")!.requires).toEqual(["cs-sequence"]);
+    expect(getSkillDef("cs-conditional")!.requires).toEqual(["cs-sequence"]);
+    expect(getSkillDef("cs-compose")!.requires).toEqual(["cs-loop", "cs-conditional"]);
+    expect(getSkillDef("cs-python")!.requires).toEqual(["cs-loop", "cs-conditional"]);
+  });
+
+  it("does not pollute unrelated text with coding skills", () => {
+    expect(inferSkillsFromText("I like playing basketball")).toEqual([]);
+    // "if" alone should NOT latch cs-conditional (too common in English)
+    expect(inferSkillsFromText("if you want, we can chat").map((s) => s.id)).not.toContain("cs-conditional");
+  });
+
+  it("latches coding concepts from explicit keywords", () => {
+    expect(inferSkillsFromText("help me with loops and repeat").map((s) => s.id)).toContain("cs-loop");
+    expect(inferSkillsFromText("conditional if clear branch").map((s) => s.id)).toContain("cs-conditional");
+    expect(inferSkillsFromText("python syntax").map((s) => s.id)).toContain("cs-python");
+  });
+});

@@ -13,7 +13,12 @@ export type CodeBand = "early" | "elementary" | "middle" | "advanced";
  * "one block per level" ramp, but keyed to what the student actually asked
  * about (not their age band) so the practice stays on-topic.
  */
-export type CodeConcept = "sequence" | "loop" | "conditional";
+export type CodeConcept =
+  | "sequence"
+  | "loop"
+  | "conditional"
+  | "compose"
+  | "python";
 
 export type CodeOp =
   | { type: "forward" }
@@ -140,6 +145,8 @@ export function conceptFromText(text: string): CodeConcept {
 export function bandForConcept(concept: CodeConcept): CodeBand {
   if (concept === "loop") return "elementary";
   if (concept === "conditional") return "middle";
+  if (concept === "compose") return "middle";
+  if (concept === "python") return "advanced";
   return "early";
 }
 
@@ -178,7 +185,7 @@ export function defaultEditorMode(_band?: CodeBand): "blocks" | "python" {
   return "blocks";
 }
 
-function blankGrid(n: number): CodeCell[][] {
+export function blankGrid(n: number): CodeCell[][] {
   return Array.from({ length: n }, () => Array.from({ length: n }, () => "." as CodeCell));
 }
 
@@ -353,7 +360,7 @@ export function validateProgram(level: CodeLevel, program: CodeOp[]): CodeResult
   };
 }
 
-function placeWalls(
+export function placeWalls(
   grid: CodeCell[][],
   walls: Array<[number, number]>,
 ): void {
@@ -466,87 +473,10 @@ export function generateLevel(band: CodeBand, difficulty: number): CodeLevel {
 }
 
 /**
- * A tiny, on-topic micro-challenge for the main chat: one concept, one short
- * path, low step budget. Deliberately smaller than a full band level so the
- * "try it" card finishes in ~30s instead of pulling the student into a whole
- * course.
+ * Micro-challenges now come from the concept curriculum
+ * (`code-spark-curriculum.ts` → `generateMicroLevel`), so the chat card and
+ * the full game stay on the same course and the same mastery path.
  */
-export function generateMicroLevel(
-  concept: CodeConcept,
-  difficulty: number,
-): CodeLevel {
-  const d = Math.max(1, Math.min(5, Math.round(difficulty)));
-  const band = bandForConcept(concept);
-
-  if (concept === "sequence") {
-    const size = 4;
-    const grid = blankGrid(size);
-    const start = { r: size - 1, c: 1, facing: 0 as Facing };
-    const goal = { r: 0, c: 1 };
-    if (d >= 3) placeWalls(grid, [[2, 0], [2, 2]]);
-    grid[start.r]![start.c] = "S";
-    grid[goal.r]![goal.c] = "G";
-    return {
-      id: nextId++,
-      band,
-      difficulty: d,
-      title: "Order It",
-      prompt: "Which steps, in which order, reach the star?",
-      conceptFocus: "Sequence — the order of steps matters",
-      grid,
-      start,
-      goal,
-      maxSteps: 20,
-      parSteps: start.r - goal.r,
-    };
-  }
-
-  if (concept === "loop") {
-    const size = 5;
-    const grid = blankGrid(size);
-    const start = { r: size - 1, c: 0, facing: 0 as Facing };
-    const goal = { r: 0, c: size - 1 };
-    placeWalls(grid, [[1, 1], [2, 1], [3, 1]]);
-    if (d >= 4) placeWalls(grid, [[1, 3]]);
-    grid[start.r]![start.c] = "S";
-    grid[goal.r]![goal.c] = "G";
-    return {
-      id: nextId++,
-      band,
-      difficulty: d,
-      title: "Repeat It",
-      prompt: "Spot the repeating pattern — use Repeat so you don't rewrite steps.",
-      conceptFocus: "Loops — repeat without rewriting",
-      grid,
-      start,
-      goal,
-      maxSteps: 24,
-      parSteps: 10,
-    };
-  }
-
-  const size = 5;
-  const grid = blankGrid(size);
-  const start = { r: size - 1, c: 2, facing: 0 as Facing };
-  const goal = { r: 0, c: 2 };
-  placeWalls(grid, [[3, 1], [3, 3], [2, 2]]);
-  if (d >= 4) placeWalls(grid, [[1, 1], [1, 3]]);
-  grid[start.r]![start.c] = "S";
-  grid[goal.r]![goal.c] = "G";
-  return {
-    id: nextId++,
-    band,
-    difficulty: d,
-    title: "Decide It",
-    prompt: "A wall may be ahead — peek with If clear, or turn around it.",
-    conceptFocus: "Conditionals — decide before you move",
-    grid,
-    start,
-    goal,
-    maxSteps: 26,
-    parSteps: 12,
-  };
-}
 
 /** Minimal, coach-facing record of a finished micro-challenge. */
 export type CodingResultNote = {
@@ -565,7 +495,11 @@ export function codingResultPromptNote(note: CodingResultNote): string {
       ? "loops"
       : note.concept === "conditional"
         ? "conditionals"
-        : "sequence/order";
+        : note.concept === "compose"
+          ? "combining loops + conditionals"
+          : note.concept === "python"
+            ? "translating blocks to Python"
+            : "sequence/order";
   return (
     `The student just ran a Code Spark micro-challenge on ${conceptLabel} ` +
     `("${note.levelTitle}", ${note.mode}): outcome=${note.outcome}, stars=${note.stars}, ` +

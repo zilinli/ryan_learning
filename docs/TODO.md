@@ -50,7 +50,24 @@
 - [x] **CS.v4.5** — `ChatThread` CollabPanels 分支 + `onCodingResult` 透传（TutorShell）
 - [x] **CS.v4.6** — `useTutorSession`：`codingContextRef` + `handleCodingResult` + `coachNote` 注入
 - [x] **CS.v4.7** — 单测（concept / micro-level / intent coding / suggestCodeSparkFull）+ run_tests
-- [ ] **CS.v4.8** — apply_changes → publish_develop → deploy_live → push develop + master
+- [x] **CS.v4.8** — apply_changes → publish_develop → deploy_live → push develop + master
+
+### CODE-SPARK v5 — Curriculum refactor（概念课程 + 掌握度路径 + 脚手架 + 提示阶梯）· 2026-08-16
+
+> **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  
+> **Research:** Code.org（一关一概念 / 积木限制脚手架 / 两次尝试一次提示）、Scratch（低门槛高天花板宽墙）、CodeCombat（每关一个语法点 + 提示）、Brilliant（Learning Paths 有序概念）、Duolingo（掌握度门控 + 间隔复习）、Parsons problems（打乱积木排序 = 低认知负荷脚手架）。  
+> **Goal:** 把「随机迷宫 + 积木调色板」重构为「一个概念一门微课 + Learn→Parsons→Apply + 3 级提示阶梯 + BKT/SM-2 掌握度门控」，并让主对话微挑战与整课同源同进度。
+
+- [x] **CS.v5.1** — 新建 `code-spark-curriculum.ts`：5 节点课程图（前置依赖 + Learn worked/narration + Parsons 素材 + Apply 关）
+- [x] **CS.v5.2** — `code-spark.ts`：`CodeConcept` 扩为 5 值；`generateMicroLevel` 改取课程节点；新增 `hintLadder` / `narrateStep` / `conceptSkillSeed`；删除 ad-hoc 关卡
+- [x] **CS.v5.3** — `skill-catalog.ts`：`subject` 增 `cs`；新增 5 条 `cs-*` SkillDef（`requires` 对应前置，`re` 匹配概念关键词）；`dashboard-stats` SUBJECT_LABELS 增 Coding
+- [x] **CS.v5.4** — `CodeSparkGame.tsx`：Duolingo 式路径条（锁定/可学/已掌握/待复习）+ Learn→Parsons→Apply 状态机 + 3 级提示阶梯 + 概念 BKT 记录
+- [x] **CS.v5.5** — `InlineCodingCard.tsx`：复用课程 `generateMicroLevel` / `conceptSkillSeed`，删除内联 ad-hoc 关卡
+- [x] **CS.v5.6** — 单测：curriculum 图完整性 / hintLadder / narrateStep / cs-* 门控 / generateMicroLevel 课程化
+- [x] **CS.v5.7** — 文档升 v5 + 本 TODO 清单
+- [ ] **CS.v5.8** — npm test → deploy_live → push develop + master
+
+> **Follow-up（暂缓）：** Create 自由创作沙盒（Scratch 宽墙）、debug 修复关（给 buggy 程序找错）、变量/函数进阶概念、课程节点跨会话记忆面板（已掌握/待复习可视化）。
 
 ---
 

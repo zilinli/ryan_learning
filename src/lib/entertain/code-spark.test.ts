@@ -9,7 +9,6 @@ import {
   conceptFromText,
   defaultEditorMode,
   generateLevel,
-  generateMicroLevel,
   opsToPython,
   parsePythonProgram,
   rateStars,
@@ -20,6 +19,7 @@ import {
   type CodeOp,
   type CodingResultNote,
 } from "./code-spark";
+import { generateMicroLevel } from "./code-spark-curriculum";
 
 describe("bandFromProfile", () => {
   it("maps early by grade or age", () => {

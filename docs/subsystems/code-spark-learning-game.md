@@ -1,6 +1,6 @@
-# Code Spark — Blocks-first 闯关 + Python Bridge (+ Brilliant coaching + conversational tiers)
+# Code Spark — 概念课程 + 掌握度路径 + 脚手架 + 提示阶梯（blocks-first + Python Bridge + Brilliant coaching）
 
-> Date: 2026-08-16 · Status: shipping (v4 conversational coding tiers)  
+> Date: 2026-08-16 · Status: shipping (v5 concept curriculum)  
 > GameId: `code-spark` · First card in Learning Games on `/entertain`  
 > Research seeds:
 > - [知乎 · 5–14岁 8 个免费国外编程站](https://zhuanlan.zhihu.com/p/148424141)
@@ -140,3 +140,116 @@ Code.org / Scratch / Blockly（一关一概念、即时 Run）、CodeCombat（Py
 - `code-spark.test.ts`：`conceptFromText` 中英映射、`bandForConcept`、`generateMicroLevel` 概念对齐、`codingResultPromptNote`。
 - `intent-fence.test.ts`：micro / full 兜底、概念映射、`coding` fence parse。
 - `game-recommend.test.ts`：`suggestCodeSparkFull` 整课文案。
+
+---
+
+## v5 — Concept curriculum + lesson loop + mastery gating (2026-08-16)
+
+### Problem
+
+v4 的「三级卡片」只是交互层，游戏本体仍是「随机迷宫生成器 + 积木调色板」：`generateLevel(band, difficulty)` 按年龄出随机关，与学生问题无关；没有课程、没有 worked example、没有提示阶梯、没有掌握度门控；BKT 目录里零编程技能（跑关都落到 `general-practice`）。所以「和之前没区别」。
+
+### Research conclusion
+
+对齐成熟产品的共同范式：编程学习 = **「一个概念一门微课」+「Learn（看例）→ Parsons（排序）→ Apply（手写）」+「提示阶梯」+「掌握度门控 + 间隔复习」**，不是掉进一个随机迷宫。
+
+| Product | Signal | Mapping |
+|---------|--------|---------|
+| Code.org | 一关一概念、积木限制做脚手架、卡住时两次尝试一次提示 | 每节点一个概念 + `availableOps(band)` 限制积木 + 3 级提示阶梯 |
+| Scratch (Resnick) | 低门槛 / 高天花板 / 宽墙 | 保留 Blocks 默认；Create 沙盒列为 follow-up |
+| CodeCombat | 每关一个语法点 + 提示/样例代码 | Apply 关每关一个 conceptFocus + hint |
+| Brilliant | Learning Paths：有序概念 + checkpoint | 5 节点课程图 + 前置依赖 + Learn worked example |
+| Duolingo | 掌握度门控线性路径 + 间隔复习内置进路径 | BKT P(known) + SM-2 门控路径，待复习节点带 ↻ 徽标 |
+| Parsons problems | 打乱积木排序 = 与手写同等有效但认知负荷更低 | Learn→**Parsons**→Apply 中间脚手架 |
+
+### Target architecture
+
+```mermaid
+flowchart TD
+  A["CodeCurriculum: 5 概念节点(含前置依赖)"] --> B["PathStrip: 锁定/可学/已掌握/待复习"]
+  B --> C["LessonLoop: Learn → Parsons → Apply"]
+  C --> C1["Learn: 逐帧动画 + 每步白话旁白(worked example)"]
+  C --> C2["Parsons: 打乱积木排序(低认知负荷脚手架)"]
+  C --> C3["Apply: 从零手写 + 3 级提示阶梯"]
+  C3 --> H["Hint L1 概念 / L2 结构 / L3 降级为 Parsons"]
+  C3 --> R["Run → validateProgram"]
+  R --> M["recordStudioLearningTurn → 概念 BKT/SM-2"]
+  M --> B
+  A --> Micro["InlineCodingCard: 复用同概念 Apply 节点"]
+  Micro --> M
+```
+
+### Data model
+
+`src/lib/entertain/code-spark-curriculum.ts`：
+
+```ts
+export type CodeConcept = "sequence" | "loop" | "conditional" | "compose" | "python";
+export type CodeLessonPhase = "learn" | "parsons" | "apply" | "done";
+export type StepNarration = { op: CodeOp; line: string };
+
+export type CurriculumNode = {
+  id: string;              // cs-sequence 等，对应 BKT skill id
+  concept: CodeConcept;
+  label: string;           // Order / Repeat / Decide / Combine / Translate
+  trackLabel: string;
+  prereqs: string[];
+  learn: { title; explanation; level: CodeLevel; worked: CodeOp[]; narration: StepNarration[] };
+  parsons: { level: CodeLevel; solution: CodeOp[] };
+  apply: CodeLevel[];      // 1..3 递增难度手写关
+};
+
+export function getCurriculum(): CurriculumNode[];
+export function nodeForConcept(c: CodeConcept): CurriculumNode;
+export function generateMicroLevel(concept, difficulty): CodeLevel; // 取课程 Apply 关
+export function hintLadder(node, phase, attempt): string;            // L1 概念 / L2 结构 / L3 降级 Parsons
+export function narrateStep(op, snapshot): string;                  // 跑关每步白话
+export function conceptSkillSeed(concept): string;                  // 锁 cs-* 技能
+```
+
+课程图（`prereqs` 复用 `requires` / `prerequisitesSatisfied`）：
+
+- `cs-sequence` (Order) — 无前置
+- `cs-loop` (Repeat) — 前置 `cs-sequence`
+- `cs-conditional` (Decide) — 前置 `cs-sequence`
+- `cs-compose` (Combine: repeat + ifClear) — 前置 `cs-loop` + `cs-conditional`
+- `cs-python` (Translate: blocks→Python) — 前置 `cs-loop` + `cs-conditional`
+
+### Skill catalog (BKT)
+
+- `SkillDef.subject` 增 `"cs"`；新增 5 条 `cs-*`（`topicId: "coding"`）。
+- `requires` 与课程前置一一对应；`re` 匹配概念关键词（`loop|repeat|for range|循环|重复` → `cs-loop`；`conditional|if clear|branch|条件|判断` → `cs-conditional`），刻意避免裸 `\bif\b`（英语太常见，会污染无关文本）。
+- 跑关用 `recordStudioLearningTurn({ skillSeed: conceptSkillSeed(concept) })` 写概念级 BKT/SM-2；路径条据 `prerequisitesSatisfied` + `needsReviewSkills` 刷新。
+
+### Lesson loop (UI)
+
+`CodeSparkGame.tsx` 从「随机关 + Next mission」改为：
+
+1. **路径条**（Duolingo 式）：5 节点，锁定（🔒）/ 可学 / 已掌握（✓）/ 待复习（↻ 徽标）。
+2. **Learn**：`runProgram(learn.level, learn.worked)` 逐帧动画 + `narrateStep` 每步白话 + 「为什么」旁白列表；「Got it → Practice」。
+3. **Parsons**：打乱积木块池 + 排序槽，Run 校验；通关（或跳过）→ Apply。
+4. **Apply**：现有积木/ Python Bridge 编辑器 + 3 级提示阶梯按钮（L3 降级 Parsons）；Run → `validateProgram` → `recordStudioLearningTurn` → 路径条刷新。
+
+`InlineCodingCard.tsx`（主对话微挑战）改为调用同一 `generateMicroLevel` / `conceptSkillSeed`，与整课同源同进度。
+
+### Key files (v5)
+
+| File | Role |
+|------|------|
+| `src/lib/entertain/code-spark-curriculum.ts` | 课程图 + `hintLadder` / `narrateStep` / `conceptSkillSeed` / `generateMicroLevel` |
+| `src/lib/entertain/code-spark.ts` | `CodeConcept` 5 值；`bandForConcept`；引擎 `runProgram`/`validateProgram`（`generateMicroLevel` 迁出） |
+| `src/lib/skill-catalog.ts` | `subject: "cs"` + 5 条 `cs-*` SkillDef |
+| `src/components/CodeSparkGame.tsx` | 路径条 + Learn→Parsons→Apply 状态机 + 提示阶梯 + BKT 记录 |
+| `src/components/tutor/InlineCodingCard.tsx` | 复用课程节点；`onResult` 双向反馈不变 |
+
+### Test design (v5)
+
+- `code-spark-curriculum.test.ts`：图完整性（5 节点、前置存在且无环、旁白非空）；每节点 Learn/Parsons `runProgram` 通关；错误 Parsons 顺序不通关；`hintLadder` 三级递进；`narrateStep` 白话；`conceptSkillSeed` 锁 `cs-*`；`generateMicroLevel` 课程化 + 难度 clamp。
+- `skill-catalog.test.ts`：`cs-*` 门控（`requires` 链）、裸 `if` 不误触、显式关键词命中。
+- `code-spark.test.ts`：`bandForConcept` 扩展 compose/python。
+
+### Risks
+
+- 课程内容（worked/parsons/apply）为纯数据，若某关不可解会由「Learn/Parsons 通关」单测兜住。
+- 掌握度门控阈值沿用 `PREREQ_THRESHOLD = 0.6` / `MASTER = 0.8`（learning-memory 已有常量），新账号从 `cs-sequence` 起步。
+- Create 自由创作 / debug 修复关 / 变量函数进阶列为 follow-up（见 `docs/TODO.md` CS.v5 follow-up）。

@@ -15,7 +15,7 @@ import {
 } from "./learning-memory";
 import { recommendAdjacent, type AdjacentRecommend } from "./adjacent-recommend";
 
-export type SubjectKey = "math" | "science" | "ela" | "humanities" | "language" | "general";
+export type SubjectKey = "math" | "science" | "ela" | "humanities" | "language" | "general" | "cs";
 
 export const SUBJECT_LABELS: Record<SubjectKey, string> = {
   math: "Math",
@@ -24,6 +24,7 @@ export const SUBJECT_LABELS: Record<SubjectKey, string> = {
   humanities: "Humanities",
   language: "Language",
   general: "General",
+  cs: "Coding",
 };
 
 export type RadarPoint = {

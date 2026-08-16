@@ -7,7 +7,7 @@ export type SkillDef = {
   label: string;
   /** Coarse topic for backward-compatible topic list */
   topicId: string;
-  subject: "math" | "science" | "ela" | "humanities" | "language" | "general";
+  subject: "math" | "science" | "ela" | "humanities" | "language" | "general" | "cs";
   /** Minimum grade for this skill to appear */
   minGrade: number;
   /** Grade at which this skill is "core" (ZPD-weighted) */
@@ -556,6 +556,52 @@ export const SKILL_CATALOG: SkillDef[] = [
     subject: "general",
     minGrade: 11, coreGrade: 12, maxGrade: 12, band: "high",
     re: /\bresearch|dissertation|capstone|senior project|methodology|论文|研究|方法论/i,
+  },
+
+  // ── Code Spark concepts (grade-agnostic; BKT + curriculum path) ──
+  {
+    id: "cs-sequence",
+    label: "sequence (order of steps)",
+    topicId: "coding",
+    subject: "cs",
+    minGrade: 0, coreGrade: 3, maxGrade: 12, band: "early",
+    re: /\bsequence|order of steps|step order|顺序|步骤顺序/i,
+  },
+  {
+    id: "cs-loop",
+    label: "loops (repeat)",
+    topicId: "coding",
+    subject: "cs",
+    minGrade: 0, coreGrade: 3, maxGrade: 12, band: "elementary",
+    requires: ["cs-sequence"],
+    re: /\bloop|repeat|for range|for i in range|循环|重复|迭代/i,
+  },
+  {
+    id: "cs-conditional",
+    label: "conditionals (if)",
+    topicId: "coding",
+    subject: "cs",
+    minGrade: 0, coreGrade: 3, maxGrade: 12, band: "middle",
+    requires: ["cs-sequence"],
+    re: /\bconditional|if clear|branch|algorithmic thinking|条件|判断|分支/i,
+  },
+  {
+    id: "cs-compose",
+    label: "compose (nested loop + conditional)",
+    topicId: "coding",
+    subject: "cs",
+    minGrade: 0, coreGrade: 3, maxGrade: 12, band: "middle",
+    requires: ["cs-loop", "cs-conditional"],
+    re: /\bcompose|combine|nested loop|nested conditional|组合|嵌套/i,
+  },
+  {
+    id: "cs-python",
+    label: "python (blocks → text)",
+    topicId: "coding",
+    subject: "cs",
+    minGrade: 0, coreGrade: 4, maxGrade: 12, band: "high",
+    requires: ["cs-loop", "cs-conditional"],
+    re: /\bpython|text bridge|syntax|translate|缩进|语法/i,
   },
 ];
 

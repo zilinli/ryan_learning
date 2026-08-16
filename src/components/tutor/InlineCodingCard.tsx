@@ -4,10 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   availableOps,
   bandForConcept,
-  codeSparkSkillSeed,
   countOps,
   difficultyFromPKnown,
-  generateMicroLevel,
   opLabel,
   opsToPython,
   validateProgram,
@@ -17,6 +15,10 @@ import {
   type CodeResult,
   type CodingResultNote,
 } from "@/lib/entertain/code-spark";
+import {
+  conceptSkillSeed,
+  generateMicroLevel,
+} from "@/lib/entertain/code-spark-curriculum";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { loadLearningMemory } from "@/lib/learning-memory";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
@@ -141,7 +143,7 @@ export function InlineCodingCard({
       source: "game",
       title: `Code Spark · micro · ${concept} · ${level.title}`,
       userText: `blocks ops=${countOps(program)} → ${res.run.reason} ★${res.stars}`,
-      skillSeed: codeSparkSkillSeed(level),
+      skillSeed: conceptSkillSeed(concept),
       outcome: res.outcome,
     });
   }, [program, level, concept, acct, onResult]);
