@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FILE_INPUT_ACCEPT } from "@/lib/attachments";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
@@ -11,8 +11,13 @@ import {
 import { estimateVideoDurationSec } from "@/lib/deapi-client";
 import { compressImageDataUrl } from "@/lib/image-process";
 import type { SttLang } from "@/lib/stt-lang";
-import type { BasisCoachReport, WritingType } from "@/lib/entertain/basis-writing";
+import type {
+  BasisCoachReport,
+  BasisDimensionId,
+  WritingType,
+} from "@/lib/entertain/basis-writing";
 import {
+  BASIS_DIMENSION_META,
   draftStats,
   structureCtaLabel,
   WRITING_TYPES,
@@ -60,6 +65,13 @@ const TEXT_FILE_EXT = /\.(txt|md|markdown|csv|json|log)$/i;
 
 const selectClass =
   "min-h-10 max-w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-xs font-medium text-[var(--ink)] outline-none focus:border-[var(--teal)]";
+
+function dimColor(dim: BasisDimensionId): string {
+  if (dim === "detail") return "var(--coral)";
+  if (dim === "vocab") return "#c4a35a";
+  if (dim === "grammar") return "var(--teal)";
+  return "#5b7c99";
+}
 
 function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -109,12 +121,20 @@ export function WritingStudio() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [padStatus, setPadStatus] = useState<string | null>(null);
+  const [padCoachReady, setPadCoachReady] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [sttLang, setSttLang] = useState<SttLang>("auto");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [liveCoachBusy, setLiveCoachBusy] = useState(false);
+  /** Applied-edit undo stack (up to 5 versions) */
+  const draftHistoryRef = useRef<string[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  /** Overall scores from coach runs, for the trend bar */
+  const [scoreHistory, setScoreHistory] = useState<number[]>([]);
+  /** Pad-highlight target set by evidence / spot jumps */
+  const [activeFixId, setActiveFixId] = useState<string | null>(null);
 
   const coachAbortRef = useRef<AbortController | null>(null);
   const coachGenRef = useRef(0);
@@ -306,31 +326,45 @@ export function WritingStudio() {
       setCoach(coachText);
       if (report) {
         setCoachReport(report);
+        setScoreHistory((hist) => [...hist, report.overall].slice(-10));
         const queue = buildWritingFixIssues(draftRef.current, report, 8);
         setFixIssues(queue);
+        setActiveFixId(null);
       } else {
         setCoachReport(null);
         setFixIssues([]);
+        setActiveFixId(null);
       }
       if (opts?.openMentor) {
         const draftSnap = draftRef.current.trim();
         const force = opts.forceNewSession === true;
         const midChat = mentorUserActiveRef.current && mentorOpenRef.current;
-        if (force || !midChat) {
-          if (
-            force ||
-            !mentorOpenRef.current ||
-            draftSnap !== lastAutoMentorDraftRef.current
-          ) {
-            setMentorSessionKey((k) => k + 1);
-            lastAutoMentorDraftRef.current = draftSnap;
-            setMentorUserActive(false);
-          }
-          setMentorOpen(true);
+        const isMobile =
+          typeof window !== "undefined" && window.innerWidth < 768;
+        if (isMobile && !force && !midChat) {
+          // Auto-coach on mobile: keep the student writing, show a
+          // non-modal banner on the pad instead of force-switching tabs.
+          setPadCoachReady(true);
+          setMentorOpen(false);
           setFixOpen(false);
-          setShowHighlights(false);
-          setMobileTab("feedback");
-          padTextareaRef.current?.blur();
+        } else {
+          setPadCoachReady(false);
+          if (force || !midChat) {
+            if (
+              force ||
+              !mentorOpenRef.current ||
+              draftSnap !== lastAutoMentorDraftRef.current
+            ) {
+              setMentorSessionKey((k) => k + 1);
+              lastAutoMentorDraftRef.current = draftSnap;
+              setMentorUserActive(false);
+            }
+            setMentorOpen(true);
+            setFixOpen(false);
+            setShowHighlights(false);
+            setMobileTab("feedback");
+            padTextareaRef.current?.blur();
+          }
         }
       }
       if (
@@ -349,6 +383,54 @@ export function WritingStudio() {
       }
     },
     [],
+  );
+
+  /** Apply a revision from a fix/mentor dialogue, recording the old draft for undo. */
+  const applyDraftWithHistory = useCallback((next: string) => {
+    draftHistoryRef.current = [...draftHistoryRef.current, draftRef.current].slice(
+      -5,
+    );
+    setCanUndo(true);
+    setDraft(next);
+  }, []);
+
+  const undoDraft = useCallback(() => {
+    const hist = draftHistoryRef.current;
+    if (!hist.length) return;
+    const prev = hist[hist.length - 1];
+    draftHistoryRef.current = hist.slice(0, -1);
+    setCanUndo(draftHistoryRef.current.length > 0);
+    setDraft(prev);
+  }, []);
+
+  const jumpToEvidence = useCallback(
+    (dim: BasisDimensionId) => {
+      const first = fixIssues.find(
+        (i) => i.dimension === dim && i.status === "open",
+      );
+      setActiveFixId(first?.id ?? null);
+      setShowHighlights(true);
+      setMobileTab("write");
+      setFixOpen(false);
+      setMentorOpen(false);
+      padTextareaRef.current?.blur();
+    },
+    [fixIssues],
+  );
+
+  const openFixDimension = useCallback(
+    (dim: BasisDimensionId) => {
+      const first = fixIssues.find(
+        (i) => i.dimension === dim && i.status === "open",
+      );
+      setActiveFixId(first?.id ?? null);
+      setFixOpen(true);
+      setMentorOpen(false);
+      setShowHighlights(true);
+      setMobileTab("write");
+      padTextareaRef.current?.blur();
+    },
+    [fixIssues],
   );
 
   const runCoach = useCallback(
@@ -424,6 +506,7 @@ export function WritingStudio() {
       coachAbortRef.current?.abort();
       coachAbortRef.current = null;
       setLiveCoachBusy(false);
+      setPadCoachReady(false);
       setPadStatus((s) =>
         s === "Coach ready soon…" || s === "Live coach…" ? null : s,
       );
@@ -432,6 +515,7 @@ export function WritingStudio() {
 
     coachAbortRef.current?.abort();
     setLiveCoachBusy(false);
+    setPadCoachReady(false);
     setPadStatus((s) =>
       s === "Coach ready soon…" || s === "Live coach…" ? null : s,
     );
@@ -833,6 +917,17 @@ export function WritingStudio() {
     !openSpotMarks && grammarMatches.length > 0 && showHighlights;
   const showMarksPane = openSpotMarks || showGrammarOverlay;
 
+  const openFixCounts = useMemo(() => {
+    const counts: Partial<Record<BasisDimensionId, number>> = {};
+    for (const i of fixIssues) {
+      if (i.status !== "open") continue;
+      counts[i.dimension] = (counts[i.dimension] ?? 0) + 1;
+    }
+    return counts;
+  }, [fixIssues]);
+
+  const allFixResolved = fixIssues.length > 0 && openFixCount === 0;
+
   const feedbackBody = (
     <>
       {mentorOpen && !fixOpen && (
@@ -853,6 +948,11 @@ export function WritingStudio() {
               setShowHighlights(true);
               setMobileTab("write");
             }}
+            issues={fixIssues}
+            onIssuesChange={setFixIssues}
+            onApplyEdit={applyDraftWithHistory}
+            canUndo={canUndo}
+            onUndo={undoDraft}
           />
         </div>
       )}
@@ -863,6 +963,9 @@ export function WritingStudio() {
             draft={draft}
             onIssuesChange={setFixIssues}
             onDraftChange={setDraft}
+            onApplyEdit={applyDraftWithHistory}
+            canUndo={canUndo}
+            onUndo={undoDraft}
             onClose={() => {
               setFixOpen(false);
               if (coachReport || coach) setMentorOpen(true);
@@ -870,34 +973,86 @@ export function WritingStudio() {
           />
         </div>
       )}
-      {!mentorOpen &&
-        !fixOpen &&
-        (coachReport ? (
-          <WritingCoachPanel
-            report={coachReport}
-            fallbackText={coach}
-            onTalk={() => {
-              setFixOpen(false);
-              setMentorOpen(true);
-            }}
-          />
-        ) : coach ? (
-          <div className="mt-2 space-y-2 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
-            <p className="whitespace-pre-wrap">{coach}</p>
-            <button
-              type="button"
-              onClick={() => setMentorOpen(true)}
-              className="min-h-10 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white"
-            >
-              Answer in coach chat
-            </button>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-[var(--ink-muted)]">
-            Tap <span className="font-semibold text-[var(--teal)]">Coach</span>{" "}
-            after a few lines — feedback lands here so you can keep writing.
-          </p>
-        ))}
+      {!mentorOpen && !fixOpen && (
+        <>
+          {coachReport ? (
+            <>
+              <WritingCoachPanel
+                report={coachReport}
+                fallbackText={coach}
+                scoreHistory={scoreHistory}
+                openFixCounts={openFixCounts}
+                onEvidenceClick={jumpToEvidence}
+                onFixThis={openFixDimension}
+              />
+              {openFixCount > 0 && (
+                <ul className="mt-3 space-y-1 rounded-xl border border-[var(--coral)]/25 bg-[var(--surface)] p-2">
+                  <li className="flex items-center justify-between px-1 pb-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--coral)]">
+                      What to fix
+                    </span>
+                    <span className="text-[10px] tabular-nums text-[var(--ink-muted)]">
+                      {openFixCount} spot{openFixCount === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                  {fixIssues
+                    .filter((i) => i.status === "open")
+                    .slice(0, 5)
+                    .map((i) => (
+                      <li key={i.id}>
+                        <button
+                          type="button"
+                          onClick={() => jumpToEvidence(i.dimension)}
+                          className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left hover:bg-black/[0.03]"
+                          title="Jump to this spot in the pad"
+                        >
+                          <span
+                            className="shrink-0 rounded px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-white"
+                            style={{ background: dimColor(i.dimension) }}
+                          >
+                            {BASIS_DIMENSION_META[i.dimension].shortLabel}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--ink)]/80">
+                            “{i.span}”
+                          </span>
+                          <span className="shrink-0 text-[10px] tabular-nums text-[var(--ink-muted)]">
+                            {i.severity}/5
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              {allFixResolved && (
+                <button
+                  type="button"
+                  disabled={busy === "coach"}
+                  onClick={() => void runCoach({ manual: true })}
+                  className="mt-3 min-h-10 w-full rounded-xl border border-[var(--teal)] px-3 text-sm font-semibold text-[var(--teal)] disabled:opacity-40"
+                >
+                  Run Coach to re-score
+                </button>
+              )}
+            </>
+          ) : coach ? (
+            <div className="mt-2 space-y-2 rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/10 p-3 text-sm leading-relaxed text-[var(--ink)]">
+              <p className="whitespace-pre-wrap">{coach}</p>
+              <button
+                type="button"
+                onClick={() => setMentorOpen(true)}
+                className="min-h-10 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white"
+              >
+                Answer in coach chat
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[var(--ink-muted)]">
+              Tap <span className="font-semibold text-[var(--teal)]">Coach</span>{" "}
+              after a few lines — feedback lands here so you can keep writing.
+            </p>
+          )}
+        </>
+      )}
     </>
   );
 
@@ -1006,7 +1161,8 @@ export function WritingStudio() {
                 draft={draft}
                 issues={openSpotMarks ? fixIssues : []}
                 grammarMatches={grammarMatches}
-                activeId={activeFix?.id}
+                activeId={activeFixId ?? activeFix?.id}
+                autoScrollId={activeFixId}
                 activeGrammarKey={activeGrammarKey}
                 onGrammarClick={onGrammarClick}
                 className="min-h-[180px]"
@@ -1219,6 +1375,19 @@ export function WritingStudio() {
                 ? "Reading…"
                 : padStatus || (liveCoachBusy ? "Live coach…" : null)}
             </p>
+          )}
+          {padCoachReady && (
+            <button
+              type="button"
+              onClick={() => {
+                setPadCoachReady(false);
+                setMobileTab("feedback");
+              }}
+              className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/10 px-3 py-2 text-left text-[11px] font-semibold text-[var(--teal)]"
+            >
+              <span>Coach ready — view feedback</span>
+              <span className="shrink-0">View →</span>
+            </button>
           )}
           {error && (
             <p className="mt-2 text-sm text-[var(--coral)]">{error}</p>

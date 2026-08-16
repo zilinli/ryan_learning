@@ -61,6 +61,25 @@ function parseTarget(raw: unknown): StudioStructureTarget {
   return "music";
 }
 
+/** Best-effort JSON parse that tolerates markdown fences and trailing text. */
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  const text = raw.replace(/^```[\w]*\n?|\n?```$/g, "").trim();
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    /* fall through to braces extract */
+  }
+  const m = /\{[\s\S]*\}/.exec(text);
+  if (!m) return null;
+  try {
+    const parsed = JSON.parse(m[0]);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 function localCoach(draft: string, target: StudioStructureTarget): string {
   if (target === "music") {
     return buildBasisCoachLocal(draft).summary;
@@ -159,6 +178,8 @@ export async function POST(req: Request) {
     craftTip?: string;
     focusIds?: string[];
     history?: Array<{ role?: string; text?: string }>;
+    openIssues?: Array<{ id?: string; span?: string; dimension?: string }>;
+    askedFocusIds?: string[];
   } = {};
   try {
     body = (await req.json()) as typeof body;
@@ -311,8 +332,25 @@ export async function POST(req: Request) {
           .slice(-10)
       : [];
     const craftTip = String(body.craftTip || "").trim().slice(0, 320);
+    const openIssues = Array.isArray(body.openIssues)
+      ? body.openIssues
+          .map((i) => ({
+            id: String(i.id || "").slice(0, 80),
+            span: String(i.span || "").trim().slice(0, 120),
+            dimension: String(i.dimension || "").trim().slice(0, 32),
+          }))
+          .filter((i) => i.id && i.span)
+          .slice(0, 8)
+      : [];
+    const askedFocusIds = Array.isArray(body.askedFocusIds)
+      ? body.askedFocusIds
+          .map((x) => String(x).trim().slice(0, 32))
+          .filter(Boolean)
+          .slice(0, 8)
+      : [];
     const localReport = buildBasisCoachLocal(draft);
     let reply = localMentorReply(studentReply, localReport, draft);
+    let edit: { spanId: string; replacement: string } | null = null;
     let agent: SDKAgent | null = null;
     try {
       agent = await Agent.create({
@@ -335,6 +373,8 @@ export async function POST(req: Request) {
             history,
             studentReply,
             craftTip: craftTip || localReport.craftTip,
+            openIssues,
+            askedFocusIds,
           }),
         },
         {
@@ -357,11 +397,31 @@ export async function POST(req: Request) {
           }
         }
       }
-      const cleaned = full
-        .replace(/^```[\w]*\n?|\n?```$/g, "")
-        .trim()
-        .slice(0, 900);
-      if (cleaned.length > 12) reply = cleaned;
+      const cleaned = full.replace(/^```[\w]*\n?|\n?```$/g, "").trim();
+      if (cleaned.length > 8) {
+        const parsed = parseJsonObject(cleaned);
+        const parsedReply = parsed && typeof parsed.reply === "string" ? parsed.reply : null;
+        if (parsedReply && parsedReply.trim().length > 0) {
+          reply = parsedReply.trim().slice(0, 900);
+          const rawEdit = parsed && parsed.edit;
+          if (rawEdit && typeof rawEdit === "object") {
+            const e = rawEdit as { spanId?: unknown; replacement?: unknown };
+            if (
+              typeof e.spanId === "string" &&
+              typeof e.replacement === "string" &&
+              e.replacement.trim() &&
+              openIssues.some((o) => o.id === e.spanId)
+            ) {
+              edit = {
+                spanId: e.spanId,
+                replacement: e.replacement.trim().slice(0, 400),
+              };
+            }
+          }
+        } else if (cleaned.length > 12) {
+          reply = cleaned.slice(0, 900);
+        }
+      }
     } catch {
       /* local mentor */
     } finally {
@@ -371,7 +431,7 @@ export async function POST(req: Request) {
         /* ignore */
       }
     }
-    return Response.json({ ok: true, reply, target });
+    return Response.json({ ok: true, reply, target, edit });
   }
 
   if (action === "structure") {

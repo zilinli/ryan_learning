@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetApiRateLimitForTests } from "@/lib/api-rate-limit";
+import type { SDKAgent } from "@cursor/sdk";
+import { Agent } from "@cursor/sdk";
 
 vi.mock("@cursor/sdk", () => ({
   Agent: {
@@ -9,6 +11,23 @@ vi.mock("@cursor/sdk", () => ({
   },
   CursorAgentError: class CursorAgentError extends Error {},
 }));
+
+/** Fake SDKAgent that streams one assistant text block. */
+function fakeAgent(text: string): SDKAgent {
+  return {
+    send: async () => ({
+      stream: async function* () {
+        yield {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text }],
+          },
+        };
+      },
+    }),
+    close: async () => {},
+  } as unknown as SDKAgent;
+}
 
 const DRAFT = [
   "Morning light on the desk",
@@ -209,5 +228,119 @@ describe("POST /api/writing-studio/coach — local fallback", () => {
     const { POST } = await import("./route");
     const res = await POST(coachReq({ action: "extract" }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/writing-studio/coach — mentor edit protocol", () => {
+  beforeEach(() => {
+    resetApiRateLimitForTests();
+    process.env.CURSOR_API_KEY = "test-key-for-mentor";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("passes through a structured edit when the agent returns JSON with a known spanId", async () => {
+    vi.mocked(Agent.create).mockResolvedValue(
+      fakeAgent(
+        JSON.stringify({
+          reply: "I can see it now — dashed down the road.",
+          edit: { spanId: "fix_vocab_1_3", replacement: "dashed down the road" },
+        }),
+      ),
+    );
+    const { POST } = await import("./route");
+    const res = await POST(
+      coachReq({
+        action: "mentor",
+        draft: "I ran things and stuff happened.",
+        genre: "Indie",
+        target: "music",
+        studentReply: "dashed down the road",
+        history: [{ role: "coach", text: "What word only you would use?" }],
+        openIssues: [
+          { id: "fix_vocab_1_3", span: "things", dimension: "vocab" },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.reply).toMatch(/dashed down the road/);
+    expect(data.edit).toEqual({
+      spanId: "fix_vocab_1_3",
+      replacement: "dashed down the road",
+    });
+  });
+
+  it("ignores edit whose spanId is not in the open issues list", async () => {
+    vi.mocked(Agent.create).mockResolvedValue(
+      fakeAgent(
+        JSON.stringify({
+          reply: "Let's tighten that line.",
+          edit: { spanId: "fix_vocab_9_9", replacement: "ghost edit" },
+        }),
+      ),
+    );
+    const { POST } = await import("./route");
+    const res = await POST(
+      coachReq({
+        action: "mentor",
+        draft: "I ran things and stuff happened.",
+        genre: "Indie",
+        target: "music",
+        studentReply: "dashed down the road",
+        history: [],
+        openIssues: [
+          { id: "fix_vocab_1_3", span: "things", dimension: "vocab" },
+        ],
+      }),
+    );
+    const data = await res.json();
+    expect(data.reply).toMatch(/tighten that line/);
+    expect(data.edit).toBeNull();
+  });
+
+  it("keeps a plain-text reply when the agent returns no JSON at all", async () => {
+    vi.mocked(Agent.create).mockResolvedValue(
+      fakeAgent(
+        "That's a sharper word. Can you use it in the next line?",
+      ),
+    );
+    const { POST } = await import("./route");
+    const res = await POST(
+      coachReq({
+        action: "mentor",
+        draft: "I ran things and stuff happened.",
+        genre: "Indie",
+        target: "music",
+        studentReply: "dashed down the road",
+        history: [],
+      }),
+    );
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.reply).toMatch(/sharper word/);
+    expect(data.edit).toBeNull();
+  });
+
+  it("falls back to the local mentor when the agent fails", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(
+      coachReq({
+        action: "mentor",
+        draft: "Things keep happening and stuff feels weird.",
+        genre: "Indie",
+        target: "music",
+        studentReply: "the cracked phone on the bus",
+        history: [],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.reply).toMatch(/\?/);
+    expect(data.edit).toBeNull();
   });
 });

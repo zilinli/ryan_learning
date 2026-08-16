@@ -99,6 +99,7 @@ flowchart TB
 | **[subsystems/ca-child-safe-and-voice-lazy.md](subsystems/ca-child-safe-and-voice-lazy.md)** | AUDIT8.7/8.8 — Code Agent safe chips + PIN for destructive; voice menu Core/More (no language removal) |
 | **[subsystems/formospeech-hakka-tts.md](subsystems/formospeech-hakka-tts.md)** | FormoSpeech Hakka TTS (offline presynth cache; no Cantonese fallback) |
 | **[subsystems/entertainments.md](subsystems/entertainments.md)** | Entertainments — board/arcade/puzzles + challenge AI (v0.6) |
+| **[subsystems/arcade-nfs-nintendo.md](subsystems/arcade-nfs-nintendo.md)** | Arcade pack — Nitro Rush (NFS vibe) · Sky Patrol (shmup) · Balloon Float · Snake |
 | **[subsystems/learning-games.md](subsystems/learning-games.md)** | 🚀 Learning Games — Fraction Voyager / Eco Genesis / Time Vault (mechanic-is-lesson, BKT loop) |
 | **[subsystems/physics-learning-games.md](subsystems/physics-learning-games.md)** | ⚛ Physics Learning Games — research + design (Force Bay P0; Energy Chain / Orbit Scout deferred) |
 | **[subsystems/learning-games-v2.md](subsystems/learning-games-v2.md)** | 🎨 Learning Games v2 — all six games UI + game-design redesign (de-emoji, single-accent dark UI, juice) — **design only** |

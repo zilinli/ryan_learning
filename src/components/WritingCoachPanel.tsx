@@ -12,8 +12,14 @@ type Props = {
   report: BasisCoachReport;
   /** Plain coach text fallback when report missing dimensions */
   fallbackText?: string | null;
-  /** Ask student to answer in the Spark coach chat */
-  onTalk?: () => void;
+  /** Jump to the pad highlight for a dimension's evidence */
+  onEvidenceClick?: (dimensionId: BasisDimensionId) => void;
+  /** Open the spot-fix queue for a dimension */
+  onFixThis?: (dimensionId: BasisDimensionId) => void;
+  /** Number of open spot fixes per dimension */
+  openFixCounts?: Partial<Record<BasisDimensionId, number>>;
+  /** Overall scores from previous coach runs (trend bar) */
+  scoreHistory?: number[];
 };
 
 function levelColor(level: BasisLevel): string {
@@ -34,7 +40,14 @@ function scoreLabel(score: number): string {
   return "OK";
 }
 
-export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
+export function WritingCoachPanel({
+  report,
+  fallbackText,
+  onEvidenceClick,
+  onFixThis,
+  openFixCounts = {},
+  scoreHistory = [],
+}: Props) {
   const [dimsOpen, setDimsOpen] = useState(() =>
     Boolean(report?.focusIds?.length),
   );
@@ -50,7 +63,10 @@ export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
 
   const focusSet = new Set<BasisDimensionId>(report.focusIds);
   const pct = Math.round((report.overall / 5) * 100);
-  const firstQ = report.questions[0];
+  const delta =
+    scoreHistory.length >= 2
+      ? Number((report.overall - scoreHistory[scoreHistory.length - 2]!).toFixed(1))
+      : null;
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
@@ -82,30 +98,26 @@ export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
             {report.stats.words} words · {report.stats.sentences} sent. ·{" "}
             {Math.round(report.stats.uniqueRatio * 100)}% unique
           </p>
+          {scoreHistory.length >= 2 && delta !== null && (
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-[var(--ink-muted)]">
+              <span className="font-mono">
+                {scoreHistory
+                  .slice(-4)
+                  .map((s) => s.toFixed(1))
+                  .join(" → ")}
+              </span>
+              <span
+                className={`rounded px-1 py-px text-[10px] font-semibold ${
+                  delta >= 0
+                    ? "bg-[var(--teal)]/12 text-[var(--teal)]"
+                    : "bg-[var(--coral)]/12 text-[var(--coral)]"
+                }`}
+              >
+                {delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)} vs last
+              </span>
+            </p>
+          )}
         </div>
-      </div>
-
-      {/* Mentor CTA — questions live in chat, not a static dump */}
-      <div className="space-y-2 border-b border-[var(--line)] bg-[var(--teal)]/5 px-3 py-3 sm:px-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--teal)]">
-          Think with Spark
-        </p>
-        {firstQ ? (
-          <p className="text-sm leading-snug text-[var(--ink)]">{firstQ}</p>
-        ) : (
-          <p className="text-sm leading-snug text-[var(--ink)]">
-            {report.craftTip}
-          </p>
-        )}
-        {onTalk && (
-          <button
-            type="button"
-            onClick={onTalk}
-            className="mt-1 min-h-10 w-full rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white sm:w-auto"
-          >
-            Answer in coach chat
-          </button>
-        )}
       </div>
 
       <button
@@ -125,6 +137,7 @@ export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
             const focused = focusSet.has(d.id);
             const help = BASIS_DIMENSION_META[d.id].help;
             const fill = (d.score / 5) * 100;
+            const fixCount = openFixCounts[d.id] ?? 0;
             return (
               <li
                 key={d.id}
@@ -171,12 +184,28 @@ export function WritingCoachPanel({ report, fallbackText, onTalk }: Props) {
                 </div>
                 <p className="mt-1.5 text-[12px] leading-snug text-[var(--ink-muted)]">
                   {d.tip}
-                  {d.evidence ? (
-                    <span className="mt-0.5 block font-mono text-[11px] text-[var(--ink)]/70">
-                      “{d.evidence}”
-                    </span>
-                  ) : null}
                 </p>
+                {d.evidence ? (
+                  <button
+                    type="button"
+                    onClick={() => onEvidenceClick?.(d.id)}
+                    className="mt-0.5 block max-w-full truncate rounded-md px-1 py-px text-left font-mono text-[11px] text-[var(--ink)]/70 hover:bg-black/[0.04] hover:text-[var(--teal)]"
+                    title={`Jump to “${d.evidence}” in the pad`}
+                  >
+                    “{d.evidence}”
+                  </button>
+                ) : null}
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {onFixThis && fixCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onFixThis(d.id)}
+                      className="min-h-8 rounded-lg border border-[var(--coral)]/40 bg-[var(--coral)]/10 px-2.5 text-[11px] font-semibold text-[var(--coral)]"
+                    >
+                      Fix this · {fixCount}
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}

@@ -6,6 +6,10 @@ import { ChessGame } from "./ChessGame";
 import { XiangqiGame } from "./XiangqiGame";
 import { GoGame } from "./GoGame";
 import { TetrisGame } from "./TetrisGame";
+import { NitroRushGame } from "./NitroRushGame";
+import { SkyPatrolGame } from "./SkyPatrolGame";
+import { BalloonFloatGame } from "./BalloonFloatGame";
+import { SnakeGame } from "./SnakeGame";
 import { SudokuGame } from "./SudokuGame";
 import { SokobanGame } from "./SokobanGame";
 import { KlotskiGame } from "./KlotskiGame";
@@ -50,6 +54,10 @@ const GAMES: GameInfo[] = [
   { id: "xiangqi", title: "Chinese Chess", desc: "象棋 — local AI, 3 levels", icon: "帥", category: "Board Games" },
   { id: "go", title: "Go", desc: "围棋 9×9 — local AI, 3 levels", icon: "⚫", category: "Board Games" },
   { id: "blocks", title: "Blocks", desc: "Falling blocks — clear lines", icon: "▦", category: "Arcade" },
+  { id: "nitro-rush", title: "Nitro Rush", desc: "NFS-style lane racing — dodge traffic, hold nitro", icon: "🏎", category: "Arcade" },
+  { id: "sky-patrol", title: "Sky Patrol", desc: "Nintendo-style plane battle — weave and fire", icon: "✈", category: "Arcade" },
+  { id: "balloon-float", title: "Balloon Float", desc: "Balloon Fight vibe — flap, drift, pop rivals", icon: "🎈", category: "Arcade" },
+  { id: "snake", title: "Snake", desc: "Classic arcade snake — eat and grow", icon: "🐍", category: "Arcade" },
   { id: "sudoku", title: "Sudoku", desc: "Classic number placement puzzle", icon: "9", category: "Logic Puzzles" },
   { id: "sokoban", title: "Sokoban", desc: "Push boxes to targets", icon: "📦", category: "Logic Puzzles" },
   { id: "klotski", title: "Klotski", desc: "华容道 — free Cao Cao", icon: "曹", category: "Logic Puzzles" },
@@ -122,6 +130,10 @@ const TITLES: Record<GameId, string> = {
   xiangqi: "Chinese Chess · 象棋",
   go: "Go · 围棋",
   blocks: "Blocks",
+  "nitro-rush": "Nitro Rush",
+  "sky-patrol": "Sky Patrol",
+  "balloon-float": "Balloon Float",
+  snake: "Snake",
   sudoku: "Sudoku",
   sokoban: "Sokoban · 推箱子",
   klotski: "Klotski · 华容道",
@@ -237,6 +249,10 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "xiangqi" && <XiangqiGame />}
         {activeGame === "go" && <GoGame />}
         {activeGame === "blocks" && <TetrisGame />}
+        {activeGame === "nitro-rush" && <NitroRushGame />}
+        {activeGame === "sky-patrol" && <SkyPatrolGame />}
+        {activeGame === "balloon-float" && <BalloonFloatGame />}
+        {activeGame === "snake" && <SnakeGame />}
         {activeGame === "sudoku" && <SudokuGame />}
         {activeGame === "sokoban" && <SokobanGame />}
         {activeGame === "klotski" && <KlotskiGame />}

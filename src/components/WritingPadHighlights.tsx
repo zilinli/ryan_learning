@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import type { BasisDimensionId } from "@/lib/entertain/basis-writing";
 import { openFixRanges, type WritingFixIssue } from "@/lib/entertain/basis-fix-session";
 import type { GrammarMatch } from "@/lib/entertain/languagetool";
@@ -13,6 +13,8 @@ type Props = {
   activeGrammarKey?: string | null;
   onGrammarClick?: (match: GrammarMatch, key: string) => void;
   className?: string;
+  /** When set, scroll the matching fix mark into view (desktop-first affordance) */
+  autoScrollId?: string | null;
 };
 
 function markClass(dim: BasisDimensionId, active: boolean): string {
@@ -64,7 +66,18 @@ export function WritingPadHighlights({
   activeGrammarKey,
   onGrammarClick,
   className = "",
+  autoScrollId = null,
 }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!autoScrollId) return;
+    const el = containerRef.current?.querySelector(
+      `[data-fix-id="${autoScrollId}"]`,
+    );
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [autoScrollId]);
+
   const ranges = useMemo(() => {
     const list: SpanRange[] = [];
     for (const r of openFixRanges(issues)) {
@@ -115,6 +128,7 @@ export function WritingPadHighlights({
         parts.push(
           <mark
             key={`m_${key++}`}
+            data-fix-id={r.fixId}
             className={`${markClass(r.dimension, r.fixId === activeId)} rounded-sm px-0.5`}
           >
             {slice}
@@ -156,6 +170,7 @@ export function WritingPadHighlights({
 
   return (
     <div
+      ref={containerRef}
       className={`rounded-lg border border-[var(--line)] bg-[#faf7f0] p-3 text-sm leading-relaxed text-[var(--ink)] dark:bg-[#1f1c18] ${className}`}
       aria-label="Writing pad with issue highlights"
     >

@@ -3,8 +3,10 @@ import { buildBasisCoachLocal } from "./basis-writing";
 import {
   applyWritingFix,
   buildWritingFixIssues,
+  mergeRevision,
   nextOpenFix,
   remainingFixCount,
+  type WritingFixIssue,
 } from "./basis-fix-session";
 
 const VAGUE = [
@@ -46,5 +48,77 @@ describe("basis-fix-session", () => {
     const next = applyWritingFix(VAGUE, issue, "cracked phone screen");
     expect(next).toContain("cracked phone screen");
     expect(next).not.toBe(VAGUE);
+  });
+
+  describe("mergeRevision", () => {
+    function issueOf(
+      draft: string,
+      span: string,
+      revisionType: WritingFixIssue["revisionType"],
+    ): WritingFixIssue {
+      const start = draft.indexOf(span);
+      expect(start).toBeGreaterThanOrEqual(0);
+      return {
+        id: "fix_test",
+        dimension: "vocab",
+        severity: 2,
+        span,
+        start,
+        end: start + span.length,
+        question: "q",
+        tip: "tip",
+        placeholder: "p",
+        revisionType,
+        status: "open",
+      };
+    }
+
+    it("word merge keeps single spaces and dedupes punctuation", () => {
+      const draft = "The thing and the rain.";
+      const issue = issueOf(draft, "thing", "word");
+      const next = mergeRevision(draft, issue, "door");
+      expect(next).toBe("The door and the rain.");
+    });
+
+    it("word merge preserves trailing punctuation without duplication", () => {
+      const draft = "I felt good about the thing.";
+      const issue = issueOf(draft, "thing", "word");
+      const next = mergeRevision(draft, issue, "door.");
+      expect(next).toBe("I felt good about the door.");
+    });
+
+    it("phrase merge trims and keeps surrounding sentence intact", () => {
+      const draft = "It happens everywhere, doing stuff.";
+      const issue = issueOf(draft, "doing stuff", "phrase");
+      const next = mergeRevision(draft, issue, "washing dishes at the sink");
+      expect(next).toBe("It happens everywhere, washing dishes at the sink.");
+    });
+
+    it("sentence merge replaces the whole sentence and adds a period", () => {
+      const draft = "Things keep happening until the end.";
+      const issue = issueOf(draft, "Things keep happening until the end.", "sentence");
+      const next = mergeRevision(draft, issue, "The bus pulls away as I run");
+      expect(next).toBe("The bus pulls away as I run.");
+    });
+
+    it("append adds a new line when no span is present", () => {
+      const draft = "First line.";
+      const issue = issueOf(draft, "First line.", "append");
+      const next = mergeRevision(draft, issue, "Second line");
+      expect(next).toBe("First line.\nSecond line");
+    });
+
+    it("falls back to append when the span has drifted after edits", () => {
+      const draft = "A very different draft now.";
+      const issue = issueOf("Things keep happening.", "Things keep happening.", "sentence");
+      const next = mergeRevision(draft, issue, "Nothing to see here");
+      expect(next).toBe("A very different draft now.\nNothing to see here");
+    });
+
+    it("returns draft unchanged for a blank answer", () => {
+      const draft = "The thing and the rain.";
+      const issue = issueOf(draft, "thing", "word");
+      expect(mergeRevision(draft, issue, "   ")).toBe(draft);
+    });
   });
 });

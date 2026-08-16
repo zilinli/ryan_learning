@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BasisDimensionId } from "@/lib/entertain/basis-writing";
 import { BASIS_DIMENSION_META } from "@/lib/entertain/basis-writing";
 import {
-  applyWritingFix,
+  clipRevisionContext,
+  mergeRevision,
   nextOpenFix,
   remainingFixCount,
+  revisionDiff,
   type WritingFixIssue,
 } from "@/lib/entertain/basis-fix-session";
 
@@ -16,12 +18,18 @@ type ChatTurn = {
   text: string;
 };
 
+const DIM_ORDER: BasisDimensionId[] = ["topic", "detail", "vocab", "grammar"];
+
 type Props = {
   issues: WritingFixIssue[];
   draft: string;
   onIssuesChange: (next: WritingFixIssue[]) => void;
   onDraftChange: (next: string) => void;
   onClose: () => void;
+  /** Record the previous draft so the parent can offer undo */
+  onApplyEdit?: (next: string, prev: string) => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
 };
 
 function dimColor(dim: BasisDimensionId): string {
@@ -31,25 +39,45 @@ function dimColor(dim: BasisDimensionId): string {
   return "#5b7c99";
 }
 
+function dimStatus(
+  issues: WritingFixIssue[],
+  dim: BasisDimensionId,
+): "none" | "open" | "done" {
+  const inDim = issues.filter((i) => i.dimension === dim);
+  if (!inDim.length) return "none";
+  return inDim.some((i) => i.status === "open") ? "open" : "done";
+}
+
 export function WritingFixDialogue({
   issues,
   draft,
   onIssuesChange,
   onDraftChange,
   onClose,
+  onApplyEdit,
+  canUndo = false,
+  onUndo,
 }: Props) {
   const current = nextOpenFix(issues);
   const remaining = remainingFixCount(issues);
   const fixed = issues.filter((i) => i.status === "fixed").length;
   const [reply, setReply] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const [busy, setBusy] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const askedRef = useRef<string | null>(null);
 
-  const meta = current
-    ? BASIS_DIMENSION_META[current.dimension]
-    : null;
+  const meta = current ? BASIS_DIMENSION_META[current.dimension] : null;
+
+  const preview = useMemo(() => {
+    if (!current) return null;
+    const text = reply.trim();
+    if (text.length < 2) return null;
+    const merged = mergeRevision(draft, current, text);
+    if (merged === draft) return null;
+    const diff = revisionDiff(draft, merged);
+    if (!diff.beforeMid && !diff.afterMid) return null;
+    return { merged, diff };
+  }, [current, draft, reply]);
 
   // Seed / advance coach question when current issue changes
   useEffect(() => {
@@ -86,7 +114,7 @@ export function WritingFixDialogue({
   useEffect(() => {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [turns, current]);
+  }, [turns, current, preview]);
 
   const progressLabel = useMemo(() => {
     if (!issues.length) return "No issues";
@@ -96,11 +124,9 @@ export function WritingFixDialogue({
   const applyCurrent = (mode: "fix" | "skip") => {
     if (!current) return;
     if (mode === "fix") {
-      const text = reply.trim();
-      if (text.length < 2) return;
-      setBusy(true);
-      const nextDraft = applyWritingFix(draft, current, text);
-      onDraftChange(nextDraft);
+      if (!preview) return;
+      if (onApplyEdit) onApplyEdit(preview.merged, draft);
+      else onDraftChange(preview.merged);
       const nextIssues = issues.map((i) => {
         if (i.id !== current.id) return i;
         return { ...i, status: "fixed" as const };
@@ -108,14 +134,14 @@ export function WritingFixDialogue({
       // Re-map later open spans after edit (best-effort by span text)
       const remapped = nextIssues.map((i) => {
         if (i.status !== "open" || !i.span) return i;
-        const idx = nextDraft.indexOf(i.span);
+        const idx = preview.merged.indexOf(i.span);
         if (idx < 0) return i;
         return { ...i, start: idx, end: idx + i.span.length };
       });
       onIssuesChange(remapped);
       setTurns((prev) => [
         ...prev,
-        { id: `a_${current.id}`, role: "you", text },
+        { id: `a_${current.id}`, role: "you", text: reply.trim() },
         {
           id: `ok_${current.id}`,
           role: "system",
@@ -123,7 +149,6 @@ export function WritingFixDialogue({
         },
       ]);
       setReply("");
-      setBusy(false);
       return;
     }
     // skip
@@ -150,7 +175,9 @@ export function WritingFixDialogue({
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--coral)]">
             Spot fixes
           </p>
-          <p className="truncate text-xs text-[var(--ink-muted)]">{progressLabel}</p>
+          <p className="truncate text-xs text-[var(--ink-muted)]">
+            {progressLabel}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -167,6 +194,43 @@ export function WritingFixDialogue({
             Close
           </button>
         </div>
+      </div>
+
+      {/* Dimension progress chips */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--line)] px-3 py-2">
+        {DIM_ORDER.map((dim) => {
+          const st = dimStatus(issues, dim);
+          const label = BASIS_DIMENSION_META[dim].shortLabel;
+          if (st === "none") {
+            return (
+              <span
+                key={dim}
+                className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]/60"
+              >
+                {label}
+              </span>
+            );
+          }
+          if (st === "done") {
+            return (
+              <span
+                key={dim}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-[var(--teal)]"
+              >
+                {label} ✓
+              </span>
+            );
+          }
+          return (
+            <span
+              key={dim}
+              className="rounded-md px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: `${dimColor(dim)}26`, color: dimColor(dim) }}
+            >
+              {label}
+            </span>
+          );
+        })}
       </div>
 
       {current && meta && (
@@ -221,6 +285,35 @@ export function WritingFixDialogue({
 
       {current ? (
         <div className="border-t border-[var(--line)] bg-[var(--surface-muted)]/40 p-2.5">
+          {preview && (
+            <div className="mb-2 space-y-1.5 rounded-xl border border-[var(--teal)]/25 bg-[var(--surface)] p-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--teal)]">
+                Preview
+              </p>
+              <p className="text-[12px] leading-snug text-[var(--ink-muted)]">
+                <span className="text-[var(--ink)]">
+                  {clipRevisionContext(preview.diff.head)}
+                </span>
+                <s className="rounded bg-[var(--coral)]/15 px-0.5 text-[var(--coral)]">
+                  {clipRevisionContext(preview.diff.beforeMid)}
+                </s>
+                <span className="text-[var(--ink)]">
+                  {clipRevisionContext(preview.diff.tail)}
+                </span>
+              </p>
+              <p className="text-[12px] leading-snug text-[var(--ink)]">
+                <span className="text-[var(--ink-muted)]">
+                  {clipRevisionContext(preview.diff.head)}
+                </span>
+                <mark className="rounded bg-[var(--teal)]/20 px-0.5 text-[var(--teal)]">
+                  {clipRevisionContext(preview.diff.afterMid)}
+                </mark>
+                <span className="text-[var(--ink-muted)]">
+                  {clipRevisionContext(preview.diff.tail)}
+                </span>
+              </p>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               value={reply}
@@ -231,21 +324,32 @@ export function WritingFixDialogue({
             />
             <button
               type="button"
-              disabled={busy || reply.trim().length < 2}
+              disabled={!preview}
               onClick={() => applyCurrent("fix")}
               className="min-h-11 shrink-0 rounded-xl bg-[var(--teal)] px-3 text-sm font-semibold text-white disabled:opacity-40"
+              title="Show what will change in the Preview first"
             >
               Apply
             </button>
           </div>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => applyCurrent("skip")}
-            className="mt-1.5 text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          >
-            Skip this one
-          </button>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => applyCurrent("skip")}
+              className="text-[11px] text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            >
+              Skip this one
+            </button>
+            {canUndo && onUndo ? (
+              <button
+                type="button"
+                onClick={onUndo}
+                className="text-[11px] font-medium text-[var(--coral)] hover:underline"
+              >
+                Undo last edit
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="border-t border-[var(--line)] p-2.5">

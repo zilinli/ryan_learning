@@ -11,6 +11,12 @@ export type MentorChatTurn = {
   text: string;
 };
 
+/** Optional structured edit a mentor turn can produce, anchored to a spot issue. */
+export type MentorEdit = {
+  spanId: string;
+  replacement: string;
+};
+
 export type MentorOpener = {
   text: string;
   focusId: BasisDimensionId;
@@ -147,6 +153,8 @@ export function mentorTurnAgentPrompt(params: {
   history: MentorChatTurn[];
   studentReply: string;
   craftTip?: string;
+  openIssues?: Array<{ id: string; span: string; dimension: string }>;
+  askedFocusIds?: string[];
 }): string {
   const focus =
     params.focusIds.map((id) => BASIS_DIMENSION_META[id].label).join(", ") ||
@@ -155,19 +163,51 @@ export function mentorTurnAgentPrompt(params: {
     .slice(-8)
     .map((t) => `${t.role === "coach" ? "Coach" : "Student"}: ${t.text}`)
     .join("\n");
+  const asked = params.askedFocusIds?.length
+    ? params.askedFocusIds.join(", ")
+    : "none yet";
+  const issuesLine = params.openIssues?.length
+    ? [
+        "",
+        "Open spot issues (spanId → span):",
+        ...params.openIssues.map(
+          (i) => `- ${i.id}: “${i.span}” (${i.dimension})`,
+        ),
+      ].join("\n")
+    : "";
+  const editSchema = JSON.stringify({
+    reply: "2–4 sentences, ends with a short closing line",
+    edit: {
+      spanId: "issue id from the list",
+      replacement: "the student's words, lightly tidied — never invent content",
+    },
+  });
+  const askSchema = JSON.stringify({
+    reply: "2–4 sentences ending with exactly one clear question",
+  });
 
   return [
     "You are Spark — a calm, patient writing tutor for an international-school student.",
     "Mirror homepage Think-first coaching for writing drafts:",
     "1) Specific praise for ONE thing in THEIR reply first (use their words);",
     "2) ONE clarifying question about feelings, detail, or clarity;",
-    "3) At most ONE tiny craft nudge using THEIR words — never rewrite their sentence for them;",
-    "4) STOP and wait. End with exactly one clear question.",
-    "Never dump a scored report. Never rewrite the whole draft. Never be babyish.",
-    "Keep it short: 2–4 sentences max, phone + voice friendly.",
+    "3) At most ONE tiny craft nudge using THEIR words — never rewrite their sentence for them.",
+    "Converge every turn into ONE of two shapes:",
+    "  A) another sharp question — ONLY if the student has NOT yet produced a concrete revision;",
+    "  B) a concrete edit action built from THEIR words — when their reply already says what to write.",
+    "Never repeat a question the student already answered.",
+    `Already discussed focus areas: ${asked}. Do NOT re-ask those.`,
+    "When you return an edit (shape B), output ONLY JSON (no markdown fences):",
+    editSchema,
+    "Otherwise output ONLY JSON (no markdown fences):",
+    askSchema,
+    "The edit.replacement must use the student's own words — light tidying only.",
+    issuesLine,
     `Stage target: ${params.target}. Genre vibe: ${params.genre}.`,
     `Current focus: ${focus}.`,
-    params.craftTip ? `Optional craft nudge in pocket (use lightly): ${params.craftTip}` : "",
+    params.craftTip
+      ? `Optional craft nudge in pocket (use lightly): ${params.craftTip}`
+      : "",
     "",
     "Current draft:",
     params.draft.slice(0, 3500),
@@ -178,7 +218,7 @@ export function mentorTurnAgentPrompt(params: {
     "Student just said:",
     params.studentReply.slice(0, 1200),
     "",
-    "Reply as Coach only (plain text, no JSON, no markdown fences).",
+    "Reply as Coach only (JSON, no markdown).",
   ]
     .filter(Boolean)
     .join("\n");

@@ -1,5 +1,15 @@
 # 📋 Downstream Development TODO
 
+## 🏎️ ARCADE-NFS — Nitro Rush · Sky Patrol · Balloon Float · Snake（2026-08-16）
+
+Design: [arcade-nfs-nintendo.md](subsystems/arcade-nfs-nintendo.md)
+
+- [x] **ARC.1** — Engines: `nitro-rush` / `sky-patrol` / `balloon-float` + unit tests
+- [x] **ARC.2** — UI components + register on EntertainPage Arcade (+ Snake)
+- [x] **ARC.3** — `GameId` / TITLES / types; run_tests green
+- [ ] **ARC.4** — apply_changes → publish_develop → deploy_live
+- [ ] **ARC.5** — Manual: keyboard + touch on live `/entertain` Arcade cards
+
 ## ⬇️ CR-DL — My Creations media download（2026-08-15）
 
 Design: [creations-media-download.md](subsystems/creations-media-download.md)

@@ -1,16 +1,52 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BasisCoachReport } from "@/lib/entertain/basis-writing";
+import type { BasisCoachReport, BasisDimensionId } from "@/lib/entertain/basis-writing";
+import { BASIS_DIMENSION_META } from "@/lib/entertain/basis-writing";
 import {
   buildMentorOpener,
   buildMentorOpenerFromText,
+  type MentorEdit,
 } from "@/lib/entertain/basis-mentor-session";
+import {
+  clipRevisionContext,
+  mergeRevision,
+  revisionDiff,
+  type WritingFixIssue,
+} from "@/lib/entertain/basis-fix-session";
 
 type ChatTurn = {
   id: string;
   role: "coach" | "you" | "system";
   text: string;
+};
+
+const DIM_ORDER: BasisDimensionId[] = ["topic", "detail", "vocab", "grammar"];
+
+function dimColor(dim: BasisDimensionId): string {
+  if (dim === "detail") return "var(--coral)";
+  if (dim === "vocab") return "#c4a35a";
+  if (dim === "grammar") return "var(--teal)";
+  return "#5b7c99";
+}
+
+function dimStatus(
+  issues: WritingFixIssue[],
+  dim: BasisDimensionId,
+): "none" | "open" | "done" {
+  const inDim = issues.filter((i) => i.dimension === dim);
+  if (!inDim.length) return "none";
+  return inDim.some((i) => i.status === "open") ? "open" : "done";
+}
+
+type PendingEdit = {
+  issue: WritingFixIssue;
+  replacement: string;
+  merged: string;
+  head: string;
+  beforeMid: string;
+  afterMid: string;
+  tail: string;
 };
 
 type Props = {
@@ -27,6 +63,12 @@ type Props = {
   spotFixCount?: number;
   /** Parent can know when student is mid-dialogue (don't auto-reset) */
   onUserActiveChange?: (active: boolean) => void;
+  /** Spot-fix queue the mentor may anchor structured edits to */
+  issues?: WritingFixIssue[];
+  onIssuesChange?: (next: WritingFixIssue[]) => void;
+  onApplyEdit?: (next: string, prev: string) => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
 };
 
 export function WritingMentorDialogue({
@@ -41,14 +83,21 @@ export function WritingMentorDialogue({
   onOpenSpotFixes,
   spotFixCount = 0,
   onUserActiveChange,
+  issues = [],
+  onIssuesChange,
+  onApplyEdit,
+  canUndo = false,
+  onUndo,
 }: Props) {
   const [reply, setReply] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const seededKeyRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const askedFocusRef = useRef<Set<string>>(new Set());
 
   const opener = useMemo(() => {
     if (report?.dimensions?.length) {
@@ -65,7 +114,9 @@ export function WritingMentorDialogue({
     seededKeyRef.current = sessionKey;
     setReply("");
     setError(null);
+    setPendingEdit(null);
     onUserActiveChange?.(false);
+    askedFocusRef.current = new Set(opener ? [opener.focusId] : []);
     if (!opener) {
       setTurns([]);
       return;
@@ -84,17 +135,27 @@ export function WritingMentorDialogue({
   useEffect(() => {
     const el = scrollerRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [turns, busy]);
+  }, [turns, busy, pendingEdit]);
 
   const focusLabel = opener
     ? opener.focusId.charAt(0).toUpperCase() + opener.focusId.slice(1)
     : "Writing";
+
+  const openIssues = useMemo(
+    () =>
+      issues
+        .filter((i) => i.status === "open" && i.span)
+        .slice(0, 8)
+        .map((i) => ({ id: i.id, span: i.span, dimension: i.dimension })),
+    [issues],
+  );
 
   const sendReply = useCallback(async () => {
     const text = reply.trim();
     if (text.length < 1 || busy) return;
     setBusy(true);
     setError(null);
+    setPendingEdit(null);
     onUserActiveChange?.(true);
     const youTurn: ChatTurn = {
       id: `you_${Date.now()}`,
@@ -119,11 +180,14 @@ export function WritingMentorDialogue({
           history: historyForApi,
           focusIds: report?.focusIds ?? [opener?.focusId].filter(Boolean),
           craftTip: report?.craftTip,
+          openIssues,
+          askedFocusIds: [...askedFocusRef.current],
         }),
       });
       const data = (await res.json()) as {
         ok?: boolean;
         reply?: string;
+        edit?: MentorEdit | null;
         error?: string;
       };
       if (!res.ok || !data.reply) {
@@ -137,6 +201,25 @@ export function WritingMentorDialogue({
           text: data.reply!,
         },
       ]);
+      if (data.edit?.spanId && data.edit.replacement) {
+        const issue = issues.find((i) => i.id === data.edit!.spanId);
+        if (issue) {
+          const merged = mergeRevision(draft, issue, data.edit.replacement);
+          if (merged !== draft) {
+            const diff = revisionDiff(draft, merged);
+            setPendingEdit({
+              issue,
+              replacement: data.edit.replacement,
+              merged,
+              head: diff.head,
+              beforeMid: diff.beforeMid,
+              afterMid: diff.afterMid,
+              tail: diff.tail,
+            });
+            askedFocusRef.current.add(issue.dimension);
+          }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Mentor failed");
     } finally {
@@ -152,14 +235,58 @@ export function WritingMentorDialogue({
     report,
     opener?.focusId,
     onUserActiveChange,
+    issues,
+    openIssues,
   ]);
+
+  const applyPendingEdit = () => {
+    if (!pendingEdit) return;
+    const { issue, merged } = pendingEdit;
+    if (onApplyEdit) onApplyEdit(merged, draft);
+    else onDraftChange(merged);
+    onIssuesChange?.(
+      issues.map((i) =>
+        i.id === issue.id ? { ...i, status: "fixed" as const } : i,
+      ),
+    );
+    setTurns((prev) => [
+      ...prev,
+      {
+        id: `sys_edit_${Date.now()}`,
+        role: "system",
+        text: "Updated Writing Pad — your words are now in the draft.",
+      },
+    ]);
+    setPendingEdit(null);
+  };
+
+  const tweakPendingEdit = () => {
+    if (!pendingEdit) return;
+    setReply(pendingEdit.replacement);
+    setPendingEdit(null);
+    window.setTimeout(() => inputRef.current?.focus(), 40);
+  };
+
+  const skipPendingEdit = () => {
+    if (!pendingEdit) return;
+    setPendingEdit(null);
+    setTurns((prev) => [
+      ...prev,
+      {
+        id: `sys_skip_${Date.now()}`,
+        role: "system",
+        text: "Skipped that edit — keep talking it through.",
+      },
+    ]);
+  };
 
   const appendLastIdea = () => {
     const lastYou = [...turns].reverse().find((t) => t.role === "you");
     if (!lastYou) return;
     const chunk = lastYou.text.trim();
     if (!chunk) return;
-    onDraftChange(draft.trim() ? `${draft.trimEnd()}\n${chunk}` : chunk);
+    if (onApplyEdit) onApplyEdit(draft.trimEnd() ? `${draft.trimEnd()}\n${chunk}` : chunk, draft);
+    else onDraftChange(draft.trim() ? `${draft.trimEnd()}\n${chunk}` : chunk);
     setTurns((prev) => [
       ...prev,
       {
@@ -203,6 +330,43 @@ export function WritingMentorDialogue({
         </div>
       </div>
 
+      {/* Dimension progress chips */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-[var(--line)] px-3 py-2">
+        {DIM_ORDER.map((dim) => {
+          const st = dimStatus(issues, dim);
+          const label = BASIS_DIMENSION_META[dim].shortLabel;
+          if (st === "none") {
+            return (
+              <span
+                key={dim}
+                className="rounded-md px-2 py-0.5 text-[10px] font-medium text-[var(--ink-muted)]/60"
+              >
+                {label}
+              </span>
+            );
+          }
+          if (st === "done") {
+            return (
+              <span
+                key={dim}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-[var(--teal)]"
+              >
+                {label} ✓
+              </span>
+            );
+          }
+          return (
+            <span
+              key={dim}
+              className="rounded-md px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: `${dimColor(dim)}26`, color: dimColor(dim) }}
+            >
+              {label}
+            </span>
+          );
+        })}
+      </div>
+
       {/* Tight chat stack: messages scroll, composer glued under (no page-tall gap) */}
       <div
         ref={scrollerRef}
@@ -231,6 +395,58 @@ export function WritingMentorDialogue({
             </div>
           </div>
         ))}
+        {pendingEdit && (
+          <div className="rounded-xl border border-[var(--teal)]/30 bg-[var(--teal)]/6 p-2.5">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--teal)]">
+              Suggested edit — from your words
+            </p>
+            <p className="mb-0.5 text-[11px] text-[var(--ink-muted)]">
+              <span className="text-[var(--ink)]">
+                {clipRevisionContext(pendingEdit.head)}
+              </span>
+              <s className="rounded bg-[var(--coral)]/15 px-0.5 text-[var(--coral)]">
+                {clipRevisionContext(pendingEdit.beforeMid)}
+              </s>
+              <span className="text-[var(--ink)]">
+                {clipRevisionContext(pendingEdit.tail)}
+              </span>
+            </p>
+            <p className="mb-2 text-[11px] text-[var(--ink)]">
+              <span className="text-[var(--ink-muted)]">
+                {clipRevisionContext(pendingEdit.head)}
+              </span>
+              <mark className="rounded bg-[var(--teal)]/20 px-0.5 text-[var(--teal)]">
+                {clipRevisionContext(pendingEdit.afterMid)}
+              </mark>
+              <span className="text-[var(--ink-muted)]">
+                {clipRevisionContext(pendingEdit.tail)}
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={applyPendingEdit}
+                className="min-h-9 rounded-lg bg-[var(--teal)] px-3 text-xs font-semibold text-white"
+              >
+                Apply to pad
+              </button>
+              <button
+                type="button"
+                onClick={tweakPendingEdit}
+                className="min-h-9 rounded-lg border border-[var(--teal)]/40 px-3 text-xs font-medium text-[var(--teal)]"
+              >
+                Tweak…
+              </button>
+              <button
+                type="button"
+                onClick={skipPendingEdit}
+                className="min-h-9 rounded-lg px-2 text-xs text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
         {busy && (
           <p className="text-[11px] text-[var(--ink-muted)]">Spark is thinking…</p>
         )}
@@ -267,16 +483,27 @@ export function WritingMentorDialogue({
           <p className="text-[10px] text-[var(--ink-muted)]">
             Enter send · Shift+Enter new line
           </p>
-          {hasYouTurn && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={appendLastIdea}
-              className="text-[11px] font-medium text-[var(--teal)] hover:underline"
-            >
-              Add last answer to pad
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canUndo && onUndo ? (
+              <button
+                type="button"
+                onClick={onUndo}
+                className="text-[11px] font-medium text-[var(--coral)] hover:underline"
+              >
+                Undo last edit
+              </button>
+            ) : null}
+            {hasYouTurn && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={appendLastIdea}
+                className="text-[11px] font-medium text-[var(--teal)] hover:underline"
+              >
+                Add last answer to pad
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
