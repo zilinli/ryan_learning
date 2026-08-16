@@ -30,7 +30,10 @@ import {
   canSubmitHybrid,
   consumeTedChallengeResume,
   prepareTedChallengeHandoff,
+  stashTedChallengeKickoff,
+  stashTedChallengeResume,
   type TedChallengeKickoff,
+  type TedChallengeResume,
 } from "@/lib/entertain/ted-challenge-handoff";
 import { TedDiscussDialogue } from "./TedDiscussDialogue";
 import {
@@ -93,6 +96,7 @@ export function TedLab() {
   const [discussKickoff, setDiscussKickoff] = useState<TedChallengeKickoff | null>(null);
   const [discussSessionKey, setDiscussSessionKey] = useState(0);
   const resumeConsumedRef = useRef(false);
+  const pendingTedResumeRef = useRef<TedChallengeResume | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   /** Auto Listen for English challenge prompts (homepage Listen, not Speak). */
@@ -469,7 +473,7 @@ export function TedLab() {
       [item.id]: { selected: [...selected], essay },
     };
     setAnswers(nextAnswers);
-    const { kickoff } = prepareTedChallengeHandoff({
+    const { kickoff, resume } = prepareTedChallengeHandoff({
       talkSlug: talk.slug,
       talkTitle: talk.title,
       speaker: talk.speaker,
@@ -481,6 +485,7 @@ export function TedLab() {
       answers: nextAnswers,
       accountId,
     });
+    pendingTedResumeRef.current = resume;
     const choiceNote =
       selected.length > 0
         ? selected.map(choiceLetter).join(", ")
@@ -875,14 +880,31 @@ export function TedLab() {
                   question when your thinking holds together.
                 </p>
                 {discussKickoff ? (
-                  <TedDiscussDialogue
-                    accountId={accountId}
-                    kickoff={discussKickoff}
-                    sessionKey={discussSessionKey}
-                    hasNext={!!challenge && qi + 1 < challenge.items.length}
-                    onNextQuestion={goNextAfterDiscuss}
-                    onClose={closeDiscuss}
-                  />
+                  <div className="space-y-3">
+                    <TedDiscussDialogue
+                      accountId={accountId}
+                      kickoff={discussKickoff}
+                      sessionKey={discussSessionKey}
+                      hasNext={!!challenge && qi + 1 < challenge.items.length}
+                      onNextQuestion={goNextAfterDiscuss}
+                      onClose={closeDiscuss}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!discussKickoff) return;
+                        stashTedChallengeKickoff(discussKickoff);
+                        if (pendingTedResumeRef.current) {
+                          stashTedChallengeResume(pendingTedResumeRef.current);
+                        }
+                        window.location.href = "/";
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#6db8a8]/40 bg-black/20 px-3 py-2.5 text-xs font-medium text-[#6db8a8] transition hover:border-[#6db8a8]"
+                    >
+                      Continue in the main chat
+                      <span aria-hidden>↗</span>
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </div>

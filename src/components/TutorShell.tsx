@@ -107,6 +107,8 @@ export function TutorShell() {
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
+    collabOffer, handleDismissCollab,
+    labReturn, setLabReturn,
   } = useTutorSession();
 
   const [quote, setQuote] = useState<ChatQuote | null>(null);
@@ -655,6 +657,8 @@ export function TutorShell() {
             }
             onDismissCreationOffer={handleDismissCreationOffer}
             onAcceptCreationOffer={handleAcceptCreationOffer}
+            collabOffer={collabOffer}
+            onDismissCollab={handleDismissCollab}
             onQuote={(m) => setQuote(buildQuoteFromMessage(m))}
           />
         </main>
@@ -721,6 +725,40 @@ export function TutorShell() {
                   clearTedChallengeResume();
                   setTedReturn(null);
                 }}
+                className="min-h-9 px-2 text-xs text-[var(--ink-muted)] underline-offset-2 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {labReturn ? (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-snug text-[var(--ink-muted)] sm:text-sm">
+              {labReturn.coherent
+                ? `Your thinking looks solid on “${labReturn.title}” — ready for the next challenge question when you are.`
+                : `${labReturn.labLabel} · “${labReturn.title}” — keep chatting, or jump back to the lab.`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = labReturn.href;
+                }}
+                className="min-h-9 rounded-lg bg-[var(--teal)] px-3 text-xs font-medium text-white sm:text-sm"
+              >
+                Back to {labReturn.labLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLabReturn(null)}
+                className="min-h-9 rounded-lg border border-[var(--line)] px-3 text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] sm:text-sm"
+              >
+                Keep chatting
+              </button>
+              <button
+                type="button"
+                onClick={() => setLabReturn(null)}
                 className="min-h-9 px-2 text-xs text-[var(--ink-muted)] underline-offset-2 hover:underline"
               >
                 Dismiss

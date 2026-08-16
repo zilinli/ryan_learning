@@ -1,5 +1,19 @@
 # 📋 Downstream Development TODO
 
+## 🧩 MAIN-CHAT-COLLAB — 主对话框协作中枢（2026-08-16）
+
+> **Design:** [subsystems/main-chat-collab-hub.md](subsystems/main-chat-collab-hub.md)  
+> **Goal:** 主对话框升级为协作中枢——LLM 隐藏 `~~~intent` fence 自动识别写作/媒体/游戏/Lab 四类需求,在对话流内直接内嵌对应能力;激活 TED/通用 Lab 挑战双向回环。
+
+- [x] **COLLAB.1** — `intent-fence.ts`(parse/strip/detect)+ 单测;`prompts.ts` 注入 intent fence 规则
+- [x] **COLLAB.2** — `InlineWritingPanel`:coach 评分 + spot-fix + mentor 对话 + 保存 journal + 一键转媒体
+- [x] **COLLAB.3** — `InlineMediaPanel`:structure → `/api/studio/generate` 三态生成 + 入 My Creations
+- [x] **COLLAB.4** — `lab-recommend.ts` + `LabRecommendCard`;激活 TedLab stash 回环;`lab-challenge-handoff.ts` + MediaLabChallengeView 同一按钮
+- [x] **COLLAB.5** — `game-recommend.ts` + `InlineGamePanel` 内嵌游戏(60vh 容器 + Fullscreen 链接)
+- [x] **COLLAB.6** — ChatThread/useTutorSession/TutorShell 接线(TTS strip、pinned strip、dismiss、labReturn 横幅)
+- [x] **COLLAB.7** — 单测全绿(intent-fence / game-recommend / lab-recommend / lab-challenge-handoff)
+- [ ] **COLLAB.8** — apply_changes → publish_develop → deploy_live
+
 ## 🔤 WORD-ECHO — Study then spell（2026-08-16）
 
 > Design: **[subsystems/word-echo.md](subsystems/word-echo.md)** v1.2

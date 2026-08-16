@@ -24,6 +24,12 @@ import type {
   WeeklyLaunchpadView,
 } from "@/lib/weekly-launchpad";
 import type { CreationOffer } from "@/lib/creation-offer";
+import { stripIntentFence } from "@/lib/intent-fence";
+import { InlineWritingPanel } from "./tutor/InlineWritingPanel";
+import { InlineMediaPanel } from "./tutor/InlineMediaPanel";
+import { InlineGamePanel } from "./tutor/InlineGamePanel";
+import { LabRecommendCard } from "./tutor/LabRecommendCard";
+import type { CollabOffer } from "./tutor/useTutorSession";
 import {
   buildDeepDivePrompt,
   DEEP_DIVE_LABELS,
@@ -37,7 +43,9 @@ import { VideoAttachment } from "./VideoAttachment";
 function stripHiddenFences(content: string): string {
   return stripSparkFence(
     stripMisconceptionFence(
-      stripScratchDiagnosisFence(stripWorksheetPlanFence(content)),
+      stripScratchDiagnosisFence(
+        stripIntentFence(stripWorksheetPlanFence(content)),
+      ),
     ),
   );
 }
@@ -127,6 +135,9 @@ type Props = {
   onDismissCreationOffer?: () => void;
   /** V3 — child tapped into Studio/Journal from the creation card (attribution). */
   onAcceptCreationOffer?: () => void;
+  /** Collab hub — assistant flagged an inline writing/media/game/lab intent. */
+  collabOffer?: CollabOffer | null;
+  onDismissCollab?: () => void;
   /** UX-V4 — account id for hero-action freshness rotation */
   accountId?: string;
   /** UX-V4 — Focus Mode controls */
@@ -260,6 +271,8 @@ export function ChatThread({
   creationOfferLine,
   onDismissCreationOffer,
   onAcceptCreationOffer,
+  collabOffer,
+  onDismissCollab,
   accountId = "default",
   focusActive,
   focusProgress = 0,
@@ -1178,6 +1191,13 @@ export function ChatThread({
           </div>
         </div>
       ) : null}
+      {collabOffer ? (
+        <CollabPanels
+          offer={collabOffer}
+          accountId={accountId}
+          onDismiss={onDismissCollab}
+        />
+      ) : null}
       {lightbox ? (
         <ImageLightbox
           src={lightbox.src}
@@ -1312,5 +1332,79 @@ function DeepDiveControl({ onPick }: { onPick: (mode: DeepDiveMode) => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Collab hub — renders the inline panel/card matching the flagged intent. */
+function CollabPanels({
+  offer,
+  accountId,
+  onDismiss,
+}: {
+  offer: CollabOffer;
+  accountId?: string;
+  onDismiss?: () => void;
+}) {
+  const acct = accountId && accountId !== "default" ? accountId : "acct_ryan";
+  const { intent, draft, gameRecommendation, labRecommendation } = offer;
+  const close = onDismiss ?? (() => {});
+  const [mediaKind, setMediaKind] = useState<"song" | "image" | "video" | null>(
+    null,
+  );
+  const [draftForMedia, setDraftForMedia] = useState("");
+
+  if (intent.kind === "lab") {
+    return labRecommendation ? (
+      <LabRecommendCard recommendation={labRecommendation} onDismiss={close} />
+    ) : null;
+  }
+  if (intent.kind === "game") {
+    return gameRecommendation ? (
+      <InlineGamePanel
+        gameId={gameRecommendation.gameId}
+        title={gameRecommendation.title}
+        onClose={close}
+      />
+    ) : null;
+  }
+  if (intent.kind === "media") {
+    if (mediaKind) {
+      return (
+        <InlineMediaPanel
+          kind={mediaKind}
+          draft={draftForMedia || draft || intent.text || ""}
+          accountId={acct}
+          onClose={close}
+          onBack={() => setMediaKind(null)}
+        />
+      );
+    }
+    // No explicit kind from the fence — open the writing pad so the child can
+    // shape the idea, then "make it into" a song/image/video from there.
+    return (
+      <InlineWritingPanel
+        accountId={acct}
+        intent={intent}
+        initialDraft={draft}
+        onClose={close}
+        onMakeMedia={(kind, text) => {
+          setDraftForMedia(text);
+          setMediaKind(kind);
+        }}
+      />
+    );
+  }
+  // writing
+  return (
+    <InlineWritingPanel
+      accountId={acct}
+      intent={intent}
+      initialDraft={draft}
+      onClose={close}
+      onMakeMedia={(kind, text) => {
+        setDraftForMedia(text);
+        setMediaKind(kind);
+      }}
+    />
   );
 }

@@ -167,6 +167,34 @@ import {
   peekTedChallengeResume,
   tedLabResumeHref,
 } from "@/lib/entertain/ted-challenge-handoff";
+import {
+  parseIntentFence,
+  stripIntentFence,
+  type ChatIntent,
+} from "@/lib/intent-fence";
+import { suggestGame, type GameRecommendation } from "@/lib/game-recommend";
+import { suggestLabFromText, type LabRecommendation } from "@/lib/lab-recommend";
+import {
+  buildLabChallengeKickoffMessage,
+  consumeLabChallengeKickoff,
+  detectLabCoherenceSignal,
+  labChallengeLabel,
+  labResumeHref,
+} from "@/lib/entertain/lab-challenge-handoff";
+
+/**
+ * Collab hub offer — surfaced when the assistant emits a hidden ~~~intent
+ * fence (or keyword heuristics fire). The main chat renders the matching
+ * inline panel / recommendation card.
+ */
+export type CollabOffer =
+  | {
+      intent: ChatIntent;
+      /** Draft / creation idea: intent.text or the last user message. */
+      draft: string;
+      gameRecommendation?: GameRecommendation;
+      labRecommendation?: LabRecommendation;
+    };
 
 import {
   buildHistoryPreview,
@@ -221,6 +249,13 @@ export function useTutorSession() {
     nextQi: number;
     coherent: boolean;
   } | null>(null);
+  /** Generic Lab (BBC/NatGeo/RSA) challenge return banner. */
+  const [labReturn, setLabReturn] = useState<{
+    labLabel: string;
+    title: string;
+    href: string;
+    coherent: boolean;
+  } | null>(null);
   const [dailyBlurb, setDailyBlurb] = useState<string | null>(null);
   const [breakNudge, setBreakNudge] = useState<{
     minutes: number;
@@ -240,6 +275,8 @@ export function useTutorSession() {
   const flowAdviceRef = useRef<FlowAdvice>("hold");
   // V2 P1 — interest → creation offer (report §9.1.3).
   const [creationOffer, setCreationOffer] = useState<CreationOffer | null>(null);
+  /** Collab hub — an assistant turn flagged a writing/media/game/lab intent. */
+  const [collabOffer, setCollabOffer] = useState<CollabOffer | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountId, setAccountId] = useState(RYAN_ACCOUNT_ID);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
@@ -258,6 +295,9 @@ export function useTutorSession() {
   /** sessionIds that need a fresh Cursor agent on next send */
   const resetIdsRef = useRef<Set<string>>(new Set());
   const speakApiRef = useRef<SpeakStreamApi | null>(null);
+  /** Progressive speech buffer so collab fences are stripped, not read aloud. */
+  const speechTextRef = useRef("");
+  const speechLastRef = useRef("");
   const composerApiRef = useRef<ComposerApi | null>(null);
   const checkModeRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
@@ -276,6 +316,8 @@ export function useTutorSession() {
   const deepLinkAccountRef = useRef<string | null>(null);
   const tedKickoffHandledRef = useRef(false);
   const pendingTedKickoffRef = useRef<string | null>(null);
+  const labKickoffHandledRef = useRef(false);
+  const pendingLabKickoffRef = useRef<string | null>(null);
   /** P0 — when the last assistant message finished, for answer-latency flow signals */
   const lastAssistantAtRef = useRef<number>(Date.now());
 
@@ -877,6 +919,11 @@ export function useTutorSession() {
     setCreationOffer(null);
   }, []);
 
+  // Collab hub — "Not now" clears the offer; new turns re-flag if applicable.
+  const handleDismissCollab = useCallback(() => {
+    setCollabOffer(null);
+  }, []);
+
   const handleOpenCodeAgent = useCallback(() => { setAgentPanelOpen(true); setAgentPanelMinimized(false); }, []);
 
   const handleSwitchAccount = (id: string) => {
@@ -1002,6 +1049,8 @@ export function useTutorSession() {
     setUrlSession(id, accountId);
     // V2 P1 — creation offer belongs to the conversation that produced it.
     setCreationOffer(null);
+    // Collab hub — same lifecycle: cleared on new chat.
+    setCollabOffer(null);
 
     // CA-3 — once/day opener on empty new chat (practice offer takes precedence in UI)
     const opener = buildSessionOpener(mem, accountId);
@@ -1061,6 +1110,49 @@ export function useTutorSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot after new session
   }, [ready, store, sessionId, busy, messages.length]);
 
+  // Generic Lab (BBC/NatGeo/RSA) challenge → homepage Q&A: consume one-shot
+  // kickoff and open the return banner (no resume payload; lab restarts).
+  useEffect(() => {
+    if (!ready || !store || labKickoffHandledRef.current) return;
+    labKickoffHandledRef.current = true;
+    const kick = consumeLabChallengeKickoff();
+    if (!kick) return;
+    setPracticeOffer(null);
+    setSessionOpener(null);
+    setLabReturn({
+      labLabel: labChallengeLabel(kick.lab),
+      title: kick.title,
+      href: labResumeHref(kick.lab),
+      coherent: false,
+    });
+    pendingLabKickoffRef.current = buildLabChallengeKickoffMessage(kick);
+    if (messages.length > 0) {
+      startNewSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on ready
+  }, [ready, store]);
+
+  // Auto-send lab kickoff once the active chat is empty
+  useEffect(() => {
+    if (!ready || !store || !sessionId || busy) return;
+    const text = pendingLabKickoffRef.current;
+    if (!text || messages.length > 0) return;
+    pendingLabKickoffRef.current = null;
+    void handleSend({ text, attachments: [], source: "challenge" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot after new session
+  }, [ready, store, sessionId, busy, messages.length]);
+
+  // Strengthen generic lab return banner when tutor signals coherent reasoning
+  useEffect(() => {
+    if (!labReturn || labReturn.coherent) return;
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+    if (lastAssistant && detectLabCoherenceSignal(lastAssistant.content)) {
+      setLabReturn((prev) => (prev ? { ...prev, coherent: true } : null));
+    }
+  }, [messages, labReturn]);
+
   // Strengthen return banner when tutor signals coherent reasoning
   useEffect(() => {
     if (!tedReturn || tedReturn.coherent) return;
@@ -1093,6 +1185,7 @@ export function useTutorSession() {
     setStore({ ...store, activeId: id, conversations });
     setUrlSession(id, accountId);
     setError("");
+    setCollabOffer(null);
     resetNextRef.current = resetIdsRef.current.has(id);
   };
 
@@ -1335,9 +1428,17 @@ export function useTutorSession() {
               waitPhaseTimerRef.current = null;
             }
             setAgentStatus("");
-            // Feed every raw delta to TTS immediately for fluid speech
+            // Feed every raw delta to TTS immediately for fluid speech.
+            // Strip intent fences from the spoken stream so hidden collab
+            // directives are never read aloud (progressive buffer diff).
             if (shouldSpeak) {
-              speakApiRef.current?.push(delta);
+              speechTextRef.current += delta;
+              const cleanSoFar = stripIntentFence(speechTextRef.current);
+              const added = cleanSoFar.slice(speechLastRef.current.length);
+              speechLastRef.current = cleanSoFar;
+              if (added) {
+                speakApiRef.current?.push(added);
+              }
             }
             pendingDelta += delta;
             if (pendingRafId !== undefined) return; // already scheduled
@@ -1433,6 +1534,25 @@ export function useTutorSession() {
       }
       // CA-5 — parse scratch diagnosis (drives prompt via next turns; strip in UI)
       parseScratchDiagnosisFence(fullText);
+      // Collab hub — assistant may flag a writing/media/game/lab intent via a
+      // hidden fence; resolve it into a rich offer the chat renders inline.
+      const intent = parseIntentFence(fullText);
+      if (intent) {
+        const lastUserText = payload.text;
+        const draftText = intent.text?.trim() || lastUserText.trim() || "";
+        setCollabOffer({
+          intent,
+          draft: draftText.slice(0, 2000),
+          gameRecommendation:
+            intent.kind === "game"
+              ? suggestGame({ text: draftText || undefined }) ?? undefined
+              : undefined,
+          labRecommendation:
+            intent.kind === "lab"
+              ? suggestLabFromText(draftText || intent.text || "") ?? undefined
+              : undefined,
+        });
+      }
       setLearningMemory(nextMem);
       syncProfileFromSkills(profile, nextMem);
       void pushLearningMemoryToServer(nextMem, accountId);
@@ -1502,14 +1622,16 @@ export function useTutorSession() {
       setEmotionLine(emotionUiLine(streak));
 
       if (shouldSpeak) {
-        speakApiRef.current?.finish(fullText);
+        speechTextRef.current = "";
+        speechLastRef.current = "";
+        speakApiRef.current?.finish(stripIntentFence(fullText));
       }
       // Always pin the merged final text so a streamed diagram cannot vanish
       // after done/onReplace/storage races. CA-1: also merge worksheet plan.
       // CA-8: collapse same-diagramId revisions inside the assistant message.
       const plan = parseWorksheetPlanFence(fullText);
       const pinned = fullText.trim()
-        ? collapseSameDiagramImages(fullText)
+        ? collapseSameDiagramImages(stripIntentFence(fullText))
         : "";
       setStore((prev) => {
         if (!prev) return prev;
@@ -1573,6 +1695,7 @@ export function useTutorSession() {
     sidebarOpen, setSidebarOpen, desktopSidebarOpen, setDesktopSidebarOpen, isLg,
     agentPanelOpen, setAgentPanelOpen, agentPanelMinimized, setAgentPanelMinimized,
     engagement, learningMemory, practiceOffer, sessionOpener, tedReturn, setTedReturn,
+    labReturn, setLabReturn,
     dailyBlurb, setDailyBlurb, emotionLine, setEmotionLine, accountName, accountId, accounts,
     ttsSpeaking, setTtsSpeaking, speakingMessageId, setSpeakingMessageId, checkMode, setCheckMode,
     scrollerRef, composerApiRef, speakApiRef, messagesOpen, setMessagesOpen,
@@ -1584,5 +1707,6 @@ export function useTutorSession() {
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
+    collabOffer, handleDismissCollab,
   };
 }

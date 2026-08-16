@@ -14,6 +14,7 @@ import {
   type ChallengeItem,
 } from "@/lib/entertain/ted-challenge";
 import { canSubmitHybrid } from "@/lib/entertain/ted-challenge-handoff";
+import { stashLabChallengeKickoff } from "@/lib/entertain/lab-challenge-handoff";
 import { recordStudioLearningTurn } from "@/lib/entertain/studio-learning";
 import type { LabDiscussId } from "@/lib/entertain/lab-discuss";
 import { useRyanBritishListen } from "@/hooks/useRyanBritishListen";
@@ -388,15 +389,39 @@ export function MediaLabChallengeView({
         </button>
       ) : null}
       {discussKickoff ? (
-        <LabDiscussDialogue
-          lab={lab}
-          accountId={accountId}
-          kickoff={discussKickoff}
-          sessionKey={discussSessionKey}
-          hasNext={qi < items.length - 1}
-          onNextQuestion={goNextAfterDiscuss}
-          onClose={closeDiscuss}
-        />
+        <div className="space-y-3">
+          <LabDiscussDialogue
+            lab={lab}
+            accountId={accountId}
+            kickoff={discussKickoff}
+            sessionKey={discussSessionKey}
+            hasNext={qi < items.length - 1}
+            onNextQuestion={goNextAfterDiscuss}
+            onClose={closeDiscuss}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!discussKickoff) return;
+              stashLabChallengeKickoff({
+                lab,
+                title,
+                speaker,
+                kind: discussKickoff.kind,
+                prompt: discussKickoff.prompt,
+                choices: discussKickoff.choices,
+                selected: discussKickoff.selected,
+                essay: discussKickoff.essay,
+                accountId: accountId || "acct_ryan",
+              });
+              window.location.href = "/";
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--teal)]/40 bg-[var(--teal)]/8 px-3 py-2.5 text-xs font-medium text-[var(--teal)] transition hover:border-[var(--teal)]/70"
+          >
+            Continue in the main chat
+            <span aria-hidden>↗</span>
+          </button>
+        </div>
       ) : null}
       {error ? (
         <p className="rounded-xl border border-[var(--coral)]/30 bg-[var(--coral)]/8 px-3 py-2 text-sm text-[var(--coral)]">
