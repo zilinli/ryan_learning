@@ -286,7 +286,7 @@ Full design (data models, ZPD ladders, BKT loop, AI resilience, tests): **[learn
 
 ### 7.1 Product shape
 
-**Studio · learning** is a separate hub (`/studio`), not nested under Entertainments games. Legacy `/entertain?hub=studio` redirects to `/studio`.
+**Studio · learning** is a separate hub (`/studio`), not nested under Entertainments games. Legacy `/entertain?hub=studio` redirects to `/studio` via **`src/middleware.ts`** (not page `searchParams` — keeps `/entertain` statically prerenderable; see [entertain-static-ssr-fix.md](./entertain-static-ssr-fix.md)).
 
 | Card | Id | One-liner |
 |------|-----|-----------|

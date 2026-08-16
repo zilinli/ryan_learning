@@ -1,5 +1,15 @@
 # 📋 Downstream Development TODO
 
+## ENT-SSR — `/entertain` 500 (static prerender + middleware redirect) · 2026-08-16
+
+> **Design:** [subsystems/entertain-static-ssr-fix.md](subsystems/entertain-static-ssr-fix.md)  
+> **Goal:** Fix live Internal Server Error on `/entertain` (dynamic SSR Client Manifest failure).
+
+- [x] **ENT-SSR.1** — Sync `/entertain/page.tsx` (no `searchParams`); mirror `/studio`
+- [x] **ENT-SSR.2** — `src/middleware.ts`: `hub=studio` → `/studio` via `rewriteEntertainStudioSearch`
+- [x] **ENT-SSR.3** — Drop `/console` `force-dynamic` (same 500 class)
+- [ ] **ENT-SSR.4** — `run_tests` studio-path; apply_changes → publish_develop → deploy_live; curl 200
+
 ## 🧩 MAIN-CHAT-COLLAB — 主对话框协作中枢（2026-08-16）
 
 > **Design:** [subsystems/main-chat-collab-hub.md](subsystems/main-chat-collab-hub.md)  
