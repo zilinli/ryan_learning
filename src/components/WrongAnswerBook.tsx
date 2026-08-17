@@ -7,8 +7,10 @@ import {
   buildWeeklyQuizPrintHtml,
   buildWrongAnswerReviewSet,
   deleteWrongAnswer,
+  loadDueReviews,
   loadWrongAnswers,
   markWrongAnswersRedone,
+  stashDueReviewKickoff,
   stashVariantKickoff,
   stashWrongReviewKickoff,
   wrongAnswersBySkill,
@@ -17,6 +19,7 @@ import {
   type WrongAnswerAction,
 } from "@/lib/wrong-answer-store";
 import { openLearningPortfolioPrint } from "@/lib/learning-portfolio";
+import { loadLearningMemory } from "@/lib/learning-memory";
 
 function timeAgo(ts: number): string {
   if (!ts) return "";
@@ -50,6 +53,11 @@ export function WrongAnswerBook({
   }, [accountId]);
 
   const groups = useMemo(() => wrongAnswersBySkill(accountId), [accountId, items]);
+
+  const dueReviews = useMemo(() => {
+    const mem = loadLearningMemory(accountId);
+    return loadDueReviews(accountId, mem);
+  }, [accountId, items]);
 
   const reviewInChat = (list: WrongAnswer[]) => {
     stashWrongReviewKickoff(list.slice(0, 5));
@@ -173,6 +181,47 @@ export function WrongAnswerBook({
                 </p>
                 <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ink-muted)] opacity-70">
                   {w.skillLabel}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {dueReviews.length > 0 ? (
+        <div className="mt-3 rounded-xl border border-[var(--coral)]/40 bg-[var(--coral)]/6 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] font-semibold text-[var(--coral)]">
+              Due for retest
+              <span className="ml-1.5 text-[11px] font-normal text-[var(--ink-muted)]">
+                {dueReviews.length}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                stashDueReviewKickoff(dueReviews.map((d) => d.item));
+                window.location.href = "/";
+              }}
+              className="rounded-full border border-[var(--coral)]/45 bg-[var(--coral)]/10 px-2.5 py-1 text-[10px] font-medium text-[var(--coral)] hover:bg-[var(--coral)]/15"
+            >
+              Retest in chat
+            </button>
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {dueReviews.slice(0, 4).map(({ item: w, overdueMs }) => (
+              <li
+                key={w.id}
+                className="rounded-lg border border-[var(--line)]/50 bg-[var(--surface)] px-2.5 py-1.5"
+              >
+                <p className="text-[12px] leading-snug text-[var(--ink-muted)]">
+                  {w.question}
+                </p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--ink-muted)] opacity-70">
+                  {w.skillLabel}
+                  {overdueMs > 0
+                    ? ` · overdue ${Math.max(1, Math.floor(overdueMs / 86_400_000))}d`
+                    : ""}
                 </p>
               </li>
             ))}

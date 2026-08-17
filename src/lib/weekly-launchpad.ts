@@ -16,14 +16,21 @@ import {
 } from "./feynman-task";
 import type { LearningMemory } from "./learning-memory";
 import { loadWeeklyGoal, weeklyGoalLine } from "./weekly-goal";
+import { loadDueReviews } from "./wrong-answer-store";
 
-export type LaunchpadItemKey = "deepDive" | "connection" | "feynman" | "goal";
+export type LaunchpadItemKey =
+  | "deepDive"
+  | "connection"
+  | "feynman"
+  | "goal"
+  | "dueReview";
 
 export type LaunchpadAction =
   | { type: "deepDive"; weekOf: string }
   | { type: "connection"; weekOf: string }
   | { type: "feynman"; weekOf: string; skillLabel: string }
-  | { type: "goal"; weekOf: string };
+  | { type: "goal"; weekOf: string }
+  | { type: "dueReview"; weekOf: string; count: number };
 
 export type LaunchpadItem = {
   key: LaunchpadItemKey;
@@ -49,6 +56,8 @@ export function launchpadKickoff(action: LaunchpadAction): string {
       return `Feynman teach-back practice: have me explain ${action.skillLabel} in my own words. Ask me to teach you — then give feedback and ONE check question. No spoilers.`;
     case "goal":
       return `Weekly goal sprint: give me ONE well-chosen question from a subject I haven't nailed yet this week. If I get it right, give me another a notch harder — let's master something new today.`;
+    case "dueReview":
+      return `Spaced retest time — ${action.count} wrong answer${action.count === 1 ? "" : "s"} due. Give me VARIANT questions one at a time (new numbers, same skill). Socratic hints only, no spoilers.`;
     default:
       return "";
   }
@@ -69,6 +78,7 @@ export function buildWeeklyLaunchpad(
   const feynman = buildFeynmanTask(mem, now);
   const feynmanDone = feynman ? loadFeynmanDone(accountId, feynman.weekOf) : false;
   const goal = loadWeeklyGoal(accountId, now);
+  const due = loadDueReviews(accountId, mem, now);
 
   const items: LaunchpadItem[] = [
     {
@@ -108,6 +118,17 @@ export function buildWeeklyLaunchpad(
       done: goal.done,
       line: weeklyGoalLine(goal),
       action: { type: "goal", weekOf },
+    },
+    {
+      key: "dueReview",
+      label: "Due retest",
+      emoji: "📅",
+      done: due.length === 0,
+      line:
+        due.length > 0
+          ? `${due.length} due for spaced retest`
+          : "Review box caught up",
+      action: { type: "dueReview", weekOf, count: due.length },
     },
   ];
 

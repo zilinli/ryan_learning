@@ -7,6 +7,15 @@
 import { kvGet, kvRemove, kvSet } from "./browser-kv";
 import { inferSkillsFromText } from "./skill-catalog";
 import type { SessionOpener } from "./session-opener";
+import type { LearningMemory } from "./learning-memory";
+import {
+  dueReviews,
+  effectiveReviewStage,
+  isReviewScheduleComplete,
+  reviewStageAfterOutcome,
+  scheduleReview,
+  type DueReview,
+} from "./schedules";
 
 export type WrongAnswer = {
   id: string;
@@ -19,7 +28,13 @@ export type WrongAnswer = {
   /** Assistant correction / guidance (kept short). */
   assistantText: string;
   createdAt: number;
+  /** P0-1 — 间隔复测 stage（0 = 1 天后；缺省视为 0） */
+  reviewStage?: number;
+  /** P0-1 — 下次复测时间戳（ms） */
+  nextReviewAt?: number;
 };
+
+export type { DueReview };
 
 const MAX_WRONG = 60;
 const KEY_PREFIX = "spark.wrongAnswers.";
@@ -50,6 +65,14 @@ export function loadWrongAnswers(accountId: string): WrongAnswer[] {
         studentAnswer: sliceText(w.studentAnswer || "", 400),
         assistantText: sliceText(w.assistantText || "", 800),
         createdAt: Number(w.createdAt) || 0,
+        reviewStage:
+          w.reviewStage != null
+            ? Math.max(0, Math.floor(Number(w.reviewStage) || 0))
+            : undefined,
+        nextReviewAt:
+          w.nextReviewAt != null && Number(w.nextReviewAt) > 0
+            ? Number(w.nextReviewAt)
+            : undefined,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
   } catch {
@@ -74,19 +97,72 @@ export function addWrongAnswer(
   entry: Omit<WrongAnswer, "id" | "accountId" | "createdAt"> & { createdAt?: number },
 ): WrongAnswer {
   const items = loadWrongAnswers(accountId);
+  const createdAt = entry.createdAt ?? Date.now();
+  const skillId = String(entry.skillId).slice(0, 48);
   const row: WrongAnswer = {
     id: `wa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     accountId,
-    skillId: String(entry.skillId).slice(0, 48),
+    skillId,
     skillLabel: sliceText(entry.skillLabel, 56),
     question: sliceText(entry.question, 400),
     studentAnswer: sliceText(entry.studentAnswer, 400),
     assistantText: sliceText(entry.assistantText, 800),
-    createdAt: entry.createdAt ?? Date.now(),
+    createdAt,
+    reviewStage: 0,
+    nextReviewAt:
+      scheduleReview(skillId, 0, { fromMs: createdAt }) ?? undefined,
   };
   items.unshift(row);
   saveWrongAnswers(accountId, items);
   return row;
+}
+
+/** P0-1 — skillId → pKnown，用于掌握降频 */
+function pKnownForSkill(
+  mem: LearningMemory | null | undefined,
+  skillId: string,
+): number | undefined {
+  return mem?.skills?.find((s) => s.id === skillId)?.pKnown;
+}
+
+/** P0-1 — 到期复测列表（按 overdue 排序） */
+export function loadDueReviews(
+  accountId: string,
+  mem?: LearningMemory | null,
+  now = Date.now(),
+): DueReview[] {
+  return dueReviews(loadWrongAnswers(accountId), now, (skillId) =>
+    pKnownForSkill(mem, skillId),
+  );
+}
+
+/** P0-1 — 复测结果：答对晋级 stage，答错重置 stage 0 */
+export function recordWrongAnswerReviewOutcome(
+  accountId: string,
+  id: string,
+  correct: boolean,
+  mem?: LearningMemory | null,
+  now = Date.now(),
+): WrongAnswer | null {
+  const items = loadWrongAnswers(accountId);
+  const idx = items.findIndex((w) => w.id === id);
+  if (idx < 0) return null;
+  const w = items[idx]!;
+  const stage = effectiveReviewStage(w);
+  const pKnown = pKnownForSkill(mem, w.skillId);
+  const nextStage = reviewStageAfterOutcome(stage, correct);
+  const nextAt = isReviewScheduleComplete(nextStage, pKnown)
+    ? undefined
+    : scheduleReview(w.skillId, nextStage, { fromMs: now, pKnown }) ??
+      undefined;
+  const updated: WrongAnswer = {
+    ...w,
+    reviewStage: nextStage,
+    nextReviewAt: nextAt,
+  };
+  items[idx] = updated;
+  saveWrongAnswers(accountId, items);
+  return updated;
 }
 
 export function deleteWrongAnswer(accountId: string, id: string): boolean {
@@ -274,6 +350,60 @@ ${rows}
   <p class="no-print"><button type="button" onclick="window.print()">Print / Save as PDF</button></p>
 </body>
 </html>`;
+}
+
+export function buildDueReviewKickoffMessage(items: WrongAnswer[]): string {
+  const lines = items.map(
+    (w, i) => `Q${i + 1} (${w.skillLabel}): ${w.question}`,
+  );
+  return [
+    "These wrong answers are DUE for a spaced retest — give me VARIANT questions (new numbers, same skill):",
+    ...lines,
+    "One at a time, Socratic hints only, no spoilers. Check whether I really remember it.",
+  ].join("\n");
+}
+
+/** Opener card for due spaced reviews. */
+export function buildDueReviewOpener(items: WrongAnswer[]): SessionOpener {
+  return {
+    skillId: "wrongbook-due",
+    label: "Due retest",
+    kind: "practice",
+    line: `${items.length} wrong answer${items.length === 1 ? "" : "s"} due for retest — let's check you still remember.`,
+    kickoffOverride: buildDueReviewKickoffMessage(items),
+    source: "wrongbook",
+  };
+}
+
+export function stashDueReviewKickoff(items: WrongAnswer[]): void {
+  writeKickoff(JSON.stringify({ kind: "dueReview", items: items.slice(0, 5) }));
+}
+
+export function consumeDueReviewKickoff(): WrongAnswer[] | null {
+  const raw = readKickoff();
+  clearKickoff();
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as {
+      kind?: string;
+      items?: Array<Partial<WrongAnswer>>;
+    };
+    if (p?.kind !== "dueReview" || !Array.isArray(p.items)) return null;
+    return p.items.map((w, i) => ({
+      id: String(w.id || `due_${i}_${Date.now()}`),
+      accountId: "local",
+      skillId: String(w.skillId || "general").slice(0, 48),
+      skillLabel: sliceText(w.skillLabel || w.skillId || "General", 56),
+      question: sliceText(w.question || "", 400),
+      studentAnswer: "",
+      assistantText: "",
+      createdAt: Date.now(),
+      reviewStage: w.reviewStage,
+      nextReviewAt: w.nextReviewAt,
+    }));
+  } catch {
+    return null;
+  }
 }
 
 export function buildWrongReviewKickoffMessage(items: WrongAnswer[]): string {

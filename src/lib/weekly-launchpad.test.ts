@@ -40,16 +40,16 @@ afterEach(() => {
 describe("weekly-launchpad", () => {
   it("starts with everything open for a fresh account", () => {
     const v = buildWeeklyLaunchpad(ACCT, memWithSkills());
-    expect(v.totalCount).toBe(4);
-    expect(v.doneCount).toBe(0);
-    expect(v.items.every((i) => !i.done)).toBe(true);
+    expect(v.totalCount).toBe(5);
+    expect(v.doneCount).toBe(1); // dueReview done when wrongbook empty
+    expect(v.items.some((i) => i.key === "dueReview" && i.done)).toBe(true);
   });
 
   it("deep dive counts as done once marked", () => {
     markDeepDiveDone(ACCT);
     const v = buildWeeklyLaunchpad(ACCT, memWithSkills());
     expect(v.items.find((i) => i.key === "deepDive")?.done).toBe(true);
-    expect(v.doneCount).toBe(1);
+    expect(v.doneCount).toBe(2); // deepDive + empty dueReview
   });
 
   it("connection counts as done once shown", () => {
@@ -66,7 +66,7 @@ describe("weekly-launchpad", () => {
     markFeynmanDone(ACCT, task!);
     const v = buildWeeklyLaunchpad(ACCT, memWithSkills());
     expect(v.items.find((i) => i.key === "feynman")?.done).toBe(true);
-    expect(v.doneCount).toBe(1);
+    expect(v.doneCount).toBe(2); // feynman + empty dueReview
   });
 
   it("weekly goal reflects reconcile progress", () => {
@@ -77,15 +77,15 @@ describe("weekly-launchpad", () => {
     expect(goal.line).toContain("0/3");
   });
 
-  it("all four done yields a full status", () => {
+  it("all weekly items except goal can be done", () => {
     markDeepDiveDone(ACCT);
     const v0 = buildWeeklyLaunchpad(ACCT, memWithSkills());
     markConnectionShown(ACCT, v0.weekOf);
     const task = buildFeynmanTask(memWithSkills());
     markFeynmanDone(ACCT, task!);
     const v = buildWeeklyLaunchpad(ACCT, memWithSkills());
-    expect(v.doneCount).toBe(3); // goal needs 3 newly-mastered skills
-    expect(v.items.filter((i) => i.done)).toHaveLength(3);
+    expect(v.doneCount).toBe(4); // goal open; dueReview done
+    expect(v.items.filter((i) => i.done)).toHaveLength(4);
   });
 
   it("launchpad kickoffs cover feynman and goal actions", () => {
@@ -99,5 +99,8 @@ describe("weekly-launchpad", () => {
       "Weekly goal sprint",
     );
     expect(launchpadKickoff({ type: "deepDive", weekOf: "2026-01-05" })).toBe("");
+    expect(
+      launchpadKickoff({ type: "dueReview", weekOf: "2026-01-05", count: 2 }),
+    ).toMatch(/VARIANT/);
   });
 });

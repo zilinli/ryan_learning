@@ -43,6 +43,9 @@ export type EmptyStateHeroProps = {
   onDismissConnection?: () => void;
   onAdjacentTry?: () => void;
   onLaunchpadItem?: (action: LaunchpadAction) => void;
+  /** P0-2 — flow continuity line below opener card */
+  flowContinuityLine?: string | null;
+  onDismissFlowContinuity?: () => void;
 };
 
 /** UX-V4 — single hero card + "Another suggestion" rotation. */
@@ -70,6 +73,8 @@ export function EmptyStateHero({
   onDismissConnection,
   onAdjacentTry,
   onLaunchpadItem,
+  flowContinuityLine,
+  onDismissFlowContinuity,
 }: EmptyStateHeroProps) {
   const [heroOverride, setHeroOverride] = useState<HeroKind | null>(null);
   const [freeExploreText, setFreeExploreText] = useState("");
@@ -302,6 +307,21 @@ export function EmptyStateHero({
               ) : null}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {flowContinuityLine &&
+      (kind === "opener" || kind === "challenge") &&
+      sessionOpener ? (
+        <div className="mt-2 flex items-start justify-between gap-2 rounded-xl border border-[var(--teal)]/35 bg-[var(--teal)]/6 px-3 py-2 text-[12px] text-[var(--ink)]">
+          <p className="leading-snug">{flowContinuityLine}</p>
+          <button
+            type="button"
+            onClick={onDismissFlowContinuity}
+            className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
+          >
+            Dismiss
+          </button>
         </div>
       ) : null}
 
