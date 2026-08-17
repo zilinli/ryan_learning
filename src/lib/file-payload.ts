@@ -104,7 +104,9 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
       name,
       mimeType: "application/pdf",
       kind: "file",
-      dataUrl,
+      // data-only (like videos): a multi-MB dataUrl would double the bytes in
+      // memory + JSON body and crash low-memory phones. The server rebuilds the
+      // dataUrl from `data` before persisting, and the client downloads by mediaId.
       data: stripDataUrlPrefix(dataUrl),
     };
   }
@@ -117,7 +119,7 @@ export async function fileToAttachment(file: File): Promise<ClientAttachment> {
       name,
       mimeType,
       kind: "file",
-      dataUrl,
+      // data-only (memory safety — see PDF branch above)
       data: stripDataUrlPrefix(dataUrl),
     };
   }

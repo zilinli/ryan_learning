@@ -84,6 +84,27 @@ export function isHtmlAttachment(mimeType: string, name: string): boolean {
   return (mimeType || "").toLowerCase() === "text/html";
 }
 
+/**
+ * Binary attachments that must NEVER hold a client-side `dataUrl`. Videos, PDFs
+ * and Office files can be tens-to-hundreds of MB; duplicating them as base64 in
+ * memory (data + dataUrl + JSON.stringify), in localStorage, and in the
+ * IndexedDB vault exhausts low-memory phones and triggers the Safari/Chrome
+ * page-reload loop. These upload as raw `data` only, are persisted server-side
+ * to a `mediaId`, and are played/downloaded via `/api/media` (Range streaming).
+ * Small images keep a dataUrl (they are compressed on upload) and text files
+ * are clipped to 80KB, so neither is covered here.
+ */
+export function isLargeBinaryAttachment(
+  mimeType: string,
+  name: string,
+): boolean {
+  if (isVideoAttachment(mimeType, name)) return true;
+  const mime = (mimeType || "").toLowerCase();
+  if (mime === "application/pdf") return true;
+  if (/\.pdf$/i.test(name || "")) return true;
+  return isOfficeAttachment(mimeType, name);
+}
+
 /** Short phone / screen-record clips (mp4/webm/mov/m4v). */
 export function isVideoAttachment(mimeType: string, name: string): boolean {
   if (VIDEO_EXT.test(name || "")) return true;

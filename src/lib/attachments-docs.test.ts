@@ -4,6 +4,7 @@ import {
   isAllowedAttachment,
   isAppleTouchDevice,
   isHtmlAttachment,
+  isLargeBinaryAttachment,
   isOfficeAttachment,
   normalizeMime,
   resolveFilePickerAccept,
@@ -61,6 +62,20 @@ describe("document upload allowlist", () => {
     expect(isOfficeAttachment("text/plain", "x.txt")).toBe(false);
     expect(isHtmlAttachment("text/html", "x")).toBe(true);
     expect(isHtmlAttachment("", "x.htm")).toBe(true);
+  });
+
+  it("isLargeBinaryAttachment covers video/PDF/Office but not images/text", () => {
+    expect(isLargeBinaryAttachment("video/mp4", "clip.mp4")).toBe(true);
+    expect(isLargeBinaryAttachment("video/quicktime", "IMG_0001.mov")).toBe(true);
+    expect(isLargeBinaryAttachment("application/pdf", "a.pdf")).toBe(true);
+    expect(isLargeBinaryAttachment("", "notes.PDF")).toBe(true);
+    expect(isLargeBinaryAttachment("", "hw.docx")).toBe(true);
+    expect(isLargeBinaryAttachment("", "slides.pptx")).toBe(true);
+    expect(isLargeBinaryAttachment("", "grades.xlsx")).toBe(true);
+    expect(isLargeBinaryAttachment("image/jpeg", "p.jpg")).toBe(false);
+    expect(isLargeBinaryAttachment("image/png", "s.png")).toBe(false);
+    expect(isLargeBinaryAttachment("text/plain", "a.txt")).toBe(false);
+    expect(isLargeBinaryAttachment("text/markdown", "a.md")).toBe(false);
   });
 
   it("FILE_INPUT_ACCEPT lists office and html", () => {

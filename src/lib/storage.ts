@@ -16,7 +16,8 @@ import {
   RYAN_ACCOUNT,
 } from "./tenant-storage";
 import { slimQuote } from "./quote";
-import { isVideoAttachment } from "./attachments";
+import { isLargeBinaryAttachment } from "./attachments";
+import { dbgLog } from "./debug-log";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = FLAT_KEYS.sessions;
@@ -141,10 +142,11 @@ export function slimMessages(
   return trimmed.map((m) => {
     const content = truncateMessageContent(m.content);
     const attachments = m.attachments?.map((a) => {
-      if (a.dataUrl && isVideoAttachment(a.mimeType, a.name)) {
-        // Videos live in the IndexedDB vault, not localStorage: a multi-MB
-        // video dataUrl would blow the localStorage quota and silently drop
-        // the whole conversation on the next write. Keep the store slim.
+      if (a.dataUrl && isLargeBinaryAttachment(a.mimeType, a.name)) {
+        // Videos / PDFs / Office docs live on the server (mediaId), not in
+        // localStorage: a multi-MB dataUrl would blow the quota and silently
+        // drop the whole conversation. Keep the store slim; the client streams
+        // / downloads these via /api/media.
         return slimAttachment(a);
       }
       if (a.dataUrl) return a;

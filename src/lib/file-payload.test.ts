@@ -81,4 +81,24 @@ describe("video upload memory safety", () => {
     expect(att.kind).toBe("file");
     expect(att.name).toBe("notes.pdf");
   });
+
+  it("keeps PDFs data-only — no dataUrl (memory safety)", async () => {
+    vi.stubGlobal("FileReader", FakeReader);
+    const att = await fileToAttachment(
+      new File(["x"], "notes.pdf", { type: "application/pdf" }),
+    );
+    expect(att.kind).toBe("file");
+    expect(att.mimeType).toBe("application/pdf");
+    expect(att.dataUrl).toBeUndefined();
+    expect(att.data).toBe(Buffer.from("dummy-video-bytes").toString("base64"));
+  });
+
+  it("keeps Office docs data-only — no dataUrl (memory safety)", async () => {
+    vi.stubGlobal("FileReader", FakeReader);
+    const att = await fileToAttachment(new File(["x"], "hw.docx", { type: "" }));
+    expect(att.kind).toBe("file");
+    expect(att.mimeType).toContain("wordprocessingml");
+    expect(att.dataUrl).toBeUndefined();
+    expect(att.data).toBe(Buffer.from("dummy-video-bytes").toString("base64"));
+  });
 });

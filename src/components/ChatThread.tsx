@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatAttachment, ChatMessage, ConversationWorksheetPlan } from "@/lib/types";
-import { isVideoAttachment } from "@/lib/attachments";
+import { isVideoAttachment, isLargeBinaryAttachment } from "@/lib/attachments";
 import { getPhotoFromVault } from "@/lib/photo-vault";
 import {
   formatProgressLabelOrDone,
@@ -421,22 +421,33 @@ export function ChatThread({
   useEffect(() => {
     let cancelled = false;
     const missing: string[] = [];
+    const skipVault: string[] = [];
     for (const m of messages) {
       for (const a of messageAttachments(m)) {
         // Always try the vault when dataUrl is gone — mediaId alone can 404
         // if data/media was wiped, and vault still has the homework photo.
         if (a.dataUrl) continue;
         if (vaultMap[a.id] || vaultChecked[a.id]) continue;
+        // Large binaries (video/PDF/Office) never rehydrate from the vault —
+        // reading back a multi-MB base64 dataUrl is what crashed phones. Mark
+        // them checked so the UI falls through to /api/media streaming/download.
+        if (isLargeBinaryAttachment(a.mimeType, a.name)) {
+          skipVault.push(a.id);
+          continue;
+        }
         missing.push(a.id);
       }
     }
-    if (!missing.length) return;
+    if (!missing.length && !skipVault.length) return;
     void (async () => {
       const next: Record<string, string> = {};
       const checked: Record<string, true> = {};
       for (const id of missing) {
         const hit = await getPhotoFromVault(id);
         if (hit?.dataUrl) next[id] = hit.dataUrl;
+        checked[id] = true;
+      }
+      for (const id of skipVault) {
         checked[id] = true;
       }
       if (cancelled) return;

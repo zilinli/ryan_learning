@@ -101,7 +101,7 @@ describe("slimMessages", () => {
     expect(slim[0]?.attachments?.[0]?.name).toBe("p.jpg");
   });
 
-  it("keeps PDF / file dataUrls so history downloads work", () => {
+  it("strips PDF / Office dataUrls from localStorage (downloads go via mediaId)", () => {
     const messages = [
       msg({
         role: "user",
@@ -113,15 +113,27 @@ describe("slimMessages", () => {
             mimeType: "application/pdf",
             kind: "file",
             dataUrl: "data:application/pdf;base64,AAAA",
+            mediaId: "media-pdf",
+          },
+          {
+            id: "f2",
+            name: "b.docx",
+            mimeType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            kind: "file",
+            dataUrl: "data:application/octet-stream;base64,BBBB",
+            mediaId: "media-docx",
           },
         ],
       }),
     ];
     const slim = slimMessages(messages, false);
-    expect(slim[0]?.attachments?.[0]?.dataUrl).toBe(
-      "data:application/pdf;base64,AAAA",
-    );
-    expect(slim[0]?.attachments?.[0]?.name).toBe("a.pdf");
+    expect(slim[0]?.attachments?.[0]?.dataUrl).toBeUndefined();
+    expect(slim[0]?.attachments?.[0]?.mediaId).toBe("media-pdf");
+    expect(slim[0]?.attachments?.[0]?.id).toBe("f1");
+    expect(slim[0]?.attachments?.[1]?.dataUrl).toBeUndefined();
+    expect(slim[0]?.attachments?.[1]?.mediaId).toBe("media-docx");
+    expect(slim[0]?.attachments?.[1]?.id).toBe("f2");
   });
 
   it("strips video dataUrls from localStorage even for the active chat", () => {
