@@ -718,3 +718,15 @@ export function buildDeepDivePrompt(mode: DeepDiveMode): string {
       ].join("\n");
   }
 }
+
+/** P0-3 — 独立「解释思路」轻提示（≤1 句，判分前 UI 使用） */
+export function explainPrompt(skill: {
+  label: string;
+  studentAnswer?: string;
+}): string {
+  const ans = skill.studentAnswer?.replace(/\s+/g, " ").trim();
+  if (ans && ans.length <= 40) {
+    return `How did you get ${ans}?`;
+  }
+  return `Walk me through how you solved this ${skill.label} question.`;
+}

@@ -124,6 +124,13 @@ export type AdvanceSuggestion = {
   skillsReady: number;
 };
 
+/** P0-2 — 跨会话心流高光时刻（flow-signals 写入） */
+export type LastFlowMoment = {
+  label: string;
+  summary: string;
+  at: number;
+};
+
 export type LearningMemory = {
   topics: TopicMastery[];
   skills: SkillMastery[];
@@ -146,6 +153,10 @@ export type LearningMemory = {
   }>;
   /** V2 P1 — BKT prior tier (report §9.3.1): "high" uses more aggressive params */
   priorTier?: PriorTier;
+  /** P0-2 — 上次会话心流高光（跨会话 opener 引用） */
+  lastFlowMoment?: LastFlowMoment;
+  /** P0-2 — dismiss 时间戳；≥ lastFlowMoment.at 则不再展示延续句 */
+  flowContinuityDismissedAt?: number;
   updatedAt: number;
 };
 
@@ -563,8 +574,27 @@ export function normalizeMemory(
       raw.priorTier === "high" || raw.priorTier === "standard"
         ? raw.priorTier
         : undefined,
+    lastFlowMoment: normalizeLastFlowMoment(raw.lastFlowMoment),
+    flowContinuityDismissedAt:
+      typeof raw.flowContinuityDismissedAt === "number"
+        ? raw.flowContinuityDismissedAt
+        : undefined,
     updatedAt: Number(raw.updatedAt) || 0,
   };
+}
+
+function normalizeLastFlowMoment(raw: unknown): LastFlowMoment | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const label =
+    typeof o.label === "string" ? o.label.replace(/\s+/g, " ").trim().slice(0, 56) : "";
+  const summary =
+    typeof o.summary === "string"
+      ? o.summary.replace(/\s+/g, " ").trim().slice(0, 120)
+      : "";
+  const at = Number(o.at) || 0;
+  if (!label || !summary || !at) return undefined;
+  return { label, summary, at };
 }
 
 // ── Text Analysis ───────────────────────────────────────────────────
@@ -1607,6 +1637,8 @@ export function serializeLearningMemoryForChat(
     stuckStreakBySkill: m.stuckStreakBySkill,
     gapHistory: (m.gapHistory || []).slice(0, 8),
     priorTier: m.priorTier,
+    lastFlowMoment: m.lastFlowMoment,
+    flowContinuityDismissedAt: m.flowContinuityDismissedAt,
     updatedAt: m.updatedAt,
   };
 }

@@ -12,6 +12,11 @@ import { recordChallengeOutcome } from "@/lib/challenge-mode";
 import {
   flowAdviceLabel,
   flowAdvicePromptNote,
+  beginFlowSession,
+  dismissFlowContinuity,
+  endFlowSession,
+  loadFlowState,
+  buildOpenerWithFlowContinuity,
   recordFlowTurn,
   type FlowAdvice,
 } from "@/lib/flow-signals";
@@ -31,8 +36,10 @@ import {
 } from "@/lib/proactive-nudge";
 import {
   addWrongAnswer,
+  buildDueReviewOpener,
   buildVariantKickoffOpener,
   buildWrongReviewOpener,
+  consumeDueReviewKickoff,
   consumeVariantKickoff,
   consumeWrongReviewKickoff,
   skillLabelForText,
@@ -45,6 +52,12 @@ import {
 } from "@/lib/creation-offer";
 import { recentInterests } from "@/lib/interest-store";
 import { reconcileWeeklyGoal } from "@/lib/weekly-goal";
+import {
+  markExplainSkipped,
+  shouldExplainThinking,
+  wasExplainSkipped,
+} from "@/lib/explain-prompt";
+import { explainPrompt } from "@/lib/prompts";
 import {
   emotionPromptLines,
   emotionUiLine,
@@ -279,6 +292,18 @@ export function useTutorSession() {
   const hiddenAtRef = useRef<number | null>(null);
   // V2 P0 — "growth moment" line from the flow signal (report §9.2.1).
   const [flowMoment, setFlowMoment] = useState<string | null>(null);
+  /** P0-3 — 判分前「解释思路」轻提示条 */
+  const [explainBar, setExplainBar] = useState<{
+    questionId: string;
+    text: string;
+    payload: {
+      text: string;
+      attachments: ClientAttachment[];
+      quote?: ChatQuote;
+      source?: LearningSource;
+    };
+  } | null>(null);
+  const explainBypassRef = useRef(false);
   // Last turn's flow advice — injected into the NEXT turn's prompt so the LLM
   // can adjust difficulty in ordinary conversations (not just challenge mode).
   const flowAdviceRef = useRef<FlowAdvice>("hold");
@@ -331,6 +356,39 @@ export function useTutorSession() {
   const pendingLabKickoffRef = useRef<string | null>(null);
   /** P0 — when the last assistant message finished, for answer-latency flow signals */
   const lastAssistantAtRef = useRef<number>(Date.now());
+
+  const flowContinuityLine = useMemo(
+    () => buildOpenerWithFlowContinuity(learningMemory),
+    [learningMemory],
+  );
+
+  const persistFlowOnSessionSwitch = useCallback(
+    (mem: LearningMemory, msgs?: ChatMessage[]) => {
+      const lastAssistant = msgs
+        ?.slice()
+        .reverse()
+        .find((m) => m.role === "assistant" && m.content.trim());
+      const inferred = skillLabelForText(lastAssistant?.content || "");
+      const next = endFlowSession(mem, {
+        state: loadFlowState(),
+        skillLabel: inferred.skillLabel,
+      });
+      beginFlowSession();
+      if (next.lastFlowMoment?.at !== mem.lastFlowMoment?.at) {
+        setLearningMemory(next);
+        saveLearningMemory(next, accountId);
+        void pushLearningMemoryToServer(next, accountId);
+        return next;
+      }
+      return mem;
+    },
+    [accountId],
+  );
+
+  const handleDismissFlowContinuity = useCallback(() => {
+    dismissFlowContinuity(accountId);
+    setLearningMemory(loadLearningMemory(accountId));
+  }, [accountId]);
 
   useEffect(() => {
     checkModeRef.current = checkMode;
@@ -869,7 +927,9 @@ export function useTutorSession() {
       // P1 — subject-starter (breadth map) > variant/harder > review > practice kickoff
       const subjectKick = consumeSubjectStarter();
       const variantKick = subjectKick ? null : consumeVariantKickoff();
-      const wrongKick = variantKick ? null : consumeWrongReviewKickoff();
+      const dueKick = variantKick ? null : consumeDueReviewKickoff();
+      const wrongKick =
+        variantKick || dueKick ? null : consumeWrongReviewKickoff();
       const kick = wrongKick ? null : consumePracticeKickoff();
       setSessionOpener(
         subjectKick
@@ -883,11 +943,13 @@ export function useTutorSession() {
             }
           : variantKick
             ? buildVariantKickoffOpener(variantKick)
-            : wrongKick
-              ? buildWrongReviewOpener(wrongKick)
-              : kick
-                ? buildPracticeKickoffOpener(kick)
-                : buildSessionOpener(mem, accountId),
+            : dueKick
+              ? buildDueReviewOpener(dueKick)
+              : wrongKick
+                ? buildWrongReviewOpener(wrongKick)
+                : kick
+                  ? buildPracticeKickoffOpener(kick)
+                  : buildSessionOpener(mem, accountId),
       );
     } else {
       setSessionOpener(null);
@@ -1007,7 +1069,10 @@ export function useTutorSession() {
 
     // Generate a digest for the session we're leaving (if it has meaningful messages)
     const prevActive = getActiveConversation(store);
-    const mem = learningMemory || loadLearningMemory(accountId);
+    let mem = learningMemory || loadLearningMemory(accountId);
+    if (prevActive && prevActive.messages.length >= 1) {
+      mem = persistFlowOnSessionSwitch(mem, prevActive.messages);
+    }
     if (prevActive && prevActive.messages.length >= 2) {
       const digest = autoGenerateDigest(
         prevActive.messages.map((m) => ({
@@ -1184,8 +1249,11 @@ export function useTutorSession() {
     if (!store || busy || id === store.activeId) return;
     commitSessionFocus();
     stopSpeakAll();
-    const mem = learningMemory || loadLearningMemory(accountId);
+    let mem = learningMemory || loadLearningMemory(accountId);
     const leaving = getActiveConversation(store);
+    if (leaving && leaving.sessionId !== id && leaving.messages.length >= 1) {
+      mem = persistFlowOnSessionSwitch(mem, leaving.messages);
+    }
     let conversations = store.conversations;
     if (leaving && leaving.sessionId !== id) {
       const closed = maybeCloseSession(leaving, mem, accountId);
@@ -1262,6 +1330,41 @@ export function useTutorSession() {
     // P0 — flow signal: how long the student took to answer the last question.
     // Captured at send time (their answer latency), used after outcome classify.
     const answerLatencyMs = Date.now() - lastAssistantAtRef.current;
+
+    // P0-3 — explain-your-thinking nudge before grading (skippable).
+    if (
+      !explainBypassRef.current &&
+      payload.attachments.length === 0 &&
+      !explainBar
+    ) {
+      const lastAssistant = [...messages]
+        .reverse()
+        .find((m) => m.role === "assistant" && m.content.trim());
+      const qid = lastAssistant?.id;
+      if (qid && !wasExplainSkipped(qid)) {
+        const mem = learningMemory || loadLearningMemory(accountId);
+        const inferred = skillLabelForText(
+          [lastAssistant?.content || "", payload.text].join("\n"),
+        );
+        const row = mem.skills.find((s) => s.id === inferred.skillId);
+        const pKnown = row?.pKnown ?? 0.25;
+        if (
+          shouldExplainThinking({ pKnown, responseTimeMs: answerLatencyMs })
+        ) {
+          setExplainBar({
+            questionId: qid,
+            text: explainPrompt({
+              label: inferred.skillLabel,
+              studentAnswer: payload.text,
+            }),
+            payload,
+          });
+          return;
+        }
+      }
+    }
+    explainBypassRef.current = false;
+    setExplainBar(null);
 
     // UX-RPT.7 / P0 — narrow local fast-path (no Agent): arithmetic facts
     // first, then unit/formula/power-table facts (report §8.2).
@@ -1718,6 +1821,15 @@ export function useTutorSession() {
     }
   };
 
+  const handleSkipExplain = () => {
+    if (!explainBar) return;
+    markExplainSkipped(explainBar.questionId);
+    const p = explainBar.payload;
+    explainBypassRef.current = true;
+    setExplainBar(null);
+    void handleSend(p);
+  };
+
   return {
     ready, store, busy, error, setError, agentStatus, keyMissing,
     voiceEnabled, setVoiceEnabled, voiceId, setVoiceId, voiceIdRef,
@@ -1735,6 +1847,8 @@ export function useTutorSession() {
     breakNudge, handleDismissBreakNudge,
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
+    flowContinuityLine, handleDismissFlowContinuity,
+    explainBar, handleSkipExplain,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
     collabOffer, handleDismissCollab, handleCodingResult,
   };

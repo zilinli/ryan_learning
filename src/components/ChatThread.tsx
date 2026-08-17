@@ -129,6 +129,12 @@ type Props = {
   /** V2 P0 — growth-moment line from the flow signal (report §9.2.1) */
   flowMoment?: string | null;
   onDismissFlowMoment?: () => void;
+  /** P0-2 — cross-session flow continuity under opener (empty state) */
+  flowContinuityLine?: string | null;
+  onDismissFlowContinuity?: () => void;
+  /** P0-3 — explain-your-thinking bar before grading */
+  explainBar?: { text: string } | null;
+  onSkipExplain?: () => void;
   /** V2 P1 — weekly "This week" Launchpad strip (report §9.3.2) */
   weeklyLaunchpad?: WeeklyLaunchpadView | null;
   onLaunchpadItem?: (action: LaunchpadAction) => void;
@@ -270,6 +276,10 @@ export function ChatThread({
   onDismissProactiveInvite,
   flowMoment,
   onDismissFlowMoment,
+  flowContinuityLine,
+  onDismissFlowContinuity,
+  explainBar,
+  onSkipExplain,
   weeklyLaunchpad,
   onLaunchpadItem,
   creationOffer,
@@ -651,6 +661,8 @@ export function ChatThread({
           onDismissConnection={onDismissConnection}
           onAdjacentTry={onAdjacentTry}
           onLaunchpadItem={onLaunchpadItem}
+          flowContinuityLine={flowContinuityLine}
+          onDismissFlowContinuity={onDismissFlowContinuity}
         />
       </div>
     );
@@ -686,6 +698,18 @@ export function ChatThread({
             className="shrink-0 text-[11px] text-[var(--ink-muted)] underline-offset-2 hover:underline"
           >
             OK
+          </button>
+        </div>
+      ) : null}
+      {explainBar ? (
+        <div className="sticky top-0 z-[7] flex items-start justify-between gap-2 rounded-xl border border-[var(--coral)]/40 bg-[var(--coral)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
+          <p>{explainBar.text}</p>
+          <button
+            type="button"
+            onClick={onSkipExplain}
+            className="shrink-0 rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] hover:border-[var(--coral)]/45 hover:text-[var(--coral)]"
+          >
+            Skip
           </button>
         </div>
       ) : null}

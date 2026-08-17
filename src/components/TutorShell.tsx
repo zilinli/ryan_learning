@@ -76,6 +76,10 @@ import {
   type WeeklyLaunchpadView,
 } from "@/lib/weekly-launchpad";
 import {
+  loadDueReviews,
+  stashDueReviewKickoff,
+} from "@/lib/wrong-answer-store";
+import {
   buildConnectionOffer,
   buildDynamicConnectionOffer,
   markConnectionShownForOffer,
@@ -106,6 +110,8 @@ export function TutorShell() {
     breakNudge, handleDismissBreakNudge,
     proactiveInvite, handleDismissProactiveInvite, handleAcceptProactiveInvite,
     flowMoment, setFlowMoment,
+    flowContinuityLine, handleDismissFlowContinuity,
+    explainBar, handleSkipExplain,
     creationOffer, handleDismissCreationOffer, creationOfferLine,
     collabOffer, handleDismissCollab, handleCodingResult,
     labReturn, setLabReturn,
@@ -321,6 +327,18 @@ export function TutorShell() {
     }
     if (action.type === "connection") {
       if (connectionOffer) handleShowConnection();
+      return;
+    }
+    if (action.type === "dueReview") {
+      if (action.count <= 0) return;
+      const due = loadDueReviews(accountId, learningMemory);
+      if (due.length) stashDueReviewKickoff(due.map((d) => d.item));
+      setWeeklyLaunchpad(null);
+      void handleSend({
+        text: launchpadKickoff(action),
+        attachments: [],
+        source: "wrongbook",
+      });
       return;
     }
     setWeeklyLaunchpad(null);
@@ -647,6 +665,12 @@ export function TutorShell() {
             onAcceptProactiveInvite={handleAcceptProactiveInvite}
             flowMoment={flowMoment}
             onDismissFlowMoment={() => setFlowMoment(null)}
+            flowContinuityLine={
+              messages.length === 0 ? flowContinuityLine : null
+            }
+            onDismissFlowContinuity={handleDismissFlowContinuity}
+            explainBar={explainBar}
+            onSkipExplain={handleSkipExplain}
             weeklyLaunchpad={
               messages.length === 0 ? weeklyLaunchpad : null
             }
