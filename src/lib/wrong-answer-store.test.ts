@@ -12,8 +12,10 @@ import {
   consumeVariantKickoff,
   consumeWrongReviewKickoff,
   deleteWrongAnswer,
+  loadDueReviews,
   loadWrongAnswers,
   markWrongAnswersRedone,
+  recordWrongAnswerReviewOutcome,
   skillLabelForText,
   stashVariantKickoff,
   stashWrongReviewKickoff,
@@ -198,6 +200,51 @@ describe("wrong-answer-store", () => {
       expect(removed).toBe(1);
       expect(loadWrongAnswers(ACCT).map((w) => w.id)).toEqual([b.id]);
       expect(markWrongAnswersRedone(ACCT, ["missing"])).toBe(0);
+    });
+  });
+
+  describe("P0-1 spaced review schedule", () => {
+    const DAY = 86_400_000;
+    const now = 10 * DAY;
+
+    it("schedules 1-day review on add", () => {
+      const w = add("Q1", "fractions-concepts", "Fractions", now - DAY);
+      expect(w.reviewStage).toBe(0);
+      expect(w.nextReviewAt).toBeGreaterThan(now - DAY);
+    });
+
+    it("correct review advances stage; wrong resets", () => {
+      const w = add("Q1", "fractions-concepts", "Fractions", now - 2 * DAY);
+      const ok = recordWrongAnswerReviewOutcome(ACCT, w.id, true, null, now);
+      expect(ok?.reviewStage).toBe(1);
+      const bad = recordWrongAnswerReviewOutcome(ACCT, w.id, false, null, now);
+      expect(bad?.reviewStage).toBe(0);
+    });
+
+    it("loadDueReviews returns overdue items sorted", () => {
+      addWrongAnswer(ACCT, {
+        skillId: "s1",
+        skillLabel: "S1",
+        question: "q1",
+        studentAnswer: "a",
+        assistantText: "t",
+        createdAt: now - 3 * DAY,
+        reviewStage: 0,
+        nextReviewAt: now - DAY,
+      });
+      addWrongAnswer(ACCT, {
+        skillId: "s2",
+        skillLabel: "S2",
+        question: "q2",
+        studentAnswer: "a",
+        assistantText: "t",
+        createdAt: now - 5 * DAY,
+        reviewStage: 0,
+        nextReviewAt: now - 4 * DAY,
+      });
+      const due = loadDueReviews(ACCT, null, now);
+      expect(due.length).toBeGreaterThanOrEqual(2);
+      expect(due[0]!.overdueMs).toBeGreaterThanOrEqual(due[1]!.overdueMs);
     });
   });
 });

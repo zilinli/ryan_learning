@@ -4,11 +4,20 @@
  * micro-adjustments: fast correct streaks suggest the challenge is too low
  * (step up), repeated slow/stuck turns suggest anxiety (step down).
  *
+ * P0-2 — cross-session flow continuity: session-end highlights persist into
+ * learning memory and surface as a one-line opener reference (24h window).
+ *
  * Deliberately tiny and deterministic: every rule is a pure function on the
  * state so it can be unit-tested and tuned without an RL loop.
  */
 
 import { kvGet, kvSet, kvRemove } from "./browser-kv";
+import type { LastFlowMoment, LearningMemory } from "./learning-memory";
+import {
+  loadLearningMemory,
+  normalizeMemory,
+  saveLearningMemory,
+} from "./learning-memory";
 
 export type FlowOutcome = "correct" | "incorrect" | "practice";
 
@@ -36,6 +45,8 @@ export const FLOW_SLOW_MS = 30_000;
 export const FLOW_UP_AFTER = 3;
 /** Slow or wrong turns in a row before we step the difficulty down. */
 export const FLOW_DOWN_AFTER = 2;
+/** P0-2 — flow continuity window (24h). */
+export const FLOW_CONTINUITY_MS = 24 * 60 * 60 * 1000;
 
 const FLOW_KEY = "spark.flowState.v1";
 
@@ -140,4 +151,86 @@ export function flowAdvicePromptNote(advice: FlowAdvice): string | null {
     return "The child is stuck or hesitating — make the next question a little gentler.";
   }
   return null;
+}
+
+// ── P0-2 — 跨会话心流延续 ───────────────────────────────────────────
+
+/** 从当前 flow 状态提取可持久化的高光时刻；无足够信号则 null。 */
+export function buildFlowMomentFromState(
+  state: FlowState,
+  skillLabel = "speed questions",
+): LastFlowMoment | null {
+  const streak = Math.max(state.fastCorrectStreak, state.consecutiveCorrect);
+  if (streak < FLOW_UP_AFTER) return null;
+  const now = Date.now();
+  return {
+    label: skillLabel.slice(0, 56),
+    summary: `${streak} fast correct on ${skillLabel.slice(0, 40)}`,
+    at: now,
+  };
+}
+
+/**
+ * 会话结束：把 lastFlowMoment 写入学习记忆（caller 负责 saveLearningMemory）。
+ * 新 moment 会清除 dismiss 标记。
+ */
+export function endFlowSession(
+  mem: LearningMemory,
+  opts?: { state?: FlowState; skillLabel?: string },
+): LearningMemory {
+  const state = opts?.state ?? loadFlowState();
+  const moment = buildFlowMomentFromState(state, opts?.skillLabel);
+  const base = normalizeMemory(mem);
+  if (!moment) return base;
+  return normalizeMemory({
+    ...base,
+    lastFlowMoment: moment,
+    flowContinuityDismissedAt: undefined,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * 24h 内有 flow 事件且未 dismiss → 返回 ≤1 句延续引用；否则 null。
+ */
+export function buildOpenerWithFlowContinuity(
+  mem: LearningMemory | null | undefined,
+  now = Date.now(),
+): string | null {
+  const m = mem ? normalizeMemory(mem) : null;
+  const fm = m?.lastFlowMoment;
+  if (!fm) return null;
+  if (now - fm.at > FLOW_CONTINUITY_MS) return null;
+  if (
+    m!.flowContinuityDismissedAt != null &&
+    m!.flowContinuityDismissedAt >= fm.at
+  ) {
+    return null;
+  }
+  const n = fm.summary.match(/\d+/)?.[0] ?? String(FLOW_UP_AFTER);
+  const line = `Last time you nailed ${n} ${fm.label} questions fast — let's try beating that pace.`;
+  return isSingleSentence(line) ? line : line.split(".")[0] + ".";
+}
+
+/** 延续句必须为单句（测试 / 校验用）。 */
+export function isSingleSentence(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  const sentences = t.split(/[.!?。！？]+/).filter((s) => s.trim().length > 0);
+  return sentences.length <= 1;
+}
+
+/** 持久化忽略标记 — 当前 lastFlowMoment 不再出现在 opener 下方。 */
+export function dismissFlowContinuity(accountId: string): void {
+  const mem = loadLearningMemory(accountId);
+  const fm = mem.lastFlowMoment;
+  if (!fm) return;
+  saveLearningMemory(
+    {
+      ...normalizeMemory(mem),
+      flowContinuityDismissedAt: fm.at,
+      updatedAt: Date.now(),
+    },
+    accountId,
+  );
 }
