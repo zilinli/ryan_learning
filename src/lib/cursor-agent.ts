@@ -3,6 +3,7 @@ import { Agent, AgentBusyError, Cursor, CursorAgentError } from "@cursor/sdk";
 import type { Run, SDKAgent, SDKImage } from "@cursor/sdk";
 import { isAgentBusyError } from "./agent-retry";
 import { DEFAULT_CURSOR_API_KEY } from "./default-api-key";
+import { hasLlmFallback, streamLlmFallback } from "./llm-fallback";
 import {
   clearAgentId,
   getAgentId,
@@ -159,7 +160,9 @@ export async function streamTutorReply(params: {
   handlers: StreamHandlers;
   /** Internal: set by retry to prevent infinite recursion. */
   _staleRetried?: boolean;
-}): Promise<{ agentId: string; fullText: string }> {
+  /** Internal: set once we already fell back to a backup LLM this turn. */
+  _fallbackTried?: boolean;
+}): Promise<{ agentId: string; fullText: string; fallback?: boolean }> {
   if (params.signal?.aborted) {
     throw new Error("Request cancelled");
   }
@@ -325,6 +328,37 @@ export async function streamTutorReply(params: {
     if (params.signal?.aborted) {
       throw new Error("Request cancelled");
     }
+
+    // ── Multi-model fallback ────────────────────────────────────────
+    // When the primary Cursor Agent path fails (agent start error, run
+    // error, or missing key), degrade to an OpenAI-compatible backup LLM
+    // (DeepSeek / 百炼 Qwen) once per turn so the kid still gets a reply.
+    if (!params._fallbackTried && hasLlmFallback()) {
+      try {
+        const fb = await streamLlmFallback({
+          text: params.text,
+          signal: params.signal,
+          handlers: params.handlers,
+        });
+        const finalText = preferCompleteTutorText(fb.fullText, fb.fullText);
+        if (!finalText.trim()) {
+          throw new Error("fallback returned empty text");
+        }
+        params.handlers.onStatus?.(`Backup ${fb.provider} replied`);
+        return {
+          agentId: agent.agentId,
+          fullText: finalText,
+          fallback: true,
+        };
+      } catch (fbErr) {
+        // Fallback also failed — surface the original error below.
+        console.error(
+          `[Spark] LLM fallback failed (${err instanceof Error ? err.message : String(err)}):`,
+          fbErr instanceof Error ? fbErr.message : String(fbErr),
+        );
+      }
+    }
+
     if (err instanceof CursorAgentError) {
       clearAgentId(params.sessionId);
       throw new Error(

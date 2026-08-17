@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Mocks
@@ -65,6 +65,8 @@ vi.mock("@/lib/file-payload", () => ({
 
 vi.mock("@/lib/attachments", () => ({
   MAX_ATTACHMENTS: 5,
+  FILE_INPUT_ACCEPT: ["image/*", "application/pdf"],
+  resolveFilePickerAccept: (accept: string[] | string) => accept,
 }));
 
 vi.mock("@/lib/speech-player", () => ({
@@ -76,6 +78,10 @@ vi.mock("@/lib/speech-player", () => ({
 describe("Composer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders textarea with placeholder", async () => {
@@ -234,8 +240,8 @@ describe("Composer", () => {
       }),
     );
 
-    const uploadLabel = screen.getByTitle("Upload file");
-    expect(uploadLabel).toBeTruthy();
+    const uploadLabels = screen.getAllByLabelText("Upload file");
+    expect(uploadLabels.length).toBeGreaterThan(0);
   });
 
   it("renders VoiceControls", async () => {

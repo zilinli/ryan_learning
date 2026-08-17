@@ -55,7 +55,8 @@ describe("git-ops", () => {
   });
 
   it("runTests executes npm test with timeout", async () => {
-    const res = await runTests("/root/codes/ryan_learning", {
+    const dir = makeCleanRepo();
+    const res = await runTests(dir, {
       testCommand: "echo ok",
       testTimeoutMs: 10_000,
     });

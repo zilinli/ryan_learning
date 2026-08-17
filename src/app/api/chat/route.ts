@@ -5,6 +5,7 @@ import {
   hydrateUserMessageMedia,
 } from "@/lib/attachments";
 import { hasCursorApiKey, streamTutorReply } from "@/lib/cursor-agent";
+import { hasLlmFallback } from "@/lib/llm-fallback";
 import { buildFileSummaries } from "@/lib/extract-files";
 import {
   buildImageOcrSummaries,
@@ -25,6 +26,7 @@ import type { EngagementState } from "@/lib/engagement";
 import type { SDKImage } from "@cursor/sdk";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
 import { getServerConversation, upsertServerConversation } from "@/lib/history-store";
+import { recordUsage } from "@/lib/usage-store";
 import { titleFromMessages } from "@/lib/storage";
 import type { ConversationRecord } from "@/lib/types";
 
@@ -53,9 +55,9 @@ export async function POST(req: Request) {
   const limited = checkApiRateLimit(req, "chat", RATE_PRESETS.agent);
   if (limited) return limited;
 
-  if (!hasCursorApiKey()) {
+  if (!hasCursorApiKey() && !hasLlmFallback()) {
     return Response.json(
-      { error: "Cursor API Key is not configured." },
+      { error: "No AI provider configured (Cursor API Key or LLM fallback)." },
       { status: 503 },
     );
   }
@@ -395,6 +397,12 @@ export async function POST(req: Request) {
         // Prefer SDK final text when stream filter / deltas lost spaces or figures.
         const merged = preferCompleteTutorText(visible, fullText);
         const finalText = scrubTutorVisibleText(merged);
+        // Track per-account LLM usage for the admin cost panel (fire-and-forget).
+        void recordUsage({
+          accountId: accountId ?? "default",
+          inputChars: prompt.length,
+          outputChars: finalText.length,
+        }).catch(() => {});
         send("done", { agentId, text: finalText, userMediaIds: turnMediaIds });
       } catch (err) {
         if (req.signal.aborted) return;

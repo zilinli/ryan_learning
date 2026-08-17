@@ -54,6 +54,11 @@ vi.mock("./default-api-key", () => ({
   DEFAULT_CURSOR_API_KEY: "sk-test-key",
 }));
 
+vi.mock("./llm-fallback", () => ({
+  hasLlmFallback: vi.fn(() => false),
+  streamLlmFallback: vi.fn(),
+}));
+
 import { streamTutorReply, hasCursorApiKey, listAvailableModels } from "./cursor-agent";
 import { getAgentId, setAgentId, clearAgentId } from "./session-store";
 import { CursorAgentError } from "@cursor/sdk";

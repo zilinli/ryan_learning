@@ -768,6 +768,49 @@ export function FamilyControlsPage() {
               </a>
             </div>
           </section>
+
+          {/* Capabilities — surface Spark's unique differentiators for parents */}
+          <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+            <h2 className="text-[13px] font-semibold text-[var(--teal)]">
+              Spark capabilities
+            </h2>
+            <p className="mt-1 text-[12px] text-[var(--ink-muted)]">
+              Things most tutoring apps can&apos;t do — built into this one.
+            </p>
+            <ul className="mt-3 space-y-2 text-[13px]">
+              <li className="flex items-start gap-2">
+                <span aria-hidden>🗣️</span>
+                <span>
+                  <strong className="font-medium text-[var(--ink)]">Dialect tutoring</strong>
+                  <span className="text-[var(--ink-muted)]">
+                    {" "}— 粤语 / 客家话 / 闽南话 / 上海话 voice &amp; chat, plus
+                    English &amp; 普通话. Ask in whichever language the family
+                    speaks at home.
+                  </span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span aria-hidden>🤖</span>
+                <span>
+                  <strong className="font-medium text-[var(--ink)]">Self-improving Code Agent</strong>
+                  <span className="text-[var(--ink-muted)]">
+                    {" "}— Spark can fix its own bugs and add features on request
+                    (e.g. “make the math font bigger”, “add a 4pm reminder”).
+                  </span>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span aria-hidden>🔒</span>
+                <span>
+                  <strong className="font-medium text-[var(--ink)]">Private by design</strong>
+                  <span className="text-[var(--ink-muted)]">
+                    {" "}— self-hosted; conversation data stays on your own
+                    server, never sold or shared.
+                  </span>
+                </span>
+              </li>
+            </ul>
+          </section>
         </main>
       )}
 

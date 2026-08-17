@@ -56,7 +56,11 @@ describe("parseAvailableCaptionLangs", () => {
   });
 });
 
-describe("fetchViaAutoCc (live)", () => {
+// Live YouTube fetches require network access; run them explicitly with
+// RUN_LIVE_NETWORK=1 (CI / sandbox default: skip).
+const runLive = process.env.RUN_LIVE_NETWORK === "1";
+
+describe.skipIf(!runLive)("fetchViaAutoCc (live)", () => {
   it(
     "pulls English auto-CC when bare en is missing (en-US fallback)",
     async () => {
@@ -90,7 +94,7 @@ describe("fetchViaAutoCc (live)", () => {
   );
 });
 
-describe("fetchYouTubeTranscript (live)", () => {
+describe.skipIf(!runLive)("fetchYouTubeTranscript (live)", () => {
   it(
     "uses auto-cc source for RSA Drive",
     async () => {

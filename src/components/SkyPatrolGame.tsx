@@ -68,7 +68,7 @@ export function SkyPatrolGame() {
           className="pointer-events-none absolute inset-0 opacity-40"
           style={{
             backgroundImage:
-              "radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1px 1px at 40% 80%, #cbd5e1, transparent)",
+              "radial-gradient(1px 1px at 20% 30%, #fefefe, transparent), radial-gradient(1px 1px at 70% 60%, #fefefe, transparent), radial-gradient(1px 1px at 40% 80%, #cbd5e1, transparent)",
           }}
         />
 

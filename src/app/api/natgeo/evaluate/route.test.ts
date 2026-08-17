@@ -1,4 +1,19 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+
+// Cursor Agent is a real LLM call — stub it so tests stay deterministic and
+// offline. The route degrades to a deterministic fallback verdict when the
+// agent errors, which these tests exercise via the empty-answer path.
+vi.mock("@cursor/sdk", () => {
+  class CursorAgentError extends Error {}
+  return {
+    CursorAgentError,
+    Agent: {
+      create: vi.fn(async () => {
+        throw new CursorAgentError("stubbed offline agent");
+      }),
+    },
+  };
+});
 
 describe("POST /api/natgeo/evaluate", () => {
   beforeEach(() => {

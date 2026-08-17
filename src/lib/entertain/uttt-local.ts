@@ -15,6 +15,27 @@ import {
 
 export type AiDifficulty = "easy" | "medium" | "hard";
 
+/**
+ * Search-depth ladder for UTTT minimax, keyed by difficulty name.
+ * Supports the standard AiDifficulty set plus "expert" / "master" tiers
+ * used by the difficulty ladder test.
+ */
+export function searchDepth(difficulty: string): number {
+  switch (difficulty) {
+    case "master":
+      return 6;
+    case "expert":
+      return 5;
+    case "hard":
+      return 4;
+    case "medium":
+      return 3;
+    case "easy":
+    default:
+      return 2;
+  }
+}
+
 const LINES: number[][] = [
   [0, 1, 2],
   [3, 4, 5],

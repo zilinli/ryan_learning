@@ -76,6 +76,11 @@ function scorePoint(
   return score;
 }
 
+/** Search radius around existing stones, scaled by difficulty. */
+function candidateRadius(difficulty: AiDifficulty): number {
+  return difficulty === "hard" ? 3 : difficulty === "medium" ? 2 : 1;
+}
+
 /** Candidates near existing stones (speed). */
 function candidateMoves(state: GomokuState, difficulty: AiDifficulty = "medium"): string[] {
   const { board, size } = state;

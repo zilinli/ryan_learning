@@ -17,6 +17,11 @@ vi.mock("@/lib/cursor-agent", () => ({
   streamTutorReply: vi.fn(),
 }));
 
+vi.mock("@/lib/llm-fallback", () => ({
+  hasLlmFallback: vi.fn(() => false),
+  streamLlmFallback: vi.fn(),
+}));
+
 vi.mock("@/lib/prompts", () => ({
   buildTutorPrompt: vi.fn(() => "system prompt for test"),
 }));
@@ -29,6 +34,7 @@ vi.mock("@/lib/student-profile", () => ({
     preferredChinese: "yue",
     subjects: [],
   },
+  normalizeProfile: (p: unknown) => p ?? {},
 }));
 
 vi.mock("@/lib/tutor-text-filter", () => ({

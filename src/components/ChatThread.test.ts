@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/types";
 
 // Mock child components
@@ -25,6 +25,10 @@ Element.prototype.scrollIntoView = vi.fn();
 describe("ChatThread", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders empty state when no messages", async () => {
@@ -64,7 +68,7 @@ describe("ChatThread", () => {
     );
 
     expect(screen.getByText("You")).toBeTruthy();
-    expect(screen.getByText("Spark")).toBeTruthy();
+    expect(screen.getByText("The Answer Book · AI Tutor")).toBeTruthy();
 
     const markdownElements = screen.getAllByTestId("markdown");
     expect(markdownElements.length).toBe(2);
@@ -89,7 +93,7 @@ describe("ChatThread", () => {
       }),
     );
 
-    const sparkLabels = screen.getAllByText("Spark");
+    const sparkLabels = screen.getAllByText("The Answer Book · AI Tutor");
     expect(sparkLabels.length).toBeGreaterThan(0);
   });
 

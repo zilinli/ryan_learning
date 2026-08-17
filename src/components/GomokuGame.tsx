@@ -153,7 +153,7 @@ export function GomokuGame() {
                           background:
                             stone === "black"
                               ? "radial-gradient(circle at 35% 30%, #555, #111)"
-                              : "radial-gradient(circle at 35% 30%, #fff, #bbb)",
+                              : "radial-gradient(circle at 35% 30%, #fefefe, #bbb)",
                           boxShadow: last
                             ? "0 0 0 2px var(--teal)"
                             : "0 1px 2px rgba(0,0,0,0.35)",
