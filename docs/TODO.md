@@ -268,10 +268,11 @@ Design: [creations-media-download.md](subsystems/creations-media-download.md)
 
 ---
 
-## 🔴 VID-RELOAD — 手机存在视频对话时页面无限刷新（已修复 · 已部署）
+## ✅ VID-RELOAD — 手机存在视频对话时页面无限刷新（已修复 · 已验证 · 已上线）
 
 > **症状:** 手机上只要存在「上传过视频」的对话，页面就会一直刷新、一直"识别"（视频被反复下载/处理）。iPhone Chrome 约每 12 秒整页重载一次。
 > **排查日期:** 2026-08-14（用户正在使用中，未重启/未部署）
+> **验证日期:** 2026-08-17 — iPhone 无痕窗口复测通过；调试埋点已移除；最终干净构建已部署。
 
 ### 根因（已确认，runtime 证据）
 
@@ -297,17 +298,11 @@ Design: [creations-media-download.md](subsystems/creations-media-download.md)
 | 类型 | 上传时 | 跨端同步 | 结论 |
 |------|--------|----------|------|
 | **图片 image** | 压缩后小（`compressImageDataUrl`） | 会被 `fetchMissingPhotosFromServer` 拉取 | ✅ 安全（设计内，跨端照片同步） |
-| **视频 video** | `data` only（已修） | ❌ 全量拉取 → base64 → OOM | 🔴 已确认根因 |
-| **PDF / Office(docx/pptx/xlsx)** | `dataUrl`+`data` 双份全量 base64 | ❌ 全量拉取 → base64 → OOM | 🔴 **同类问题，待修复** |
+| **视频 video** | `data` only | 跳过 fetch / vault | ✅ 已修复 |
+| **PDF / Office(docx/pptx/xlsx)** | `data` only（与视频一致） | 跳过 fetch / vault | ✅ 已修复 |
 | **文本 md/txt/csv/html/code/json/log** | 截断 80KB，urlencoded dataUrl | 小（≤80KB） | ✅ 安全 |
 
-**PDF/Office 的三个同类缺陷（均已定位）：**
-
-1. **跨端重载/OOM 循环（与视频同机制）** — `fetchMissingPhotosFromServer()` 对「有 `mediaId` 无 `dataUrl`」的任意附件都执行全量 `fetch → blob → readAsDataURL → 写 vault`。PDF/Office 是 ≤256MB 的二进制，跨设备打开时会像视频一样把整份文件转成 base64 塞进内存 → 手机 OOM → 重载循环。
-2. **上传时内存双份** — `file-payload.ts` 对 PDF/Office 同时返回 `dataUrl` 和 `data`（都是完整 base64）；`handleSend` 又把 `dataUrl` 放进 `userMessage.attachments`（L1251）且把 `data` 放进 `attachments[]`（L1322），同一份文件在请求体里出现两次，JSON.stringify 再复制一次 → 手机 OOM → 499 重载（正是当初视频的 bug，但只对视频加了 `MAX_VIDEO_BYTES`+data-only，PDF/Office 漏了）。
-3. **localStorage 配额** — `slimMessages` 只 strip 视频的 dataUrl（L144 `isVideoAttachment`），PDF/Office 的 dataUrl 原样保留；超大文件会撑爆 5MB 配额，`saveConversations` 的兜底路径也因 `if (a.dataUrl) return a`（L150）先命中而无法剥离 → 静默写失败。
-
-### 修复方案（待用户允许后开发 + 部署）
+### 修复方案（已完成）
 
 > 核心原则：**二进制大文件（视频 + PDF + Office）在客户端「永不生成 dataUrl」**，只用 `mediaId` 流式/下载；只有小图片保留 dataUrl。把这条约束在 4 条链路都补上。
 
@@ -317,7 +312,9 @@ Design: [creations-media-download.md](subsystems/creations-media-download.md)
 - [x] **VID-RELOAD.4** — `file-payload.ts`：PDF/Office 改为 **data-only**（去 `dataUrl`，与视频一致），上传时不再内存双份
 - [x] **VID-RELOAD.5** — `restoreStorePhotosFromVault()` 内联清理：跳过二进制大附件时同时 `deletePhotosFromVault(ids)` 删除 vault 里已存在的视频/PDF/Office dataUrl 条目（防历史污染）
 - [x] **VID-RELOAD.6** — 单测：binary 附件不进 fetch/restore/slim；image 行为不变；PDF/Office data-only（新增 `photo-vault.test.ts`，更新 `storage.test.ts` / `file-payload.test.ts` / `attachments-docs.test.ts`）
-- [x] **VID-RELOAD.7** — build + deploy + 健康检查（2026-08-14 08:14 构建成功，`spark-tutor`/`formospeech-tts`/`spark-acc`/`spark-stt`/`spark-watchdog` 全部 active，health-check `ok=true`）；**iPhone 复测待用户验证**（上传视频/PDF → 对话内流式/下载正常、页面不再重载）
+- [x] **VID-RELOAD.7** — build + deploy + 健康检查；**iPhone 无痕窗口复测通过**（2026-08-17）
+- [x] **VID-RELOAD.8** — Nginx：HTML `Cache-Control: no-cache`（覆盖 Next 一年 `s-maxage`），避免手机卡在旧 bundle；`/_next/` 静态资源保持长缓存
+- [x] **VID-RELOAD.9** — 移除临时调试埋点（`debug-log` / `debug-relay` / `CrashWatch` / `debug-camera` / `CameraCapture` camLog）并部署干净最终版
 
 > **新增共享辅助:** `attachments.ts` → `isLargeBinaryAttachment(mimeType, name)`，统一判定「视频/PDF/Office」等二进制大附件；`ChatThread.tsx` 的 vault effect 也对其跳过 vault 读取（直接走 `/api/media` 流式/下载），并补齐 `vaultChecked` 标记。
 

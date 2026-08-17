@@ -1,7 +1,6 @@
 import type { ConversationRecord, ConversationsStore } from "./types";
 import { mergeConversationLists, mergeMessageAttachments } from "./history-merge";
 import { RYAN_ACCOUNT } from "./tenant-storage";
-import { dbgLog } from "./debug-log";
 
 const TOMBSTONE_TTL_MS = 30 * 86400 * 1000;
 
@@ -193,39 +192,11 @@ export async function pushStoreToServer(
     (c) => c.messages.length > 0 && !hasFreshTombstone(c.sessionId),
   );
   if (!conversations.length) return store;
-  const body = JSON.stringify({ accountId, conversations });
-  // #region agent log
-  try {
-    let largeBinaryBytes = 0;
-    let largeBinaryCount = 0;
-    for (const c of conversations) {
-      for (const m of c.messages) {
-        for (const a of m.attachments || []) {
-          const isVideo = (a.mimeType || "").startsWith("video/");
-          const dataLen = (a.data || "").length;
-          const dUrlLen = (a.dataUrl || "").length;
-          if (isVideo || /application\/pdf/i.test(a.mimeType || "")) {
-            largeBinaryCount += 1;
-            largeBinaryBytes += dataLen + dUrlLen;
-          }
-        }
-      }
-    }
-    dbgLog("history-sync.ts:pushStoreToServer", "push-body-size", {
-      bodyLen: body.length,
-      conversations: conversations.length,
-      largeBinaryCount,
-      largeBinaryBytes,
-    });
-  } catch {
-    // ignore
-  }
-  // #endregion
   try {
     const res = await fetch("/api/history", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body,
+      body: JSON.stringify({ accountId, conversations }),
     });
     if (!res.ok) return store;
     const data = (await res.json()) as {

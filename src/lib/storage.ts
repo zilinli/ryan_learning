@@ -17,7 +17,6 @@ import {
 } from "./tenant-storage";
 import { slimQuote } from "./quote";
 import { isLargeBinaryAttachment } from "./attachments";
-import { dbgLog } from "./debug-log";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = FLAT_KEYS.sessions;

@@ -14,33 +14,6 @@ import {
   type CameraPermissionState,
 } from "@/lib/camera-errors";
 
-// #region agent log
-function camLog(
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-  hypothesisId = "",
-  runId = "run1",
-) {
-  try {
-    void fetch("/api/debug-camera", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location,
-        message,
-        data,
-        timestamp: Date.now(),
-        hypothesisId,
-        runId,
-      }),
-    }).catch(() => {});
-  } catch {
-    /* noop */
-  }
-}
-// #endregion
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -70,20 +43,6 @@ async function getCameraStream(
   try {
     const devicesList = await devices.enumerateDevices();
     sawAnyVideoInput = devicesList.some((d) => d.kind === "videoinput");
-    // #region agent log
-    camLog(
-      "getCameraStream",
-      "enumerate",
-      {
-        total: devicesList.length,
-        videoinputs: devicesList.filter((d) => d.kind === "videoinput").length,
-        kinds: devicesList.map((d) => d.kind).join(","),
-        hasVideo: sawAnyVideoInput,
-        preferUserFirst,
-      },
-      "A",
-    );
-    // #endregion
   } catch {
     // enumerateDevices may fail on some browsers; proceed to getUserMedia
   }
@@ -95,36 +54,9 @@ async function getCameraStream(
     const constraints = attempts[i];
     try {
       const stream = await devices.getUserMedia(constraints);
-      // #region agent log
-      camLog(
-        "getCameraStream",
-        "gum-ok",
-        {
-          attempt: i,
-          facingMode,
-          trackCount: stream.getVideoTracks().length,
-          constraints: JSON.stringify(constraints.video),
-        },
-        "A",
-      );
-      // #endregion
       return stream;
     } catch (err) {
       lastErr = err as { name?: string; message?: string };
-      // #region agent log
-      camLog(
-        "getCameraStream",
-        "gum-fail",
-        {
-          attempt: i,
-          facingMode,
-          name: (err as { name?: string })?.name ?? "",
-          msg: (err as { message?: string })?.message ?? String(err),
-          constraints: JSON.stringify(constraints.video),
-        },
-        "A",
-      );
-      // #endregion
     }
   }
   if (!lastErr) {
@@ -209,25 +141,6 @@ export function CameraCapture({
     } catch {
       permissionState = "unknown";
     }
-    // #region agent log
-    camLog(
-      "startStream",
-      "start",
-      {
-        facingMode,
-        preferUserFirst,
-        permissionState,
-        secure: isSecureMediaContext(),
-        hasGUM: Boolean(ensureMediaDevices()?.getUserMedia),
-        ua: typeof navigator !== "undefined" ? navigator.userAgent : "ssr",
-        pointerCoarse:
-          typeof window !== "undefined" &&
-          Boolean(window.matchMedia?.("(pointer: coarse)").matches),
-      },
-      "F",
-      "post-fix",
-    );
-    // #endregion
     try {
       const stream = await getCameraStream(facingMode, preferUserFirst);
       streamRef.current = stream;
@@ -256,25 +169,9 @@ export function CameraCapture({
         window.setTimeout(resolve, 3000);
       });
 
-      // #region agent log
-      camLog(
-        "startStream",
-        "after-meta-wait",
-        {
-          readyState: video.readyState,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-        },
-        "B",
-        "post-fix",
-      );
-      // #endregion
-
       // play() returns a promise; catch autoplay blocks silently
-      let playOk = false;
       try {
         await video.play();
-        playOk = true;
       } catch {
         // iPad Safari may block play even for muted+playsinline.
         // Try one more time after a microtask — sometimes the
@@ -282,45 +179,15 @@ export function CameraCapture({
         await new Promise((r) => window.setTimeout(r, 100));
         try {
           await video.play();
-          playOk = true;
         } catch {
           // frames may still arrive; don't block readiness
         }
       }
 
-      // #region agent log
-      camLog(
-        "startStream",
-        "after-play",
-        {
-          playOk,
-          readyState: video.readyState,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-        },
-        "C",
-        "post-fix",
-      );
-      // #endregion
-
       // Readiness: check videoWidth after play attempt, then fallback to track count
       const hasVideo = Boolean(
         video.videoWidth || stream.getVideoTracks().length,
       );
-      // #region agent log
-      camLog(
-        "startStream",
-        "ready-result",
-        {
-          hasVideo,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          trackCount: stream.getVideoTracks().length,
-        },
-        "B",
-        "post-fix",
-      );
-      // #endregion
       setReady(hasVideo);
       if (!hasVideo) {
         setError("Camera not ready — tap Retry live or use Phone camera.");
@@ -334,15 +201,6 @@ export function CameraCapture({
       const name = errInfo?.name ?? "";
       const msg = errInfo?.message ?? "Could not open the camera";
       const sawAnyVideoInput = errInfo?.sawAnyVideoInput ?? false;
-      // #region agent log
-      camLog(
-        "startStream",
-        "error",
-        { name, msg, sawAnyVideoInput, permissionState },
-        name === "NotAllowedError" ? "F" : "A",
-        "post-fix",
-      );
-      // #endregion
       const failure = {
         name,
         message: msg,
@@ -437,20 +295,6 @@ export function CameraCapture({
     if (!video || !ready || busy) return;
     const w = video.videoWidth;
     const h = video.videoHeight;
-    // #region agent log
-    camLog(
-      "snap",
-      "snap-start",
-      {
-        w,
-        h,
-        ready,
-        facingMode,
-        readyState: video.readyState,
-      },
-      "D",
-    );
-    // #endregion
     if (!w || !h) {
       setError("Camera not ready — wait a moment, or use Phone camera.");
       return;
@@ -466,19 +310,6 @@ export function CameraCapture({
     }
     ctx.drawImage(video, 0, 0, w, h);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    // #region agent log
-    camLog(
-      "snap",
-      "snap-data",
-      {
-        w,
-        h,
-        dataUrlLen: dataUrl.length,
-        head: dataUrl.slice(0, 23),
-      },
-      "D",
-    );
-    // #endregion
     await emitImage(dataUrl, "image/jpeg");
   };
 

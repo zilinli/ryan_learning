@@ -10,7 +10,6 @@ import type {
   ConversationsStore,
 } from "./types";
 import { isLargeBinaryAttachment } from "./attachments";
-import { dbgLog } from "./debug-log";
 
 const DB_NAME = "spark.photoVault";
 const STORE = "photos";
@@ -228,37 +227,11 @@ export async function restoreStorePhotosFromVault(
             // re-trigger the phone OOM reload loop. Drop any stale vault entry
             // an older client may have written.
             if (isLargeBinaryAttachment(a.mimeType, a.name)) {
-              // #region agent log
-              dbgLog(
-                "photo-vault.ts:restoreStorePhotosFromVault",
-                "vault-skip-large-binary",
-                {
-                  attId: a.id,
-                  name: a.name,
-                  mimeType: a.mimeType,
-                  mediaId: a.mediaId || null,
-                },
-              );
-              // #endregion
               staleBinaryIds.push(a.id);
               next.push(a);
               continue;
             }
             const hit = await getPhotoFromVault(a.id);
-            // #region agent log
-            if (hit?.dataUrl) {
-              dbgLog(
-                "photo-vault.ts:restoreStorePhotosFromVault",
-                "vault-restore-hit",
-                {
-                  attId: a.id,
-                  name: a.name,
-                  mimeType: a.mimeType,
-                  dataUrlLen: hit.dataUrl.length,
-                },
-              );
-            }
-            // #endregion
             if (hit?.dataUrl) {
               next.push({ ...a, dataUrl: hit.dataUrl });
               continue;
@@ -314,36 +287,10 @@ export async function fetchMissingPhotosFromServer(
           // they stream/download via /api/media. Fetching a 54MB video just to
           // build a base64 dataUrl is what crashed phones.
           if (isLargeBinaryAttachment(a.mimeType, a.name)) {
-            // #region agent log
-            dbgLog(
-              "photo-vault.ts:fetchMissingPhotosFromServer",
-              "fetch-skip-large-binary",
-              {
-                attId: a.id,
-                name: a.name,
-                mimeType: a.mimeType,
-                mediaId: a.mediaId || null,
-              },
-            );
-            // #endregion
             next.push(a);
             continue;
           }
           if (!a.dataUrl && a.mediaId) {
-            // #region agent log
-            dbgLog(
-              "photo-vault.ts:fetchMissingPhotosFromServer",
-              "fetch-missing-enter",
-              {
-                attId: a.id,
-                name: a.name,
-                mimeType: a.mimeType,
-                isVideo: (a.mimeType || "").startsWith("video/"),
-                mediaId: a.mediaId,
-                sessionId: c.sessionId,
-              },
-            );
-            // #endregion
             try {
               const res = await fetch(
                 `/api/media/${encodeURIComponent(a.mediaId)}`,
@@ -357,19 +304,6 @@ export async function fetchMissingPhotosFromServer(
                   reader.onerror = reject;
                   reader.readAsDataURL(blob);
                 });
-                // #region agent log
-                dbgLog(
-                  "photo-vault.ts:fetchMissingPhotosFromServer",
-                  "fetch-missing-converted",
-                  {
-                    attId: a.id,
-                    name: a.name,
-                    isVideo: (a.mimeType || "").startsWith("video/"),
-                    blobBytes: blob.size,
-                    dataUrlLen: dataUrl.length,
-                  },
-                );
-                // #endregion
                 // Cache in vault so next restoreStorePhotosFromVault picks it up
                 void putPhotoInVault({
                   id: a.id,
