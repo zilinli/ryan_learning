@@ -117,4 +117,31 @@ describe("ChatThread", () => {
 
     expect(screen.queryByText("Ask anything about your homework...")).toBeNull();
   });
+
+  it("renders a labeled explain-thinking card with Send anyway", async () => {
+    const { ChatThread } = await import("./ChatThread");
+    const messages: ChatMessage[] = [
+      {
+        id: "m1",
+        role: "assistant",
+        content: "What is 1/3 + 1/4?",
+        createdAt: Date.now(),
+      },
+    ];
+    render(
+      React.createElement(ChatThread, {
+        messages,
+        streaming: false,
+        explainBar: {
+          text: "How did you get 7/12?",
+          pendingAnswer: "7/12",
+        },
+      }),
+    );
+    expect(screen.getByText("Explain your thinking")).toBeTruthy();
+    expect(screen.getByText("How did you get 7/12?")).toBeTruthy();
+    expect(screen.getByText("Held answer: 7/12")).toBeTruthy();
+    expect(screen.getByText("Send anyway")).toBeTruthy();
+    expect(screen.queryByText("Skip")).toBeNull();
+  });
 });

@@ -19,7 +19,39 @@ export type ExplainTriggerInput = {
 };
 
 /**
- * 触发条件：pKnown 中/高，或秒答；低难度且慢答不触发。
+ * Compact “worked answer” (7/12, 42, x=3) — not a chat sentence.
+ * The explain bar interpolates this into “How did you get …?”; conversational
+ * text like “港澳通行证” must never qualify.
+ */
+export function looksLikeWorkedAnswer(text: string): boolean {
+  const t = (text || "").replace(/\s+/g, " ").trim();
+  if (!t || t.length > 40) return false;
+  const words = t.split(" ").filter(Boolean);
+  if (words.length > 6) return false;
+  const hasDigit = /\d/.test(t);
+  const hasMath = /[=+\-×÷*/^√]/.test(t);
+  if (!hasDigit && !hasMath) return false;
+  const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  if (cjk >= 4 && !hasDigit) return false;
+  return true;
+}
+
+/**
+ * Last assistant turn looks like a problem to solve, not casual chat.
+ * A travel question with “？” is not enough on its own — pair with
+ * looksLikeWorkedAnswer at the call site.
+ */
+export function looksLikeProblemTurn(assistantText: string): boolean {
+  const t = (assistantText || "").trim();
+  if (!t) return false;
+  if (/[?？]/.test(t)) return true;
+  return /(?:\d\s*[=+\-×÷*/^√]|solve|calculate|compute|fraction|equation|多少|等于|計算|计算)/i.test(
+    t,
+  );
+}
+
+/**
+ * Trigger condition: pKnown 中/高，或秒答；低难度且慢答不触发。
  */
 export function shouldExplainThinking(input: ExplainTriggerInput): boolean {
   const fast =
@@ -27,6 +59,22 @@ export function shouldExplainThinking(input: ExplainTriggerInput): boolean {
   const mediumPlus = input.pKnown >= EXPLAIN_PKNOWN_MED;
   if (mediumPlus || fast) return true;
   return false;
+}
+
+export type ExplainHoldInput = ExplainTriggerInput & {
+  studentAnswer: string;
+  assistantText: string;
+};
+
+/**
+ * Hold the send and show the explain bar only when this looks like a
+ * homework/quiz answer — never in ordinary conversation.
+ */
+export function shouldHoldForExplain(input: ExplainHoldInput): boolean {
+  if (!shouldExplainThinking(input)) return false;
+  if (!looksLikeWorkedAnswer(input.studentAnswer)) return false;
+  if (!looksLikeProblemTurn(input.assistantText)) return false;
+  return true;
 }
 
 /** 同题是否已跳过追问（内存 Set，测试可注入） */

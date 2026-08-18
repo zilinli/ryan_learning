@@ -320,6 +320,17 @@ Design: [creations-media-download.md](subsystems/creations-media-download.md)
 
 ---
 
+## ✅ EXPLAIN-UI — 「How did you get xxx？」横幅难看且误触发（2026-08-18）
+
+> Ching session `f9cc50ba`：闲聊「港澳通行证」被拦截成半透明 sticky 条，正文叠在聊天记录上，Skip 用意也不清。
+
+- [x] 触发收紧：仅 compact 作答（带数字/算式）+ 像题目的 assistant 轮次才 hold；闲聊不拦截
+- [x] 文案：不再把对话原文塞进 `How did you get ${ans}?`
+- [x] UI：不透明底 + 标题 Explain your thinking + Held answer + **Send anyway**
+- [x] 学生接着输入解释时，保留原答案一并发送
+
+---
+
 ## 🎯 SPARK-DEEP — 优等生深度体验落地（P0→P2）（2026-08-13）
 
 > **基准报告:** `evaluation/Spark_竞品调研与优等生体验深度分析_2026-08-13.md` §9/§10 路线图  

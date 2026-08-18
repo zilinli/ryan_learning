@@ -133,7 +133,7 @@ type Props = {
   flowContinuityLine?: string | null;
   onDismissFlowContinuity?: () => void;
   /** P0-3 — explain-your-thinking bar before grading */
-  explainBar?: { text: string } | null;
+  explainBar?: { text: string; pendingAnswer?: string } | null;
   onSkipExplain?: () => void;
   /** V2 P1 — weekly "This week" Launchpad strip (report §9.3.2) */
   weeklyLaunchpad?: WeeklyLaunchpadView | null;
@@ -702,15 +702,33 @@ export function ChatThread({
         </div>
       ) : null}
       {explainBar ? (
-        <div className="sticky top-0 z-[7] flex items-start justify-between gap-2 rounded-xl border border-[var(--coral)]/40 bg-[var(--coral)]/8 px-3 py-2 text-[13px] text-[var(--ink)]">
-          <p>{explainBar.text}</p>
-          <button
-            type="button"
-            onClick={onSkipExplain}
-            className="shrink-0 rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] hover:border-[var(--coral)]/45 hover:text-[var(--coral)]"
-          >
-            Skip
-          </button>
+        <div
+          className="sticky top-0 z-[7] isolate rounded-2xl border border-[var(--coral)]/35 bg-[var(--bg0)] px-3 py-2.5 shadow-md"
+          role="status"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--coral)]">
+            Explain your thinking
+          </p>
+          <div className="mt-1 flex items-start justify-between gap-3">
+            <p className="min-w-0 text-sm leading-snug text-[var(--ink)]">
+              {explainBar.text}
+            </p>
+            <button
+              type="button"
+              onClick={onSkipExplain}
+              className="shrink-0 rounded-full border border-[var(--line)] bg-[var(--bg0)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-muted)] hover:border-[var(--coral)]/45 hover:text-[var(--coral)]"
+            >
+              Send anyway
+            </button>
+          </div>
+          {explainBar.pendingAnswer ? (
+            <p className="mt-1.5 truncate rounded-lg bg-[var(--mist)]/50 px-2 py-1 text-[12px] text-[var(--ink-muted)]">
+              Held answer: {explainBar.pendingAnswer}
+            </p>
+          ) : null}
+          <p className="mt-1 text-[11px] leading-snug text-[var(--ink-muted)]">
+            Type how you got it below — or send anyway to skip.
+          </p>
         </div>
       ) : null}
       {focusActive ? (

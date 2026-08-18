@@ -33,6 +33,7 @@ import {
   coachStatePromptBlock,
   deriveCoachStateFromHistory,
 } from "./coach-state";
+import { looksLikeWorkedAnswer } from "./explain-prompt";
 
 const MAX_HISTORY_TURNS = 8;
 const MAX_HISTORY_CHARS = 500;
@@ -724,9 +725,15 @@ export function explainPrompt(skill: {
   label: string;
   studentAnswer?: string;
 }): string {
-  const ans = skill.studentAnswer?.replace(/\s+/g, " ").trim();
-  if (ans && ans.length <= 40) {
+  const ans = skill.studentAnswer?.replace(/\s+/g, " ").trim() || "";
+  // Only interpolate compact worked answers (7/12, 42). Dumping chat text
+  // into “How did you get 港澳通行证?” is unreadable and meaningless.
+  if (looksLikeWorkedAnswer(ans)) {
     return `How did you get ${ans}?`;
   }
-  return `Walk me through how you solved this ${skill.label} question.`;
+  const label = (skill.label || "").trim();
+  if (label && label.toLowerCase() !== "general practice") {
+    return `Walk me through how you solved this ${label} question.`;
+  }
+  return "Walk me through how you got that.";
 }

@@ -54,7 +54,7 @@ import { recentInterests } from "@/lib/interest-store";
 import { reconcileWeeklyGoal } from "@/lib/weekly-goal";
 import {
   markExplainSkipped,
-  shouldExplainThinking,
+  shouldHoldForExplain,
   wasExplainSkipped,
 } from "@/lib/explain-prompt";
 import { explainPrompt } from "@/lib/prompts";
@@ -296,6 +296,7 @@ export function useTutorSession() {
   const [explainBar, setExplainBar] = useState<{
     questionId: string;
     text: string;
+    pendingAnswer: string;
     payload: {
       text: string;
       attachments: ClientAttachment[];
@@ -1315,7 +1316,7 @@ export function useTutorSession() {
     void pruneVaultToStore(nextStore);
   };
 
-  const handleSend = async (payload: {
+  const handleSend = async (incoming: {
     text: string;
     attachments: ClientAttachment[];
     quote?: ChatQuote;
@@ -1332,6 +1333,19 @@ export function useTutorSession() {
     const answerLatencyMs = Date.now() - lastAssistantAtRef.current;
 
     // P0-3 — explain-your-thinking nudge before grading (skippable).
+    // If the student types an explanation while the bar is up, keep the held
+    // answer and send both so the original reply is not dropped.
+    let payload = incoming;
+    if (explainBar && !explainBypassRef.current) {
+      const held = explainBar.payload.text.trim();
+      const next = incoming.text.trim();
+      if (held && next && next !== held) {
+        payload = {
+          ...incoming,
+          text: `My answer: ${held}\n\nHow I got it: ${next}`,
+        };
+      }
+    }
     if (
       !explainBypassRef.current &&
       payload.attachments.length === 0 &&
@@ -1349,7 +1363,12 @@ export function useTutorSession() {
         const row = mem.skills.find((s) => s.id === inferred.skillId);
         const pKnown = row?.pKnown ?? 0.25;
         if (
-          shouldExplainThinking({ pKnown, responseTimeMs: answerLatencyMs })
+          shouldHoldForExplain({
+            pKnown,
+            responseTimeMs: answerLatencyMs,
+            studentAnswer: payload.text,
+            assistantText: lastAssistant?.content || "",
+          })
         ) {
           setExplainBar({
             questionId: qid,
@@ -1357,6 +1376,7 @@ export function useTutorSession() {
               label: inferred.skillLabel,
               studentAnswer: payload.text,
             }),
+            pendingAnswer: payload.text.trim(),
             payload,
           });
           return;
