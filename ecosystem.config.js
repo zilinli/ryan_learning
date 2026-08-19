@@ -35,7 +35,17 @@ module.exports = {
       },
     },
     {
-      name: "formospeech-tts",
+      {
+      name: "spark-control",
+      script: "bridge/control-server.mjs",
+      cwd: "/root/codes/ryan_learning",
+      env: {
+        NODE_ENV: "production",
+        SPARK_CONTROL_PORT: "3010",
+        ...envLocal,
+      },
+    },
+    name: "formospeech-tts",
       script: "scripts/formospeech_server.py",
       cwd: "/root/codes/ryan_learning",
       // Coqui TTS lives only in this venv — system python3 → 422 No module named 'TTS'
