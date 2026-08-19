@@ -32,15 +32,7 @@ import {
 import { PinGate } from "./PinGate";
 import { getActiveAccount, loadAccounts } from "@/lib/student-profile";
 import { MessageHub } from "./MessageHub";
-import {
-  loadFeynmanDone,
-  markFeynmanDone,
-} from "@/lib/feynman-task";
-import {
-  hydrateInterestsFromServer,
-  loadInterests,
-  type InterestRecord,
-} from "@/lib/interest-store";
+import { SPARK_GITHUB_URL } from "@/lib/site";
 
 function severityLabel(s: PatternSeverity): string {
   if (s === "persistent") return "Persistent";
@@ -126,121 +118,11 @@ function PatternCard({ p }: { p: MistakePattern }) {
   );
 }
 
-/** P2 — weekly "explain it to the family" teach-back card. */
-function FeynmanTeachBack({
-  accountId,
-  weekOf,
-  skillLabel,
-  kidPrompt,
-  parentPrompt,
-}: {
-  accountId: string;
-  weekOf: string;
-  skillLabel: string;
-  kidPrompt: string;
-  parentPrompt: string;
-}) {
-  const [done, setDone] = useState(() => loadFeynmanDone(accountId, weekOf));
-  return (
-    <section className="rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/5 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-            Teach-back (Feynman)
-          </h2>
-          <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">
-            {kidPrompt}
-          </p>
-          <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
-            {parentPrompt}
-          </p>
-          {done ? (
-            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#2e9e6b]/15 px-3 py-1.5 text-[12px] font-semibold text-[#2e9e6b]">
-              ✓ Taught {skillLabel} to the family this week
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            markFeynmanDone(accountId, { weekOf, skillId: "feynman", skillLabel, kidPrompt, parentPrompt });
-            setDone(true);
-          }}
-          className={`shrink-0 min-h-11 rounded-xl px-4 text-[13px] font-semibold transition ${
-            done
-              ? "border border-[#2e9e6b]/40 text-[#2e9e6b]"
-              : "bg-[var(--teal)] text-white hover:opacity-90"
-          }`}
-        >
-          {done ? "Done — thank you!" : "We did it"}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-/** V3 — "what drove this week's growth" (attribution) card. */
-const SOURCE_NEXT_STEP: Record<string, string> = {
-  opener: "Daily openers led the week — keeping the once-a-day warm-up going is a great habit.",
-  challenge: "Challenge rounds drove the most growth — try one more stretch challenge next week.",
-  deepDive: "Weekly deep dives drove the most growth — next week, try a Connection card too.",
-  connection: "Connection cards drove the most growth — keep bridging what they already know.",
-  wrongbook: "Wrong-answer reviews drove the most growth — strong persistence on tricky ones.",
-  variant: "Variant practice drove the most growth — keep the same-idea-new-numbers rhythm.",
-  explore: "Interest explorations drove the most growth — keep following what they love.",
-  homework: "Homework and photo sessions drove the most growth — keep snapping real work.",
-  proactive: "Proactive two-minute reviews drove growth — keep the check-in rhythm.",
-  ted: "TED Lab drove the most growth this week — keep the watch-and-critique rhythm.",
-  writing: "Writing Studio drove the most growth — keep drafting and revising.",
-  natgeo: "NatGeo Lab drove the most growth — keep reading and inferring.",
-  bbc: "BBC Doc Lab drove the most growth — keep watching and explaining.",
-  rsa: "RSA Lab drove the most growth — keep analyzing arguments.",
-  game: "Learning Games drove the most growth — keep the predict-then-run physics play going.",
-};
-
-function GrowthSourcesCard({
-  attribution,
-}: {
-  attribution: Array<{ source: string; count: number; label: string }>;
-}) {
-  const top = attribution.slice(0, 3);
-  const lead = attribution[0];
-  return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
-      <h2 className="text-[13px] font-semibold text-[var(--ink)]">
-        What drove this week&apos;s growth?
-      </h2>
-      <ul className="mt-3 space-y-2">
-        {top.map((s) => (
-          <li key={s.source} className="flex items-center justify-between gap-3">
-            <span className="text-[13px]">{s.label}</span>
-            <span className="rounded-full bg-[var(--teal)]/12 px-2.5 py-0.5 text-[12px] font-semibold tabular-nums text-[var(--teal)]">
-              ×{s.count}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {lead ? (
-        <p className="mt-3 rounded-xl bg-[var(--teal)]/8 px-3 py-2 text-[12px] leading-relaxed text-[var(--ink-muted)]">
-          {SOURCE_NEXT_STEP[lead.source] ||
-            `I noticed ${lead.label} contributed the most this week — we can build on that together.`}
-        </p>
-      ) : (
-        <p className="mt-3 text-[12px] text-[var(--ink-muted)]">
-          No growth data yet — after a few tutor chats, Spark shows which
-          activities made this week count.
-        </p>
-      )}
-    </section>
-  );
-}
-
 /**
  * Full-page Family Controls — Khan-style parent hub with narrative + charts.
  */
 export function FamilyControlsPage() {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
-  const [interests, setInterests] = useState<InterestRecord[]>([]);
   const [accountId, setAccountId] = useState("acct_ryan");
   const [accountName, setAccountName] = useState("Student");
   const [unlocked, setUnlocked] = useState(false);
@@ -255,8 +137,6 @@ export function FamilyControlsPage() {
     setAccountName(acct.profile.name || "Student");
     setMemory(loadLearningMemory(acct.id));
     void hydrateLearningMemoryFromServer(acct.id).then(setMemory);
-    setInterests(loadInterests(acct.id));
-    void hydrateInterestsFromServer(acct.id).then(setInterests);
     const ok = hasParentPin() && isParentSessionUnlocked();
     setUnlocked(ok);
     setCheckMode(loadCheckMode());
@@ -274,9 +154,8 @@ export function FamilyControlsPage() {
     () =>
       buildFamilyReport(memory, {
         accountLabel: accountName,
-        interests,
       }),
-    [memory, accountName, interests],
+    [memory, accountName],
   );
 
   const radarValues = report.radar.map((r) => r.value);
@@ -343,13 +222,35 @@ export function FamilyControlsPage() {
               Back to tutor
             </a>
             {unlocked ? (
-              <button
-                type="button"
-                onClick={lock}
-                className="min-h-11 rounded-full border border-[var(--line)] px-4 text-[13px] font-medium"
-              >
-                Lock
-              </button>
+              <>
+                <a
+                  href={SPARK_GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 text-[13px] font-medium leading-[2.75rem]"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="/console"
+                  className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 text-[13px] font-medium leading-[2.75rem]"
+                >
+                  Code Agent
+                </a>
+                <a
+                  href="/deploy"
+                  className="min-h-11 rounded-full border border-[var(--teal)]/35 bg-[var(--teal)]/10 px-4 text-[13px] font-semibold leading-[2.75rem] text-[var(--teal)]"
+                >
+                  Deploy PC
+                </a>
+                <button
+                  type="button"
+                  onClick={lock}
+                  className="min-h-11 rounded-full border border-[var(--line)] px-4 text-[13px] font-medium"
+                >
+                  Lock
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -405,24 +306,6 @@ export function FamilyControlsPage() {
               {copied ? "Copied" : "Copy week text"}
             </button>
           </section>
-
-          {/* P2 — biggest breakthrough of the week */}
-          {report.weekly.breakthrough ? (
-            <section className="rounded-2xl border border-[#2e9e6b]/35 bg-[#2e9e6b]/10 p-5">
-              <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[#2e9e6b]">
-                Biggest breakthrough this week
-              </h2>
-              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]">
-                {report.weekly.breakthrough.text}
-              </p>
-              {report.weekly.breakthrough.skillLabel ? (
-                <p className="mt-2 text-[13px] text-[var(--ink-muted)]">
-                  Keep the momentum: ask them to show you one trick they learned
-                  in {report.weekly.breakthrough.skillLabel}.
-                </p>
-              ) : null}
-            </section>
-          ) : null}
 
           {/* KPIs */}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
@@ -603,32 +486,6 @@ export function FamilyControlsPage() {
             </ul>
           </section>
 
-          {/* V3 — weekly attribution: which mechanism drove this week */}
-          <GrowthSourcesCard attribution={report.weekly.sourceAttribution} />
-
-          {/* P1-4 — curiosity profile + next stretch challenge */}
-          {(report.weekly.interestFocus.length || report.weekly.nextChallenge) ? (
-            <section className="rounded-2xl border border-[var(--teal)]/25 bg-[var(--teal)]/6 p-5">
-              <h2 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--teal)]">
-                Curiosity &amp; direction
-              </h2>
-              {report.weekly.interestFocus.length ? (
-                <p className="mt-2 text-[13px] leading-relaxed text-[var(--ink)]">
-                  <span className="font-medium">This week&apos;s curiosity:</span>{" "}
-                  {report.weekly.interestFocus.join(" · ")}
-                </p>
-              ) : null}
-              {report.weekly.nextChallenge ? (
-                <p className="mt-2 rounded-xl border border-[var(--coral)]/25 bg-[var(--coral)]/6 px-3 py-2 text-[13px] leading-relaxed text-[var(--ink)]">
-                  <span className="font-medium text-[var(--coral)]">
-                    Next stretch:
-                  </span>{" "}
-                  {report.weekly.nextChallenge.line}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-
           {/* Mistake patterns — industry: actionable error analysis */}
           <section>
             <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -696,17 +553,6 @@ export function FamilyControlsPage() {
             </div>
           </section>
 
-          {/* ── Feynman teach-back (P2) ── */}
-          {report.weekly.feynmanTask ? (
-            <FeynmanTeachBack
-              accountId={accountId}
-              weekOf={report.weekly.weekOf}
-              skillLabel={report.weekly.feynmanTask.skillLabel}
-              kidPrompt={report.weekly.feynmanTask.kidPrompt}
-              parentPrompt={report.weekly.feynmanTask.parentPrompt}
-            />
-          ) : null}
-
           {/* ── Messages ── */}
           <section>
             <h2 className="mb-4 text-xl font-semibold tracking-tight text-[var(--ink)]">
@@ -767,49 +613,6 @@ export function FamilyControlsPage() {
                 Privacy
               </a>
             </div>
-          </section>
-
-          {/* Capabilities — surface Spark's unique differentiators for parents */}
-          <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-4">
-            <h2 className="text-[13px] font-semibold text-[var(--teal)]">
-              Spark capabilities
-            </h2>
-            <p className="mt-1 text-[12px] text-[var(--ink-muted)]">
-              Things most tutoring apps can&apos;t do — built into this one.
-            </p>
-            <ul className="mt-3 space-y-2 text-[13px]">
-              <li className="flex items-start gap-2">
-                <span aria-hidden>🗣️</span>
-                <span>
-                  <strong className="font-medium text-[var(--ink)]">Dialect tutoring</strong>
-                  <span className="text-[var(--ink-muted)]">
-                    {" "}— 粤语 / 客家话 / 闽南话 / 上海话 voice &amp; chat, plus
-                    English &amp; 普通话. Ask in whichever language the family
-                    speaks at home.
-                  </span>
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span aria-hidden>🤖</span>
-                <span>
-                  <strong className="font-medium text-[var(--ink)]">Self-improving Code Agent</strong>
-                  <span className="text-[var(--ink-muted)]">
-                    {" "}— Spark can fix its own bugs and add features on request
-                    (e.g. “make the math font bigger”, “add a 4pm reminder”).
-                  </span>
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span aria-hidden>🔒</span>
-                <span>
-                  <strong className="font-medium text-[var(--ink)]">Private by design</strong>
-                  <span className="text-[var(--ink-muted)]">
-                    {" "}— self-hosted; conversation data stays on your own
-                    server, never sold or shared.
-                  </span>
-                </span>
-              </li>
-            </ul>
           </section>
         </main>
       )}
