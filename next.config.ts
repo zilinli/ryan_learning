@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   // Allow large chat/console attachments (256MB file ≈ ~340MB base64 JSON).
   // Next.js 16 keeps serverActions.bodySizeLimit under `experimental`.
   experimental: {
+    cpus: 1,
+    webpackMemoryOptimizations: true,
     serverActions: {
       bodySizeLimit: "512mb",
     },
