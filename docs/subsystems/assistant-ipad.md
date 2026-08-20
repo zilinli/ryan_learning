@@ -36,14 +36,23 @@ flowchart TB
 
 ## P0 — SSH easy deploy (shipped)
 
-### User flow
+### User flow (Termius install + one-tap)
 
-1. Keep a Mac or Linux VPS online (can be the Spark VPS itself).
-2. Install **Termius** (or Blink) on iPad.
-3. Open `/deploy` → tab **iPad / SSH**.
-4. Generate pair code → **Copy SSH command** (Mac or Linux).
-5. SSH into the host → paste → Bridge registers.
-6. Chat at `/control` (commands run on the host, not on the iPad).
+1. Keep a Mac or Linux VPS online.
+2. On iPad open `/deploy` → **iPad / SSH** → generate pair code.
+3. Tap **Install Termius (App Store)** if you do not have it (Apple does **not** allow silent install of App Store apps — this is a one-tap Store link).
+4. Open Termius → add your Mac/VPS host once.
+5. Tap **Open one-tap installer** → **Copy install command** → paste in that Termius session.
+6. Optional: Shortcuts / Blink on the same installer page.
+7. Chat at `/control`.
+
+| Asset | Purpose |
+|-------|---------|
+| [Termius on App Store](https://apps.apple.com/app/id549039908) | Step 1 for most iPads |
+| `termius://` | Open Termius after install |
+| `/install/spark-deploy-ipad.html?code=&target=linux\|mac` | One-tap installer page |
+| same + `&download=1` | Download `Spark-Deploy-<CODE>.html` |
+| Shortcut `Spark Deploy` / Blink URL actions | Optional power-user paths |
 
 ### Installers
 
@@ -53,17 +62,6 @@ flowchart TB
 | Linux | [`public/install/linux.sh`](../../public/install/linux.sh) — systemd user unit `spark-bridge.service` |
 
 Bridge `restartSelf()` supports `systemctl --user restart spark-bridge` on Linux.
-
-### Copy blocks (example)
-
-```bash
-export SPARK_PAIR_CODE='XXXXXXXX'
-export SPARK_URL='https://spark-tutor-for-ryan.duckdns.org'
-curl -fsSL "$SPARK_URL/install/linux.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
-```
-
-Mac variant uses `SPARK_INSECURE=1` and `macos.sh` (same as desktop Deploy).
-
 ---
 
 ## P1 — Native Spark Bridge iOS App

@@ -275,6 +275,139 @@ pause
     return res.end(script);
   }
 
+  // iPad one-tap installer (Safari / Files) — peer to .command / .bat
+  if (p.startsWith("/install/spark-deploy-ipad.html") && req.method === "GET") {
+    const code = (url.searchParams.get("code") || "PAIRCODE").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+    const target = url.searchParams.get("target") === "mac" ? "mac" : "linux";
+    const download = url.searchParams.get("download") === "1";
+    const origin = fileEnv.SPARK_PUBLIC_URL || "https://spark-tutor-for-ryan.duckdns.org";
+    const installCmd =
+      target === "mac"
+        ? `export SPARK_PAIR_CODE='${code}'; export SPARK_URL='${origin}'; export SPARK_INSECURE=1; curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`
+        : `export SPARK_PAIR_CODE='${code}'; export SPARK_URL='${origin}'; curl -fsSL "$SPARK_URL/install/linux.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`;
+    const shortcutInput = `${code}|${origin}|${target}`;
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Spark Deploy ${code}</title>
+<style>
+  :root { color-scheme: light dark; --bg:#0b1220; --card:#141c2e; --ink:#e8eefc; --muted:#9aa8c7; --teal:#2dd4bf; --line:#243049; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; background:radial-gradient(1200px 600px at 20% -10%, #1a3a4a, var(--bg)); color:var(--ink); min-height:100dvh; padding:24px 18px 48px; }
+  .card { max-width:440px; margin:0 auto; background:color-mix(in srgb, var(--card) 92%, transparent); border:1px solid var(--line); border-radius:20px; padding:22px; backdrop-filter: blur(8px); }
+  h1 { font-size:1.35rem; margin:0 0 6px; }
+  p { color:var(--muted); font-size:.92rem; line-height:1.45; margin:0 0 14px; }
+  .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.18em; font-size:1.6rem; margin:8px 0 16px; }
+  .btn { display:block; width:100%; text-align:center; text-decoration:none; border:0; border-radius:999px; padding:14px 16px; font-weight:700; font-size:1rem; margin:10px 0; cursor:pointer; }
+  .primary { background:var(--teal); color:#042f2e; }
+  .secondary { background:transparent; color:var(--teal); border:1px solid var(--teal); }
+  .ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:600; font-size:.9rem; }
+  details { margin-top:14px; color:var(--muted); font-size:.85rem; }
+  pre { white-space:pre-wrap; word-break:break-word; background:#000c; padding:12px; border-radius:12px; font-size:11px; color:#86efac; }
+  label { display:block; font-size:.8rem; color:var(--muted); margin:12px 0 6px; }
+  input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#0a1020; color:var(--ink); }
+  .ok { color:var(--teal); font-size:.85rem; min-height:1.2em; }
+  .steps { counter-reset: step; margin:0 0 12px; padding:0; list-style:none; }
+  .steps li { counter-increment: step; position:relative; padding:10px 0 10px 36px; border-bottom:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+  .steps li::before { content:counter(step); position:absolute; left:0; top:10px; width:24px; height:24px; border-radius:999px; background:var(--teal); color:#042f2e; font-weight:800; font-size:.75rem; display:flex; align-items:center; justify-content:center; }
+  .steps strong { color:var(--ink); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Spark one-tap Deploy</h1>
+    <p>Same idea as Mac <code>.command</code> / Windows <code>.bat</code>: install free <strong>Termius</strong> (if needed), then run Bridge on your always-on <strong>${target === "mac" ? "Mac" : "Linux VPS"}</strong>. The iPad is only the remote control — Apple does not allow apps to auto-install other apps.</p>
+    <div class="code">${code}</div>
+    <ol class="steps">
+      <li><strong>Install Termius</strong> (free) — tap below if you do not have it yet.</li>
+      <li>In Termius, add your Mac/VPS host once (IP + username + key/password).</li>
+      <li>Come back here → <strong>Copy install command</strong> → open that host in Termius → paste → Return.</li>
+    </ol>
+    <a class="btn primary" id="btnTermiusStore" href="https://apps.apple.com/app/id549039908">1 · Install Termius (App Store)</a>
+    <button class="btn secondary" id="btnOpenTermius" type="button">Open Termius app</button>
+    <button class="btn secondary" id="btnCopy" type="button">2 · Copy install command</button>
+    <p class="ok" id="msg"></p>
+    <details open>
+      <summary>Show install command</summary>
+      <pre id="cmd"></pre>
+    </details>
+    <details>
+      <summary>Optional: Shortcuts / Blink (power users)</summary>
+      <button class="btn ghost" id="btnShortcut" type="button">One-tap with Shortcuts</button>
+      <button class="btn ghost" id="btnBlink" type="button">One-tap with Blink Shell</button>
+      <a class="btn ghost" href="https://apps.apple.com/app/id1156706153">Install Blink (App Store)</a>
+      <label>Blink URL key (Settings → Allow URL actions)</label>
+      <input id="blinkKey" placeholder="paste Blink URL key" autocomplete="off" />
+      <label>SSH host alias in Blink (e.g. home-vps)</label>
+      <input id="blinkHost" placeholder="host alias" autocomplete="off" />
+      <p>Shortcut must be named exactly <code>Spark Deploy</code> with “Run Script Over SSH”.</p>
+    </details>
+    <p style="margin-top:16px;font-size:.8rem">When online, open <a href="${origin}/control" style="color:var(--teal)">/control</a>.</p>
+  </div>
+<script>
+const CODE=${JSON.stringify(code)};
+const ORIGIN=${JSON.stringify(origin)};
+const TARGET=${JSON.stringify(target)};
+const INSTALL=${JSON.stringify(installCmd)};
+const SHORTCUT_INPUT=${JSON.stringify(shortcutInput)};
+document.getElementById('cmd').textContent = INSTALL;
+const blinkKeyEl = document.getElementById('blinkKey');
+const blinkHostEl = document.getElementById('blinkHost');
+blinkKeyEl.value = localStorage.getItem('spark.blinkKey') || '';
+blinkHostEl.value = localStorage.getItem('spark.blinkHost') || '';
+function msg(t){ document.getElementById('msg').textContent = t || ''; }
+document.getElementById('btnTermiusStore').addEventListener('click', () => {
+  msg('Opening App Store… Install Termius, then return here.');
+});
+document.getElementById('btnOpenTermius').onclick = () => {
+  msg('Opening Termius…');
+  location.href = 'termius://';
+  setTimeout(() => {
+    msg('If Termius did not open, tap “Install Termius” first.');
+  }, 1200);
+};
+document.getElementById('btnCopy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(INSTALL);
+    msg('Copied. Open your host in Termius → paste → Return.');
+  } catch {
+    msg('Copy failed — long-press the command below and Copy.');
+  }
+};
+document.getElementById('btnShortcut').onclick = () => {
+  const u = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Spark Deploy')
+    + '&input=text&text=' + encodeURIComponent(SHORTCUT_INPUT + '|' + INSTALL);
+  msg('Opening Shortcuts…');
+  location.href = u;
+};
+document.getElementById('btnBlink').onclick = () => {
+  const key = blinkKeyEl.value.trim();
+  const host = blinkHostEl.value.trim() || 'host';
+  localStorage.setItem('spark.blinkKey', key);
+  localStorage.setItem('spark.blinkHost', host);
+  if (!key) { msg('Enter your Blink URL key first (Blink → config → URL actions).'); return; }
+  const remote = "ssh " + host + " " + JSON.stringify(INSTALL);
+  const u = 'blinkshell://x-callback-url/run?key=' + encodeURIComponent(key)
+    + '&cmd=' + encodeURIComponent(remote);
+  msg('Opening Blink…');
+  location.href = u;
+};
+</script>
+</body>
+</html>`;
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      ...(download
+        ? { "content-disposition": `attachment; filename="Spark-Deploy-${code}.html"` }
+        : {}),
+    });
+    return res.end(html);
+  }
+
   if (p.startsWith("/install/")) {
     const name = p.slice("/install/".length);
     const file = path.join(ROOT, "public", "install", name);

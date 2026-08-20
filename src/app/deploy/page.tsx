@@ -297,8 +297,10 @@ export default function DeployPage() {
           {osTab === "ipad-ssh" ? (
             <div className="mt-4 space-y-3 text-sm">
               <p className="text-[var(--ink-muted)]">
-                Install <strong>Termius</strong> or Blink on the iPad. SSH into an always-on Mac or Linux VPS, then
-                paste the block below. The Spark node is the <strong>host</strong> — not the iPad.
+                Most iPads do not have an SSH app yet. Step 1 installs free{" "}
+                <strong>Termius</strong> from the App Store (Apple does not allow auto-install). Then open the
+                one-tap installer — same role as Mac <code className="text-xs">.command</code> / Windows{" "}
+                <code className="text-xs">.bat</code>. Bridge still runs on your Mac/VPS.
               </p>
               <div className="flex gap-2">
                 <button
@@ -316,19 +318,60 @@ export default function DeployPage() {
                   Mac (SSH)
                 </button>
               </div>
-              <pre className="overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
-                {sshPaste}
-              </pre>
+              <a
+                href="https://apps.apple.com/app/id549039908"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
+              >
+                1 · Install Termius (App Store)
+              </a>
               <button
                 type="button"
-                className="rounded-full bg-[var(--teal)] px-4 py-2 text-sm font-semibold text-white"
-                onClick={() => void navigator.clipboard.writeText(sshPaste)}
+                onClick={() => {
+                  window.location.href = "termius://";
+                }}
+                className="ml-2 rounded-full border border-[var(--teal)] px-4 py-2 text-sm text-[var(--teal)]"
               >
-                Copy for Termius
+                Open Termius
               </button>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/install/spark-deploy-ipad.html?code=${encodeURIComponent(code)}&target=${sshHost === "mac" ? "mac" : "linux"}`;
+                  }}
+                  className="rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
+                >
+                  2 · Open one-tap installer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/install/spark-deploy-ipad.html?code=${encodeURIComponent(code)}&target=${sshHost === "mac" ? "mac" : "linux"}&download=1`;
+                  }}
+                  className="ml-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink-muted)]"
+                >
+                  Download .html
+                </button>
+              </div>
               <p className="text-xs text-[var(--ink-muted)]">
-                Do not use iSH/a-Shell to run this on the iPad itself — Node Bridge will not stay alive there.
+                In Termius: add your host once → on the installer page tap <strong>Copy install command</strong> →
+                paste in that session. Shortcuts/Blink are optional under the installer page.
               </p>
+              <details className="text-xs text-[var(--ink-muted)]">
+                <summary className="cursor-pointer">Show command only</summary>
+                <pre className="mt-2 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+                  {sshPaste}
+                </pre>
+                <button
+                  type="button"
+                  className="mt-2 text-[var(--teal)] underline"
+                  onClick={() => void navigator.clipboard.writeText(sshPaste)}
+                >
+                  Copy
+                </button>
+              </details>
             </div>
           ) : null}
 
