@@ -43,7 +43,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Deploy PC** (`/deploy`) — pair a home computer with a simplified OpenClaw + Spark Bridge for `/control` chat. Spark does **not** clone `ai_assistant_mac` / `ai_assistant_win` (layout reference only). See [assistant-repos-reference.md](docs/subsystems/assistant-repos-reference.md).
+- **Deploy PC** (`/deploy`) — pair a home Mac or Windows PC with OpenClaw + Spark Bridge; chat remotely at `/control` with the same Composer (voice, camera, attachments) and TTS as the homepage. One-click `.command` / `.bat` installers; online **Upgrade** from server. Unified assistant in [`assistant/`](assistant/) replaces archived `ai_assistant_mac` / `ai_assistant_win`. See [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) and [assistant-repos-reference.md](docs/subsystems/assistant-repos-reference.md).
 - **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain` — **Learning Games** (Fraction Voyager · Eco Genesis · Time Vault) + board games & puzzles. See [entertainments.md](docs/subsystems/entertainments.md) and [learning-games.md](docs/subsystems/learning-games.md).
 
 ### Four-Dimension Learning (兴趣 · 心流 · 深度 · 广度)
@@ -144,6 +144,24 @@ Design: [learning-games.md](docs/subsystems/learning-games.md). All three are ZP
 Without credentials, lyrics-only drafts still save; generate returns 503.
 
 Open **Studio** or **Games** from the sidebar.
+
+---
+
+### Remote OpenClaw (`/deploy` + `/control`)
+
+Pair a home computer so Spark can run OpenClaw **locally** while you chat from the browser.
+
+| Route | Purpose |
+|-------|---------|
+| `/deploy` | Generate pair code · download macOS `.command` or Windows `.bat` · list nodes · set aliases · **Upgrade from server** |
+| `/control` | Pick an online node · chat with Composer (mic, camera, attachments) · Markdown replies · **Listen** TTS |
+
+**Flow:** Install on the PC → Spark Bridge long-polls the server → `/control` sends chat commands → Bridge runs `openclaw agent --agent main --message-file …` → replies stream back via SSE.
+
+**Docs:** [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) · [assistant/README.md](assistant/README.md)
+
+**Server processes:** `spark-tutor` (:3000 UI) + `spark-control` (:3010 node hub & `/install/*`). Bridge version **2026.8.20-4** (bump via Upgrade on each node after server updates).
+
 ---
 
 ### Parent → Student Messaging
@@ -383,7 +401,10 @@ List models available to your key: `GET /api/models`.
 │       └── lib/                    # agent, git-ops, attachments, prompts, stt
 ├── tutor-workspace/                # Agent working notes (AGENTS.md)
 ├── scripts/                        # ensure-env, health-check, restart-services, verify-*, STT server
-├── data/                           # Runtime data (conversations, media, learning-memory, journal, messages, …)
+├── assistant/                      # Unified OpenClaw module (install.mjs, skills, platform overlays)
+├── bridge/                         # control-server.mjs (:3010), index.mjs (bridge dev copy)
+├── public/install/                 # macos.sh, windows.ps1, spark-bridge.mjs, assistant.tar.gz
+├── data/                           # Runtime data (conversations, media, learning-memory, journal, messages, nodes, …)
 └── docs/                           # Design docs, subsystem specs, TODO — see docs/TODO.md for full index
 ```
 
@@ -418,6 +439,8 @@ Design documents live in `docs/subsystems/`. Key reads:
 | [ux-competitor-report-2026-08-feasibility](docs/subsystems/ux-competitor-report-2026-08-feasibility.md) | UX competitor analysis |
 | [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1/P2 + 竞品调研路线图 |
 | [spark-v2-flywheel](docs/subsystems/spark-v2-flywheel.md) | V2 学习飞轮三阶段（P0 主动出击 → P1 分层周节奏 → P2 归因与语言干预） |
+| [remote-openclaw-control](docs/subsystems/remote-openclaw-control.md) | Remote OpenClaw — `/deploy`, `/control`, Spark Bridge, pairing, upgrade |
+| [assistant-repos-reference](docs/subsystems/assistant-repos-reference.md) | Unified `assistant/` module vs archived ai_assistant_mac/win |
 
 Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.
 

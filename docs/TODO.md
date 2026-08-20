@@ -2,13 +2,17 @@
 
 ## OC-REF — OpenClaw pair installers stay Spark-native (reference, not integration) · 2026-08-20
 
-> **Design:** [subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md)  
-> **Goal:** Keep `/deploy` independent of `ai_assistant_mac` / `ai_assistant_win` (no clone, submodule, or vendor). Pair + `/control` only.
+> **Design:** [subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md) · [subsystems/remote-openclaw-control.md](subsystems/remote-openclaw-control.md)  
+> **Goal:** Keep `/deploy` independent of `ai_assistant_mac` / `ai_assistant_win` (no clone, submodule, or vendor). Pair + `/control` with homepage Composer parity.
 
 - [x] **OC-REF.1** — Document reference-not-integration + capability gap
 - [x] **OC-REF.2** — Annotate `windows.ps1` / `spark-bridge.mjs` (do not run `install.ps1`)
 - [x] **OC-REF.3** — Spark-native `macos.sh` (LaunchAgent; layout comment only)
 - [x] **OC-REF.4** — `/deploy` Windows + macOS commands; pairing-only copy
+- [x] **OC-REF.5** — Unified `assistant/` module (skills, merge-config, cross-platform install.mjs)
+- [x] **OC-REF.6** — `/control` Composer + Markdown + TTS; attachments → bridge inbox
+- [x] **OC-REF.7** — One-click `.command`/`.bat`; per-node Upgrade; bridge **2026.8.20-4** CLI fix (`--agent` / `--message-file`)
+- [x] **OC-REF.8** — Design docs + README ([remote-openclaw-control.md](subsystems/remote-openclaw-control.md), [assistant/README.md](../assistant/README.md))
 
 ---
 
