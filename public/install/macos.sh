@@ -209,5 +209,43 @@ launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
 launchctl start org.spark.bridge || true
 
+echo "Installing Spark Bridge watchdog..."
+spark_download "$SPARK_URL/install/spark-bridge-watchdog.sh" "${BRIDGE_DIR}/watchdog.sh"
+chmod +x "${BRIDGE_DIR}/watchdog.sh"
+WATCH_PLIST="${LAUNCH_DIR}/org.spark.bridge.watchdog.plist"
+cat > "$WATCH_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>org.spark.bridge.watchdog</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>${BRIDGE_DIR}/watchdog.sh</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>${BRIDGE_DIR}/watchdog.out</string>
+  <key>StandardErrorPath</key>
+  <string>${BRIDGE_DIR}/watchdog.err</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>${HOME_DIR}</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+</dict>
+</plist>
+EOF
+launchctl unload "$WATCH_PLIST" 2>/dev/null || true
+launchctl load "$WATCH_PLIST"
+launchctl start org.spark.bridge.watchdog || true
+
 echo "Spark Bridge started. Open ${SPARK_URL}/deploy — node should go online."
 echo "Then chat at ${SPARK_URL}/control"

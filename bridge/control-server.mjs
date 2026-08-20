@@ -17,7 +17,11 @@ const PORT = Number(process.env.SPARK_CONTROL_PORT || 3010);
 const DATA_DIR = path.join(ROOT, "data", "nodes");
 const PAIR_TTL_MS = 15 * 60 * 1000;
 const ONLINE_MS = 180_000;
-const CURRENT_BRIDGE_VERSION = "2026.8.20-5";
+/** Absolute ceiling for /control chat SSE (OpenClaw tool loops can be long). */
+const CHAT_ABS_TIMEOUT_MS = 20 * 60 * 1000;
+/** Fail sooner if Bridge stops sending progress chunks. */
+const CHAT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const CURRENT_BRIDGE_VERSION = "2026.8.20-6";
 
 function loadEnvFile(filePath) {
   try {
@@ -407,14 +411,41 @@ pause
       nodeId: node.nodeId,
       hostname: node.alias || node.hostname,
     });
+    let idleTimer;
+    let absTimer;
+    const fail = (msg) => {
+      if (res.writableEnded) return;
+      clearTimeout(idleTimer);
+      clearTimeout(absTimer);
+      send("error", { error: msg });
+      hub.bus.off(`reply:${requestId}`, onReply);
+      res.end();
+    };
+    const armIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        fail(
+          "node idle timeout (5 min, no progress). OpenClaw may be stuck — check Spark Bridge on the Mac.",
+        );
+      }, CHAT_IDLE_TIMEOUT_MS);
+    };
+    absTimer = setTimeout(() => {
+      fail("node timeout (20 min absolute). Task still running on Mac may finish later.");
+    }, CHAT_ABS_TIMEOUT_MS);
+    armIdle();
     const onReply = (ev) => {
+      armIdle();
       if (ev.type === "chunk") send("delta", { text: ev.text });
       if (ev.type === "done") {
+        clearTimeout(idleTimer);
+        clearTimeout(absTimer);
         send("done", { text: ev.text, nodeId: node.nodeId });
         hub.bus.off(`reply:${requestId}`, onReply);
         res.end();
       }
       if (ev.type === "error") {
+        clearTimeout(idleTimer);
+        clearTimeout(absTimer);
         send("error", { error: ev.error });
         hub.bus.off(`reply:${requestId}`, onReply);
         res.end();
@@ -431,13 +462,6 @@ pause
       q.push(cmd);
       hub.queues.set(node.nodeId, q);
     }
-    setTimeout(() => {
-      if (!res.writableEnded) {
-        send("error", { error: "node timeout (3 min). Is Spark Bridge running?" });
-        hub.bus.off(`reply:${requestId}`, onReply);
-        res.end();
-      }
-    }, 180000);
     return;
   }
 

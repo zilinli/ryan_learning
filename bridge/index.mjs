@@ -10,16 +10,38 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const SPARK_BRIDGE_VERSION = "2026.8.20-5";
+export const SPARK_BRIDGE_VERSION = "2026.8.20-6";
 /** Client must abort hung polls (proxy 502 / half-open TCP); server wait is ~25s. */
 const POLL_TIMEOUT_MS = 45_000;
+/** Keep /control SSE alive while OpenClaw runs long tool loops. */
+const PROGRESS_EVERY_MS = 25_000;
 
 const HOME = process.env.USERPROFILE || process.env.HOME || ".";
 const STATE_DIR = path.join(HOME, ".openclaw", "bridge");
 const STATE_FILE = path.join(STATE_DIR, "state.json");
+const HEALTH_FILE = path.join(STATE_DIR, "health.json");
 const INBOX_DIR = path.join(STATE_DIR, "inbox");
 const LOG_FILE = path.join(STATE_DIR, "bridge.log");
 const SPARK_URL = (process.env.SPARK_URL || "https://spark-tutor-for-ryan.duckdns.org").replace(/\/$/, "");
+
+let busyRequestId = null;
+
+async function touchHealth(extra = {}) {
+  const payload = {
+    ts: Date.now(),
+    pid: process.pid,
+    version: SPARK_BRIDGE_VERSION,
+    busy: Boolean(busyRequestId),
+    busyRequestId,
+    ...extra,
+  };
+  try {
+    await fs.mkdir(STATE_DIR, { recursive: true });
+    await fs.writeFile(HEALTH_FILE, JSON.stringify(payload), "utf8");
+  } catch {
+    /* ignore */
+  }
+}
 
 function logLine(msg) {
   const line = `[${new Date().toISOString()}] ${msg}\n`;
@@ -123,6 +145,7 @@ async function ensureToken() {
 
 async function heartbeat(token) {
   const ver = await openclawVersion();
+  await touchHealth({ openclawVersion: ver });
   await fetch(`${SPARK_URL}/api/nodes/heartbeat`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -220,6 +243,18 @@ async function writeAttachments(attachments) {
 }
 
 async function handleChat(token, cmd) {
+  busyRequestId = cmd.requestId;
+  await touchHealth({ phase: "chat-start" });
+  const started = Date.now();
+  const progress = setInterval(() => {
+    const mins = Math.max(1, Math.round((Date.now() - started) / 60000));
+    reply(token, {
+      requestId: cmd.requestId,
+      type: "chunk",
+      text: `…still working on Mac (${mins} min)…\n`,
+    }).catch(() => {});
+    touchHealth({ phase: "chat-progress" }).catch(() => {});
+  }, PROGRESS_EVERY_MS);
   try {
     await reply(token, { requestId: cmd.requestId, type: "chunk", text: "Running on PC…\n" });
     const files = await writeAttachments(cmd.attachments);
@@ -238,6 +273,10 @@ async function handleChat(token, cmd) {
       type: "error",
       error: e instanceof Error ? e.message : String(e),
     });
+  } finally {
+    clearInterval(progress);
+    busyRequestId = null;
+    await touchHealth({ phase: "chat-done" });
   }
 }
 
@@ -309,12 +348,14 @@ async function handleUpgrade(token, cmd) {
 async function loop() {
   const st = await ensureToken();
   console.log(`[spark-bridge] polling ${SPARK_URL} as ${st.nodeId} v${SPARK_BRIDGE_VERSION}`);
+  await touchHealth({ phase: "start", nodeId: st.nodeId });
   setInterval(() => {
     heartbeat(st.token).catch(() => {});
   }, 15000);
   await heartbeat(st.token).catch(() => {});
   for (;;) {
     try {
+      await touchHealth({ phase: "poll" });
       const r = await fetch(`${SPARK_URL}/api/nodes/poll?token=${encodeURIComponent(st.token)}`, {
         signal: AbortSignal.timeout(POLL_TIMEOUT_MS),
       });
@@ -349,6 +390,7 @@ async function loop() {
       if (!/aborted|timeout/i.test(msg) && e?.name !== "TimeoutError") {
         console.error("[spark-bridge]", msg);
       }
+      await touchHealth({ phase: "poll-error", error: msg.slice(0, 200) });
       await new Promise((r) => setTimeout(r, 3000));
     }
   }

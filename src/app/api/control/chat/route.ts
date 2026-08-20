@@ -5,9 +5,11 @@ import type { ChatAttachmentPayload } from "@/lib/nodes/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 1200;
 
 const MAX_ATTACH_BYTES = 80 * 1024 * 1024;
+const CHAT_ABS_TIMEOUT_MS = 20 * 60 * 1000;
+const CHAT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 function sse(event: string, data: unknown) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -67,14 +69,49 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(sse(event, data)));
       };
       send("status", { status: "thinking", nodeId: node.nodeId, hostname: node.hostname });
-      const unsub = subscribeReply(requestId, (ev) => {
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      let absTimer: ReturnType<typeof setTimeout> | undefined;
+      let unsub: () => void = () => {};
+      const fail = (msg: string) => {
+        clearTimeout(idleTimer);
+        clearTimeout(absTimer);
+        try {
+          send("error", { error: msg });
+        } catch {
+          /* closed */
+        }
+        unsub();
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
+      const armIdle = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          fail(
+            "node idle timeout (5 min, no progress). OpenClaw may be stuck — check Spark Bridge on the Mac.",
+          );
+        }, CHAT_IDLE_TIMEOUT_MS);
+      };
+      absTimer = setTimeout(() => {
+        fail("node timeout (20 min absolute). Task still running on Mac may finish later.");
+      }, CHAT_ABS_TIMEOUT_MS);
+      armIdle();
+      unsub = subscribeReply(requestId, (ev) => {
+        armIdle();
         if (ev.type === "chunk") send("delta", { text: ev.text });
         if (ev.type === "done") {
+          clearTimeout(idleTimer);
+          clearTimeout(absTimer);
           send("done", { text: ev.text, nodeId: node.nodeId });
           unsub();
           controller.close();
         }
         if (ev.type === "error") {
+          clearTimeout(idleTimer);
+          clearTimeout(absTimer);
           send("error", { error: ev.error });
           unsub();
           controller.close();
@@ -86,18 +123,10 @@ export async function POST(req: Request) {
         message,
         attachments: attachments.length ? attachments : undefined,
       });
-      const watchdog = setTimeout(() => {
-        send("error", { error: "node timeout (3 min). Is Spark Bridge running?" });
-        unsub();
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      }, 180_000);
       const origClose = controller.close.bind(controller);
       controller.close = () => {
-        clearTimeout(watchdog);
+        clearTimeout(idleTimer);
+        clearTimeout(absTimer);
         origClose();
       };
     },
