@@ -1,4 +1,10 @@
-# Spark one-click OpenClaw install + pair back to spark-tutor
+# Spark one-click OpenClaw install + pair back to spark-tutor.
+#
+# Reference only (not integrated): zilinli/ai_assistant_win was read for paths
+# (~/.openclaw, .env, gateway, Windows scheduled task). This script does NOT
+# git clone that repo, does NOT run install.ps1, and does NOT copy
+# openclaw-config / skills / workbench. Pairing + Spark Bridge only.
+#
 # Usage:
 #   $env:SPARK_PAIR_CODE='XXXXXXXX'
 #   $env:SPARK_URL='https://spark-tutor-for-ryan.duckdns.org'

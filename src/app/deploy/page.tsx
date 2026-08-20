@@ -66,9 +66,13 @@ export default function DeployPage() {
 
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://spark-tutor-for-ryan.duckdns.org";
-  const cmd = useMemo(() => {
+  const winCmd = useMemo(() => {
     const c = code || "<PAIR_CODE>";
     return `$env:SPARK_PAIR_CODE='${c}'; $env:SPARK_URL='${origin}'; iwr -useb ${origin}/install/windows.ps1 | iex`;
+  }, [code, origin]);
+  const macCmd = useMemo(() => {
+    const c = code || "<PAIR_CODE>";
+    return `SPARK_PAIR_CODE='${c}' SPARK_URL='${origin}' bash <(curl -fsSL ${origin}/install/macos.sh)`;
   }, [code, origin]);
 
   const left = Math.max(0, Math.floor((expiresAt - now) / 1000));
@@ -86,8 +90,12 @@ export default function DeployPage() {
       </p>
       <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl">Deploy OpenClaw on this PC</h1>
       <p className="mb-6 text-sm text-[var(--ink-muted)]">
-        Generate a pairing code, run the PowerShell command on Windows. The PC installs OpenClaw locally and
-        connects back here. Then use Control chat instead of WeChat.
+        Generate a pairing code, then run the command on Windows or macOS. Spark installs a simplified
+        OpenClaw (keys, gateway, Bridge) so the PC can pair and answer{" "}
+        <a href="/control" className="text-[var(--teal)] underline">
+          /control
+        </a>
+        . Pairing only — no full assistant workspace (skills, workbench, WeChat).
       </p>
 
       <label className="mb-4 block text-xs text-[var(--ink-muted)]">
@@ -113,15 +121,27 @@ export default function DeployPage() {
         <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div className="text-3xl font-mono tracking-widest">{code}</div>
           <div className="mt-1 text-xs text-[var(--ink-muted)]">expires in {left}s</div>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
-            {cmd}
+          <p className="mt-3 text-[11px] font-medium text-[var(--ink-muted)]">Windows</p>
+          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+            {winCmd}
           </pre>
           <button
             type="button"
             className="mt-2 text-xs text-[var(--teal)] underline"
-            onClick={() => void navigator.clipboard.writeText(cmd)}
+            onClick={() => void navigator.clipboard.writeText(winCmd)}
           >
-            Copy command
+            Copy Windows command
+          </button>
+          <p className="mt-4 text-[11px] font-medium text-[var(--ink-muted)]">macOS</p>
+          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+            {macCmd}
+          </pre>
+          <button
+            type="button"
+            className="mt-2 text-xs text-[var(--teal)] underline"
+            onClick={() => void navigator.clipboard.writeText(macCmd)}
+          >
+            Copy macOS command
           </button>
         </div>
       ) : null}

@@ -43,6 +43,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
+- **Deploy PC** (`/deploy`) — pair a home computer with a simplified OpenClaw + Spark Bridge for `/control` chat. Spark does **not** clone `ai_assistant_mac` / `ai_assistant_win` (layout reference only). See [assistant-repos-reference.md](docs/subsystems/assistant-repos-reference.md).
 - **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain` — **Learning Games** (Fraction Voyager · Eco Genesis · Time Vault) + board games & puzzles. See [entertainments.md](docs/subsystems/entertainments.md) and [learning-games.md](docs/subsystems/learning-games.md).
 
 ### Four-Dimension Learning (兴趣 · 心流 · 深度 · 广度)

@@ -1,5 +1,17 @@
 # 📋 Downstream Development TODO
 
+## OC-REF — OpenClaw pair installers stay Spark-native (reference, not integration) · 2026-08-20
+
+> **Design:** [subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md)  
+> **Goal:** Keep `/deploy` independent of `ai_assistant_mac` / `ai_assistant_win` (no clone, submodule, or vendor). Pair + `/control` only.
+
+- [x] **OC-REF.1** — Document reference-not-integration + capability gap
+- [x] **OC-REF.2** — Annotate `windows.ps1` / `spark-bridge.mjs` (do not run `install.ps1`)
+- [x] **OC-REF.3** — Spark-native `macos.sh` (LaunchAgent; layout comment only)
+- [x] **OC-REF.4** — `/deploy` Windows + macOS commands; pairing-only copy
+
+---
+
 ## CODE-SPARK — Learning Games 首位编程游戏 + 主对话弹出 · 2026-08-16
 
 > **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  

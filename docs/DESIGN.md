@@ -125,6 +125,7 @@ flowchart TB
 | **[subsystems/spark-v2-flywheel.md](subsystems/spark-v2-flywheel.md)** | 🎡 V2 四维学习飞轮三阶段（2026-08-13）：P0 主动出击/心流转活/兴趣反哺 → P1 BKT 先验分层/每周 Launchpad/广度导航/作品闭环 → P2 好奇心干预/动态连接卡/作品墙/快速路径扩容/序列对话分离 + 学习来源归因 |
 | **[subsystems/writing-studio-structure-adapt.md](subsystems/writing-studio-structure-adapt.md)** | Writing Pad → music/image/video — **adapt** language, don’t copy |
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
+| **[subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md)** | OpenClaw `/deploy` — Spark installers are **reference**, not integration of ai_assistant_mac/win |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |
 | **[subsystems/code-agent-mobile-resume.md](subsystems/code-agent-mobile-resume.md)** | 📱 Code Agent mobile — disconnect must not kill run; reopen restores context |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |

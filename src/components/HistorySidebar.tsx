@@ -346,12 +346,12 @@ export function HistorySidebar({
               </button>
             </div>
             {parentUnlocked ? (
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
                 <a
                   href={SPARK_GITHUB_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)]/70 bg-[var(--surface)]/70 px-2 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:text-[var(--teal)]"
+                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border border-[var(--line)]/70 bg-[var(--surface)]/70 px-1.5 text-xs font-medium text-[var(--ink-muted)] transition hover:border-[var(--teal)]/35 hover:text-[var(--teal)]"
                 >
                   GitHub
                 </a>
@@ -363,13 +363,20 @@ export function HistorySidebar({
                       onOpenCodeAgent();
                       onClose();
                     }}
-                    className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-3 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 disabled:opacity-40"
+                    className="flex min-h-9 items-center justify-center rounded-full border border-[var(--teal)]/30 bg-[var(--teal)]/10 px-1.5 text-xs font-semibold text-[var(--teal)] transition hover:bg-[var(--teal)]/20 disabled:opacity-40"
                   >
                     Code Agent
                   </button>
                 ) : (
                   <span className="min-h-9" />
                 )}
+                <a
+                  href="/deploy"
+                  className="flex min-h-9 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-muted)] px-1.5 text-xs font-semibold text-[var(--ink)] transition hover:bg-[var(--mist)]"
+                  title="Pair a PC with Spark"
+                >
+                  Deploy PC
+                </a>
               </div>
             ) : (
               <p className="px-1 text-[10px] leading-snug text-[var(--ink-muted)]">

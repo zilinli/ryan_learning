@@ -2,7 +2,7 @@
 /**
  * Spark Bridge — outbound long-poll to spark-tutor; runs local `openclaw agent`.
  * Env: SPARK_URL, SPARK_NODE_TOKEN (or SPARK_PAIR_CODE for first register)
- * State: %USERPROFILE%\.openclaw\bridge\state.json
+ * State: ~/.openclaw/bridge/state.json (USERPROFILE on Windows)
  */
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
