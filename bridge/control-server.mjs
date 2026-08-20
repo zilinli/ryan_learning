@@ -107,21 +107,45 @@ function installKeys() {
 }
 
 const deployHtml = `<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Deploy OpenClaw</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.45}pre{background:#111;color:#b6f7c1;padding:1rem;border-radius:12px;overflow:auto;white-space:pre-wrap}button{background:#0d9488;color:#fff;border:0;border-radius:999px;padding:.6rem 1.2rem;font-weight:600;cursor:pointer}.muted{color:#666}</style></head><body>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.45}pre{background:#111;color:#b6f7c1;padding:1rem;border-radius:12px;overflow:auto;white-space:pre-wrap}button{background:#0d9488;color:#fff;border:0;border-radius:999px;padding:.6rem 1.2rem;font-weight:600;cursor:pointer}.tab{background:#eee;color:#222;margin-right:.4rem;padding:.4rem .9rem}.tab.on{background:#0d9488;color:#fff}.muted{color:#666}</style></head><body>
 <p><a href="/">Spark</a> · <a href="/control">Control</a></p>
 <h1>Deploy OpenClaw on this PC</h1>
-<p class=muted>Generate a pair code, run the PowerShell command on Windows. PC installs OpenClaw and connects back here.</p>
+<p class=muted>Generate a pair code, run the install command on macOS or Windows. PC installs OpenClaw and connects back here.</p>
 <label class=muted>Optional admin token <input id=admin style="width:100%;padding:.5rem;margin:.4rem 0 1rem" placeholder="if SPARK_ADMIN_TOKEN set"></label>
 <button id=gen>Generate pair code</button>
-<div id=box style="display:none;margin-top:1rem"><div id=code style="font:2rem monospace;letter-spacing:.2em"></div><div id=ttl class=muted></div><pre id=cmd></pre><button id=copy>Copy command</button></div>
+<div id=box style="display:none;margin-top:1rem"><div id=code style="font:2rem monospace;letter-spacing:.2em"></div><div id=ttl class=muted></div>
+<div style="margin:1rem 0"><button type=button class="tab on" id=tabMac>macOS</button><button type=button class=tab id=tabWin>Windows</button></div>
+<p id=hint class=muted></p><pre id=cmd></pre><button id=copy>Copy command</button>
+<p id=sslHint class=muted style="margin-top:.8rem;display:none">If you still see SSL errors, install Homebrew curl (<code>brew install curl</code>) and put it first on PATH.</p>
+</div>
 <p id=err style="color:#c00"></p>
 <h2>Nodes</h2><ul id=nodes></ul>
 <script>
 const h=()=>{const t=localStorage.getItem('spark.admin')||''; const o={'content-type':'application/json'}; if(t) o['x-spark-admin']=t; return o};
+let pairCode='', os=/Windows/i.test(navigator.userAgent)?'windows':'macos';
 document.getElementById('admin').value=localStorage.getItem('spark.admin')||'';
 document.getElementById('admin').onchange=e=>localStorage.setItem('spark.admin',e.target.value.trim());
-async function refresh(){const r=await fetch('/api/nodes',{headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error||r.statusText;return} document.getElementById('err').textContent=''; document.getElementById('nodes').innerHTML=(j.nodes||[]).map(n=>'<li>'+(n.online?'online':'offline')+' · '+n.hostname+' · '+(n.openclawVersion||'')+'</li>').join('')||'<li class=muted>None yet</li>'}
-document.getElementById('gen').onclick=async()=>{const r=await fetch('/api/nodes/pair',{method:'POST',headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error;return} document.getElementById('box').style.display='block'; document.getElementById('code').textContent=j.code; const origin=location.origin; const cmd="$env:SPARK_PAIR_CODE='"+j.code+"'; $env:SPARK_URL='"+origin+"'; iwr -useb "+origin+"/install/windows.ps1 | iex"; document.getElementById('cmd').textContent=cmd; document.getElementById('copy').onclick=()=>navigator.clipboard.writeText(cmd); const end=j.expiresAt; setInterval(()=>{document.getElementById('ttl').textContent='expires in '+Math.max(0,Math.floor((end-Date.now())/1000))+'s'},1000); refresh()};
+function renderCmd(){
+  const origin=location.origin;
+  const c=pairCode||'<PAIR_CODE>';
+  // macOS: download to file + curl -k. Stock macOS curl often fails Let's Encrypt verify;
+  // script-internal -k retry never runs if the initial download fails.
+  const cmd=os==='macos'
+    ? ("export SPARK_PAIR_CODE='"+c+"'\\nexport SPARK_URL='"+origin+"'\\nexport SPARK_INSECURE=1\\ncurl -kfsSL \\"$SPARK_URL/install/macos.sh\\" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh")
+    : ("$env:SPARK_PAIR_CODE='"+c+"'; $env:SPARK_URL='"+origin+"'; iwr -useb "+origin+"/install/windows.ps1 | iex");
+  document.getElementById('cmd').textContent=cmd;
+  document.getElementById('hint').textContent=os==='macos'
+    ? 'Paste in Terminal on your MacBook (Node 22+). Uses curl -k for old macOS CA stores.'
+    : 'Paste in PowerShell on Windows (needs Node 22+).';
+  document.getElementById('sslHint').style.display=os==='macos'?'block':'none';
+  document.getElementById('tabMac').className='tab'+(os==='macos'?' on':'');
+  document.getElementById('tabWin').className='tab'+(os==='windows'?' on':'');
+  document.getElementById('copy').onclick=()=>navigator.clipboard.writeText(cmd);
+}
+document.getElementById('tabMac').onclick=()=>{os='macos'; renderCmd()};
+document.getElementById('tabWin').onclick=()=>{os='windows'; renderCmd()};
+async function refresh(){const r=await fetch('/api/nodes',{headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error||r.statusText;return} document.getElementById('err').textContent=''; document.getElementById('nodes').innerHTML=(j.nodes||[]).map(n=>'<li>'+(n.online?'online':'offline')+' · '+n.hostname+' · '+n.platform+' · '+(n.openclawVersion||'')+'</li>').join('')||'<li class=muted>None yet</li>'}
+document.getElementById('gen').onclick=async()=>{const r=await fetch('/api/nodes/pair',{method:'POST',headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error;return} document.getElementById('box').style.display='block'; document.getElementById('code').textContent=j.code; pairCode=j.code; renderCmd(); const end=j.expiresAt; setInterval(()=>{document.getElementById('ttl').textContent='expires in '+Math.max(0,Math.floor((end-Date.now())/1000))+'s'},1000); refresh()};
 setInterval(refresh,4000); refresh();
 </script></body></html>`;
 

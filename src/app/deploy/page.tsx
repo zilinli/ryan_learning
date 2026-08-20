@@ -70,21 +70,23 @@ export default function DeployPage() {
     const c = code || "<PAIR_CODE>";
     return `$env:SPARK_PAIR_CODE='${c}'; $env:SPARK_URL='${origin}'; iwr -useb ${origin}/install/windows.ps1 | iex`;
   }, [code, origin]);
+  // Prefer curl -k: stock macOS curl often fails Let's Encrypt verify; the
+  // installer never starts if the initial download fails (pipe or -o).
   const macCmd = useMemo(() => {
-    const c = code || "<PAIR_CODE>";
-    return [
-      `export SPARK_PAIR_CODE='${c}'`,
-      `export SPARK_URL='${origin}'`,
-      `curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
-    ].join("\n");
-  }, [code, origin]);
-  const macCmdInsecure = useMemo(() => {
     const c = code || "<PAIR_CODE>";
     return [
       `export SPARK_PAIR_CODE='${c}'`,
       `export SPARK_URL='${origin}'`,
       `export SPARK_INSECURE=1`,
       `curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
+    ].join("\n");
+  }, [code, origin]);
+  const macCmdStrictSsl = useMemo(() => {
+    const c = code || "<PAIR_CODE>";
+    return [
+      `export SPARK_PAIR_CODE='${c}'`,
+      `export SPARK_URL='${origin}'`,
+      `curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
     ].join("\n");
   }, [code, origin]);
 
@@ -147,7 +149,8 @@ export default function DeployPage() {
           </button>
           <p className="mt-4 text-[11px] font-medium text-[var(--ink-muted)]">macOS</p>
           <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
-            Run one line at a time (typing is safer than paste — some terminals add stray characters).
+            Run one line at a time. Uses <code className="text-[10px]">curl -k</code> because stock macOS
+            curl often rejects the site certificate before the installer can start.
           </p>
           <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
             {macCmd}
@@ -160,17 +163,17 @@ export default function DeployPage() {
             Copy macOS command
           </button>
           <p className="mt-3 text-[10px] leading-snug text-[var(--ink-muted)]">
-            SSL error on Mac? Install Homebrew curl (<code className="text-[10px]">brew install curl</code>) or use:
+            Strict SSL (Homebrew curl / newer macOS):
           </p>
           <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-amber-200/90 whitespace-pre-wrap">
-            {macCmdInsecure}
+            {macCmdStrictSsl}
           </pre>
           <button
             type="button"
             className="mt-2 text-xs text-[var(--teal)] underline"
-            onClick={() => void navigator.clipboard.writeText(macCmdInsecure)}
+            onClick={() => void navigator.clipboard.writeText(macCmdStrictSsl)}
           >
-            Copy macOS command (skip SSL verify)
+            Copy macOS command (verify SSL)
           </button>
         </div>
       ) : null}

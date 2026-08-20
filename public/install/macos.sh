@@ -6,18 +6,22 @@
 # This script does NOT git clone that repo and does NOT copy openclaw-config,
 # skills, Bolt Console, WeChat, or ~/openclaw-workbench. Pairing + Bridge only.
 #
-# Usage (run each line separately — avoid one-line paste from the browser):
+# Usage (run each line separately — avoid piping curl|bash from the browser):
 #   export SPARK_PAIR_CODE=XXXXXXXX
 #   export SPARK_URL=https://spark-tutor-for-ryan.duckdns.org
-#   curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
-# If curl reports "SSL certificate problem", try Homebrew curl (`brew install curl`) or:
 #   export SPARK_INSECURE=1
 #   curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
+# Stock macOS curl often fails Let's Encrypt verify; -k / SPARK_INSECURE=1 is the
+# recommended path. Strict SSL: omit SPARK_INSECURE and use plain curl -fsSL.
 set -euo pipefail
 
 SPARK_URL="${SPARK_URL%/}"
 SPARK_URL="${SPARK_URL:-https://spark-tutor-for-ryan.duckdns.org}"
 PAIR_CODE="${SPARK_PAIR_CODE:-}"
+# Default to insecure on Darwin when unset — old system curl CA stores break deploy.
+if [[ -z "${SPARK_INSECURE+x}" ]] && [[ "$(uname -s)" == "Darwin" ]]; then
+  SPARK_INSECURE=1
+fi
 CURL_EXTRA=()
 if [[ "${SPARK_INSECURE:-}" == "1" ]]; then
   CURL_EXTRA=(-k)
@@ -91,6 +95,45 @@ BRIDGE_DIR="${CONFIG_DST}/bridge"
 mkdir -p "${CONFIG_DST}/workspace" "${CONFIG_DST}/cursor" "${BRIDGE_DIR}" "${HOME_DIR}/tasks"
 
 ENV_FILE="${CONFIG_DST}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+  echo "Backed up existing $ENV_FILE"
+fi
+# Keep any non-empty local key when the ticket leaves a field blank.
+merge_env_key() {
+  local name="$1" ticket_val="$2" prev=""
+  if [[ -f "$ENV_FILE" ]]; then
+    prev="$(python3 - "$ENV_FILE" "$name" <<'PY'
+import sys
+path, name = sys.argv[1], sys.argv[2]
+try:
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        if k.strip() != name:
+            continue
+        v = v.strip()
+        if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
+            v = v[1:-1]
+        print(v)
+        break
+except FileNotFoundError:
+    pass
+PY
+)"
+  fi
+  if [[ -n "$ticket_val" ]]; then
+    printf '%s' "$ticket_val"
+  else
+    printf '%s' "$prev"
+  fi
+}
+DEEPSEEK_API_KEY="$(merge_env_key DEEPSEEK_API_KEY "${DEEPSEEK_API_KEY}")"
+DASHSCOPE_API_KEY="$(merge_env_key DASHSCOPE_API_KEY "${DASHSCOPE_API_KEY}")"
+CURSOR_API_KEY="$(merge_env_key CURSOR_API_KEY "${CURSOR_API_KEY}")"
+DEAPI_API_KEY="$(merge_env_key DEAPI_API_KEY "${DEAPI_API_KEY}")"
 cat > "$ENV_FILE" <<EOF
 DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}'
 DASHSCOPE_API_KEY='${DASHSCOPE_API_KEY}'
@@ -100,8 +143,12 @@ EOF
 chmod 600 "$ENV_FILE"
 echo "Wrote $ENV_FILE"
 
-echo "Installing OpenClaw CLI..."
-npm install -g openclaw@latest
+if command -v openclaw >/dev/null 2>&1; then
+  echo "OpenClaw CLI already present: $(openclaw --version 2>/dev/null || true)"
+else
+  echo "Installing OpenClaw CLI..."
+  npm install -g openclaw@latest
+fi
 
 CFG="${CONFIG_DST}/openclaw.json"
 if [[ ! -f "$CFG" ]]; then
