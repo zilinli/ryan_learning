@@ -8,7 +8,8 @@ const DATA_DIR = path.join(process.cwd(), "data", "nodes");
 const PAIRS_FILE = path.join(DATA_DIR, "pairs.json");
 const NODES_FILE = path.join(DATA_DIR, "nodes.json");
 const PAIR_TTL_MS = 15 * 60 * 1000;
-const ONLINE_MS = 45_000;
+/** Bridge may be blocked in long-poll or a long agent run; 3 min avoids false offline. */
+const ONLINE_MS = 180_000;
 
 type Hub = {
   pairs: PairRecord[];
@@ -38,9 +39,36 @@ async function ensureDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
 
+async function mergeNodesFromDisk() {
+  await ensureDir();
+  let disk: NodeRecord[] = [];
+  try {
+    disk = JSON.parse(await fs.readFile(NODES_FILE, "utf8")) as NodeRecord[];
+  } catch {
+    return;
+  }
+  const h = hub();
+  const mem = new Map(h.nodes.map((n) => [n.nodeId, n]));
+  for (const d of disk) {
+    const m = mem.get(d.nodeId);
+    if (!m) {
+      h.nodes.push(d);
+      continue;
+    }
+    if ((d.lastSeen || 0) > (m.lastSeen || 0)) m.lastSeen = d.lastSeen;
+    if (d.alias) m.alias = d.alias;
+    if (d.hostname) m.hostname = d.hostname;
+    if (d.openclawVersion) m.openclawVersion = d.openclawVersion;
+    if (d.platform) m.platform = d.platform;
+  }
+}
+
 async function load() {
   const h = hub();
-  if (h.pairs.length || h.nodes.length) return;
+  if (h.pairs.length || h.nodes.length) {
+    await mergeNodesFromDisk();
+    return;
+  }
   await ensureDir();
   try {
     h.pairs = JSON.parse(await fs.readFile(PAIRS_FILE, "utf8")) as PairRecord[];
@@ -107,6 +135,7 @@ export async function registerNode(input: {
   hostname: string;
   platform: string;
   openclawVersion: string;
+  bridgeVersion?: string;
 }): Promise<NodeRecord> {
   await load();
   const rec: NodeRecord = {
@@ -117,6 +146,7 @@ export async function registerNode(input: {
     openclawVersion: input.openclawVersion || "",
     lastSeen: now(),
     createdAt: now(),
+    bridgeVersion: input.bridgeVersion || "",
   };
   hub().nodes.push(rec);
   await saveNodes();
@@ -128,15 +158,21 @@ export async function getNodeByToken(token: string): Promise<NodeRecord | null> 
   return hub().nodes.find((n) => n.token === token) ?? null;
 }
 
-export async function touchNode(nodeId: string, extra?: Partial<Pick<NodeRecord, "openclawVersion" | "hostname">>) {
+export async function touchNode(
+  nodeId: string,
+  extra?: Partial<Pick<NodeRecord, "openclawVersion" | "hostname" | "bridgeVersion">>,
+) {
   await load();
   const n = hub().nodes.find((x) => x.nodeId === nodeId);
   if (!n) return;
   n.lastSeen = now();
   if (extra?.openclawVersion) n.openclawVersion = extra.openclawVersion;
   if (extra?.hostname) n.hostname = extra.hostname;
+  if (extra?.bridgeVersion) n.bridgeVersion = extra.bridgeVersion;
   await saveNodes();
 }
+
+export const CURRENT_BRIDGE_VERSION = "2026.8.20-2";
 
 export async function listNodes() {
   await load();
@@ -144,11 +180,25 @@ export async function listNodes() {
   return hub().nodes.map((n) => ({
     nodeId: n.nodeId,
     hostname: n.hostname,
+    alias: n.alias || "",
     platform: n.platform,
     openclawVersion: n.openclawVersion,
     lastSeen: n.lastSeen,
     online: t - n.lastSeen < ONLINE_MS,
+    bridgeVersion: n.bridgeVersion || "",
+    upgradeAvailable: (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
   }));
+}
+
+export async function updateNodeAlias(nodeId: string, alias: string): Promise<boolean> {
+  await load();
+  const n = hub().nodes.find((x) => x.nodeId === nodeId);
+  if (!n) return false;
+  const trimmed = alias.trim();
+  if (trimmed) n.alias = trimmed;
+  else delete n.alias;
+  await saveNodes();
+  return true;
 }
 
 export function enqueueCommand(nodeId: string, cmd: NodeCommand) {

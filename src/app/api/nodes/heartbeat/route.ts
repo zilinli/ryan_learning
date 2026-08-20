@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  let body: { token?: string; openclawVersion?: string; hostname?: string };
+  let body: { token?: string; openclawVersion?: string; hostname?: string; bridgeVersion?: string };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   await touchNode(node.nodeId, {
     openclawVersion: body.openclawVersion,
     hostname: body.hostname,
+    bridgeVersion: body.bridgeVersion,
   });
   return Response.json({ ok: true, nodeId: node.nodeId });
 }

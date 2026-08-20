@@ -1,0 +1,35 @@
+{
+  "plugins": {
+    "allow": [
+      "deepseek",
+      "qwen",
+      "openclaw-weixin",
+      "duckduckgo",
+      "browser",
+      "memory-core"
+    ]
+  },
+  "auth": {
+    "profiles": {
+      "deepseek:manual": {
+        "provider": "deepseek",
+        "mode": "api_key"
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "filesystem": {
+        "command": "${NPX_CMD}",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "${TASKS_DIR}",
+          "${OPENCLAW_DIR}/workspace/memory",
+          "${DOCUMENTS_DIR}"
+        ],
+        "supportsParallelToolCalls": true
+      }
+    }
+  }
+}

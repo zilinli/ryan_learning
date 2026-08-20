@@ -1,13 +1,13 @@
-import { checkAdmin } from "@/lib/nodes/auth";
 import { listNodes } from "@/lib/nodes/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  if (!checkAdmin(req)) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
+/** Node roster is server-side; any PC can list. Pair/chat/alias still need admin. */
+export async function GET() {
   const nodes = await listNodes();
-  return Response.json({ nodes });
+  return Response.json(
+    { nodes },
+    { headers: { "cache-control": "no-store" } },
+  );
 }

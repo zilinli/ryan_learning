@@ -1,51 +1,60 @@
-# Spark vs AI Assistant repos — reference, not integration
+# Spark vs AI Assistant repos
 
-> Version 1.0 · 2026-08-20
-> Related: `/deploy`, `/control`, `public/install/`
+> Updated 2026-08-20
 
 ## Conclusion
 
-**Reference (layout + install shape), not code integration.**
+**Integrated.** The unified module lives at [`assistant/`](../../assistant/) inside `ryan_learning`.
 
-Spark (`ryan_learning`) does **not**:
+The former standalone repos are **archived**:
 
-- git submodule `zilinli/ai_assistant_mac` or `zilinli/ai_assistant_win`
-- `git clone` those repos at install time
-- vendor `openclaw-config/`, skills, Bolt Console, WeChat, or `~/openclaw-workbench`
+- [zilinli/ai_assistant_mac](https://github.com/zilinli/ai_assistant_mac)
+- [zilinli/ai_assistant_win](https://github.com/zilinli/ai_assistant_win)
 
-Those two repos were read for paths, gateway, `.env`, and **Mac LaunchAgent vs Windows scheduled task**. Spark then shipped its own one-click pair installers.
+Spark `/deploy` installs the full assistant (skills, workbench, WeChat) plus Spark Bridge.
 
-## What actually runs
+## Architecture
 
 ```mermaid
 flowchart LR
   Deploy["/deploy pair code"] --> Ticket["install-ticket API"]
   Ticket --> Win["windows.ps1"]
   Ticket --> Mac["macos.sh"]
-  Win --> OC["~/.openclaw + openclaw CLI"]
-  Mac --> OC
+  Win --> Assist["assistant/install.mjs"]
+  Mac --> Assist
+  Assist --> OC["~/.openclaw + openclaw CLI"]
   OC --> Bridge["spark-bridge.mjs"]
   Bridge --> Spark["Spark /control"]
 ```
 
 | Piece | Path |
 |-------|------|
-| Windows | `public/install/windows.ps1` |
-| macOS | `public/install/macos.sh` |
+| Unified assistant | `assistant/` |
+| Windows installer | `public/install/windows.ps1` |
+| macOS installer | `public/install/macos.sh` |
 | Bridge | `public/install/spark-bridge.mjs` |
+| Control UI (prod) | `bridge/ui/` via `bridge/control-server.mjs` :3010 |
 
-Scripts: pull pair ticket → write `~/.openclaw/.env` → `npm i -g openclaw` → write a **simplified** `openclaw.json` → start gateway → install Spark Bridge (schtasks / LaunchAgent).
+## Platform layout
 
-They **do not** run `ai_assistant_win/install.ps1`. The Mac repo has no matching `install.sh` (backup/USAGE + `~/.openclaw` config backup only).
+```
+assistant/
+├── openclaw-config/     # base + darwin/win32 overlays
+├── platforms/darwin/    # Mac extras (venv, LaunchAgent helpers)
+├── platforms/win32/     # Windows extras
+└── install.mjs          # cross-platform entry
+```
 
-## Capability gap
+## Rebuild assistant bundle
 
-The assistant repos include a full workspace: skills, Bolt Console, Cursor driver, WeChat channel, `~/openclaw-workbench`. Spark’s installer only guarantees **pair + `/control` remote chat**.
+After changing `assistant/`:
 
-## If we later want real integration
+```bash
+cd codes/ryan_learning
+tar czf public/install/assistant.tar.gz assistant
+pm2 restart spark-control
+```
 
-Pick one (do not mix accidentally):
+## Archive old GitHub repos
 
-1. **Keep reference** — current policy; Spark installers evolve independently
-2. **Clone at install** — Mac/Win scripts `git clone` the matching repo, sync config, then attach Bridge (needs GitHub access on the PC)
-3. **Vendor into Spark** — copy config/scripts into `ryan_learning` and maintain two trees
+See [`archive-old-assistant-repos.md`](archive-old-assistant-repos.md) for README text to paste into the archived repos.

@@ -1,9 +1,5 @@
-# Spark one-click OpenClaw install + pair back to spark-tutor.
-#
-# Reference only (not integrated): zilinli/ai_assistant_win was read for paths
-# (~/.openclaw, .env, gateway, Windows scheduled task). This script does NOT
-# git clone that repo, does NOT run install.ps1, and does NOT copy
-# openclaw-config / skills / workbench. Pairing + Spark Bridge only.
+# Spark one-click OpenClaw install + pair back to spark-tutor (Windows).
+# Installs full unified assistant (skills, workbench, WeChat) from assistant/ module.
 #
 # Usage:
 #   $env:SPARK_PAIR_CODE='XXXXXXXX'
@@ -36,7 +32,6 @@ DEAPI_API_KEY='$($keys.DEAPI_API_KEY)'
 "@ | Set-Content -Path $envFile -Encoding UTF8
 Write-Host "Wrote $envFile"
 
-# Persist user env so gateway/bridge inherit keys
 [System.Environment]::SetEnvironmentVariable("DEEPSEEK_API_KEY", $keys.DEEPSEEK_API_KEY, "User")
 [System.Environment]::SetEnvironmentVariable("DASHSCOPE_API_KEY", $keys.DASHSCOPE_API_KEY, "User")
 [System.Environment]::SetEnvironmentVariable("CURSOR_API_KEY", $keys.CURSOR_API_KEY, "User")
@@ -52,46 +47,16 @@ if (-not $npm) { throw "Node.js/npm not found. Install Node 22+ from https://nod
 Write-Host "Installing OpenClaw CLI..."
 npm install -g openclaw@latest
 
-$cfg = Join-Path $ConfigDst "openclaw.json"
-$ws = (Join-Path $ConfigDst "workspace") -replace '\\', '/'
-$tasks = (Join-Path $HomeDir "tasks") -replace '\\', '/'
-New-Item -ItemType Directory -Force -Path (Join-Path $HomeDir "tasks") | Out-Null
-if (-not (Test-Path $cfg)) {
-  $openclawJson = @{
-    agents = @{
-      defaults = @{
-        workspace = $ws
-        model     = @{ primary = "deepseek/deepseek-v4-flash"; fallbacks = @("qwen/qwen3.5-plus") }
-      }
-      list = @(@{ id = "main" })
-    }
-    gateway = @{ mode = "local"; port = 18789; bind = "loopback"; auth = @{ mode = "token"; token = [guid]::NewGuid().ToString("N") } }
-    plugins = @{
-      entries = @{
-        deepseek          = @{ enabled = $true }
-        qwen              = @{ enabled = $true }
-        "openclaw-weixin" = @{ enabled = $false }
-      }
-      allow = @("deepseek", "qwen")
-    }
-    models  = @{
-      mode      = "merge"
-      providers = @{
-        deepseek = @{ baseUrl = "https://api.deepseek.com"; api = "openai-completions"; models = @(@{ id = "deepseek-v4-flash"; name = "DeepSeek V4 Flash" }) }
-        qwen     = @{ baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1"; api = "openai-completions"; apiKey = '${DASHSCOPE_API_KEY}'; models = @(@{ id = "qwen3.5-plus"; name = "Qwen3.5 Plus" }) }
-      }
-    }
-  }
-  ($openclawJson | ConvertTo-Json -Depth 20) | Set-Content $cfg -Encoding UTF8
-}
-
-Write-Host "Installing model plugins (no WeChat)..."
-try { openclaw plugins install @openclaw/deepseek-provider } catch { Write-Warning $_ }
-try { openclaw plugins install @openclaw/qwen-provider } catch { Write-Warning $_ }
-
-Write-Host "Gateway install..."
-try { openclaw gateway install } catch { }
-try { openclaw gateway restart } catch { try { openclaw gateway start } catch { } }
+Write-Host "Installing full OpenClaw assistant workspace..."
+$assistTar = Join-Path $env:TEMP "spark-assistant.tar.gz"
+$assistTmp = Join-Path $env:TEMP "spark-assistant"
+Invoke-WebRequest -UseBasicParsing -Uri "$SparkUrl/install/assistant.tar.gz" -OutFile $assistTar
+if (Test-Path $assistTmp) { Remove-Item $assistTmp -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $assistTmp | Out-Null
+tar xzf $assistTar -C $assistTmp
+node (Join-Path $assistTmp "assistant/install.mjs")
+Remove-Item $assistTar -Force -ErrorAction SilentlyContinue
+Remove-Item $assistTmp -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "Downloading Spark Bridge..."
 Invoke-WebRequest -UseBasicParsing -Uri "$SparkUrl/install/spark-bridge.mjs" -OutFile (Join-Path $BridgeDir "index.mjs")

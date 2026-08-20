@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deploy OpenClaw · Spark</title>
+    <link rel="stylesheet" href="/ui/control-theme.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <nav class="nav">
+        <a href="/">Spark</a>
+        <a href="/control">Control</a>
+      </nav>
+      <h1>Deploy OpenClaw</h1>
+      <p class="subtitle">
+        Generate a pair code, run the install command on macOS or Windows. Full assistant workspace
+        (skills, workbench, WeChat) installs automatically.
+      </p>
+
+      <div id="authBanner" class="banner hidden"></div>
+
+      <div class="panel">
+        <div class="panel-label">Access · SPARK_ADMIN_TOKEN</div>
+        <input id="admin" type="password" placeholder="Leave empty if not configured on server" autocomplete="off" />
+        <div class="btn-row">
+          <button type="button" class="btn btn-sm" id="copyAdminLink">Copy admin link</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="gen">Generate pair code</button>
+
+      <div id="box" class="panel" style="display: none; margin-top: 1rem">
+        <div class="panel-label">Pair code</div>
+        <div id="code" class="pair-code"></div>
+        <div id="ttl" class="subtitle" style="margin: 0.3rem 0 0"></div>
+        <div class="tabs">
+          <button type="button" class="tab on" id="tabMac">macOS</button>
+          <button type="button" class="tab" id="tabWin">Windows</button>
+        </div>
+        <p id="hint" class="subtitle"></p>
+        <div class="terminal"><pre id="cmd"></pre></div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-sm" id="copy">Copy command</button>
+        </div>
+        <p id="sslHint" class="subtitle" style="display: none; margin-top: 0.8rem">
+          If SSL errors persist, install Homebrew curl (<code>brew install curl</code>) and put it first on PATH.
+        </p>
+      </div>
+
+      <p id="err" class="err"></p>
+
+      <h2 style="font-family: var(--font-display); font-size: 1rem; letter-spacing: 0.1em; color: var(--neon); margin: 2rem 0 0.75rem">
+        NODES
+      </h2>
+      <ul id="nodes" class="node-list"></ul>
+    </div>
+    <script src="/ui/components.js"></script>
+    <script src="/ui/deploy.js"></script>
+  </body>
+</html>

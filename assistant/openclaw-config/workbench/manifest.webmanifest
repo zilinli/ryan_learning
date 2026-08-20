@@ -1,0 +1,16 @@
+{
+  "name": "Bolt Console",
+  "short_name": "Bolt",
+  "description": "OpenClaw local console",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B12",
+  "theme_color": "#070B12",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

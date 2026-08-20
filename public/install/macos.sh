@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # Spark one-click OpenClaw install + pair back to spark-tutor (macOS).
-#
-# Layout reference (not integrated): zilinli/ai_assistant_mac uses ~/.openclaw,
-# .env, gateway, LaunchAgent. That repo has backup/USAGE only — no install.sh.
-# This script does NOT git clone that repo and does NOT copy openclaw-config,
-# skills, Bolt Console, WeChat, or ~/openclaw-workbench. Pairing + Bridge only.
-#
+# Installs full unified assistant (skills, workbench, WeChat) from assistant/ module.
 # Usage (run each line separately — avoid piping curl|bash from the browser):
 #   export SPARK_PAIR_CODE=XXXXXXXX
 #   export SPARK_URL=https://spark-tutor-for-ryan.duckdns.org
@@ -151,58 +146,12 @@ else
 fi
 
 CFG="${CONFIG_DST}/openclaw.json"
-if [[ ! -f "$CFG" ]]; then
-  WS="${CONFIG_DST}/workspace"
-  GW_TOKEN="$(uuidgen | tr 'A-F' 'a-f' | tr -d '-')"
-  python3 - "$CFG" "$WS" "$GW_TOKEN" <<'PY'
-import json, sys
-cfg_path, ws, token = sys.argv[1], sys.argv[2], sys.argv[3]
-cfg = {
-  "agents": {
-    "defaults": {
-      "workspace": ws,
-      "model": {"primary": "deepseek/deepseek-v4-flash", "fallbacks": ["qwen/qwen3.5-plus"]},
-    },
-    "list": [{"id": "main"}],
-  },
-  "gateway": {"mode": "local", "port": 18789, "bind": "loopback", "auth": {"mode": "token", "token": token}},
-  "plugins": {
-    "entries": {
-      "deepseek": {"enabled": True},
-      "qwen": {"enabled": True},
-      "openclaw-weixin": {"enabled": False},
-    },
-    "allow": ["deepseek", "qwen"],
-  },
-  "models": {
-    "mode": "merge",
-    "providers": {
-      "deepseek": {
-        "baseUrl": "https://api.deepseek.com",
-        "api": "openai-completions",
-        "models": [{"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash"}],
-      },
-      "qwen": {
-        "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "api": "openai-completions",
-        "apiKey": "${DASHSCOPE_API_KEY}",
-        "models": [{"id": "qwen3.5-plus", "name": "Qwen3.5 Plus"}],
-      },
-    },
-  },
-}
-with open(cfg_path, "w", encoding="utf-8") as f:
-    json.dump(cfg, f, indent=2)
-PY
-fi
-
-echo "Installing model plugins (no WeChat)..."
-openclaw plugins install @openclaw/deepseek-provider || true
-openclaw plugins install @openclaw/qwen-provider || true
-
-echo "Gateway install..."
-openclaw gateway install || true
-openclaw gateway restart || openclaw gateway start || true
+echo "Installing full OpenClaw assistant workspace..."
+ASSIST_TMP="$(mktemp -d)"
+spark_download "$SPARK_URL/install/assistant.tar.gz" "/tmp/spark-assistant.tar.gz"
+tar xzf /tmp/spark-assistant.tar.gz -C "$ASSIST_TMP"
+node "${ASSIST_TMP}/assistant/install.mjs"
+rm -rf "$ASSIST_TMP" /tmp/spark-assistant.tar.gz
 
 echo "Downloading Spark Bridge..."
 spark_download "$SPARK_URL/install/spark-bridge.mjs" "${BRIDGE_DIR}/index.mjs"

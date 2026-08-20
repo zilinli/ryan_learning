@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     hostname?: string;
     platform?: string;
     openclawVersion?: string;
+    bridgeVersion?: string;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
     hostname: body.hostname || "pc",
     platform: body.platform || "win32",
     openclawVersion: body.openclawVersion || "",
+    bridgeVersion: body.bridgeVersion || "",
   });
   return Response.json({
     nodeId: node.nodeId,

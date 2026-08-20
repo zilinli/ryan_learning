@@ -13,13 +13,27 @@ export type NodeRecord = {
   openclawVersion: string;
   lastSeen: number;
   createdAt: number;
+  alias?: string;
+  bridgeVersion?: string;
 };
 
-export type NodeCommand = {
-  requestId: string;
-  type: "chat";
-  message: string;
+export type ChatAttachmentPayload = {
+  name: string;
+  mimeType: string;
+  dataBase64: string;
 };
+
+export type NodeCommand =
+  | {
+      requestId: string;
+      type: "chat";
+      message: string;
+      attachments?: ChatAttachmentPayload[];
+    }
+  | {
+      requestId: string;
+      type: "upgrade";
+    };
 
 export type NodeReplyEvent =
   | { requestId: string; type: "chunk"; text: string }

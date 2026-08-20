@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "skills": {
+    "organize-messy-files-file-organizer": {
+      "version": "0.1.0",
+      "installedAt": 1786933423366,
+      "registry": "https://clawhub.ai",
+      "artifact": {
+        "kind": "archive",
+        "sha256": "ba24891f1032ac258e5b5b46bd16c27c29b9874a45a71756283df4e4fd527d14",
+        "integrity": "sha256-uiSJHxAyrCWOW1tGvRbCfCm5h0pFpxdWKD305P1SfRQ="
+      },
+      "skillFile": {
+        "path": "SKILL.md",
+        "sha256": "bfd190964b2c4dfdd0c747d914db477bd15ffba2e136a540546a9f08cd7239a2"
+      },
+      "verification": {
+        "schema": "clawhub.skill.verify.v1",
+        "ok": false,
+        "decision": "fail",
+        "reasons": [
+          "security.status_not_clean"
+        ],
+        "card": {
+          "available": true,
+          "path": "skill-card.md",
+          "url": "https://wry-manatee-359.convex.site/api/v1/skills/organize-messy-files-file-organizer/card?ownerHandle=lnj22&version=0.1.0",
+          "sha256": "dd6ea828a6aafb5a341f373bbdd423d5d9a254e1740dc7c4d4fd99e6184db0eb",
+          "size": 1996,
+          "contentType": "text/markdown; charset=utf-8"
+        },
+        "artifact": {
+          "sourceFingerprint": "8ba0f3f1649de702114d2d34c29e6f4171a2bd6211e8fa817644eb9776d9657d",
+          "bundleFingerprints": [
+            "bac6b0aefff06e09e05d5f536375939b6d5b301deb9d55ce5c2accecc21a228b"
+          ],
+          "files": [
+            {
+              "path": "SKILL.md",
+              "size": 11175,
+              "sha256": "bfd190964b2c4dfdd0c747d914db477bd15ffba2e136a540546a9f08cd7239a2",
+              "contentType": "text/markdown"
+            }
+          ]
+        },
+        "provenance": {
+          "source": "unavailable",
+          "reason": "No server-resolved GitHub import provenance is stored for this version."
+        },
+        "security": {
+          "status": "suspicious",
+          "passed": false,
+          "rawStatus": "suspicious",
+          "verdict": "suspicious",
+          "confidence": "high",
+          "summary": "This file organizer is not malicious, but it asks for broad local file inspection and file-moving authority without strong default limits.",
+          "model": "gpt-5.5",
+          "checkedAt": 1779962485616,
+          "signals": {
+            "staticScan": {
+              "status": "clean",
+              "rawStatus": "clean",
+              "reasonCodes": [],
+              "summary": "No suspicious patterns detected.",
+              "engineVersion": "v2.4.5",
+              "checkedAt": 1777527571735
+            },
+            "virusTotal": {
+              "status": "clean",
+              "rawStatus": "clean",
+              "verdict": null,
+              "analysis": null,
+              "source": "engines",
+              "scanner": null,
+              "engineStats": {
+                "harmless": 0,
+                "malicious": 0,
+                "suspicious": 0,
+                "undetected": 66
+              },
+              "checkedAt": 1780090440354
+            },
+            "skillSpector": {
+              "status": "clean",
+              "rawStatus": "clean",
+              "score": 20,
+              "severity": "LOW",
+              "recommendation": "SAFE",
+              "issueCount": 2,
+              "scannerVersion": "2.0.0",
+              "summary": null,
+              "error": null,
+              "checkedAt": 1779962428287
+            },
+            "dependencyRegistry": null
+          }
+        },
+        "signature": {
+          "status": "unsigned"
+        }
+      }
+    }
+  }
+}

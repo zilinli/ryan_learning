@@ -1,0 +1,10 @@
+{
+  "name": "bolt-cursor-sidecar",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bolt Console 的 Cursor SDK 侧车：让 Console 直接调用 Cursor agent（对齐 ryan_learning 的接入方式）",
+  "dependencies": {
+    "@cursor/sdk": "^1.0.26"
+  }
+}

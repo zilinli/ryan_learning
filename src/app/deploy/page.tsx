@@ -5,11 +5,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type NodeInfo = {
   nodeId: string;
   hostname: string;
+  alias?: string;
   platform: string;
   openclawVersion: string;
   lastSeen: number;
   online: boolean;
+  bridgeVersion?: string;
+  upgradeAvailable?: boolean;
 };
+
+function captureAdminFromUrl() {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("admin")?.trim();
+  if (token) {
+    localStorage.setItem("spark.admin", token);
+    params.delete("admin");
+    const q = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (q ? `?${q}` : ""));
+  }
+}
 
 function adminHeaders(): HeadersInit {
   const t = typeof window !== "undefined" ? localStorage.getItem("spark.admin") || "" : "";
@@ -24,10 +39,20 @@ export default function DeployPage() {
   const [admin, setAdmin] = useState("");
   const [now, setNow] = useState(Date.now());
 
+  const [osTab, setOsTab] = useState<"macos" | "windows">("macos");
+  const [upgrading, setUpgrading] = useState("");
+  const [upgradeLog, setUpgradeLog] = useState("");
+  const [authErr, setAuthErr] = useState("");
+
   useEffect(() => {
+    captureAdminFromUrl();
     setAdmin(localStorage.getItem("spark.admin") || "");
     const i = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(i);
+  }, []);
+
+  useEffect(() => {
+    if (/Windows/i.test(navigator.userAgent)) setOsTab("windows");
   }, []);
 
   const saveAdmin = () => {
@@ -36,9 +61,10 @@ export default function DeployPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/nodes", { headers: adminHeaders() });
+      const r = await fetch("/api/nodes", { cache: "no-store", headers: adminHeaders() });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || r.statusText);
+      setAuthErr("");
       setNodes(j.nodes || []);
       setErr("");
     } catch (e) {
@@ -81,16 +107,84 @@ export default function DeployPage() {
       `curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
     ].join("\n");
   }, [code, origin]);
-  const macCmdStrictSsl = useMemo(() => {
-    const c = code || "<PAIR_CODE>";
-    return [
-      `export SPARK_PAIR_CODE='${c}'`,
-      `export SPARK_URL='${origin}'`,
-      `curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
-    ].join("\n");
-  }, [code, origin]);
+
+  const saveAlias = async (nodeId: string, alias: string) => {
+    const r = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}`, {
+      method: "PATCH",
+      headers: adminHeaders(),
+      body: JSON.stringify({ alias }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j.error || r.statusText);
+    }
+  };
+
+  const copyAdminLink = () => {
+    const t = admin.trim() || localStorage.getItem("spark.admin") || "";
+    if (!t) {
+      alert("Enter admin token first");
+      return;
+    }
+    void navigator.clipboard.writeText(`${origin}/deploy?admin=${encodeURIComponent(t)}`);
+  };
 
   const left = Math.max(0, Math.floor((expiresAt - now) / 1000));
+  const nodeDisplay = (n: NodeInfo) => (n.alias?.trim() ? n.alias : n.hostname);
+
+  const downloadInstaller = () => {
+    if (!code) {
+      setErr("Generate a pair code first");
+      return;
+    }
+    const path =
+      osTab === "macos"
+        ? `/install/spark-deploy.command?code=${encodeURIComponent(code)}`
+        : `/install/spark-deploy.bat?code=${encodeURIComponent(code)}`;
+    window.location.href = path;
+  };
+
+  const upgradeNode = async (nodeId: string) => {
+    setUpgrading(nodeId);
+    setUpgradeLog("");
+    try {
+      const r = await fetch("/api/control/upgrade", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({ nodeId }),
+      });
+      if (!r.ok || !r.body) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let acc = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() || "";
+        for (const block of parts) {
+          const ev = block.match(/^event: (\w+)/m)?.[1];
+          const dataLine = block.split("\n").find((l) => l.startsWith("data: "));
+          if (!ev || !dataLine) continue;
+          const data = JSON.parse(dataLine.slice(6));
+          if (ev === "delta") acc += data.text || "";
+          if (ev === "done") acc = data.text || acc;
+          if (ev === "error") throw new Error(data.error || "upgrade failed");
+          setUpgradeLog(acc);
+        }
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "upgrade failed");
+    } finally {
+      setUpgrading("");
+      void refresh();
+    }
+  };
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 text-[var(--ink)]">
@@ -103,15 +197,15 @@ export default function DeployPage() {
           Control
         </a>
       </p>
-      <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl">Deploy OpenClaw on this PC</h1>
+      <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl">Deploy OpenClaw</h1>
       <p className="mb-6 text-sm text-[var(--ink-muted)]">
-        Generate a pairing code, then run the command on Windows or macOS. Spark installs a simplified
-        OpenClaw (keys, gateway, Bridge) so the PC can pair and answer{" "}
-        <a href="/control" className="text-[var(--teal)] underline">
-          /control
-        </a>
-        . Pairing only — no full assistant workspace (skills, workbench, WeChat).
+        Generate a pair code, download the installer, and double-click it on the Mac or Windows PC.
+        No copy-paste into Terminal required.
       </p>
+
+      {authErr ? (
+        <p className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{authErr}</p>
+      ) : null}
 
       <label className="mb-4 block text-xs text-[var(--ink-muted)]">
         Optional site password (SPARK_ADMIN_TOKEN)
@@ -123,6 +217,9 @@ export default function DeployPage() {
           placeholder="leave empty if not configured"
         />
       </label>
+      <button type="button" className="mb-4 text-xs text-[var(--teal)] underline" onClick={copyAdminLink}>
+        Copy admin link (for another PC)
+      </button>
 
       <button
         type="button"
@@ -136,45 +233,47 @@ export default function DeployPage() {
         <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div className="text-3xl font-mono tracking-widest">{code}</div>
           <div className="mt-1 text-xs text-[var(--ink-muted)]">expires in {left}s</div>
-          <p className="mt-3 text-[11px] font-medium text-[var(--ink-muted)]">Windows</p>
-          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
-            {winCmd}
-          </pre>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              className={`rounded-full px-4 py-1.5 text-sm ${osTab === "macos" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
+              onClick={() => setOsTab("macos")}
+            >
+              macOS
+            </button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-1.5 text-sm ${osTab === "windows" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
+              onClick={() => setOsTab("windows")}
+            >
+              Windows
+            </button>
+          </div>
           <button
             type="button"
-            className="mt-2 text-xs text-[var(--teal)] underline"
-            onClick={() => void navigator.clipboard.writeText(winCmd)}
+            onClick={downloadInstaller}
+            className="mt-4 rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
           >
-            Copy Windows command
+            Download {osTab === "macos" ? "Spark-Deploy.command" : "Spark-Deploy.bat"}
           </button>
-          <p className="mt-4 text-[11px] font-medium text-[var(--ink-muted)]">macOS</p>
-          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
-            Run one line at a time. Uses <code className="text-[10px]">curl -k</code> because stock macOS
-            curl often rejects the site certificate before the installer can start.
+          <p className="mt-3 text-xs text-[var(--ink-muted)]">
+            {osTab === "macos"
+              ? "On the Mac: double-click the downloaded .command (or right-click → Open). Allow Terminal if macOS asks."
+              : "On Windows: double-click the .bat file. If SmartScreen warns, choose More info → Run anyway."}
           </p>
-          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
-            {macCmd}
-          </pre>
-          <button
-            type="button"
-            className="mt-2 text-xs text-[var(--teal)] underline"
-            onClick={() => void navigator.clipboard.writeText(macCmd)}
-          >
-            Copy macOS command
-          </button>
-          <p className="mt-3 text-[10px] leading-snug text-[var(--ink-muted)]">
-            Strict SSL (Homebrew curl / newer macOS):
-          </p>
-          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-amber-200/90 whitespace-pre-wrap">
-            {macCmdStrictSsl}
-          </pre>
-          <button
-            type="button"
-            className="mt-2 text-xs text-[var(--teal)] underline"
-            onClick={() => void navigator.clipboard.writeText(macCmdStrictSsl)}
-          >
-            Copy macOS command (verify SSL)
-          </button>
+          <details className="mt-4 text-xs text-[var(--ink-muted)]">
+            <summary className="cursor-pointer">Advanced: copy command</summary>
+            <pre className="mt-2 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+              {osTab === "macos" ? macCmd : winCmd}
+            </pre>
+            <button
+              type="button"
+              className="mt-2 text-[var(--teal)] underline"
+              onClick={() => void navigator.clipboard.writeText(osTab === "macos" ? macCmd : winCmd)}
+            >
+              Copy
+            </button>
+          </details>
         </div>
       ) : null}
 
@@ -191,7 +290,39 @@ export default function DeployPage() {
                 {n.online ? "online" : "offline"}
               </span>
               {" · "}
-              {n.hostname} · {n.platform} · {n.openclawVersion || "openclaw?"}
+              {nodeDisplay(n)} · {n.platform} · {n.openclawVersion || "openclaw?"}
+              {n.bridgeVersion ? ` · bridge ${n.bridgeVersion}` : ""}
+              {n.upgradeAvailable ? (
+                <span className="ml-1 text-amber-700">needs upgrade</span>
+              ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  className="block w-full max-w-xs rounded border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-xs"
+                  placeholder="Alias…"
+                  defaultValue={n.alias || ""}
+                  onBlur={(e) => void saveAlias(n.nodeId, e.target.value).catch((ex) => setErr(String(ex)))}
+                />
+                <button
+                  type="button"
+                  disabled={!n.online || upgrading === n.nodeId || !n.bridgeVersion}
+                  onClick={() => void upgradeNode(n.nodeId)}
+                  className="rounded-full border border-[var(--teal)] px-3 py-1 text-xs text-[var(--teal)] disabled:opacity-40"
+                  title={
+                    !n.bridgeVersion
+                      ? "Old Bridge — generate a pair code and download the installer again"
+                      : undefined
+                  }
+                >
+                  {upgrading === n.nodeId
+                    ? "Upgrading…"
+                    : !n.bridgeVersion
+                      ? "Re-install required"
+                      : "Upgrade from server"}
+                </button>
+              </div>
+              {upgrading === n.nodeId && upgradeLog ? (
+                <p className="mt-1 text-xs text-[var(--ink-muted)]">{upgradeLog}</p>
+              ) : null}
             </li>
           ))}
         </ul>

@@ -1,0 +1,25 @@
+{
+  "plugins": {
+    "allow": [
+      "deepseek",
+      "qwen",
+      "openclaw-weixin",
+      "duckduckgo",
+      "browser"
+    ]
+  },
+  "mcp": {
+    "servers": {
+      "filesystem": {
+        "command": "node",
+        "args": [
+          "${MCP_FILESYSTEM_JS}",
+          "${TASKS_DIR}",
+          "${OPENCLAW_DIR}/workspace/memory",
+          "${DOCUMENTS_DIR}"
+        ],
+        "supportsParallelToolCalls": true
+      }
+    }
+  }
+}

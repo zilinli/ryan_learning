@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "registry": "https://clawhub.ai",
+  "slug": "organize-messy-files-file-organizer",
+  "installedVersion": "0.1.0",
+  "installedAt": 1786933423366,
+  "artifact": {
+    "kind": "archive",
+    "sha256": "ba24891f1032ac258e5b5b46bd16c27c29b9874a45a71756283df4e4fd527d14",
+    "integrity": "sha256-uiSJHxAyrCWOW1tGvRbCfCm5h0pFpxdWKD305P1SfRQ="
+  },
+  "skillFile": {
+    "path": "SKILL.md",
+    "sha256": "bfd190964b2c4dfdd0c747d914db477bd15ffba2e136a540546a9f08cd7239a2"
+  }
+}

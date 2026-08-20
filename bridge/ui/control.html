@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Control OpenClaw · Spark</title>
+    <link rel="stylesheet" href="/ui/control-theme.css" />
+  </head>
+  <body class="control-shell">
+    <div class="shell">
+      <nav class="nav">
+        <a href="/">Spark</a>
+        <a href="/deploy">Deploy</a>
+      </nav>
+      <h1>Remote OpenClaw</h1>
+      <p class="subtitle">AI remote control — send commands to a paired node.</p>
+
+      <div id="authBanner" class="banner hidden"></div>
+
+      <div class="panel node-select-row">
+        <div class="panel-label">Access · optional site password</div>
+        <input id="admin" type="password" placeholder="Only needed to send commands / pair (not to see nodes)" autocomplete="off" />
+      </div>
+
+      <div class="panel node-select-row">
+        <div class="panel-label">Target node · same list on every PC</div>
+        <div id="nodeCards" class="node-list"></div>
+        <select id="node" hidden></select>
+      </div>
+
+      <div id="log"></div>
+
+      <form id="f" class="chat-form">
+        <input id="m" type="text" placeholder="Command for the PC…" autocomplete="off" />
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>
+      <p id="err" class="err"></p>
+    </div>
+    <script src="/ui/components.js"></script>
+    <script src="/ui/control.js"></script>
+  </body>
+</html>

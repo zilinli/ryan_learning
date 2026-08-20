@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Spark OpenClaw control plane (standalone) — avoids rebuilding Next on low-RAM VPS.
- * Port 3010. Serves /deploy /control /install/* /api/nodes/* /api/control/*
+ * Port 3010. Serves /deploy /control /ui/* /install/* /api/nodes/* /api/control/*
  */
 import http from "node:http";
 import { EventEmitter } from "node:events";
@@ -12,10 +12,12 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+const UI_DIR = path.join(__dirname, "ui");
 const PORT = Number(process.env.SPARK_CONTROL_PORT || 3010);
 const DATA_DIR = path.join(ROOT, "data", "nodes");
 const PAIR_TTL_MS = 15 * 60 * 1000;
-const ONLINE_MS = 45_000;
+const ONLINE_MS = 180_000;
+const CURRENT_BRIDGE_VERSION = "2026.8.20-2";
 
 function loadEnvFile(filePath) {
   try {
@@ -51,8 +53,31 @@ hub.bus.setMaxListeners(200);
 async function ensureDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
+async function refreshNodesFromDisk() {
+  try {
+    const disk = JSON.parse(await fs.readFile(path.join(DATA_DIR, "nodes.json"), "utf8"));
+    const mem = new Map(hub.nodes.map((n) => [n.nodeId, n]));
+    for (const d of disk) {
+      const m = mem.get(d.nodeId);
+      if (!m) {
+        hub.nodes.push(d);
+        continue;
+      }
+      if ((d.lastSeen || 0) > (m.lastSeen || 0)) m.lastSeen = d.lastSeen;
+      if (d.alias) m.alias = d.alias;
+      if (d.hostname) m.hostname = d.hostname;
+      if (d.openclawVersion) m.openclawVersion = d.openclawVersion;
+      if (d.platform) m.platform = d.platform;
+    }
+  } catch {
+    /* keep memory */
+  }
+}
 async function load() {
-  if (hub._loaded) return;
+  if (hub._loaded) {
+    await refreshNodesFromDisk();
+    return;
+  }
   await ensureDir();
   try {
     hub.pairs = JSON.parse(await fs.readFile(path.join(DATA_DIR, "pairs.json"), "utf8"));
@@ -79,8 +104,10 @@ function json(res, status, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "content-type,x-spark-admin",
+    "access-control-allow-credentials": "true",
   });
   res.end(body);
 }
@@ -90,10 +117,28 @@ async function readBody(req) {
   if (!chunks.length) return {};
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
-function checkAdmin(req) {
+function cookieValue(req, name) {
+  const raw = req.headers.cookie || "";
+  const parts = String(raw).split(";");
+  for (const part of parts) {
+    const i = part.indexOf("=");
+    if (i === -1) continue;
+    if (part.slice(0, i).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(i + 1).trim());
+    } catch {
+      return part.slice(i + 1).trim();
+    }
+  }
+  return "";
+}
+function checkAdmin(req, url) {
   const expected = (fileEnv.SPARK_ADMIN_TOKEN || "").trim();
   if (!expected) return true;
-  const got = (req.headers["x-spark-admin"] || "").trim();
+  const got =
+    (req.headers["x-spark-admin"] || "").trim() ||
+    (url?.searchParams.get("admin") || "").trim() ||
+    cookieValue(req, "spark_admin");
   return got === expected;
 }
 function installKeys() {
@@ -106,71 +151,45 @@ function installKeys() {
   };
 }
 
-const deployHtml = `<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Deploy OpenClaw</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.45}pre{background:#111;color:#b6f7c1;padding:1rem;border-radius:12px;overflow:auto;white-space:pre-wrap}button{background:#0d9488;color:#fff;border:0;border-radius:999px;padding:.6rem 1.2rem;font-weight:600;cursor:pointer}.tab{background:#eee;color:#222;margin-right:.4rem;padding:.4rem .9rem}.tab.on{background:#0d9488;color:#fff}.muted{color:#666}</style></head><body>
-<p><a href="/">Spark</a> · <a href="/control">Control</a></p>
-<h1>Deploy OpenClaw on this PC</h1>
-<p class=muted>Generate a pair code, run the install command on macOS or Windows. PC installs OpenClaw and connects back here.</p>
-<label class=muted>Optional admin token <input id=admin style="width:100%;padding:.5rem;margin:.4rem 0 1rem" placeholder="if SPARK_ADMIN_TOKEN set"></label>
-<button id=gen>Generate pair code</button>
-<div id=box style="display:none;margin-top:1rem"><div id=code style="font:2rem monospace;letter-spacing:.2em"></div><div id=ttl class=muted></div>
-<div style="margin:1rem 0"><button type=button class="tab on" id=tabMac>macOS</button><button type=button class=tab id=tabWin>Windows</button></div>
-<p id=hint class=muted></p><pre id=cmd></pre><button id=copy>Copy command</button>
-<p id=sslHint class=muted style="margin-top:.8rem;display:none">If you still see SSL errors, install Homebrew curl (<code>brew install curl</code>) and put it first on PATH.</p>
-</div>
-<p id=err style="color:#c00"></p>
-<h2>Nodes</h2><ul id=nodes></ul>
-<script>
-const h=()=>{const t=localStorage.getItem('spark.admin')||''; const o={'content-type':'application/json'}; if(t) o['x-spark-admin']=t; return o};
-let pairCode='', os=/Windows/i.test(navigator.userAgent)?'windows':'macos';
-document.getElementById('admin').value=localStorage.getItem('spark.admin')||'';
-document.getElementById('admin').onchange=e=>localStorage.setItem('spark.admin',e.target.value.trim());
-function renderCmd(){
-  const origin=location.origin;
-  const c=pairCode||'<PAIR_CODE>';
-  // macOS: download to file + curl -k. Stock macOS curl often fails Let's Encrypt verify;
-  // script-internal -k retry never runs if the initial download fails.
-  const cmd=os==='macos'
-    ? ("export SPARK_PAIR_CODE='"+c+"'\\nexport SPARK_URL='"+origin+"'\\nexport SPARK_INSECURE=1\\ncurl -kfsSL \\"$SPARK_URL/install/macos.sh\\" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh")
-    : ("$env:SPARK_PAIR_CODE='"+c+"'; $env:SPARK_URL='"+origin+"'; iwr -useb "+origin+"/install/windows.ps1 | iex");
-  document.getElementById('cmd').textContent=cmd;
-  document.getElementById('hint').textContent=os==='macos'
-    ? 'Paste in Terminal on your MacBook (Node 22+). Uses curl -k for old macOS CA stores.'
-    : 'Paste in PowerShell on Windows (needs Node 22+).';
-  document.getElementById('sslHint').style.display=os==='macos'?'block':'none';
-  document.getElementById('tabMac').className='tab'+(os==='macos'?' on':'');
-  document.getElementById('tabWin').className='tab'+(os==='windows'?' on':'');
-  document.getElementById('copy').onclick=()=>navigator.clipboard.writeText(cmd);
-}
-document.getElementById('tabMac').onclick=()=>{os='macos'; renderCmd()};
-document.getElementById('tabWin').onclick=()=>{os='windows'; renderCmd()};
-async function refresh(){const r=await fetch('/api/nodes',{headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error||r.statusText;return} document.getElementById('err').textContent=''; document.getElementById('nodes').innerHTML=(j.nodes||[]).map(n=>'<li>'+(n.online?'online':'offline')+' · '+n.hostname+' · '+n.platform+' · '+(n.openclawVersion||'')+'</li>').join('')||'<li class=muted>None yet</li>'}
-document.getElementById('gen').onclick=async()=>{const r=await fetch('/api/nodes/pair',{method:'POST',headers:h()}); const j=await r.json(); if(!r.ok){document.getElementById('err').textContent=j.error;return} document.getElementById('box').style.display='block'; document.getElementById('code').textContent=j.code; pairCode=j.code; renderCmd(); const end=j.expiresAt; setInterval(()=>{document.getElementById('ttl').textContent='expires in '+Math.max(0,Math.floor((end-Date.now())/1000))+'s'},1000); refresh()};
-setInterval(refresh,4000); refresh();
-</script></body></html>`;
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".md": "text/plain; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".sh": "text/plain; charset=utf-8",
+  ".ps1": "text/plain; charset=utf-8",
+  ".tar.gz": "application/gzip",
+};
 
-const controlHtml = `<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Control OpenClaw</title>
-<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:0 auto;padding:1rem;display:flex;flex-direction:column;min-height:100vh}#log{flex:1;border:1px solid #ddd;border-radius:12px;padding:1rem;overflow:auto;background:#fafafa}.me{text-align:right}.bubble{display:inline-block;max-width:90%;padding:.6rem .9rem;border-radius:16px;margin:.3rem 0;white-space:pre-wrap}.me .bubble{background:#0d9488;color:#fff}.bot .bubble{background:#eee}form{display:flex;gap:.5rem;margin-top:1rem}input,select{flex:1;padding:.6rem;border-radius:999px;border:1px solid #ccc}button{background:#0d9488;color:#fff;border:0;border-radius:999px;padding:.6rem 1.2rem;font-weight:600}</style></head><body>
-<p><a href="/">Spark</a> · <a href="/deploy">Deploy</a></p>
-<h1>Remote OpenClaw</h1>
-<select id=node></select>
-<div id=log></div>
-<form id=f><input id=m placeholder="Command for the PC…"><button>Send</button></form>
-<script>
-const h=()=>{const t=localStorage.getItem('spark.admin')||''; const o={'content-type':'application/json'}; if(t) o['x-spark-admin']=t; return o};
-const log=document.getElementById('log');
-function add(role,text){const d=document.createElement('div'); d.className=role; d.innerHTML='<div class=bubble></div>'; d.firstChild.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; return d.firstChild}
-async function refresh(){const r=await fetch('/api/nodes',{headers:h()}); const j=await r.json(); const s=document.getElementById('node'); const cur=s.value; s.innerHTML=(j.nodes||[]).map(n=>'<option value="'+n.nodeId+'">'+(n.online?'●':'○')+' '+n.hostname+'</option>').join('')||'<option value="">(none)</option>'; if(cur) s.value=cur}
-document.getElementById('f').onsubmit=async e=>{e.preventDefault(); const message=document.getElementById('m').value.trim(); if(!message) return; document.getElementById('m').value=''; add('me',message); let bubble=add('bot','…'); let acc=''; const r=await fetch('/api/control/chat',{method:'POST',headers:h(),body:JSON.stringify({message,nodeId:document.getElementById('node').value||undefined})}); if(!r.ok){const j=await r.json().catch(()=>({})); bubble.textContent='Error: '+(j.error||r.status); return} const reader=r.body.getReader(); const dec=new TextDecoder(); let buf=''; while(true){const {done,value}=await reader.read(); if(done) break; buf+=dec.decode(value,{stream:true}); const parts=buf.split('\\n\\n'); buf=parts.pop()||''; for(const block of parts){const ev=(block.match(/^event: (\\w+)/m)||[])[1]; const dataLine=block.split('\\n').find(l=>l.startsWith('data: ')); if(!ev||!dataLine) continue; const data=JSON.parse(dataLine.slice(6)); if(ev==='delta') acc+=data.text||''; if(ev==='done') acc=data.text||acc; if(ev==='error') acc='Error: '+(data.error||''); bubble.textContent=acc||'…'}}};
-setInterval(refresh,4000); refresh();
-</script></body></html>`;
+async function serveFile(res, filePath) {
+  const ext = path.extname(filePath);
+  const type = MIME[ext] || (filePath.endsWith(".tar.gz") ? MIME[".tar.gz"] : "application/octet-stream");
+  const data = await fs.readFile(filePath);
+  const headers = { "content-type": type };
+  if (ext === ".html" || ext === ".js" || ext === ".css") headers["cache-control"] = "no-store";
+  res.writeHead(200, headers);
+  res.end(data);
+}
+
+async function serveStatic(res, baseDir, relPath) {
+  const file = path.normalize(path.join(baseDir, relPath));
+  if (!file.startsWith(baseDir)) return json(res, 403, { error: "bad path" });
+  try {
+    await fs.access(file);
+    return serveFile(res, file);
+  } catch {
+    return json(res, 404, { error: "not found" });
+  }
+}
 
 async function handle(req, res) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "content-type,x-spark-admin",
-      "access-control-allow-methods": "GET,POST,OPTIONS",
+      "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
     });
     return res.end();
   }
@@ -178,22 +197,67 @@ async function handle(req, res) {
   const p = url.pathname;
 
   if (p === "/deploy" || p === "/deploy/") {
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    return res.end(deployHtml);
+    return serveStatic(res, UI_DIR, "deploy.html");
   }
   if (p === "/control" || p === "/control/") {
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    return res.end(controlHtml);
+    return serveStatic(res, UI_DIR, "control.html");
   }
+  if (p.startsWith("/ui/")) {
+    return serveStatic(res, UI_DIR, p.slice("/ui/".length));
+  }
+  if (p.startsWith("/install/assistant/")) {
+    const name = p.slice("/install/assistant/".length);
+    const file = path.join(ROOT, "assistant", name);
+    const base = path.join(ROOT, "assistant");
+    if (!path.normalize(file).startsWith(base)) return json(res, 403, { error: "bad path" });
+    try {
+      await fs.access(file);
+      return serveFile(res, file);
+    } catch {
+      return json(res, 404, { error: "not found" });
+    }
+  }
+  if (p.startsWith("/install/spark-deploy.command") && req.method === "GET") {
+    const code = (url.searchParams.get("code") || "PAIRCODE").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+    const origin = fileEnv.SPARK_PUBLIC_URL || "https://spark-tutor-for-ryan.duckdns.org";
+    const script = `#!/bin/bash
+# Spark one-click OpenClaw deploy — double-click in Finder (or: bash this file)
+export SPARK_PAIR_CODE='${code}'
+export SPARK_URL='${origin}'
+export SPARK_INSECURE=1
+curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
+`;
+    res.writeHead(200, {
+      "content-type": "application/x-sh; charset=utf-8",
+      "content-disposition": `attachment; filename="Spark-Deploy-${code}.command"`,
+      "cache-control": "no-store",
+    });
+    return res.end(script);
+  }
+  if (p.startsWith("/install/spark-deploy.bat") && req.method === "GET") {
+    const code = (url.searchParams.get("code") || "PAIRCODE").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+    const origin = fileEnv.SPARK_PUBLIC_URL || "https://spark-tutor-for-ryan.duckdns.org";
+    const script = `@echo off
+set SPARK_PAIR_CODE=${code}
+set SPARK_URL=${origin}
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb $env:SPARK_URL/install/windows.ps1 | iex"
+pause
+`;
+    res.writeHead(200, {
+      "content-type": "application/octet-stream",
+      "content-disposition": `attachment; filename="Spark-Deploy-${code}.bat"`,
+      "cache-control": "no-store",
+    });
+    return res.end(script);
+  }
+
   if (p.startsWith("/install/")) {
     const name = p.slice("/install/".length);
     const file = path.join(ROOT, "public", "install", name);
     if (!file.startsWith(path.join(ROOT, "public", "install"))) return json(res, 403, { error: "bad path" });
     try {
-      const data = await fs.readFile(file);
-      const type = name.endsWith(".ps1") ? "text/plain" : "application/javascript";
-      res.writeHead(200, { "content-type": type });
-      return res.end(data);
+      await fs.access(file);
+      return serveFile(res, file);
     } catch {
       return json(res, 404, { error: "not found" });
     }
@@ -203,7 +267,7 @@ async function handle(req, res) {
   const now = Date.now();
 
   if (p === "/api/nodes/pair" && req.method === "POST") {
-    if (!checkAdmin(req)) return json(res, 401, { error: "unauthorized" });
+    if (!checkAdmin(req, url)) return json(res, 401, { error: "unauthorized" });
     const code = randomBytes(4).toString("hex").slice(0, 8).toUpperCase();
     const rec = { code, createdAt: now, expiresAt: now + PAIR_TTL_MS, used: false };
     hub.pairs = hub.pairs.filter((x) => x.expiresAt > now && !x.used);
@@ -213,17 +277,34 @@ async function handle(req, res) {
   }
 
   if (p === "/api/nodes" && req.method === "GET") {
-    if (!checkAdmin(req)) return json(res, 401, { error: "unauthorized" });
+    await refreshNodesFromDisk();
     return json(res, 200, {
       nodes: hub.nodes.map((n) => ({
         nodeId: n.nodeId,
         hostname: n.hostname,
+        alias: n.alias || "",
         platform: n.platform,
         openclawVersion: n.openclawVersion,
         lastSeen: n.lastSeen,
         online: now - n.lastSeen < ONLINE_MS,
+        bridgeVersion: n.bridgeVersion || "",
+        upgradeAvailable: (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
       })),
     });
+  }
+
+  const nodePatch = p.match(/^\/api\/nodes\/([^/]+)$/);
+  if (nodePatch && req.method === "PATCH") {
+    if (!checkAdmin(req, url)) return json(res, 401, { error: "unauthorized" });
+    const nodeId = decodeURIComponent(nodePatch[1]);
+    const body = await readBody(req);
+    const n = hub.nodes.find((x) => x.nodeId === nodeId);
+    if (!n) return json(res, 404, { error: "node not found" });
+    const trimmed = String(body.alias ?? "").trim();
+    if (trimmed) n.alias = trimmed;
+    else delete n.alias;
+    await saveNodes();
+    return json(res, 200, { ok: true, nodeId, alias: trimmed });
   }
 
   if (p === "/api/nodes/install-ticket" && req.method === "POST") {
@@ -252,6 +333,7 @@ async function handle(req, res) {
       openclawVersion: body.openclawVersion || "",
       lastSeen: now,
       createdAt: now,
+      bridgeVersion: body.bridgeVersion || "",
     };
     hub.nodes.push(rec);
     await saveNodes();
@@ -265,6 +347,7 @@ async function handle(req, res) {
     n.lastSeen = now;
     if (body.openclawVersion) n.openclawVersion = body.openclawVersion;
     if (body.hostname) n.hostname = body.hostname;
+    if (body.bridgeVersion) n.bridgeVersion = body.bridgeVersion;
     await saveNodes();
     return json(res, 200, { ok: true, nodeId: n.nodeId });
   }
@@ -303,10 +386,11 @@ async function handle(req, res) {
   }
 
   if (p === "/api/control/chat" && req.method === "POST") {
-    if (!checkAdmin(req)) return json(res, 401, { error: "unauthorized" });
+    if (!checkAdmin(req, url)) return json(res, 401, { error: "unauthorized" });
     const body = await readBody(req);
+    const attachments = Array.isArray(body.attachments) ? body.attachments.slice(0, 9) : [];
     const message = (body.message || "").trim();
-    if (!message) return json(res, 400, { error: "missing message" });
+    if (!message && !attachments.length) return json(res, 400, { error: "missing message" });
     const online = hub.nodes.filter((n) => now - n.lastSeen < ONLINE_MS);
     const node = (body.nodeId && online.find((n) => n.nodeId === body.nodeId)) || online[0];
     if (!node) return json(res, 503, { error: "no online OpenClaw node. Open /deploy and pair a PC first." });
@@ -318,7 +402,11 @@ async function handle(req, res) {
       "access-control-allow-origin": "*",
     });
     const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    send("status", { status: "thinking", nodeId: node.nodeId, hostname: node.hostname });
+    send("status", {
+      status: "thinking",
+      nodeId: node.nodeId,
+      hostname: node.alias || node.hostname,
+    });
     const onReply = (ev) => {
       if (ev.type === "chunk") send("delta", { text: ev.text });
       if (ev.type === "done") {
@@ -334,7 +422,7 @@ async function handle(req, res) {
     };
     hub.bus.on(`reply:${requestId}`, onReply);
     const waiter = hub.waiters.get(node.nodeId);
-    const cmd = { requestId, type: "chat", message };
+    const cmd = { requestId, type: "chat", message, attachments };
     if (waiter) {
       hub.waiters.delete(node.nodeId);
       waiter(cmd);
@@ -350,6 +438,68 @@ async function handle(req, res) {
         res.end();
       }
     }, 180000);
+    return;
+  }
+
+  if (p === "/api/control/upgrade" && req.method === "POST") {
+    if (!checkAdmin(req, url)) return json(res, 401, { error: "unauthorized" });
+    const body = await readBody(req);
+    const online = hub.nodes.filter((n) => now - n.lastSeen < ONLINE_MS);
+    const node = (body.nodeId && online.find((n) => n.nodeId === body.nodeId)) || online[0];
+    if (!node) return json(res, 503, { error: "no online OpenClaw node" });
+    // Pre-version bridges silently drop upgrade commands → UI hangs until timeout.
+    if (!node.bridgeVersion) {
+      return json(
+        res,
+        409,
+        {
+          error:
+            "This PC runs an old Spark Bridge that cannot online-upgrade. On /deploy generate a pair code and download the installer again (or re-run macos.sh / windows.ps1).",
+          code: "bridge_too_old",
+          nodeId: node.nodeId,
+        },
+      );
+    }
+    const requestId = randomBytes(8).toString("hex");
+    res.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "access-control-allow-origin": "*",
+    });
+    const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    send("status", { status: "upgrading", nodeId: node.nodeId });
+    const onReply = (ev) => {
+      if (ev.type === "chunk") send("delta", { text: ev.text });
+      if (ev.type === "done") {
+        send("done", { text: ev.text, nodeId: node.nodeId });
+        hub.bus.off(`reply:${requestId}`, onReply);
+        res.end();
+      }
+      if (ev.type === "error") {
+        send("error", { error: ev.error });
+        hub.bus.off(`reply:${requestId}`, onReply);
+        res.end();
+      }
+    };
+    hub.bus.on(`reply:${requestId}`, onReply);
+    const waiter = hub.waiters.get(node.nodeId);
+    const cmd = { requestId, type: "upgrade" };
+    if (waiter) {
+      hub.waiters.delete(node.nodeId);
+      waiter(cmd);
+    } else {
+      const q = hub.queues.get(node.nodeId) || [];
+      q.push(cmd);
+      hub.queues.set(node.nodeId, q);
+    }
+    setTimeout(() => {
+      if (!res.writableEnded) {
+        send("error", { error: "upgrade timeout (5 min)" });
+        hub.bus.off(`reply:${requestId}`, onReply);
+        res.end();
+      }
+    }, 300000);
     return;
   }
 
