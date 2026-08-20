@@ -4,7 +4,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  let body: { token?: string; openclawVersion?: string; hostname?: string; bridgeVersion?: string };
+  let body: {
+    token?: string;
+    openclawVersion?: string;
+    hostname?: string;
+    bridgeVersion?: string;
+    apnsDeviceToken?: string;
+    pushEnvironment?: "sandbox" | "production";
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -16,6 +23,8 @@ export async function POST(req: Request) {
     openclawVersion: body.openclawVersion,
     hostname: body.hostname,
     bridgeVersion: body.bridgeVersion,
+    apnsDeviceToken: body.apnsDeviceToken,
+    pushEnvironment: body.pushEnvironment,
   });
   return Response.json({ ok: true, nodeId: node.nodeId });
 }

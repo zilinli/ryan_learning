@@ -14,6 +14,8 @@ type NodeInfo = {
   upgradeAvailable?: boolean;
 };
 
+type OsTab = "macos" | "windows" | "ipad-ssh" | "ios-native";
+
 function captureAdminFromUrl() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
@@ -39,7 +41,8 @@ export default function DeployPage() {
   const [admin, setAdmin] = useState("");
   const [now, setNow] = useState(Date.now());
 
-  const [osTab, setOsTab] = useState<"macos" | "windows">("macos");
+  const [osTab, setOsTab] = useState<OsTab>("macos");
+  const [sshHost, setSshHost] = useState<"mac" | "linux">("linux");
   const [upgrading, setUpgrading] = useState("");
   const [upgradeLog, setUpgradeLog] = useState("");
   const [authErr, setAuthErr] = useState("");
@@ -53,6 +56,9 @@ export default function DeployPage() {
 
   useEffect(() => {
     if (/Windows/i.test(navigator.userAgent)) setOsTab("windows");
+    else if (/iPad|iPhone|Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1) {
+      setOsTab("ipad-ssh");
+    }
   }, []);
 
   const saveAdmin = () => {
@@ -96,8 +102,6 @@ export default function DeployPage() {
     const c = code || "<PAIR_CODE>";
     return `$env:SPARK_PAIR_CODE='${c}'; $env:SPARK_URL='${origin}'; iwr -useb ${origin}/install/windows.ps1 | iex`;
   }, [code, origin]);
-  // Prefer curl -k: stock macOS curl often fails Let's Encrypt verify; the
-  // installer never starts if the initial download fails (pipe or -o).
   const macCmd = useMemo(() => {
     const c = code || "<PAIR_CODE>";
     return [
@@ -107,6 +111,15 @@ export default function DeployPage() {
       `curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
     ].join("\n");
   }, [code, origin]);
+  const linuxCmd = useMemo(() => {
+    const c = code || "<PAIR_CODE>";
+    return [
+      `export SPARK_PAIR_CODE='${c}'`,
+      `export SPARK_URL='${origin}'`,
+      `curl -fsSL "$SPARK_URL/install/linux.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
+    ].join("\n");
+  }, [code, origin]);
+  const sshPaste = sshHost === "mac" ? macCmd : linuxCmd;
 
   const saveAlias = async (nodeId: string, alias: string) => {
     const r = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}`, {
@@ -137,6 +150,7 @@ export default function DeployPage() {
       setErr("Generate a pair code first");
       return;
     }
+    if (osTab !== "macos" && osTab !== "windows") return;
     const path =
       osTab === "macos"
         ? `/install/spark-deploy.command?code=${encodeURIComponent(code)}`
@@ -186,6 +200,9 @@ export default function DeployPage() {
     }
   };
 
+  const tabClass = (id: OsTab) =>
+    `rounded-full px-3 py-1.5 text-sm ${osTab === id ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`;
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-10 text-[var(--ink)]">
       <p className="mb-4 text-sm">
@@ -199,8 +216,7 @@ export default function DeployPage() {
       </p>
       <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl">Deploy OpenClaw</h1>
       <p className="mb-6 text-sm text-[var(--ink-muted)]">
-        Generate a pair code, download the installer, and double-click it on the Mac or Windows PC.
-        No copy-paste into Terminal required.
+        Pair a Mac, Windows PC, or (from iPad via SSH) a Linux VPS. Commands run on that host — not inside iSH.
       </p>
 
       {authErr ? (
@@ -233,47 +249,125 @@ export default function DeployPage() {
         <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div className="text-3xl font-mono tracking-widest">{code}</div>
           <div className="mt-1 text-xs text-[var(--ink-muted)]">expires in {left}s</div>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              className={`rounded-full px-4 py-1.5 text-sm ${osTab === "macos" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
-              onClick={() => setOsTab("macos")}
-            >
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" className={tabClass("macos")} onClick={() => setOsTab("macos")}>
               macOS
             </button>
-            <button
-              type="button"
-              className={`rounded-full px-4 py-1.5 text-sm ${osTab === "windows" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
-              onClick={() => setOsTab("windows")}
-            >
+            <button type="button" className={tabClass("windows")} onClick={() => setOsTab("windows")}>
               Windows
             </button>
-          </div>
-          <button
-            type="button"
-            onClick={downloadInstaller}
-            className="mt-4 rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
-          >
-            Download {osTab === "macos" ? "Spark-Deploy.command" : "Spark-Deploy.bat"}
-          </button>
-          <p className="mt-3 text-xs text-[var(--ink-muted)]">
-            {osTab === "macos"
-              ? "On the Mac: double-click the downloaded .command (or right-click → Open). Allow Terminal if macOS asks."
-              : "On Windows: double-click the .bat file. If SmartScreen warns, choose More info → Run anyway."}
-          </p>
-          <details className="mt-4 text-xs text-[var(--ink-muted)]">
-            <summary className="cursor-pointer">Advanced: copy command</summary>
-            <pre className="mt-2 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
-              {osTab === "macos" ? macCmd : winCmd}
-            </pre>
-            <button
-              type="button"
-              className="mt-2 text-[var(--teal)] underline"
-              onClick={() => void navigator.clipboard.writeText(osTab === "macos" ? macCmd : winCmd)}
-            >
-              Copy
+            <button type="button" className={tabClass("ipad-ssh")} onClick={() => setOsTab("ipad-ssh")}>
+              iPad / SSH
             </button>
-          </details>
+            <button type="button" className={tabClass("ios-native")} onClick={() => setOsTab("ios-native")}>
+              Native App
+            </button>
+          </div>
+
+          {osTab === "macos" || osTab === "windows" ? (
+            <>
+              <button
+                type="button"
+                onClick={downloadInstaller}
+                className="mt-4 rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
+              >
+                Download {osTab === "macos" ? "Spark-Deploy.command" : "Spark-Deploy.bat"}
+              </button>
+              <p className="mt-3 text-xs text-[var(--ink-muted)]">
+                {osTab === "macos"
+                  ? "On the Mac: double-click the downloaded .command (or right-click → Open)."
+                  : "On Windows: double-click the .bat file. If SmartScreen warns, More info → Run anyway."}
+              </p>
+              <details className="mt-4 text-xs text-[var(--ink-muted)]">
+                <summary className="cursor-pointer">Advanced: copy command</summary>
+                <pre className="mt-2 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+                  {osTab === "macos" ? macCmd : winCmd}
+                </pre>
+                <button
+                  type="button"
+                  className="mt-2 text-[var(--teal)] underline"
+                  onClick={() => void navigator.clipboard.writeText(osTab === "macos" ? macCmd : winCmd)}
+                >
+                  Copy
+                </button>
+              </details>
+            </>
+          ) : null}
+
+          {osTab === "ipad-ssh" ? (
+            <div className="mt-4 space-y-3 text-sm">
+              <p className="text-[var(--ink-muted)]">
+                Install <strong>Termius</strong> or Blink on the iPad. SSH into an always-on Mac or Linux VPS, then
+                paste the block below. The Spark node is the <strong>host</strong> — not the iPad.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs ${sshHost === "linux" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
+                  onClick={() => setSshHost("linux")}
+                >
+                  Linux VPS
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs ${sshHost === "mac" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
+                  onClick={() => setSshHost("mac")}
+                >
+                  Mac (SSH)
+                </button>
+              </div>
+              <pre className="overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
+                {sshPaste}
+              </pre>
+              <button
+                type="button"
+                className="rounded-full bg-[var(--teal)] px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => void navigator.clipboard.writeText(sshPaste)}
+              >
+                Copy for Termius
+              </button>
+              <p className="text-xs text-[var(--ink-muted)]">
+                Do not use iSH/a-Shell to run this on the iPad itself — Node Bridge will not stay alive there.
+              </p>
+            </div>
+          ) : null}
+
+          {osTab === "ios-native" ? (
+            <div className="mt-4 space-y-3 text-sm text-[var(--ink-muted)]">
+              <p>
+                <strong className="text-[var(--ink)]">Spark Bridge iOS</strong> registers as{" "}
+                <code className="text-xs">platform: ios</code> with an on-device Swift agent (TestFlight). Source:{" "}
+                <code className="text-xs">apps/spark-bridge-ios</code>.
+              </p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>Install the TestFlight build (when available).</li>
+                <li>Open the app → paste pair code <span className="font-mono text-[var(--ink)]">{code}</span> and Spark URL.</li>
+                <li>Allow notifications for background wake (silent push).</li>
+              </ol>
+              <p className="text-xs">
+                Manifest:{" "}
+                <a className="text-[var(--teal)] underline" href="/install/ios-bridge-manifest.json">
+                  /install/ios-bridge-manifest.json
+                </a>
+                . Docs:{" "}
+                <a className="text-[var(--teal)] underline" href="/docs" onClick={(e) => e.preventDefault()}>
+                  assistant-ipad.md
+                </a>{" "}
+                in the repo.
+              </p>
+              <button
+                type="button"
+                className="text-[var(--teal)] underline text-xs"
+                onClick={() =>
+                  void navigator.clipboard.writeText(
+                    JSON.stringify({ pairCode: code, sparkUrl: origin }, null, 2),
+                  )
+                }
+              >
+                Copy pair JSON for the app
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -304,20 +398,24 @@ export default function DeployPage() {
                 />
                 <button
                   type="button"
-                  disabled={!n.online || upgrading === n.nodeId || !n.bridgeVersion}
+                  disabled={!n.online || upgrading === n.nodeId || !n.bridgeVersion || n.platform === "ios"}
                   onClick={() => void upgradeNode(n.nodeId)}
                   className="rounded-full border border-[var(--teal)] px-3 py-1 text-xs text-[var(--teal)] disabled:opacity-40"
                   title={
-                    !n.bridgeVersion
-                      ? "Old Bridge — generate a pair code and download the installer again"
-                      : undefined
+                    n.platform === "ios"
+                      ? "iOS uses App Store / TestFlight upgrade"
+                      : !n.bridgeVersion
+                        ? "Old Bridge — re-install"
+                        : undefined
                   }
                 >
                   {upgrading === n.nodeId
                     ? "Upgrading…"
-                    : !n.bridgeVersion
-                      ? "Re-install required"
-                      : "Upgrade from server"}
+                    : n.platform === "ios"
+                      ? "App update"
+                      : !n.bridgeVersion
+                        ? "Re-install required"
+                        : "Upgrade from server"}
                 </button>
               </div>
               {upgrading === n.nodeId && upgradeLog ? (

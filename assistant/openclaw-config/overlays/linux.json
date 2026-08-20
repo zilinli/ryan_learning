@@ -1,0 +1,25 @@
+{
+  "plugins": {
+    "allow": [
+      "deepseek",
+      "qwen",
+      "duckduckgo",
+      "browser"
+    ]
+  },
+  "mcp": {
+    "servers": {
+      "filesystem": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "${TASKS_DIR}",
+          "${OPENCLAW_DIR}/workspace/memory",
+          "${HOME}"
+        ],
+        "supportsParallelToolCalls": true
+      }
+    }
+  }
+}

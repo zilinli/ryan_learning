@@ -25,6 +25,7 @@ function openclawDir() {
 function platformKey() {
   if (process.platform === "darwin") return "darwin";
   if (process.platform === "win32") return "win32";
+  if (process.platform === "linux") return "linux";
   throw new Error(`unsupported platform: ${process.platform}`);
 }
 

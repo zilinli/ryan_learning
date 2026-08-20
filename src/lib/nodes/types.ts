@@ -15,6 +15,9 @@ export type NodeRecord = {
   createdAt: number;
   alias?: string;
   bridgeVersion?: string;
+  /** Spark Bridge iOS — APNs device token (hex) for silent wake */
+  apnsDeviceToken?: string;
+  pushEnvironment?: "sandbox" | "production";
 };
 
 export type ChatAttachmentPayload = {

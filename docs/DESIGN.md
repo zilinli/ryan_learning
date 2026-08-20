@@ -127,6 +127,7 @@ flowchart TB
 | **[subsystems/code-agent-deploy.md](subsystems/code-agent-deploy.md)** | Code Agent live deploy — deploy_live rebuilds .next + pm2 |
 | **[subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md)** | Unified `assistant/` vs archived ai_assistant_mac/win |
 | **[subsystems/remote-openclaw-control.md](subsystems/remote-openclaw-control.md)** | Remote OpenClaw — Deploy, Control, Spark Bridge, nginx split, CLI, upgrade |
+| **[subsystems/assistant-ipad.md](subsystems/assistant-ipad.md)** | iPad — SSH easy deploy to Mac/VPS + native Swift Bridge App (dual track) |
 | **[subsystems/code-agent-pipeline.md](subsystems/code-agent-pipeline.md)** | Code Agent delivery pipeline — research → design → TODO → code → develop push → deploy |
 | **[subsystems/code-agent-mobile-resume.md](subsystems/code-agent-mobile-resume.md)** | 📱 Code Agent mobile — disconnect must not kill run; reopen restores context |
 | **[subsystems/conversation-digest.md](subsystems/conversation-digest.md)** | 📝 Session digest for long-term episodic memory |

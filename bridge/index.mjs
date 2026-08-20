@@ -300,6 +300,13 @@ function restartSelf() {
     }).unref();
     return;
   }
+  if (process.platform === "linux") {
+    spawn("systemctl", ["--user", "restart", "spark-bridge.service"], {
+      detached: true,
+      stdio: "ignore",
+    }).unref();
+    return;
+  }
   const startCmd = path.join(STATE_DIR, "start.cmd");
   spawn(process.env.ComSpec || "cmd.exe", ["/c", startCmd], {
     detached: true,

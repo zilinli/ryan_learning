@@ -160,7 +160,9 @@ export async function getNodeByToken(token: string): Promise<NodeRecord | null> 
 
 export async function touchNode(
   nodeId: string,
-  extra?: Partial<Pick<NodeRecord, "openclawVersion" | "hostname" | "bridgeVersion">>,
+  extra?: Partial<
+    Pick<NodeRecord, "openclawVersion" | "hostname" | "bridgeVersion" | "apnsDeviceToken" | "pushEnvironment">
+  >,
 ) {
   await load();
   const n = hub().nodes.find((x) => x.nodeId === nodeId);
@@ -169,6 +171,10 @@ export async function touchNode(
   if (extra?.openclawVersion) n.openclawVersion = extra.openclawVersion;
   if (extra?.hostname) n.hostname = extra.hostname;
   if (extra?.bridgeVersion) n.bridgeVersion = extra.bridgeVersion;
+  if (extra?.apnsDeviceToken) n.apnsDeviceToken = extra.apnsDeviceToken;
+  if (extra?.pushEnvironment === "sandbox" || extra?.pushEnvironment === "production") {
+    n.pushEnvironment = extra.pushEnvironment;
+  }
   await saveNodes();
 }
 
@@ -184,9 +190,11 @@ export async function listNodes() {
     platform: n.platform,
     openclawVersion: n.openclawVersion,
     lastSeen: n.lastSeen,
-    online: t - n.lastSeen < ONLINE_MS,
+    online: t - n.lastSeen < ONLINE_MS || (n.platform === "ios" && Boolean(n.apnsDeviceToken)),
     bridgeVersion: n.bridgeVersion || "",
-    upgradeAvailable: (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
+    upgradeAvailable:
+      n.platform === "ios" ? false : (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
+    hasPush: Boolean(n.apnsDeviceToken),
   }));
 }
 
@@ -207,11 +215,28 @@ export function enqueueCommand(nodeId: string, cmd: NodeCommand) {
   if (waiter) {
     h.waiters.delete(nodeId);
     waiter(cmd);
-    return;
+  } else {
+    const q = h.queues.get(nodeId) ?? [];
+    q.push(cmd);
+    h.queues.set(nodeId, q);
   }
-  const q = h.queues.get(nodeId) ?? [];
-  q.push(cmd);
-  h.queues.set(nodeId, q);
+  const node = h.nodes.find((n) => n.nodeId === nodeId);
+  if (node?.platform === "ios" && node.apnsDeviceToken) {
+    void wakeIosNode(node, cmd.requestId);
+  }
+}
+
+async function wakeIosNode(node: NodeRecord, requestId: string) {
+  try {
+    const { sendSilentPush } = await import("./apns");
+    await sendSilentPush({
+      deviceToken: node.apnsDeviceToken!,
+      environment: node.pushEnvironment || "sandbox",
+      requestId,
+    });
+  } catch (e) {
+    console.error("[nodes] APNs wake failed", e instanceof Error ? e.message : e);
+  }
 }
 
 export function waitCommand(nodeId: string, timeoutMs: number): Promise<NodeCommand | null> {
@@ -247,7 +272,9 @@ export function subscribeReply(requestId: string, fn: (ev: NodeReplyEvent) => vo
 export async function pickOnlineNode(preferred?: string) {
   await load();
   const t = now();
-  const online = hub().nodes.filter((n) => t - n.lastSeen < ONLINE_MS);
+  const online = hub().nodes.filter(
+    (n) => t - n.lastSeen < ONLINE_MS || (n.platform === "ios" && Boolean(n.apnsDeviceToken)),
+  );
   if (preferred) {
     const hit = online.find((n) => n.nodeId === preferred);
     if (hit) return hit;

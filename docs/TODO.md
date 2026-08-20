@@ -17,6 +17,19 @@
 
 ---
 
+## OC-IPAD — iPad SSH easy deploy + native Bridge · 2026-08-20
+
+> **Design:** [subsystems/assistant-ipad.md](subsystems/assistant-ipad.md)  
+> **Goal:** P0 — Termius/SSH paste-install to Mac/Linux VPS; P1 — Swift native Bridge App (`platform: ios`) + APNs wake. Reject iSH on-device Node.
+
+- [x] **OC-IPAD.1** — Design doc + platforms/ios README + DESIGN/TODO/README index
+- [x] **OC-IPAD.2** — `/deploy` iPad/SSH tab; `linux.sh` + systemd user unit; Bridge Linux restart
+- [x] **OC-IPAD.3** — `apnsDeviceToken` on heartbeat; silent push on iOS enqueue; `apns-push.mjs`
+- [x] **OC-IPAD.4** — `apps/spark-bridge-ios` SwiftUI scaffold (pair / poll / AgentRuntime / tools)
+- [x] **OC-IPAD.5** — `ios-bridge-manifest.json` + TestFlight docs; push wake wiring
+
+---
+
 ## CODE-SPARK — Learning Games 首位编程游戏 + 主对话弹出 · 2026-08-16
 
 > **Design:** [subsystems/code-spark-learning-game.md](subsystems/code-spark-learning-game.md)  

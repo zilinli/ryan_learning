@@ -1,0 +1,9 @@
+{
+  "bundleId": "org.spark.bridge",
+  "minVersion": "0.1.0",
+  "latestVersion": "0.1.0",
+  "bridgeProtocol": "2026.8.20-ios-1",
+  "testFlightUrl": "",
+  "sparkUrlDefault": "https://spark-tutor-for-ryan.duckdns.org",
+  "notes": "P0 scaffold: pair + foreground poll + Swift AgentRuntime. Configure TestFlight URL when published."
+}

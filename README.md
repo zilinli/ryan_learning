@@ -43,7 +43,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 - **Tools (silent)** — `web_search`, `fetch_page`, `run_python`, `run_js`, `draw_geometry`
 - **History** — searchable chats, photo vault, server sync
 - **Code Agent** — vibe-coding panel for live edits to Spark itself, with multi-modal input (images, PDFs, voice, zh/en switch), auto-git pipeline (test gate → commit → push), parent PIN gate
-- **Deploy PC** (`/deploy`) — pair a home Mac or Windows PC with OpenClaw + Spark Bridge; chat remotely at `/control` with the same Composer (voice, camera, attachments) and TTS as the homepage. One-click `.command` / `.bat` installers; online **Upgrade** from server. Unified assistant in [`assistant/`](assistant/) replaces archived `ai_assistant_mac` / `ai_assistant_win`. See [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) and [assistant-repos-reference.md](docs/subsystems/assistant-repos-reference.md).
+- **Deploy PC / iPad** (`/deploy`) — pair Mac, Windows, or (via iPad Termius SSH) a Linux VPS with OpenClaw + Spark Bridge; chat at `/control`. One-click `.command` / `.bat`; **iPad / SSH** paste blocks; optional native iOS Bridge App (`apps/spark-bridge-ios`). See [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) and [assistant-ipad.md](docs/subsystems/assistant-ipad.md).
 - **Studio / Games** — **Studio** (make & learn) on `/studio` (TED Lab, NatGeo Lab, BBC Doc Lab, RSA Lab, Writing Studio); **Games** (play) on `/entertain` — **Learning Games** (Fraction Voyager · Eco Genesis · Time Vault) + board games & puzzles. See [entertainments.md](docs/subsystems/entertainments.md) and [learning-games.md](docs/subsystems/learning-games.md).
 
 ### Four-Dimension Learning (兴趣 · 心流 · 深度 · 广度)
@@ -153,12 +153,12 @@ Pair a home computer so Spark can run OpenClaw **locally** while you chat from t
 
 | Route | Purpose |
 |-------|---------|
-| `/deploy` | Generate pair code · download macOS `.command` or Windows `.bat` · list nodes · set aliases · **Upgrade from server** |
+| `/deploy` | Generate pair code · macOS `.command` / Windows `.bat` · **iPad / SSH** (Termius → Mac or Linux) · aliases · **Upgrade** |
 | `/control` | Pick an online node · chat with Composer (mic, camera, attachments) · Markdown replies · **Listen** TTS |
 
-**Flow:** Install on the PC → Spark Bridge long-polls the server → `/control` sends chat commands → Bridge runs `openclaw agent --agent main --message-file …` → replies stream back via SSE.
+**Flow:** Install on the host → Spark Bridge long-polls → `/control` sends chat → Bridge runs `openclaw agent --agent main --message-file …` (desktop) or Swift AgentRuntime (native iOS app) → SSE replies.
 
-**Docs:** [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) · [assistant/README.md](assistant/README.md)
+**Docs:** [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) · [assistant-ipad.md](docs/subsystems/assistant-ipad.md) · [assistant/README.md](assistant/README.md)
 
 **Server processes:** `spark-tutor` (:3000 UI) + `spark-control` (:3010 node hub & `/install/*`). Bridge version **2026.8.20-5** (poll 45s abort so nginx 502 cannot freeze long-poll; bump via Upgrade on each node after server updates).
 
@@ -440,6 +440,7 @@ Design documents live in `docs/subsystems/`. Key reads:
 | [spark-research-roadmap](docs/subsystems/spark-research-roadmap.md) | 四维学习力 P0/P1/P2 + 竞品调研路线图 |
 | [spark-v2-flywheel](docs/subsystems/spark-v2-flywheel.md) | V2 学习飞轮三阶段（P0 主动出击 → P1 分层周节奏 → P2 归因与语言干预） |
 | [remote-openclaw-control](docs/subsystems/remote-openclaw-control.md) | Remote OpenClaw — `/deploy`, `/control`, Spark Bridge, pairing, upgrade |
+| [assistant-ipad](docs/subsystems/assistant-ipad.md) | iPad — SSH easy deploy + native Swift Bridge (dual track) |
 | [assistant-repos-reference](docs/subsystems/assistant-repos-reference.md) | Unified `assistant/` module vs archived ai_assistant_mac/win |
 
 Full index: **[docs/TODO.md](docs/TODO.md)** — tracks every shipped feature and pending task.

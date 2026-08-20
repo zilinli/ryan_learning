@@ -17,6 +17,7 @@ Spark lets a browser talk to a **paired home PC** running OpenClaw. The tutor si
 | Same UX as Spark homepage | Composer (voice, camera, attachments), Markdown replies, Listen TTS |
 | Upgrade in place | Online **Upgrade** pulls new bridge + assistant bundle from server |
 | No legacy repo coupling | Unified `assistant/` module; archived `ai_assistant_mac` / `ai_assistant_win` |
+| iPad without App Store wait | **SSH easy path** — Termius on iPad installs Bridge on Mac/Linux VPS ([assistant-ipad.md](assistant-ipad.md)) |
 
 ---
 
@@ -78,7 +79,10 @@ Next.js also implements the same node APIs under `src/app/api/nodes/*` for local
 |------|---------|
 | `assistant/` | Unified OpenClaw config, skills, workbench; `install.mjs` entry |
 | `public/install/macos.sh` | macOS one-shot installer (pair → assistant → bridge → LaunchAgent) |
+| `public/install/linux.sh` | Linux VPS installer (pair → assistant → bridge → systemd --user) |
 | `public/install/windows.ps1` | Windows one-shot installer (pair → assistant → bridge → schtasks) |
+| `public/install/ios-bridge-manifest.json` | Native iOS Bridge version / TestFlight hint |
+| `apps/spark-bridge-ios/` | SwiftUI Spark Bridge App (`platform: ios`) |
 | `public/install/spark-bridge.mjs` | Outbound bridge (canonical; served at `/install/spark-bridge.mjs`) |
 | `public/install/assistant.tar.gz` | Bundled `assistant/` for online upgrade |
 | `public/install/spark-deploy.command` | macOS download-and-run wrapper (pair code in query) |

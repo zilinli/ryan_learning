@@ -28,6 +28,7 @@ function platformKey() {
   const p = process.platform;
   if (p === "darwin") return "darwin";
   if (p === "win32") return "win32";
+  if (p === "linux") return "linux";
   throw new Error(`unsupported platform: ${p}`);
 }
 

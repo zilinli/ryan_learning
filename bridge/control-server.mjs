@@ -9,6 +9,7 @@ import { promises as fs, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -22,6 +23,25 @@ const CHAT_ABS_TIMEOUT_MS = 20 * 60 * 1000;
 /** Fail sooner if Bridge stops sending progress chunks. */
 const CHAT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const CURRENT_BRIDGE_VERSION = "2026.8.20-6";
+
+function nodeReachable(n, nowMs) {
+  return nowMs - n.lastSeen < ONLINE_MS || (n.platform === "ios" && Boolean(n.apnsDeviceToken));
+}
+
+function wakeIosIfNeeded(node, requestId) {
+  if (node.platform !== "ios" || !node.apnsDeviceToken) return;
+  const script = path.join(ROOT, "scripts", "apns-push.mjs");
+  const payload = JSON.stringify({
+    deviceToken: node.apnsDeviceToken,
+    environment: node.pushEnvironment || "sandbox",
+    requestId,
+  });
+  try {
+    spawn(process.execPath, [script, payload], { detached: true, stdio: "ignore" }).unref();
+  } catch (e) {
+    console.error("[spark-control] APNs wake spawn failed", e);
+  }
+}
 
 function loadEnvFile(filePath) {
   try {
@@ -290,9 +310,11 @@ pause
         platform: n.platform,
         openclawVersion: n.openclawVersion,
         lastSeen: n.lastSeen,
-        online: now - n.lastSeen < ONLINE_MS,
+        online: now - n.lastSeen < ONLINE_MS || (n.platform === "ios" && Boolean(n.apnsDeviceToken)),
         bridgeVersion: n.bridgeVersion || "",
-        upgradeAvailable: (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
+        upgradeAvailable:
+          n.platform === "ios" ? false : (n.bridgeVersion || "") !== CURRENT_BRIDGE_VERSION,
+        hasPush: Boolean(n.apnsDeviceToken),
       })),
     });
   }
@@ -352,6 +374,10 @@ pause
     if (body.openclawVersion) n.openclawVersion = body.openclawVersion;
     if (body.hostname) n.hostname = body.hostname;
     if (body.bridgeVersion) n.bridgeVersion = body.bridgeVersion;
+    if (body.apnsDeviceToken) n.apnsDeviceToken = body.apnsDeviceToken;
+    if (body.pushEnvironment === "sandbox" || body.pushEnvironment === "production") {
+      n.pushEnvironment = body.pushEnvironment;
+    }
     await saveNodes();
     return json(res, 200, { ok: true, nodeId: n.nodeId });
   }
@@ -395,7 +421,7 @@ pause
     const attachments = Array.isArray(body.attachments) ? body.attachments.slice(0, 9) : [];
     const message = (body.message || "").trim();
     if (!message && !attachments.length) return json(res, 400, { error: "missing message" });
-    const online = hub.nodes.filter((n) => now - n.lastSeen < ONLINE_MS);
+    const online = hub.nodes.filter((n) => nodeReachable(n, now));
     const node = (body.nodeId && online.find((n) => n.nodeId === body.nodeId)) || online[0];
     if (!node) return json(res, 503, { error: "no online OpenClaw node. Open /deploy and pair a PC first." });
     const requestId = randomBytes(8).toString("hex");
@@ -462,6 +488,7 @@ pause
       q.push(cmd);
       hub.queues.set(node.nodeId, q);
     }
+    wakeIosIfNeeded(node, requestId);
     return;
   }
 
