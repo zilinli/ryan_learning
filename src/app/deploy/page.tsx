@@ -294,10 +294,9 @@ export default function DeployPage() {
           {osTab === "ipad-ssh" ? (
             <div className="mt-4 space-y-3 text-sm">
               <p className="text-[var(--ink-muted)]">
-                Most iPads do not have an SSH app yet. Step 1 installs free{" "}
-                <strong>Termius</strong> from the App Store (Apple does not allow auto-install). Then open the
-                one-tap installer — same role as Mac <code className="text-xs">.command</code> / Windows{" "}
-                <code className="text-xs">.bat</code>. Bridge still runs on your Mac/VPS.
+                From iPad, SSH into your always-on Mac (or Linux VPS). The one-tap installer page covers Termius
+                install and the install command — same role as Mac{" "}
+                <code className="text-xs">.command</code> / Windows <code className="text-xs">.bat</code>.
               </p>
               <div className="flex gap-2">
                 <button
@@ -315,23 +314,6 @@ export default function DeployPage() {
                   Linux VPS
                 </button>
               </div>
-              <a
-                href="https://apps.apple.com/app/id549039908"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
-              >
-                1 · Install Termius (App Store)
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = "termius://";
-                }}
-                className="ml-2 rounded-full border border-[var(--teal)] px-4 py-2 text-sm text-[var(--teal)]"
-              >
-                Open Termius
-              </button>
               <div className="pt-1">
                 <button
                   type="button"
@@ -340,7 +322,7 @@ export default function DeployPage() {
                   }}
                   className="rounded-full bg-[var(--teal)] px-5 py-2 text-sm font-semibold text-white"
                 >
-                  2 · Open one-tap installer
+                  Open one-tap installer
                 </button>
                 <button
                   type="button"
@@ -353,8 +335,7 @@ export default function DeployPage() {
                 </button>
               </div>
               <p className="text-xs text-[var(--ink-muted)]">
-                In Termius: add your host once → on the installer page tap <strong>Copy install command</strong> →
-                paste in that session. Shortcuts/Blink are optional under the installer page.
+                Installer page: Termius App Store → add host → Copy install command → paste in Termius.
               </p>
               <details className="text-xs text-[var(--ink-muted)]">
                 <summary className="cursor-pointer">Show command only</summary>
