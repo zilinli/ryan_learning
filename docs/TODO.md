@@ -13,6 +13,7 @@
 - [x] **OC-REF.6** — `/control` Composer + Markdown + TTS; attachments → bridge inbox
 - [x] **OC-REF.7** — One-click `.command`/`.bat`; per-node Upgrade; bridge **2026.8.20-4** CLI fix (`--agent` / `--message-file`)
 - [x] **OC-REF.8** — Design docs + README ([remote-openclaw-control.md](subsystems/remote-openclaw-control.md), [assistant/README.md](../assistant/README.md))
+- [x] **OC-REF.9** — Bridge **2026.8.20-5**: poll `AbortSignal.timeout(45s)` so 502/half-open TCP cannot freeze command delivery
 
 ---
 

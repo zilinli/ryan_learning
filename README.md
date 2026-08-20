@@ -160,7 +160,7 @@ Pair a home computer so Spark can run OpenClaw **locally** while you chat from t
 
 **Docs:** [remote-openclaw-control.md](docs/subsystems/remote-openclaw-control.md) · [assistant/README.md](assistant/README.md)
 
-**Server processes:** `spark-tutor` (:3000 UI) + `spark-control` (:3010 node hub & `/install/*`). Bridge version **2026.8.20-4** (bump via Upgrade on each node after server updates).
+**Server processes:** `spark-tutor` (:3000 UI) + `spark-control` (:3010 node hub & `/install/*`). Bridge version **2026.8.20-5** (poll 45s abort so nginx 502 cannot freeze long-poll; bump via Upgrade on each node after server updates).
 
 ---
 

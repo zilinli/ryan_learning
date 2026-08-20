@@ -1,6 +1,6 @@
 # Remote OpenClaw — Deploy, Control & Spark Bridge
 
-> Updated 2026-08-20 · Bridge version **2026.8.20-4**
+> Updated 2026-08-20 · Bridge version **2026.8.20-5**
 
 Spark lets a browser talk to a **paired home PC** running OpenClaw. The tutor site stays cloud-hosted; agent work (files, shell, WeChat, workbench) runs locally on macOS or Windows.
 
@@ -117,7 +117,7 @@ Bridge runs on the PC (`~/.openclaw/bridge/state.json` holds `token`, `nodeId`).
 | Step | Endpoint | Direction |
 |------|----------|-----------|
 | Heartbeat | `POST /api/nodes/heartbeat` | PC → server every 15s |
-| Wait for work | `GET /api/nodes/poll?token=` | PC long-poll (25s hold) |
+| Wait for work | `GET /api/nodes/poll?token=` | PC long-poll (server ~25s hold; **client aborts at 45s**) |
 | Stream reply | `POST /api/nodes/reply` | PC → server (chunk / done / error) |
 
 **Online TTL:** 180s (`ONLINE_MS`). A node is *online* when `now - lastSeen < 180s`.
@@ -269,6 +269,13 @@ npm run build && pm2 restart spark-tutor
 | Upgrade downloads HTML | nginx `/install/` misroute | Confirm `location ^~ /install/` → :3010 |
 | macOS curl fails on download | SSL / old CA store | Use `SPARK_INSECURE=1` or `-k` (installer default) |
 | Chat timeout 3 min | Long agent run or gateway down | Check OpenClaw gateway; bridge falls back to `--local` |
+| Online but `/control` times out | Poll hung after nginx 502 / half-open TCP | Bridge ≥ **2026.8.20-5** aborts poll at 45s and reconnects; restart `org.spark.bridge` if still stuck |
+
+### Poll hang (fixed in 2026.8.20-5)
+
+Heartbeat runs on a separate timer, so a node can stay **online** while `fetch(poll)` is stuck on a zombie TCP connection after nginx 502. Without a client timeout, new commands never enter the poll loop and `/control` hits the 3‑minute SSE watchdog.
+
+Mitigation: `AbortSignal.timeout(45_000)` on poll; timeout/`TimeoutError` is silent and the loop retries after 3s.
 
 ---
 
@@ -279,3 +286,4 @@ npm run build && pm2 restart spark-tutor
 | 2026.8.20-2 | Online upgrade command; install-ticket |
 | 2026.8.20-3 | `--agent` / `--message-file` CLI fix (partial deploy) |
 | 2026.8.20-4 | Canonical CLI + log stripping + attachment inbox |
+| 2026.8.20-5 | Poll `AbortSignal.timeout(45s)` — survive nginx 502 / half-open TCP |

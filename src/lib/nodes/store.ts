@@ -172,7 +172,7 @@ export async function touchNode(
   await saveNodes();
 }
 
-export const CURRENT_BRIDGE_VERSION = "2026.8.20-4";
+export const CURRENT_BRIDGE_VERSION = "2026.8.20-5";
 
 export async function listNodes() {
   await load();

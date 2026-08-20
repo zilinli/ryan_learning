@@ -10,7 +10,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const SPARK_BRIDGE_VERSION = "2026.8.20-4";
+export const SPARK_BRIDGE_VERSION = "2026.8.20-5";
+/** Client must abort hung polls (proxy 502 / half-open TCP); server wait is ~25s. */
+const POLL_TIMEOUT_MS = 45_000;
 
 const HOME = process.env.USERPROFILE || process.env.HOME || ".";
 const STATE_DIR = path.join(HOME, ".openclaw", "bridge");
@@ -313,7 +315,9 @@ async function loop() {
   await heartbeat(st.token).catch(() => {});
   for (;;) {
     try {
-      const r = await fetch(`${SPARK_URL}/api/nodes/poll?token=${encodeURIComponent(st.token)}`);
+      const r = await fetch(`${SPARK_URL}/api/nodes/poll?token=${encodeURIComponent(st.token)}`, {
+        signal: AbortSignal.timeout(POLL_TIMEOUT_MS),
+      });
       if (r.status === 401) {
         console.error("[spark-bridge] token rejected; delete state.json and re-pair");
         await new Promise((r) => setTimeout(r, 5000));
@@ -340,7 +344,11 @@ async function loop() {
         });
       }
     } catch (e) {
-      console.error("[spark-bridge]", e instanceof Error ? e.message : e);
+      const msg = e instanceof Error ? e.message : String(e);
+      // TimeoutAbort / undici: name TimeoutError; keep polling without noisy spam
+      if (!/aborted|timeout/i.test(msg) && e?.name !== "TimeoutError") {
+        console.error("[spark-bridge]", msg);
+      }
       await new Promise((r) => setTimeout(r, 3000));
     }
   }
