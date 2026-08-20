@@ -72,7 +72,20 @@ export default function DeployPage() {
   }, [code, origin]);
   const macCmd = useMemo(() => {
     const c = code || "<PAIR_CODE>";
-    return `SPARK_PAIR_CODE='${c}' SPARK_URL='${origin}' bash <(curl -fsSL ${origin}/install/macos.sh)`;
+    return [
+      `export SPARK_PAIR_CODE='${c}'`,
+      `export SPARK_URL='${origin}'`,
+      `curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
+    ].join("\n");
+  }, [code, origin]);
+  const macCmdInsecure = useMemo(() => {
+    const c = code || "<PAIR_CODE>";
+    return [
+      `export SPARK_PAIR_CODE='${c}'`,
+      `export SPARK_URL='${origin}'`,
+      `export SPARK_INSECURE=1`,
+      `curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh`,
+    ].join("\n");
   }, [code, origin]);
 
   const left = Math.max(0, Math.floor((expiresAt - now) / 1000));
@@ -133,6 +146,9 @@ export default function DeployPage() {
             Copy Windows command
           </button>
           <p className="mt-4 text-[11px] font-medium text-[var(--ink-muted)]">macOS</p>
+          <p className="text-[10px] leading-snug text-[var(--ink-muted)]">
+            Run one line at a time (typing is safer than paste — some terminals add stray characters).
+          </p>
           <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-200 whitespace-pre-wrap">
             {macCmd}
           </pre>
@@ -142,6 +158,19 @@ export default function DeployPage() {
             onClick={() => void navigator.clipboard.writeText(macCmd)}
           >
             Copy macOS command
+          </button>
+          <p className="mt-3 text-[10px] leading-snug text-[var(--ink-muted)]">
+            SSL error on Mac? Install Homebrew curl (<code className="text-[10px]">brew install curl</code>) or use:
+          </p>
+          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/80 p-3 text-[11px] text-amber-200/90 whitespace-pre-wrap">
+            {macCmdInsecure}
+          </pre>
+          <button
+            type="button"
+            className="mt-2 text-xs text-[var(--teal)] underline"
+            onClick={() => void navigator.clipboard.writeText(macCmdInsecure)}
+          >
+            Copy macOS command (skip SSL verify)
           </button>
         </div>
       ) : null}

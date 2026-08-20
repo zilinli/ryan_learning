@@ -6,14 +6,50 @@
 # This script does NOT git clone that repo and does NOT copy openclaw-config,
 # skills, Bolt Console, WeChat, or ~/openclaw-workbench. Pairing + Bridge only.
 #
-# Usage:
-#   SPARK_PAIR_CODE=XXXXXXXX SPARK_URL=https://spark-tutor-for-ryan.duckdns.org \
-#     bash <(curl -fsSL "$SPARK_URL/install/macos.sh")
+# Usage (run each line separately — avoid one-line paste from the browser):
+#   export SPARK_PAIR_CODE=XXXXXXXX
+#   export SPARK_URL=https://spark-tutor-for-ryan.duckdns.org
+#   curl -fsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
+# If curl reports "SSL certificate problem", try Homebrew curl (`brew install curl`) or:
+#   export SPARK_INSECURE=1
+#   curl -kfsSL "$SPARK_URL/install/macos.sh" -o /tmp/spark-install.sh && bash /tmp/spark-install.sh
 set -euo pipefail
 
 SPARK_URL="${SPARK_URL%/}"
 SPARK_URL="${SPARK_URL:-https://spark-tutor-for-ryan.duckdns.org}"
 PAIR_CODE="${SPARK_PAIR_CODE:-}"
+CURL_EXTRA=()
+if [[ "${SPARK_INSECURE:-}" == "1" ]]; then
+  CURL_EXTRA=(-k)
+fi
+
+spark_curl() {
+  local err
+  if err="$(curl "${CURL_EXTRA[@]}" -fsS "$@" 2>&1)"; then
+    printf '%s' "$err"
+    return 0
+  fi
+  if [[ "${SPARK_INSECURE:-}" != "1" ]] && [[ "$err" == *"certificate"* || "$err" == *"SSL"* ]]; then
+    echo "Warning: HTTPS verify failed — retrying with curl -k (set SPARK_INSECURE=1 to skip this message)." >&2
+    curl -kfsS "$@"
+    return $?
+  fi
+  echo "$err" >&2
+  return 1
+}
+
+spark_download() {
+  local url="$1" dest="$2"
+  if curl "${CURL_EXTRA[@]}" -fsSL "$url" -o "$dest"; then
+    return 0
+  fi
+  if [[ "${SPARK_INSECURE:-}" != "1" ]]; then
+    echo "Warning: HTTPS verify failed — retrying download with curl -k." >&2
+    curl -kfsSL "$url" -o "$dest"
+    return $?
+  fi
+  return 1
+}
 if [[ -z "$PAIR_CODE" ]]; then
   echo "Set SPARK_PAIR_CODE first (from ${SPARK_URL}/deploy )" >&2
   exit 1
@@ -32,7 +68,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 TICKET_JSON="$(
-  curl -fsS -X POST "$SPARK_URL/api/nodes/install-ticket" \
+  spark_curl -X POST "$SPARK_URL/api/nodes/install-ticket" \
     -H "content-type: application/json" \
     -d "{\"pairCode\":\"$PAIR_CODE\"}"
 )"
@@ -122,7 +158,7 @@ openclaw gateway install || true
 openclaw gateway restart || openclaw gateway start || true
 
 echo "Downloading Spark Bridge..."
-curl -fsSL "$SPARK_URL/install/spark-bridge.mjs" -o "${BRIDGE_DIR}/index.mjs"
+spark_download "$SPARK_URL/install/spark-bridge.mjs" "${BRIDGE_DIR}/index.mjs"
 NODE_BIN="$(command -v node)"
 
 LAUNCH_DIR="${HOME_DIR}/Library/LaunchAgents"
