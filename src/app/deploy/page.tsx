@@ -14,7 +14,7 @@ type NodeInfo = {
   upgradeAvailable?: boolean;
 };
 
-type OsTab = "macos" | "windows" | "ipad-ssh" | "ios-native";
+type OsTab = "macos" | "windows" | "ipad-ssh";
 
 function captureAdminFromUrl() {
   if (typeof window === "undefined") return;
@@ -42,7 +42,7 @@ export default function DeployPage() {
   const [now, setNow] = useState(Date.now());
 
   const [osTab, setOsTab] = useState<OsTab>("macos");
-  const [sshHost, setSshHost] = useState<"mac" | "linux">("linux");
+  const [sshHost, setSshHost] = useState<"mac" | "linux">("mac");
   const [upgrading, setUpgrading] = useState("");
   const [upgradeLog, setUpgradeLog] = useState("");
   const [authErr, setAuthErr] = useState("");
@@ -216,7 +216,7 @@ export default function DeployPage() {
       </p>
       <h1 className="mb-2 font-[family-name:var(--font-display)] text-3xl">Deploy OpenClaw</h1>
       <p className="mb-6 text-sm text-[var(--ink-muted)]">
-        Pair a Mac, Windows PC, or (from iPad via SSH) a Linux VPS. Commands run on that host — not inside iSH.
+        Pair a Mac or Windows PC. From iPad, SSH into your Mac (or a Linux VPS). Commands run on that host — not inside iSH.
       </p>
 
       {authErr ? (
@@ -258,9 +258,6 @@ export default function DeployPage() {
             </button>
             <button type="button" className={tabClass("ipad-ssh")} onClick={() => setOsTab("ipad-ssh")}>
               iPad / SSH
-            </button>
-            <button type="button" className={tabClass("ios-native")} onClick={() => setOsTab("ios-native")}>
-              Native App
             </button>
           </div>
 
@@ -305,17 +302,17 @@ export default function DeployPage() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className={`rounded-full px-3 py-1 text-xs ${sshHost === "linux" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
-                  onClick={() => setSshHost("linux")}
-                >
-                  Linux VPS
-                </button>
-                <button
-                  type="button"
                   className={`rounded-full px-3 py-1 text-xs ${sshHost === "mac" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
                   onClick={() => setSshHost("mac")}
                 >
                   Mac (SSH)
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs ${sshHost === "linux" ? "bg-[var(--teal)] text-white" : "border border-[var(--line)]"}`}
+                  onClick={() => setSshHost("linux")}
+                >
+                  Linux VPS
                 </button>
               </div>
               <a
@@ -375,42 +372,6 @@ export default function DeployPage() {
             </div>
           ) : null}
 
-          {osTab === "ios-native" ? (
-            <div className="mt-4 space-y-3 text-sm text-[var(--ink-muted)]">
-              <p>
-                <strong className="text-[var(--ink)]">Spark Bridge iOS</strong> registers as{" "}
-                <code className="text-xs">platform: ios</code> with an on-device Swift agent (TestFlight). Source:{" "}
-                <code className="text-xs">apps/spark-bridge-ios</code>.
-              </p>
-              <ol className="list-decimal space-y-1 pl-5">
-                <li>Install the TestFlight build (when available).</li>
-                <li>Open the app → paste pair code <span className="font-mono text-[var(--ink)]">{code}</span> and Spark URL.</li>
-                <li>Allow notifications for background wake (silent push).</li>
-              </ol>
-              <p className="text-xs">
-                Manifest:{" "}
-                <a className="text-[var(--teal)] underline" href="/install/ios-bridge-manifest.json">
-                  /install/ios-bridge-manifest.json
-                </a>
-                . Docs:{" "}
-                <a className="text-[var(--teal)] underline" href="/docs" onClick={(e) => e.preventDefault()}>
-                  assistant-ipad.md
-                </a>{" "}
-                in the repo.
-              </p>
-              <button
-                type="button"
-                className="text-[var(--teal)] underline text-xs"
-                onClick={() =>
-                  void navigator.clipboard.writeText(
-                    JSON.stringify({ pairCode: code, sparkUrl: origin }, null, 2),
-                  )
-                }
-              >
-                Copy pair JSON for the app
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : null}
 

@@ -38,19 +38,21 @@ flowchart TB
 
 ### User flow (Termius install + one-tap)
 
-1. Keep a Mac or Linux VPS online.
-2. On iPad open `/deploy` → **iPad / SSH** → generate pair code.
+1. Keep a Mac (default) or Linux VPS online.
+2. On iPad open `/deploy` → **iPad / SSH** → generate pair code (host toggle defaults to **Mac (SSH)**).
 3. Tap **Install Termius (App Store)** if you do not have it (Apple does **not** allow silent install of App Store apps — this is a one-tap Store link).
-4. Open Termius → add your Mac/VPS host once.
+4. Open Termius → add your Mac host once.
 5. Tap **Open one-tap installer** → **Copy install command** → paste in that Termius session.
 6. Optional: Shortcuts / Blink on the same installer page.
 7. Chat at `/control`.
+
+Deploy UI currently hides the Native App tab; scaffold remains under `apps/spark-bridge-ios/`.
 
 | Asset | Purpose |
 |-------|---------|
 | [Termius on App Store](https://apps.apple.com/app/id549039908) | Step 1 for most iPads |
 | `termius://` | Open Termius after install |
-| `/install/spark-deploy-ipad.html?code=&target=linux\|mac` | One-tap installer page |
+| `/install/spark-deploy-ipad.html?code=&target=mac\|linux` | One-tap installer (default **mac**) |
 | same + `&download=1` | Download `Spark-Deploy-<CODE>.html` |
 | Shortcut `Spark Deploy` / Blink URL actions | Optional power-user paths |
 

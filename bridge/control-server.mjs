@@ -278,7 +278,7 @@ pause
   // iPad one-tap installer (Safari / Files) — peer to .command / .bat
   if (p.startsWith("/install/spark-deploy-ipad.html") && req.method === "GET") {
     const code = (url.searchParams.get("code") || "PAIRCODE").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
-    const target = url.searchParams.get("target") === "mac" ? "mac" : "linux";
+    const target = url.searchParams.get("target") === "linux" ? "linux" : "mac";
     const download = url.searchParams.get("download") === "1";
     const origin = fileEnv.SPARK_PUBLIC_URL || "https://spark-tutor-for-ryan.duckdns.org";
     const installCmd =
