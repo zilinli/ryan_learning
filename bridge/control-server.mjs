@@ -17,7 +17,7 @@ const PORT = Number(process.env.SPARK_CONTROL_PORT || 3010);
 const DATA_DIR = path.join(ROOT, "data", "nodes");
 const PAIR_TTL_MS = 15 * 60 * 1000;
 const ONLINE_MS = 180_000;
-const CURRENT_BRIDGE_VERSION = "2026.8.20-2";
+const CURRENT_BRIDGE_VERSION = "2026.8.20-4";
 
 function loadEnvFile(filePath) {
   try {

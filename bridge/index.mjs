@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const SPARK_BRIDGE_VERSION = "2026.8.20-2";
+export const SPARK_BRIDGE_VERSION = "2026.8.20-4";
 
 const HOME = process.env.USERPROFILE || process.env.HOME || ".";
 const STATE_DIR = path.join(HOME, ".openclaw", "bridge");
@@ -58,10 +58,28 @@ async function writeState(s) {
   await fs.writeFile(STATE_FILE, JSON.stringify(s, null, 2), "utf8");
 }
 
+function openclawEnv() {
+  const extra =
+    process.platform === "win32"
+      ? []
+      : ["/usr/local/bin", "/opt/homebrew/bin", `${HOME}/.npm-global/bin`, `${HOME}/.local/bin`];
+  const pathKey = process.platform === "win32" ? "Path" : "PATH";
+  const cur = process.env[pathKey] || process.env.PATH || "";
+  const parts = [...extra, ...cur.split(path.delimiter)].filter(Boolean);
+  const seen = new Set();
+  const merged = [];
+  for (const p of parts) {
+    if (seen.has(p)) continue;
+    seen.add(p);
+    merged.push(p);
+  }
+  return { ...process.env, [pathKey]: merged.join(path.delimiter), PATH: merged.join(path.delimiter) };
+}
+
 function spawnOpenclaw(args) {
   const bin = process.platform === "win32" ? "openclaw.cmd" : "openclaw";
   return spawn(bin, args, {
-    env: process.env,
+    env: openclawEnv(),
     windowsHide: true,
   });
 }
@@ -136,24 +154,38 @@ function runOnce(args) {
 }
 
 async function runOpenClaw(message) {
+  // Correct CLI: https://docs.openclaw.ai/cli/agent
+  //   openclaw agent --agent main --message "…"
+  // NEVER use positional agent id (openclaw agent main …) — causes
+  // "Too many arguments for this command. Try: openclaw agent main --help".
+  // Prefer Gateway (no --local) when gateway is already running.
+  const msgFile = path.join(STATE_DIR, `msg-${Date.now()}.txt`);
+  await fs.mkdir(STATE_DIR, { recursive: true });
+  await fs.writeFile(msgFile, message, "utf8");
   const attempts = [
-    ["agent", "main", "--local", "-m", message],
-    ["agent", "--agent", "main", "--local", "-m", message],
+    ["agent", "--agent", "main", "--message-file", msgFile],
+    ["agent", "--agent", "main", "--message", message],
+    ["agent", "--agent", "main", "--local", "--message-file", msgFile],
+    ["agent", "exec", "--message-file", msgFile],
   ];
   let last = { code: 1, out: "", err: "openclaw not run" };
-  for (const args of attempts) {
-    last = await runOnce(args);
-    const combined = `${last.out}\n${last.err}`;
-    const tooMany = /Too many arguments/i.test(combined);
-    if (last.code === 0 || (!tooMany && stripAgentDebug(last.out))) {
-      const cleaned = stripAgentDebug(last.out) || stripAgentDebug(last.err);
-      if (last.err) logLine(last.err.slice(0, 4000));
-      if (last.code !== 0 && !cleaned) {
+  try {
+    for (const args of attempts) {
+      last = await runOnce(args);
+      const combined = `${last.out}\n${last.err}`;
+      if (/Too many arguments/i.test(combined)) {
+        logLine(`openclaw skip (too many args): ${args.slice(0, 5).join(" ")}`);
         continue;
       }
-      return cleaned || (last.code === 0 ? "" : last.err.trim());
+      const cleaned = stripAgentDebug(last.out) || stripAgentDebug(last.err);
+      if (last.err) logLine(last.err.slice(0, 4000));
+      if (last.code === 0 || cleaned) {
+        return cleaned || (last.code === 0 ? "" : last.err.trim());
+      }
+      logLine(`openclaw ${args.slice(0, 5).join(" ")} failed: ${(last.err || last.out).slice(0, 500)}`);
     }
-    logLine(`openclaw ${args.slice(0, 4).join(" ")} failed: ${(last.err || last.out).slice(0, 500)}`);
+  } finally {
+    await fs.unlink(msgFile).catch(() => {});
   }
   const cleaned = stripAgentDebug(last.out) || stripAgentDebug(last.err);
   if (last.code !== 0 && !cleaned) {
