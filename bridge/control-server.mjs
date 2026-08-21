@@ -22,7 +22,7 @@ const ONLINE_MS = 180_000;
 const CHAT_ABS_TIMEOUT_MS = 20 * 60 * 1000;
 /** Fail sooner if Bridge stops sending progress chunks. */
 const CHAT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
-const CURRENT_BRIDGE_VERSION = "2026.8.20-6";
+const CURRENT_BRIDGE_VERSION = "2026.8.21-1";
 
 function nodeReachable(n, nowMs) {
   return nowMs - n.lastSeen < ONLINE_MS || (n.platform === "ios" && Boolean(n.apnsDeviceToken));
@@ -213,7 +213,7 @@ async function handle(req, res) {
     res.writeHead(204, {
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "content-type,x-spark-admin",
-      "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
+      "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
     });
     return res.end();
   }
@@ -464,6 +464,22 @@ document.getElementById('btnBlink').onclick = () => {
     else delete n.alias;
     await saveNodes();
     return json(res, 200, { ok: true, nodeId, alias: trimmed });
+  }
+
+  if (nodePatch && req.method === "DELETE") {
+    if (!checkAdmin(req, url)) return json(res, 401, { error: "unauthorized" });
+    const nodeId = decodeURIComponent(nodePatch[1]);
+    const before = hub.nodes.length;
+    hub.nodes = hub.nodes.filter((x) => x.nodeId !== nodeId);
+    if (hub.nodes.length === before) return json(res, 404, { error: "node not found" });
+    hub.queues.delete(nodeId);
+    const waiter = hub.waiters.get(nodeId);
+    if (waiter) {
+      hub.waiters.delete(nodeId);
+      waiter(null);
+    }
+    await saveNodes();
+    return json(res, 200, { ok: true, nodeId });
   }
 
   if (p === "/api/nodes/install-ticket" && req.method === "POST") {

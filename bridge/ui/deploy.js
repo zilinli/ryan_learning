@@ -77,6 +77,24 @@
     }
   }
 
+  async function removeNode(n) {
+    const label = UI.nodeLabel(n).name;
+    if (!window.confirm('Delete node "' + label + '"? This unpairs it from Spark.')) return;
+    const r = await fetch("/api/nodes/" + encodeURIComponent(n.nodeId), {
+      method: "DELETE",
+      headers: UI.adminHeaders(),
+    });
+    const j = await r.json().catch(function () {
+      return {};
+    });
+    if (!r.ok) {
+      errEl.textContent = j.error || "delete failed";
+      return;
+    }
+    errEl.textContent = "";
+    refresh();
+  }
+
   function renderNodes(nodes) {
     const ul = document.getElementById("nodes");
     if (!nodes.length) {
@@ -105,7 +123,10 @@
         escapeHtml(n.alias || "") +
         '" data-id="' +
         escapeHtml(n.nodeId) +
-        '" />';
+        '" />' +
+        '<button type="button" class="btn btn-sm node-delete" data-id="' +
+        escapeHtml(n.nodeId) +
+        '">Delete</button>';
       ul.appendChild(li);
       li.querySelector("input").addEventListener("change", async function (e) {
         try {
@@ -114,6 +135,9 @@
         } catch (ex) {
           errEl.textContent = ex.message || "alias save failed";
         }
+      });
+      li.querySelector("button.node-delete").addEventListener("click", function () {
+        void removeNode(n);
       });
     });
   }

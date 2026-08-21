@@ -1,5 +1,5 @@
 import { checkAdmin } from "@/lib/nodes/auth";
-import { updateNodeAlias } from "@/lib/nodes/store";
+import { deleteNode, updateNodeAlias } from "@/lib/nodes/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,4 +20,18 @@ export async function PATCH(req: Request, { params }: Params) {
   const ok = await updateNodeAlias(nodeId, String(body.alias ?? ""));
   if (!ok) return Response.json({ error: "node not found" }, { status: 404 });
   return Response.json({ ok: true, nodeId, alias: String(body.alias ?? "").trim() });
+}
+
+/** DELETE — unpair and remove a node from the roster. */
+export async function DELETE(req: Request, { params }: Params) {
+  if (!checkAdmin(req)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const { nodeId } = await params;
+  if (!nodeId?.trim()) {
+    return Response.json({ error: "missing nodeId" }, { status: 400 });
+  }
+  const ok = await deleteNode(nodeId);
+  if (!ok) return Response.json({ error: "node not found" }, { status: 404 });
+  return Response.json({ ok: true, nodeId });
 }

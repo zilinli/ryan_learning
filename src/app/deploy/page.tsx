@@ -121,6 +121,8 @@ export default function DeployPage() {
   }, [code, origin]);
   const sshPaste = sshHost === "mac" ? macCmd : linuxCmd;
 
+  const nodeDisplay = (n: NodeInfo) => (n.alias?.trim() ? n.alias : n.hostname);
+
   const saveAlias = async (nodeId: string, alias: string) => {
     const r = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}`, {
       method: "PATCH",
@@ -133,6 +135,22 @@ export default function DeployPage() {
     }
   };
 
+  const removeNode = async (n: NodeInfo) => {
+    const label = nodeDisplay(n);
+    if (!window.confirm(`Delete node “${label}”? This unpairs it from Spark.`)) return;
+    setErr("");
+    const r = await fetch(`/api/nodes/${encodeURIComponent(n.nodeId)}`, {
+      method: "DELETE",
+      headers: adminHeaders(),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setErr(j.error || "delete failed");
+      return;
+    }
+    setNodes((prev) => prev.filter((x) => x.nodeId !== n.nodeId));
+  };
+
   const copyAdminLink = () => {
     const t = admin.trim() || localStorage.getItem("spark.admin") || "";
     if (!t) {
@@ -143,7 +161,6 @@ export default function DeployPage() {
   };
 
   const left = Math.max(0, Math.floor((expiresAt - now) / 1000));
-  const nodeDisplay = (n: NodeInfo) => (n.alias?.trim() ? n.alias : n.hostname);
 
   const downloadInstaller = () => {
     if (!code) {
@@ -294,9 +311,10 @@ export default function DeployPage() {
           {osTab === "ipad-ssh" ? (
             <div className="mt-4 space-y-3 text-sm">
               <p className="text-[var(--ink-muted)]">
-                From iPad, SSH into your always-on Mac (or Linux VPS). The one-tap installer page covers Termius
-                install and the install command — same role as Mac{" "}
-                <code className="text-xs">.command</code> / Windows <code className="text-xs">.bat</code>.
+                From iPad, SSH into your always-on Mac (or Linux VPS). The one-tap installer registers Bridge as a
+                background daemon + watchdog — you can quit Termius after install and the node stays online. Same
+                role as Mac <code className="text-xs">.command</code> / Windows{" "}
+                <code className="text-xs">.bat</code>.
               </p>
               <div className="flex gap-2">
                 <button
@@ -335,7 +353,8 @@ export default function DeployPage() {
                 </button>
               </div>
               <p className="text-xs text-[var(--ink-muted)]">
-                Installer page: Termius App Store → add host → Copy install command → paste in Termius.
+                Installer page: Termius App Store → add host → Copy install command → paste in Termius. When you see
+                “Safe to close Termius”, disconnect freely (Mac LaunchAgent / Linux systemd linger + watchdog).
               </p>
               <details className="text-xs text-[var(--ink-muted)]">
                 <summary className="cursor-pointer">Show command only</summary>
@@ -401,6 +420,13 @@ export default function DeployPage() {
                       : !n.bridgeVersion
                         ? "Re-install required"
                         : "Upgrade from server"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void removeNode(n)}
+                  className="rounded-full border border-red-500 px-3 py-1 text-xs text-red-600"
+                >
+                  Delete
                 </button>
               </div>
               {upgrading === n.nodeId && upgradeLog ? (

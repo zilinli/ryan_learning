@@ -178,7 +178,7 @@ export async function touchNode(
   await saveNodes();
 }
 
-export const CURRENT_BRIDGE_VERSION = "2026.8.20-6";
+export const CURRENT_BRIDGE_VERSION = "2026.8.21-1";
 
 export async function listNodes() {
   await load();
@@ -205,6 +205,22 @@ export async function updateNodeAlias(nodeId: string, alias: string): Promise<bo
   const trimmed = alias.trim();
   if (trimmed) n.alias = trimmed;
   else delete n.alias;
+  await saveNodes();
+  return true;
+}
+
+export async function deleteNode(nodeId: string): Promise<boolean> {
+  await load();
+  const h = hub();
+  const before = h.nodes.length;
+  h.nodes = h.nodes.filter((n) => n.nodeId !== nodeId);
+  if (h.nodes.length === before) return false;
+  h.queues.delete(nodeId);
+  const waiter = h.waiters.get(nodeId);
+  if (waiter) {
+    h.waiters.delete(nodeId);
+    waiter(null);
+  }
   await saveNodes();
   return true;
 }
