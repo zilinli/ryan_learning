@@ -29,6 +29,8 @@ export type PodcastTranscriptJob = {
   progress: number;
   transcript?: string;
   error?: string;
+  /** Set when DashScope filetrans failed and the job fell back to whisper. */
+  bailianError?: string;
   engine: "bailian" | "local" | "cache";
   createdAt: number;
   updatedAt: number;
@@ -190,6 +192,26 @@ export function extractFiletransText(data: unknown): string {
 }
 
 /**
+ * Resolve a podcast audio URL through its redirect chain (podtrac/pscrb/omny
+ * chains) so DashScope's downloader can fetch the final CDN file directly —
+ * otherwise filetrans fails with FILE_DOWNLOAD_FAILED.
+ */
+export async function resolveAudioUrl(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 (SparkTutor podcast transcriber)" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    const finalUrl = res.url || url;
+    return finalUrl.startsWith("http") ? finalUrl : url;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Submit a DashScope filetrans task and poll to completion.
  * onProgress lets the job reflect coarse stages in the UI.
  */
@@ -206,6 +228,8 @@ export async function transcribeWithBailianFiletrans(
   const apiKey = cfg?.apiKey;
   if (!apiKey) throw new Error("ALIYUN_DASHSCOPE_API_KEY not configured");
 
+  const directUrl = await resolveAudioUrl(audioUrl);
+
   const submitRes = await fetch(filetransUrl(), {
     method: "POST",
     headers: {
@@ -215,7 +239,7 @@ export async function transcribeWithBailianFiletrans(
     },
     body: JSON.stringify({
       model: process.env.ALIYUN_PODCAST_ASR_MODEL?.trim() || "paraformer-v2",
-      input: { file_urls: [audioUrl] },
+      input: { file_urls: [directUrl] },
       parameters: {
         channel_id: [0],
         ...(opts.languageHint
@@ -250,6 +274,8 @@ export async function transcribeWithBailianFiletrans(
     const data = (await res.json()) as {
       output?: {
         task_status?: string;
+        code?: string;
+        message?: string;
         results?: Array<{
           transcripts?: Array<{ url?: string }>;
           url?: string;
@@ -262,7 +288,10 @@ export async function transcribeWithBailianFiletrans(
       break;
     }
     if (status === "FAILED" || status === "CANCELED") {
-      throw new Error(`DashScope task ${status}`);
+      const code = data.output?.code || "";
+      const msg = data.output?.message || "";
+      const detail = [code, msg].filter(Boolean).join(": ");
+      throw new Error(`DashScope task ${status}${detail ? ` (${detail})` : ""}`);
     }
     opts.onProgress?.(0.15 + 0.6 * ((attempt + 1) / maxAttempts));
   }
@@ -365,10 +394,13 @@ async function runTranscriptWork(
         onProgress: (p) => void update({ progress: Math.max(job.progress, p) }),
       });
     } catch (bailianErr) {
+      const msg =
+        bailianErr instanceof Error ? bailianErr.message : String(bailianErr);
       console.warn(
         `[podcast-transcript] bailian failed for ${episode.title}:`,
-        bailianErr instanceof Error ? bailianErr.message : bailianErr,
+        msg,
       );
+      await update({ bailianError: msg.slice(0, 300) });
       text = await podcastEngines.local(episode.audioUrl, (p) =>
         void update({ progress: Math.max(job.progress, p) }),
       );

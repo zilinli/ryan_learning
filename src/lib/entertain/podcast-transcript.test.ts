@@ -9,6 +9,7 @@ import {
   getPodcastTranscriptJob,
   podcastEngines,
   requestPodcastTranscript,
+  resolveAudioUrl,
   setPodcastCacheDirsForTests,
   PODCAST_TRANSCRIPT_MAX_CHARS,
 } from "./podcast-transcript";
@@ -109,6 +110,30 @@ describe("extractTaskResultUrl", () => {
     expect(extractTaskResultUrl(null)).toBe("");
     expect(extractTaskResultUrl({ output: { results: [] } })).toBe("");
     expect(extractTaskResultUrl({ output: { results: [{}] } })).toBe("");
+  });
+});
+
+describe("resolveAudioUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the final URL after a redirect chain", async () => {
+    const finalUrl = "https://cdn.example.com/file.mp3";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ url: finalUrl }) as Response),
+    );
+    await expect(resolveAudioUrl("https://r.example.com/a")).resolves.toBe(finalUrl);
+  });
+
+  it("keeps the original URL when resolution fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("network down");
+    }));
+    await expect(resolveAudioUrl("https://r.example.com/a")).resolves.toBe(
+      "https://r.example.com/a",
+    );
   });
 });
 
