@@ -56,6 +56,7 @@ export type StudioLearningSource =
   | "natgeo"
   | "bbc"
   | "rsa"
+  | "podcast"
   | "game";
 
 /**
@@ -67,6 +68,7 @@ function sourcePrefix(source: StudioLearningSource): string {
   if (source === "natgeo") return "[NatGeo Lab]";
   if (source === "bbc") return "[BBC Doc Lab]";
   if (source === "rsa") return "[RSA Lab]";
+  if (source === "podcast") return "[Podcast Lab]";
   if (source === "game") return "[Learning Game]";
   return "[Writing Studio]";
 }
@@ -87,6 +89,9 @@ function sourceSeed(opts: {
   if (opts.source === "rsa") {
     return "critical thinking argument analysis rhetoric debate philosophy psychology society creativity listening comprehension idea evaluation";
   }
+  if (opts.source === "podcast") {
+    return "listening comprehension audio podcast main idea details inference vocabulary argument evidence conversation explanation transcript";
+  }
   if (opts.source === "game") {
     return "force motion push collide balanced energy gravity science experiment";
   }
@@ -103,9 +108,11 @@ function sourceChatTitle(source: StudioLearningSource, title: string): string {
           ? "BBC"
           : source === "rsa"
             ? "RSA"
-            : source === "game"
-              ? "Game"
-              : "Writing";
+            : source === "podcast"
+              ? "Podcast"
+              : source === "game"
+                ? "Game"
+                : "Writing";
   return `${tag} · ${title}`.slice(0, 80);
 }
 

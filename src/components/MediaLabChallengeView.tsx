@@ -36,7 +36,7 @@ type DiscussKickoff = {
 type Props = {
   lab: LabDiscussId;
   /** Learning turn source tag */
-  source: "bbc" | "rsa" | "natgeo";
+  source: "bbc" | "rsa" | "natgeo" | "podcast";
   title: string;
   speaker: string;
   items: ChallengeItem[];

@@ -1,5 +1,22 @@
 # 📋 Downstream Development TODO
 
+## PODCAST-LAB — Studio Podcast Lab（audio → transcript → challenge）· 2026-08-23
+
+> **Design:** [subsystems/podcast-lab.md](subsystems/podcast-lab.md)
+> **Goal:** 音频版 TED Lab：精选 7 档英文播客单集 → 百炼 filetrans/本地 whisper 转文字 → 按年级/水平出选择+论述题 → 讨论/保存/学习记忆全复用 TED。
+
+- [ ] **PL.1** — 需求分析 + 系统设计 + 测试设计文档（`podcast-lab.md`）
+- [ ] **PL.2** — `podcast-catalog.ts` + `podcast-rss.ts`（iTunes feed 解析 + 无依赖 RSS 解析 + 磁盘缓存）
+- [ ] **PL.3** — `podcast-transcript.ts` + `/api/podcast/transcribe`（百炼 filetrans 异步任务 / 本地 whisper 兜底 / 任务状态机）
+- [ ] **PL.4** — `podcast-challenge.ts` + `/api/podcast/challenge`、`/api/podcast/search`
+- [ ] **PL.5** — `PodcastLab.tsx`（browse → listen → challenge，audio 播放器 + 转写进度轮询）
+- [ ] **PL.6** — 接线：GameId / STUDIO / lab-discuss / MediaLabChallengeView / studio-learning / learning-memory / creations / cross-lab / .gitignore
+- [ ] **PL.7** — 单测（rss/catalog/transcript/challenge/search/podcast-challenge）+ `npm test`
+- [ ] **PL.8** — lint + `smoke-podcast-api.ts` + 本地 build
+- [ ] **PL.9** — apply_changes → publish_develop → merge develop→master → push 两分支 → deploy_live
+
+---
+
 ## OC-REF — OpenClaw pair installers stay Spark-native (reference, not integration) · 2026-08-20
 
 > **Design:** [subsystems/assistant-repos-reference.md](subsystems/assistant-repos-reference.md) · [subsystems/remote-openclaw-control.md](subsystems/remote-openclaw-control.md)  

@@ -60,6 +60,8 @@ yarn-error.log*
 /data/ted-cache/
 /data/yt-cache/
 /data/natgeo-cache/
+/data/podcast-cache/
+/data/podcast-audio/
 /vendor/taiwanese-hakka-tts/
 /.venv-formospeech/
 

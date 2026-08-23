@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     type !== "natgeo_challenge" &&
     type !== "bbc_challenge" &&
     type !== "rsa_challenge" &&
+    type !== "podcast_challenge" &&
     type !== "song" &&
     type !== "image" &&
     type !== "video"

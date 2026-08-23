@@ -7,7 +7,7 @@ import {
   type TedChallengeKickoff,
 } from "./ted-challenge-handoff";
 
-export type LabDiscussId = "bbc" | "rsa" | "natgeo";
+export type LabDiscussId = "bbc" | "rsa" | "natgeo" | "podcast";
 
 export type LabDiscussContext = Pick<
   TedChallengeKickoff,
@@ -29,12 +29,14 @@ const LAB_LABEL: Record<LabDiscussId, string> = {
   bbc: "BBC Doc Lab",
   rsa: "RSA Lab",
   natgeo: "NatGeo Lab",
+  podcast: "Podcast Lab",
 };
 
 const LAB_NEXT: Record<LabDiscussId, string> = {
   bbc: "BBC challenge question",
   rsa: "RSA challenge question",
   natgeo: "NatGeo challenge question",
+  podcast: "podcast challenge question",
 };
 
 export function labDiscussLabel(lab: LabDiscussId): string {
@@ -47,7 +49,7 @@ export function labDiscussNextNoun(lab: LabDiscussId): string {
 
 export function parseLabDiscussId(raw: unknown): LabDiscussId | null {
   const s = String(raw || "").trim().toLowerCase();
-  if (s === "bbc" || s === "rsa" || s === "natgeo") return s;
+  if (s === "bbc" || s === "rsa" || s === "natgeo" || s === "podcast") return s;
   return null;
 }
 

@@ -5,13 +5,14 @@
  * thread. Pure so it is unit-testable; the component just renders the link.
  */
 
-export type LabId = "ted" | "natgeo" | "bbc" | "rsa";
+export type LabId = "ted" | "natgeo" | "bbc" | "rsa" | "podcast";
 
 export const LAB_GAME_PARAM: Record<LabId, string> = {
   ted: "ted-lab",
   natgeo: "natgeo-lab",
   bbc: "bbc-lab",
   rsa: "rsa-lab",
+  podcast: "podcast-lab",
 };
 
 export const LAB_TITLES: Record<LabId, string> = {
@@ -19,6 +20,7 @@ export const LAB_TITLES: Record<LabId, string> = {
   natgeo: "NatGeo Lab",
   bbc: "BBC Doc Lab",
   rsa: "RSA Lab",
+  podcast: "Podcast Lab",
 };
 
 export type LabSuggestion = {
@@ -43,6 +45,7 @@ const FALLBACK: Record<LabId, LabId> = {
   natgeo: "ted",
   bbc: "natgeo",
   rsa: "ted",
+  podcast: "ted",
 };
 
 export function suggestNextLab(

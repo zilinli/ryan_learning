@@ -84,6 +84,7 @@ export type LearningSource =
   | "natgeo"
   | "bbc"
   | "rsa"
+  | "podcast"
   | "creation"
   | "game";
 
@@ -431,6 +432,7 @@ export const LEARNING_SOURCES: LearningSource[] = [
   "natgeo",
   "bbc",
   "rsa",
+  "podcast",
   "creation",
   "game",
 ];
@@ -1142,6 +1144,7 @@ export function sourceLabel(source: LearningSource): string {
     natgeo: "NatGeo Lab",
     bbc: "BBC Doc Lab",
     rsa: "RSA Lab",
+    podcast: "Podcast Lab",
     creation: "interest → creation",
     game: "Learning Games",
   };

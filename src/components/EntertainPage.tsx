@@ -22,6 +22,7 @@ import { OrbitScoutGame } from "./OrbitScoutGame";
 import { WordEchoGame } from "./WordEchoGame";
 import { CodeSparkGame } from "./CodeSparkGame";
 import { TedLab } from "./TedLab";
+import { PodcastLab } from "./PodcastLab";
 import { WritingStudio } from "./WritingStudio";
 import { NatGeoLab } from "./NatGeoLab";
 import { BbcDocLab } from "./BbcDocLab";
@@ -83,6 +84,14 @@ const STUDIO: StudioDest[] = [
     title: "TED Lab",
     kicker: "Listen",
     desc: "Watch a talk. Then argue with it.",
+    cta: "Open lab",
+    tone: "cinema",
+  },
+  {
+    id: "podcast-lab",
+    title: "Podcast Lab",
+    kicker: "Listen",
+    desc: "Real podcast episodes — audio only. We transcribe, then you argue with it.",
     cta: "Open lab",
     tone: "cinema",
   },
@@ -150,6 +159,7 @@ const TITLES: Record<GameId, string> = {
   "word-echo": "Spell Words",
   "code-spark": "Code Spark",
   "ted-lab": "TED Lab",
+  "podcast-lab": "Podcast Lab",
   "writing-studio": "Writing Studio",
   "natgeo-lab": "NatGeo Lab",
   "bbc-lab": "BBC Doc Lab",
@@ -263,6 +273,7 @@ export function EntertainPage({ forcedHub }: { forcedHub?: HubMode } = {}) {
         {activeGame === "sokoban" && <SokobanGame />}
         {activeGame === "klotski" && <KlotskiGame />}
         {activeGame === "ted-lab" && <TedLab />}
+        {activeGame === "podcast-lab" && <PodcastLab />}
         {activeGame === "writing-studio" && <WritingStudio />}
         {activeGame === "natgeo-lab" && <NatGeoLab />}
         {activeGame === "bbc-lab" && <BbcDocLab />}

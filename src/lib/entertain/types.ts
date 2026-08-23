@@ -11,6 +11,7 @@ export type GameId =
   | "sokoban"
   | "klotski"
   | "ted-lab"
+  | "podcast-lab"
   | "writing-studio"
   | "natgeo-lab"
   | "bbc-lab"

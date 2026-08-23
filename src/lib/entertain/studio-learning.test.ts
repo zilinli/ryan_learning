@@ -97,4 +97,20 @@ describe("studio-learning", () => {
     expect(gameSkills[0]?.lastSource).toBe("game");
     expect(gameSkills.some((s) => s.id === "forces-motion")).toBe(true);
   });
+
+  it("records Podcast Lab turns under the podcast source", async () => {
+    (globalThis as { window?: unknown }).window = {};
+    const mem = await recordStudioLearningTurn({
+      accountId: ACCT,
+      source: "podcast",
+      title: "Freakonomics · The hidden side",
+      userText:
+        "The hosts explain incentives with examples from a city experiment, and I argued my own view in the essay.",
+      outcome: "practice",
+    });
+    expect(mem).not.toBeNull();
+    const podcastSkills = (mem?.skills || []).filter((s) => s.sourceCounts?.podcast);
+    expect(podcastSkills.length).toBeGreaterThan(0);
+    expect(podcastSkills[0]?.lastSource).toBe("podcast");
+  });
 });
