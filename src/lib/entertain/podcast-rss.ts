@@ -18,6 +18,8 @@ export type PodcastEpisode = {
   audioUrl: string;
   durationSec: number;
   pubDate: string;
+  /** itunes:category / category / itunes:keywords — episode-level tags */
+  categories: string[];
 };
 
 let FEED_DIR = path.join(process.cwd(), "data", "podcast-cache", "feeds");
@@ -116,6 +118,42 @@ function episodeGuidFrom(ep: string, index: number): string {
   return `ep_${index}`;
 }
 
+/** Collect itunes:category / category / itunes:keywords from one <item>. */
+export function parseEpisodeCategories(epXml: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const t = cleanText(raw).slice(0, 80);
+    if (!t) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(t);
+  };
+
+  const attrRe =
+    /<(?:itunes:)?category\b[^>]*\b(?:text|name)\s*=\s*["']([^"']+)["'][^>]*\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = attrRe.exec(epXml)) && out.length < 12) {
+    push(m[1] || "");
+  }
+
+  const bodyRe =
+    /<(?:itunes:)?category\b[^>]*>([\s\S]*?)<\/(?:itunes:)?category>/gi;
+  while ((m = bodyRe.exec(epXml)) && out.length < 12) {
+    push(m[1] || "");
+  }
+
+  const kw = cleanText(firstTag(epXml, "itunes:keywords"));
+  if (kw) {
+    for (const part of kw.split(/[,;|/]+/)) {
+      if (out.length >= 12) break;
+      push(part);
+    }
+  }
+  return out;
+}
+
 /** Parse a full RSS document into episodes (most recent first). */
 export function parsePodcastFeed(xml: string): PodcastEpisode[] {
   const items: string[] = [];
@@ -138,6 +176,7 @@ export function parsePodcastFeed(xml: string): PodcastEpisode[] {
       audioUrl: /^https?:\/\//i.test(audioUrl) ? audioUrl : "",
       durationSec: parseDurationSec(durationRaw),
       pubDate,
+      categories: parseEpisodeCategories(ep),
     };
   });
 

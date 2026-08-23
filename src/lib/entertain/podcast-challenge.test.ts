@@ -25,6 +25,7 @@ const EPISODE: PodcastEpisode = {
   audioUrl: "https://cdn.example.com/ep1.mp3",
   durationSec: 3600,
   pubDate: "Tue, 01 Jan 2026 10:00:00 GMT",
+  categories: ["ideas"],
 };
 
 describe("episodeToTalk", () => {

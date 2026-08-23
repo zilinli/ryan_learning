@@ -54,6 +54,9 @@ function sanitizeEpisode(raw: unknown): PodcastEpisode | null {
     audioUrl,
     durationSec: Number(e.durationSec) || 0,
     pubDate: String(e.pubDate || ""),
+    categories: Array.isArray(e.categories)
+      ? e.categories.map((c) => String(c).slice(0, 80)).filter(Boolean).slice(0, 12)
+      : [],
   };
 }
 

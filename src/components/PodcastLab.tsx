@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type PodcastShow } from "@/lib/entertain/podcast-catalog";
 import type { PodcastEpisode } from "@/lib/entertain/podcast-rss";
+import type { PodcastEpisodeHit } from "@/lib/entertain/podcast-search";
 import { episodeDurationLabel } from "@/lib/entertain/podcast-challenge";
 import type { ChallengeItem } from "@/lib/entertain/ted-challenge";
 import { formatTedDifficultyLabel } from "@/lib/entertain/ted-challenge";
@@ -15,7 +16,7 @@ import {
 import { notifyCreationsChanged } from "@/lib/entertain/creations-sync";
 import { CrossLabSuggest } from "./CrossLabSuggest";
 
-type Phase = "shows" | "episodes" | "listen" | "challenge";
+type Phase = "browse" | "listen" | "challenge";
 
 type TranscriptJob = {
   id: string;
@@ -36,18 +37,40 @@ const TOPIC_LABELS: Record<TopicFilter, string> = {
   society: "Society",
 };
 
+function hitToShow(hit: PodcastEpisodeHit): PodcastShow {
+  return {
+    id: hit.showId,
+    title: hit.showTitle,
+    host: hit.showHost,
+    topics: hit.topics,
+    blurb: "",
+    kidFriendly: hit.kidFriendly,
+  };
+}
+
+function hitToEpisode(hit: PodcastEpisodeHit): PodcastEpisode {
+  return {
+    guid: hit.guid,
+    title: hit.title,
+    description: hit.description,
+    audioUrl: hit.audioUrl,
+    durationSec: hit.durationSec,
+    pubDate: hit.pubDate,
+    categories: hit.categories || [],
+  };
+}
+
 export function PodcastLab() {
   const { accountId, age, grade, gradeBand, englishLevel } = useActiveStudioAccount();
-  const [phase, setPhase] = useState<Phase>("shows");
-  const [shows, setShows] = useState<PodcastShow[]>([]);
+  const [phase, setPhase] = useState<Phase>("browse");
+  const [hits, setHits] = useState<PodcastEpisodeHit[]>([]);
+  const [listBusy, setListBusy] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [topicFilter, setTopicFilter] = useState<TopicFilter>("all");
+  const [nbHits, setNbHits] = useState(0);
 
   const [selectedShow, setSelectedShow] = useState<PodcastShow | null>(null);
-  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
-  const [episodesBusy, setEpisodesBusy] = useState(false);
-
   const [episode, setEpisode] = useState<PodcastEpisode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +79,8 @@ export function PodcastLab() {
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerRecord>>({});
   const pollAbortRef = useRef<AbortController | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchGenRef = useRef(0);
 
   const learner = useMemo(
     () => ({ age, grade, gradeBand, englishLevel }),
@@ -63,68 +88,58 @@ export function PodcastLab() {
   );
   const difficultyLabel = formatTedDifficultyLabel(learner);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch("/api/podcast/search");
-        const data = await readResponseJson<{
-          ok?: boolean;
-          shows?: PodcastShow[];
-          error?: string;
-        }>(res);
-        if (cancelled) return;
-        if (!data.ok || !data.shows) throw new Error(data.error || "Failed");
-        setShows(data.shows);
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not load shows");
-      }
-    })();
-    return () => {
-      cancelled = true;
-      pollAbortRef.current?.abort();
-    };
-  }, []);
-
-  const visibleShows = shows.filter((s) => {
-    const q = search.trim().toLowerCase();
-    const matchQ =
-      !q ||
-      s.title.toLowerCase().includes(q) ||
-      s.host.toLowerCase().includes(q) ||
-      s.topics.some((t) => t.toLowerCase().includes(q));
-    const matchTopic =
-      topicFilter === "all" ||
-      s.topics.includes(topicFilter) ||
-      (topicFilter === "kids" && s.kidFriendly);
-    return matchQ && matchTopic;
-  });
-
-  const openShow = useCallback(async (show: PodcastShow) => {
-    setSelectedShow(show);
-    setEpisodes([]);
-    setEpisodesBusy(true);
-    setLoadError("");
-    setPhase("episodes");
+  const runEpisodeSearch = useCallback(async (q: string, topic: TopicFilter) => {
+    searchAbortRef.current?.abort();
+    const ac = new AbortController();
+    searchAbortRef.current = ac;
+    const gen = ++searchGenRef.current;
+    setListBusy(true);
     try {
-      const res = await fetch(`/api/podcast/search?show=${encodeURIComponent(show.id)}`);
+      const params = new URLSearchParams({
+        mode: "search",
+        q: q.trim(),
+        topic,
+        page: "0",
+        pageSize: "36",
+      });
+      const res = await fetch(`/api/podcast/search?${params}`, { signal: ac.signal });
       const data = await readResponseJson<{
         ok?: boolean;
-        episodes?: PodcastEpisode[];
+        episodes?: PodcastEpisodeHit[];
+        nbHits?: number;
         error?: string;
       }>(res);
-      if (!data.ok || !data.episodes) throw new Error(data.error || "Failed");
-      setEpisodes(data.episodes);
+      if (gen !== searchGenRef.current) return;
+      if (!data.ok || !data.episodes) throw new Error(data.error || "Search failed");
+      setHits(data.episodes);
+      setNbHits(data.nbHits ?? data.episodes.length);
+      setLoadError("");
     } catch (e) {
+      if (ac.signal.aborted) return;
+      if (gen !== searchGenRef.current) return;
       setLoadError(e instanceof Error ? e.message : "Could not load episodes");
     } finally {
-      setEpisodesBusy(false);
+      if (gen === searchGenRef.current) setListBusy(false);
     }
   }, []);
 
-  const backToShows = useCallback(() => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void runEpisodeSearch(search, topicFilter);
+    }, search.trim() ? 350 : 0);
+    return () => window.clearTimeout(timer);
+  }, [search, topicFilter, runEpisodeSearch]);
+
+  useEffect(() => {
+    return () => {
+      pollAbortRef.current?.abort();
+      searchAbortRef.current?.abort();
+    };
+  }, []);
+
+  const backToBrowse = useCallback(() => {
     pollAbortRef.current?.abort();
-    setPhase("shows");
+    setPhase("browse");
     setSelectedShow(null);
     setEpisode(null);
     setChallenge(null);
@@ -132,8 +147,9 @@ export function PodcastLab() {
     setError("");
   }, []);
 
-  const openEpisode = useCallback((ep: PodcastEpisode) => {
-    setEpisode(ep);
+  const openHit = useCallback((hit: PodcastEpisodeHit) => {
+    setSelectedShow(hitToShow(hit));
+    setEpisode(hitToEpisode(hit));
     setChallenge(null);
     setTranscriptJob(null);
     setError("");
@@ -231,8 +247,8 @@ export function PodcastLab() {
     }
   }, [challenge, selectedShow, episode, answers, accountId]);
 
-  // ── Shows grid ────────────────────────────────────────────────────────
-  if (phase === "shows" || phase === "episodes") {
+  // ── Episode browse (title + category search) ───────────────────────────
+  if (phase === "browse") {
     return (
       <div className="flex flex-1 flex-col bg-[#1a1814] text-[#e8e2d8]">
         <div className="border-b border-white/10 px-4 py-6">
@@ -243,8 +259,8 @@ export function PodcastLab() {
             Listen. Then argue with it.
           </h2>
           <p className="mx-auto mt-2 max-w-md text-center text-sm text-[#a89f92]">
-            Real podcast episodes — audio only. We turn the audio into text,
-            then build a challenge at {difficultyLabel}.
+            Search real episode titles and topics — not just show names. Audio
+            only; we transcribe, then build a challenge at {difficultyLabel}.
           </p>
           <p className="mt-3 text-center text-[11px] text-[#8fb896]/90">
             First challenge on an episode needs a few minutes to transcribe.
@@ -252,128 +268,107 @@ export function PodcastLab() {
           </p>
         </div>
 
-        {phase === "shows" ? (
-          <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-auto px-4 py-6">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search shows — title, host, topic…"
-              className="min-h-11 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm outline-none focus:border-[#6db8a8]"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              {TOPIC_FILTERS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTopicFilter(t)}
-                  className={`min-h-9 rounded-lg px-3 text-xs capitalize ${
-                    topicFilter === t
-                      ? "bg-[#4f7356] text-white"
-                      : "border border-white/15 text-[#a89f92]"
-                  }`}
-                >
-                  {TOPIC_LABELS[t]}
-                </button>
-              ))}
-            </div>
-            {loadError ? <p className="text-sm text-[#e09a7a]">{loadError}</p> : null}
-            <ul className="space-y-2">
-              {visibleShows.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => void openShow(s)}
-                    className="w-full rounded-xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-[#6db8a8]/50"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold">{s.title}</div>
-                        <div className="mt-0.5 text-xs text-[#a89f92]">{s.host}</div>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-[#6db8a8]/15 px-2 py-0.5 text-[10px] font-medium text-[#6db8a8]">
-                        {s.kidFriendly ? "Kids" : "Listen"}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[12px] leading-snug text-[#c4b8a8]">
-                      {s.blurb}
-                    </p>
-                  </button>
-                </li>
-              ))}
-              {visibleShows.length === 0 && !loadError ? (
-                <p className="py-8 text-center text-sm text-[#a89f92]">No shows found.</p>
-              ) : null}
-            </ul>
+        <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 overflow-auto px-4 py-6">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search episodes — title, topic, category…"
+            className="min-h-11 w-full rounded-xl border border-white/15 bg-black/30 px-4 text-sm outline-none focus:border-[#6db8a8]"
+            aria-label="Search podcast episodes by title or category"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            {TOPIC_FILTERS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTopicFilter(t)}
+                className={`min-h-9 rounded-lg px-3 text-xs capitalize ${
+                  topicFilter === t
+                    ? "bg-[#4f7356] text-white"
+                    : "border border-white/15 text-[#a89f92]"
+                }`}
+              >
+                {TOPIC_LABELS[t]}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={listBusy}
+              onClick={() => void runEpisodeSearch(search, topicFilter)}
+              className="min-h-9 rounded-lg border border-white/15 px-3 text-xs text-[#a89f92] hover:border-[#6db8a8] disabled:opacity-40"
+            >
+              {listBusy ? "Searching…" : "Refresh"}
+            </button>
           </div>
-        ) : (
-          <div className="mx-auto w-full max-w-2xl flex-1 space-y-3 overflow-auto px-4 py-6">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={backToShows}
-                className="min-h-9 rounded-lg px-2 text-xs text-[#a89f92] hover:text-white"
-              >
-                ← All shows
-              </button>
-              <button
-                type="button"
-                disabled={episodesBusy}
-                onClick={() => selectedShow && void openShow(selectedShow)}
-                className="min-h-9 rounded-lg border border-white/15 px-3 text-xs text-[#a89f92] hover:border-[#6db8a8] disabled:opacity-40"
-              >
-                {episodesBusy ? "Loading…" : "Refresh episodes"}
-              </button>
-            </div>
-            {selectedShow ? (
-              <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-                <h3 className="text-sm font-semibold">{selectedShow.title}</h3>
-                <p className="mt-1 text-[12px] leading-snug text-[#a89f92]">
-                  {selectedShow.blurb}
-                </p>
-              </div>
-            ) : null}
-            {loadError ? <p className="text-sm text-[#e09a7a]">{loadError}</p> : null}
-            {episodesBusy && episodes.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#a89f92]">
-                Loading latest episodes…
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {episodes.map((ep) => (
-                  <li key={ep.guid}>
+          {!listBusy && nbHits > 0 ? (
+            <p className="text-[11px] text-[#a89f92]">
+              {nbHits} episode{nbHits === 1 ? "" : "s"}
+              {search.trim() ? ` matching “${search.trim()}”` : ""}
+            </p>
+          ) : null}
+          {loadError ? <p className="text-sm text-[#e09a7a]">{loadError}</p> : null}
+          {listBusy && hits.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#a89f92]">
+              Loading episodes across shows…
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {hits.map((hit) => {
+                const cats = [
+                  ...hit.topics.slice(0, 2),
+                  ...(hit.categories || []).slice(0, 2),
+                ].filter((c, i, arr) => arr.indexOf(c) === i);
+                return (
+                  <li key={`${hit.showId}:${hit.guid}`}>
                     <button
                       type="button"
-                      onClick={() => openEpisode(ep)}
+                      onClick={() => openHit(hit)}
                       className="w-full rounded-xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-[#6db8a8]/50"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold">{ep.title}</div>
+                          <div className="text-sm font-semibold">{hit.title}</div>
                           <div className="mt-1 text-[11px] text-[#a89f92]">
-                            {episodeDurationLabel(ep.durationSec) || "Audio"}
+                            {hit.showTitle}
+                            {hit.durationSec
+                              ? ` · ${episodeDurationLabel(hit.durationSec)}`
+                              : ""}
+                            {hit.kidFriendly ? " · Kids" : ""}
                           </div>
                         </div>
                         <span aria-hidden className="shrink-0 text-[#6db8a8]">
                           ▶
                         </span>
                       </div>
-                      {ep.description ? (
+                      {cats.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {cats.map((c) => (
+                            <span
+                              key={c}
+                              className="rounded-md bg-[#6db8a8]/12 px-1.5 py-0.5 text-[10px] capitalize text-[#6db8a8]"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {hit.description ? (
                         <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-[#c4b8a8]">
-                          {ep.description}
+                          {hit.description}
                         </p>
                       ) : null}
                     </button>
                   </li>
-                ))}
-                {episodes.length === 0 && !episodesBusy ? (
-                  <p className="py-8 text-center text-sm text-[#a89f92]">
-                    No episodes with playable audio found.
-                  </p>
-                ) : null}
-              </ul>
-            )}
-          </div>
-        )}
+                );
+              })}
+              {hits.length === 0 && !listBusy && !loadError ? (
+                <p className="py-8 text-center text-sm text-[#a89f92]">
+                  No episodes found. Try another title or topic.
+                </p>
+              ) : null}
+            </ul>
+          )}
+        </div>
       </div>
     );
   }
@@ -402,7 +397,7 @@ export function PodcastLab() {
             </div>
             <button
               type="button"
-              onClick={() => setPhase("episodes")}
+              onClick={backToBrowse}
               className="shrink-0 min-h-9 rounded-lg px-2 text-xs text-[#a89f92] hover:text-white"
             >
               Episodes
@@ -426,7 +421,6 @@ export function PodcastLab() {
             ) : null}
           </div>
 
-          {/* Cross-lab next stop */}
           <CrossLabSuggest from="podcast" tags={[...selectedShow.topics, episode.title]} />
 
           <div className="mx-auto w-full max-w-2xl px-4 pb-2">
@@ -497,7 +491,7 @@ export function PodcastLab() {
         busy={busy}
         onSave={saveChallenge}
         onBack={() => setPhase("listen")}
-        onBrowseAnother={() => setPhase("episodes")}
+        onBrowseAnother={backToBrowse}
         anotherLabel="Another episode"
       />
     );
