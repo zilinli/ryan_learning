@@ -29,6 +29,7 @@ const TYPE_BECOMING: Record<string, string> = {
   natgeo: "a nature explorer",
   bbc: "a documentary fan",
   rsa: "an ideas shaper",
+  podcast: "a podcast listener",
   painting: "an artist",
   comic: "a comic maker",
 };

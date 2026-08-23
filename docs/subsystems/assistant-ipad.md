@@ -55,12 +55,18 @@ Deploy UI currently hides the Native App tab; scaffold remains under `apps/spark
 
 ### Installers
 
-| Host | Script |
-|------|--------|
-| macOS | [`public/install/macos.sh`](../../public/install/macos.sh) |
-| Linux | [`public/install/linux.sh`](../../public/install/linux.sh) — systemd user unit `spark-bridge.service` |
+| Host | Script | Daemon | Watchdog |
+|------|--------|--------|----------|
+| macOS | [`public/install/macos.sh`](../../public/install/macos.sh) | LaunchAgent `org.spark.bridge` (`KeepAlive`, `gui/<uid>`) | `org.spark.bridge.watchdog` every 60s |
+| Linux | [`public/install/linux.sh`](../../public/install/linux.sh) | `systemd --user` `spark-bridge.service` + **linger** | `spark-bridge-watchdog.timer` every 1m |
 
-Bridge `restartSelf()` supports `systemctl --user restart spark-bridge` on Linux.
+Bridge `restartSelf()` supports `systemctl --user restart spark-bridge` on Linux and `launchctl kickstart` on macOS.
+
+**After install you can quit Termius.** The host daemon owns Bridge; iPad does not need to stay connected.
+
+Linux linger: if the installer warns, run once `sudo loginctl enable-linger $USER`.
+
+OpenClaw skills include `linux.md` / `ios.md` overlays so VPS nodes (common iPad SSH target) get CLI-first guidance; native iOS notes stay in `ios.md`.
 ---
 
 ## P1 — Native Spark Bridge iOS App

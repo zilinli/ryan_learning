@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Merge SKILL.md + {platform}.md into ~/.openclaw/workspace/skills/
+ * Platforms: darwin.md | win32.md | linux.md (iPad SSH → VPS) | ios.md (native notes)
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, cpSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -40,7 +41,12 @@ export function mergeSkills(outDir, platform = platformKey()) {
     for (const extra of readdirSync(skillDir)) {
       if (extra === "SKILL.md" || extra.endsWith(".md")) continue;
       const src = path.join(skillDir, extra);
-      writeFileSync(path.join(destDir, extra), readFileSync(src));
+      const dest = path.join(destDir, extra);
+      if (statSync(src).isDirectory()) {
+        cpSync(src, dest, { recursive: true });
+      } else {
+        writeFileSync(dest, readFileSync(src));
+      }
     }
   }
 }

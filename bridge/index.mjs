@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const SPARK_BRIDGE_VERSION = "2026.8.20-6";
+export const SPARK_BRIDGE_VERSION = "2026.8.21-1";
 /** Client must abort hung polls (proxy 502 / half-open TCP); server wait is ~25s. */
 const POLL_TIMEOUT_MS = 45_000;
 /** Keep /control SSE alive while OpenClaw runs long tool loops. */
@@ -52,18 +52,44 @@ function logLine(msg) {
 const DEBUG_LINE =
   /^\s*(\[agents\/|\[provider-|\[openclaw|tool policy removed|stopReason=|model-fetch|elapsedMs)/i;
 
+/** Lines that belong inside OpenClaw's boxed "Config warnings" / plugin install noise. */
+const CONFIG_WARN_START = /Config warnings/i;
+const CONFIG_WARN_CLOSE = /^[ \t]*[+└╰╔╚][-─=]{3,}/;
+const BOX_LINE = /^[ \t]*[|│╔║]/;
+const PLUGIN_NOISE =
+  /plugin not installed|unknown channel id|stale channel plugin|openclaw doctor --fix|plugins\.entries\.|channels\.openclaw-weixin|@openclaw\/(deepseek|qwen)|@tencent-weixin\/openclaw-weixin|official external plugin/i;
+
 export function stripAgentDebug(text) {
   if (!text) return "";
-  return text
-    .split(/\r?\n/)
-    .filter((line) => {
-      const t = line.trim();
-      if (!t) return true;
-      if (DEBUG_LINE.test(t)) return false;
-      if (/^\[agents\//.test(t)) return false;
-      if (/ended with\s+stopReason=/i.test(t)) return false;
-      return true;
-    })
+  const out = [];
+  let inConfigWarn = false;
+  for (const line of String(text).split(/\r?\n/)) {
+    const t = line.trim();
+    if (CONFIG_WARN_START.test(line)) {
+      inConfigWarn = true;
+      continue;
+    }
+    if (inConfigWarn) {
+      if (CONFIG_WARN_CLOSE.test(line) || (!BOX_LINE.test(line) && t && !PLUGIN_NOISE.test(t))) {
+        inConfigWarn = false;
+        // closing border → drop; real content after box → keep
+        if (CONFIG_WARN_CLOSE.test(line) || !t) continue;
+      } else {
+        continue;
+      }
+    }
+    if (!t) {
+      out.push(line);
+      continue;
+    }
+    if (DEBUG_LINE.test(t)) continue;
+    if (/^\[agents\//.test(t)) continue;
+    if (/ended with\s+stopReason=/i.test(t)) continue;
+    if (PLUGIN_NOISE.test(t)) continue;
+    if (/^[+|└┌╭╰╔╚║│][-─=\s+|└┌╭╰╔╚║│]*$/.test(t)) continue;
+    out.push(line);
+  }
+  return out
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

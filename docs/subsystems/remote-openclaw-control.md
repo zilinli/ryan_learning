@@ -1,6 +1,6 @@
 # Remote OpenClaw — Deploy, Control & Spark Bridge
 
-> Updated 2026-08-20 · Bridge version **2026.8.20-5**
+> Updated 2026-08-20 · Bridge version **2026.8.21-1**
 
 Spark lets a browser talk to a **paired home PC** running OpenClaw. The tutor site stays cloud-hosted; agent work (files, shell, WeChat, workbench) runs locally on macOS or Windows.
 
@@ -159,7 +159,7 @@ Bridge `runOpenClaw()` tries, in order:
 Implementation details:
 
 - `spawn("openclaw", args)` — **no** `shell: true`; message is one argv or a file.
-- Debug lines (`[agents/…]`, `stopReason=`, `provider-transport-fetch`, …) stripped via `stripAgentDebug()` before user-visible text; full stderr goes to `bridge.log`.
+- Debug lines (`[agents/…]`, `stopReason=`, `provider-transport-fetch`, …) and OpenClaw **Config warnings** boxes (missing plugins / stale channels) are stripped via `stripAgentDebug()` before user-visible text; full stderr goes to `bridge.log`.
 - `openclawEnv()` extends `PATH` for LaunchAgent / schtasks (Homebrew, npm global, nvm).
 
 Bump `SPARK_BRIDGE_VERSION` in `public/install/spark-bridge.mjs` and `CURRENT_BRIDGE_VERSION` in `store.ts` + `control-server.mjs` together; rebuild `assistant.tar.gz` if needed; `pm2 restart spark-control`.

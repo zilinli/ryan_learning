@@ -205,9 +205,14 @@ cat > "$PLIST" <<EOF
 </plist>
 EOF
 
-launchctl unload "$PLIST" 2>/dev/null || true
-launchctl load "$PLIST"
-launchctl start org.spark.bridge || true
+# Prefer gui/<uid> domain so Bridge survives SSH logout (e.g. iPad Termius).
+UID_NUM="$(id -u)"
+GUI_DOMAIN="gui/${UID_NUM}"
+launchctl bootout "$GUI_DOMAIN/org.spark.bridge" 2>/dev/null || launchctl unload "$PLIST" 2>/dev/null || true
+if ! launchctl bootstrap "$GUI_DOMAIN" "$PLIST" 2>/dev/null; then
+  launchctl load "$PLIST" 2>/dev/null || true
+fi
+launchctl kickstart -k "$GUI_DOMAIN/org.spark.bridge" 2>/dev/null || launchctl start org.spark.bridge || true
 
 echo "Installing Spark Bridge watchdog..."
 spark_download "$SPARK_URL/install/spark-bridge-watchdog.sh" "${BRIDGE_DIR}/watchdog.sh"
@@ -243,9 +248,12 @@ cat > "$WATCH_PLIST" <<EOF
 </dict>
 </plist>
 EOF
-launchctl unload "$WATCH_PLIST" 2>/dev/null || true
-launchctl load "$WATCH_PLIST"
-launchctl start org.spark.bridge.watchdog || true
+launchctl bootout "$GUI_DOMAIN/org.spark.bridge.watchdog" 2>/dev/null || launchctl unload "$WATCH_PLIST" 2>/dev/null || true
+if ! launchctl bootstrap "$GUI_DOMAIN" "$WATCH_PLIST" 2>/dev/null; then
+  launchctl load "$WATCH_PLIST" 2>/dev/null || true
+fi
+launchctl kickstart -k "$GUI_DOMAIN/org.spark.bridge.watchdog" 2>/dev/null || launchctl start org.spark.bridge.watchdog || true
 
-echo "Spark Bridge started. Open ${SPARK_URL}/deploy — node should go online."
+echo "Spark Bridge started (LaunchAgent + watchdog). Open ${SPARK_URL}/deploy — node should go online."
 echo "Then chat at ${SPARK_URL}/control"
+echo "Safe to close Termius / SSH — Bridge keeps running in the background (org.spark.bridge)."

@@ -55,6 +55,8 @@ yarn-error.log*
 /data/deletions/
 /data/console/
 /data/nodes/
+/data/interests/
+/data/usage/
 /data/dialect-feedback.jsonl
 /data/tts-cache/
 /data/ted-cache/

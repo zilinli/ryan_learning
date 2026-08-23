@@ -65,6 +65,7 @@ export function suggestLabFromText(text: string): LabRecommendation | null {
     natgeo: "想出去看看世界?NatGeo Lab 有超棒的纪录片等着你。",
     bbc: "BBC Doc Lab 里有很多值得一看的纪录片,去逛逛?",
     rsa: "RSA Lab 里有关于教育、创造力的短演讲,去听听?",
+    podcast: "Podcast Lab 里有真实英文播客——先听,再和 AI 老师聊聊你的想法。",
   };
   return {
     labId,

@@ -1,6 +1,6 @@
 # OpenClaw Assistant — unified module
 
-Cross-platform OpenClaw configuration for **macOS** and **Windows**, with stubs for future **iOS** / **Android**. Replaces the archived standalone repos:
+Cross-platform OpenClaw configuration for **macOS**, **Windows**, and **Linux** (iPad SSH → VPS), with **iOS** notes for the native Bridge app. Replaces the archived standalone repos:
 
 - [zilinli/ai_assistant_mac](https://github.com/zilinli/ai_assistant_mac)
 - [zilinli/ai_assistant_win](https://github.com/zilinli/ai_assistant_win)
@@ -25,21 +25,24 @@ assistant/
 ├── platforms/
 │   ├── darwin/                 # install.sh, backup.sh, LaunchAgent helpers
 │   ├── win32/                  # install.ps1, backup.ps1
-│   ├── ios/README.md           # Stub
+│   ├── linux/                  # install.sh (VPS / iPad SSH host)
+│   ├── ios/README.md           # SSH daemon path + native app notes
 │   └── android/README.md       # Stub
 └── scripts/
     ├── merge-config.mjs        # base + platform → ~/.openclaw/openclaw.json
-    └── merge-skills.mjs        # SKILL.md + darwin.md|win32.md → merged skill
+    └── merge-skills.mjs        # SKILL.md + darwin|win32|linux|ios.md → merged skill
 ```
+
+Skills ship platform overlays (`darwin.md` / `win32.md` / `linux.md` / `ios.md`) for all core skills. Bridge installers register a **daemon + watchdog** on Mac / Windows / Linux so iPad Termius can disconnect after deploy.
 
 ---
 
 ## What `install.mjs` does
 
 1. Creates `~/.openclaw` layout (agents, workspace, tasks, costs, workbench).
-2. Merges `openclaw.base.json` with `darwin.json` or `win32.json`.
+2. Merges `openclaw.base.json` with `darwin.json` / `win32.json` / `linux.json`.
 3. Syncs workspace docs (`AGENTS.md`, `WEIXIN_COMMANDS.md`, …) and **skills**.
-4. Merges platform-specific skill appendices (`darwin.md` / `win32.md`).
+4. Merges platform-specific skill appendices (`darwin.md` / `win32.md` / `linux.md` / `ios.md`).
 5. Copies workbench to `~/openclaw-workbench` (preserves history/sessions).
 6. Runs `platforms/<platform>/install.sh` or `install.ps1` (venv, gateway, etc.).
 

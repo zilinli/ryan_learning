@@ -73,5 +73,16 @@ $taskName = "SparkBridge"
 schtasks /Delete /TN $taskName /F 2>$null | Out-Null
 schtasks /Create /TN $taskName /SC ONLOGON /RL LIMITED /TR "`"$startCmd`"" /F | Out-Null
 Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$startCmd`"" -WindowStyle Hidden
-Write-Host "Spark Bridge started. Open $SparkUrl/deploy — node should go online."
+
+Write-Host "Installing Spark Bridge watchdog..."
+$watchPs1 = Join-Path $BridgeDir "watchdog.ps1"
+Invoke-WebRequest -UseBasicParsing -Uri "$SparkUrl/install/spark-bridge-watchdog.ps1" -OutFile $watchPs1
+$watchTask = "SparkBridgeWatchdog"
+$watchTr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchPs1`""
+schtasks /Delete /TN $watchTask /F 2>$null | Out-Null
+schtasks /Create /TN $watchTask /SC MINUTE /MO 1 /RL LIMITED /TR $watchTr /F | Out-Null
+schtasks /Run /TN $watchTask 2>$null | Out-Null
+
+Write-Host "Spark Bridge started (ONLOGON task + 1-min watchdog). Open $SparkUrl/deploy — node should go online."
 Write-Host "Then chat at $SparkUrl/control"
+Write-Host "Keep Windows user session available at logon; watchdog restarts Bridge if it dies."

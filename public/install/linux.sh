@@ -124,12 +124,59 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin:${HOME_DIR}/.nvm/versions/node/$(n
 WantedBy=default.target
 EOF
 
+# Linger FIRST so user services survive SSH/Termius logout (may need passwordless sudo once).
+LINGER_OK=0
+if loginctl enable-linger "$(whoami)" 2>/dev/null; then
+  LINGER_OK=1
+elif sudo -n loginctl enable-linger "$(whoami)" 2>/dev/null; then
+  LINGER_OK=1
+fi
+if [[ "$LINGER_OK" != 1 ]]; then
+  echo "WARNING: could not enable linger automatically."
+  echo "  Run once (as root):  sudo loginctl enable-linger $(whoami)"
+  echo "  Without linger, Bridge may stop when Termius disconnects."
+fi
+
 systemctl --user daemon-reload
 systemctl --user enable spark-bridge.service
 systemctl --user restart spark-bridge.service
-# Optional: keep user services after logout (may need root once)
-loginctl enable-linger "$(whoami)" 2>/dev/null || echo "Note: run 'sudo loginctl enable-linger $USER' for Bridge to survive SSH logout."
 
-echo "Spark Bridge started (systemd --user spark-bridge). Open ${SPARK_URL}/deploy — node should go online as linux."
+echo "Installing Spark Bridge watchdog (systemd timer)..."
+spark_download "$SPARK_URL/install/spark-bridge-watchdog.sh" "${BRIDGE_DIR}/watchdog.sh"
+chmod +x "${BRIDGE_DIR}/watchdog.sh"
+WATCH_SVC="${UNIT_DIR}/spark-bridge-watchdog.service"
+WATCH_TIMER="${UNIT_DIR}/spark-bridge-watchdog.timer"
+cat > "$WATCH_SVC" <<EOF
+[Unit]
+Description=Spark Bridge watchdog (one-shot check)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash ${BRIDGE_DIR}/watchdog.sh
+Environment=HOME=${HOME_DIR}
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:${HOME_DIR}/.nvm/versions/node/$(node -v 2>/dev/null | tr -d v || echo '')/bin
+EOF
+cat > "$WATCH_TIMER" <<EOF
+[Unit]
+Description=Run Spark Bridge watchdog every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Unit=spark-bridge-watchdog.service
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now spark-bridge-watchdog.timer
+systemctl --user start spark-bridge-watchdog.service || true
+
+echo "Spark Bridge started (systemd --user spark-bridge + watchdog timer)."
+echo "Open ${SPARK_URL}/deploy — node should go online as linux."
 echo "Then chat at ${SPARK_URL}/control"
+echo "Safe to close Termius / SSH — Bridge keeps running in the background."
 echo "Logs: journalctl --user -u spark-bridge -f"
+echo "Watchdog: systemctl --user status spark-bridge-watchdog.timer"
