@@ -20,12 +20,12 @@
 > **Design:** [subsystems/podcast-lab.md §1.2b](subsystems/podcast-lab.md)
 > **Goal:** Search/browse 展示具体单集 title 与分类；节目名仅作副行元数据。
 
-- [ ] **PL-S.1** — RSS 解析 `categories`；扩展 `PodcastEpisode`
-- [ ] **PL-S.2** — `podcast-search.ts` 跨节目聚合 + title/categories/topics 过滤 + 分页
-- [ ] **PL-S.3** — `/api/podcast/search?mode=search` 返回 `PodcastEpisodeHit[]`
-- [ ] **PL-S.4** — `PodcastLab.tsx` 默认单集列表 + 搜索占位「Search episodes…」
-- [ ] **PL-S.5** — 单测（rss categories / podcast-search / search route）+ run_tests
-- [ ] **PL-S.6** — apply_changes → publish_develop → deploy_live
+- [x] **PL-S.1** — RSS 解析 `categories`；扩展 `PodcastEpisode`
+- [x] **PL-S.2** — `podcast-search.ts` 跨节目聚合 + title/categories/topics 过滤 + 分页
+- [x] **PL-S.3** — `/api/podcast/search?mode=search` 返回 `PodcastEpisodeHit[]`
+- [x] **PL-S.4** — `PodcastLab.tsx` 默认单集列表 + 搜索占位「Search episodes…」
+- [x] **PL-S.5** — 单测（rss categories / podcast-search / search route）+ run_tests
+- [x] **PL-S.6** — apply_changes → publish_develop → deploy_live（`eece2e4`，线上已验证 mode=search）
 
 ---
 
