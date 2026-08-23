@@ -62,6 +62,8 @@ yarn-error.log*
 /data/natgeo-cache/
 /data/podcast-cache/
 /data/podcast-audio/
+/data/interests/
+/data/usage/
 /vendor/taiwanese-hakka-tts/
 /.venv-formospeech/
 
