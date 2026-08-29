@@ -5,7 +5,12 @@ import type { ConversationRecord } from "@/lib/types";
 import type { LearningMemory } from "@/lib/learning-memory";
 import { MAX_CONVERSATIONS, MAX_TOTAL_MESSAGES } from "@/lib/storage";
 import { searchConversations } from "@/lib/history-retention";
-import { SPARK_GITHUB_URL } from "@/lib/site";
+import {
+  LENNON_PROFILE_EYEBROW,
+  LENNON_PROFILE_NAME,
+  LENNON_PROFILE_URL,
+  SPARK_GITHUB_URL,
+} from "@/lib/site";
 import {
   buildFocusGuardrail,
   dismissFocusGuardrail,
@@ -385,6 +390,19 @@ export function HistorySidebar({
             )}
           </div>
         ) : null}
+        <a
+          href={LENNON_PROFILE_URL}
+          target="_blank"
+          rel="noreferrer"
+          title="Lennon Lee — career profile"
+          className="mt-0.5 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[var(--line)]/55 bg-[var(--surface)]/50 px-3 text-[13px] text-[var(--ink-muted)] transition hover:border-[var(--teal)]/40 hover:bg-[var(--teal)]/8 hover:text-[var(--teal)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--teal)]"
+        >
+          <span className="font-medium tracking-wide">{LENNON_PROFILE_EYEBROW}</span>
+          <span className="font-semibold text-[var(--ink)]">{LENNON_PROFILE_NAME}</span>
+          <span aria-hidden className="text-[11px] opacity-60">
+            ↗
+          </span>
+        </a>
       </div>
     </aside>
   );
