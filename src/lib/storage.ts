@@ -17,6 +17,11 @@ import {
 } from "./tenant-storage";
 import { slimQuote } from "./quote";
 import { isLargeBinaryAttachment } from "./attachments";
+import {
+  accountDeepLinkParamFromUrl,
+  resolveDeepLinkAccountId,
+} from "./account-deep-link";
+import { loadAccounts } from "./student-profile";
 
 const LEGACY_KEY = "spark-tutor-session-v2";
 const STORE_KEY = FLAT_KEYS.sessions;
@@ -40,17 +45,45 @@ export function sessionIdFromUrl(): string | null {
   }
 }
 
-/** Read accountId from URL (?account=acct_ching) for cross-account deep-links. */
+/**
+ * Read accountId from URL (`?account=acct_ching` or profile name/slug).
+ * Id-shaped values return immediately; names resolve against the local roster.
+ */
 export function accountIdFromUrl(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const params = new URLSearchParams(window.location.search);
-    const a = (params.get("account") || "").trim();
-    if (!a || a.length > 80) return null;
-    if (!/^acct_[A-Za-z0-9_-]+$/.test(a) && a !== "default") return null;
-    return a === "default" ? "acct_ryan" : a;
+    const param = accountDeepLinkParamFromUrl();
+    if (!param) return null;
+    if (param === "default") return "acct_ryan";
+    if (/^acct_[A-Za-z0-9_-]+$/.test(param)) return param;
+    return resolveDeepLinkAccountId(param, loadAccounts().accounts);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Keep the address bar in sync with the active student (+ optional session).
+ * Switching accounts always writes `?account=` so the URL is shareable/bookmarkable.
+ */
+export function setUrlAccount(
+  accountId: string,
+  sessionId?: string | null,
+): void {
+  if (typeof window === "undefined" || !accountId) return;
+  try {
+    const url = new URL(window.location.href);
+    const aid = accountId === "default" ? "acct_ryan" : accountId;
+    url.searchParams.set("account", aid);
+    if (sessionId && sessionId.length > 0) {
+      url.searchParams.set("session", sessionId);
+    } else {
+      // Account-only deep links should not keep a previous student's session id.
+      url.searchParams.delete("session");
+    }
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    // ignore
   }
 }
 

@@ -77,11 +77,16 @@ import {
   loadConversations,
   newSessionId,
   saveConversations,
-  accountIdFromUrl,
   sessionIdFromUrl,
+  setUrlAccount,
   setUrlSession,
   titleFromMessages,
 } from "@/lib/storage";
+import {
+  accountDeepLinkParamFromUrl,
+  applyAccountDeepLink,
+  resolveDeepLinkAccountId,
+} from "@/lib/account-deep-link";
 import {
   deleteServerChat,
   hydrateFromServer,
@@ -404,16 +409,15 @@ export function useTutorSession() {
     const t = setTimeout(() => {
     try {
       // 1. Resolve account synchronously — honor ?account= deep-link first
+      //    (id, "default", or profile name/slug). Pin intent so roster hydrate
+      //    cannot clobber it back to the previous student.
       let accts = loadAccounts();
-      const urlAccount = accountIdFromUrl();
+      const urlParam = accountDeepLinkParamFromUrl();
       const urlSession = sessionIdFromUrl();
-      if (
-        urlAccount &&
-        accts.accounts.some((a) => a.id === urlAccount) &&
-        urlAccount !== accts.activeId
-      ) {
-        accts = switchAccount(urlAccount, accts);
-        deepLinkAccountRef.current = urlAccount;
+      const linked = applyAccountDeepLink(accts, urlParam);
+      accts = linked.store;
+      if (linked.accountId) {
+        deepLinkAccountRef.current = linked.accountId;
       }
       let active = getActiveAccount(accts);
       let aid = active.id;
@@ -450,9 +454,16 @@ export function useTutorSession() {
       setLearningMemory(mem);
       setStore(conversations);
       setReady(true);
-      if (urlSession && urlSession.length > 4) {
-        setUrlSession(urlSession, aid);
-      }
+      // Always reflect the active student in the URL (shareable / bookmarkable).
+      const sessionForUrl =
+        urlSession &&
+        urlSession.length > 4 &&
+        conversations.conversations.some((c) => c.sessionId === urlSession)
+          ? urlSession
+          : conversations.conversations.length > 0
+            ? conversations.activeId
+            : null;
+      setUrlAccount(aid, sessionForUrl);
 
       // 4. Non-blocking background work
       void hydrateLearningMemoryFromServer(aid).then((m) => {
@@ -462,6 +473,49 @@ export function useTutorSession() {
       // Hydrate accounts from server so they're shared across devices
       void hydrateAccountsFromServer().then((hydrated) => {
         if (cancelled) return;
+        const want =
+          resolveDeepLinkAccountId(
+            deepLinkAccountRef.current || urlParam,
+            hydrated.accounts,
+          ) || deepLinkAccountRef.current;
+        if (want && hydrated.accounts.some((a) => a.id === want)) {
+          const applied = applyAccountDeepLink(hydrated, want);
+          deepLinkAccountRef.current = want;
+          setAccounts(applied.store.accounts);
+          if (want !== accountIdRef.current) {
+            accountIdRef.current = want;
+            const fresh = getActiveAccount(applied.store);
+            setAccountId(want);
+            setAccountName(fresh.profile.name);
+            setVoiceEnabled(loadSpeakEnabled(want));
+            voiceEnabledRef.current = loadSpeakEnabled(want);
+            const oVid = loadVoiceId(want);
+            setVoiceId(oVid);
+            voiceIdRef.current = oVid;
+            setEngagement(loadEngagement(want));
+            setLearningMemory(loadLearningMemory(want));
+            void hydrateLearningMemoryFromServer(want).then((m) => {
+              if (!cancelled && accountIdRef.current === want) {
+                setLearningMemory(m);
+              }
+            });
+            const nextStore = loadConversations(want);
+            storeRef.current = nextStore;
+            setStore(nextStore);
+            setUrlAccount(
+              want,
+              nextStore.conversations.length > 0 ? nextStore.activeId : null,
+            );
+          } else {
+            setUrlAccount(
+              want,
+              storeRef.current?.conversations.length
+                ? storeRef.current.activeId
+                : null,
+            );
+          }
+          return;
+        }
         setAccounts(hydrated.accounts);
         // Never clobber a deep-link account with server "last active"
         if (deepLinkAccountRef.current) return;
@@ -1042,9 +1096,11 @@ export function useTutorSession() {
     setStore(nextStore);
     setError("");
     stopSpeakAll();
-    if (nextStore.conversations.length > 0) {
-      setUrlSession(nextStore.activeId, id);
-    }
+    // Always mirror the active student in the address bar (`?account=`).
+    setUrlAccount(
+      id,
+      nextStore.conversations.length > 0 ? nextStore.activeId : null,
+    );
     // Background: hydrate new account's conversations from server, restore
     // photos from vault, and fetch any still-missing photos from server media.
     void (async () => {
@@ -1057,6 +1113,10 @@ export function useTutorSession() {
       if (accountIdRef.current !== id) return;
       setStore(final);
       saveConversations(final, id);
+      setUrlAccount(
+        id,
+        final.conversations.length > 0 ? final.activeId : null,
+      );
       await ingestStorePhotos(final);
       void pushStoreToServer(final, id);
     })();

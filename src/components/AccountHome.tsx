@@ -18,6 +18,7 @@ import {
   type EnglishLevel,
 } from "@/lib/student-profile";
 import { TenantStorage } from "@/lib/tenant-storage";
+import { setUrlAccount } from "@/lib/storage";
 
 const MAX_ACCOUNTS = 20;
 const SUBJECTS = ["math", "science", "reading", "writing", "general"] as const;
@@ -197,6 +198,7 @@ export function AccountHome() {
     setStore(next);
     setEditingId(id);
     applyProfile(getActiveAccount(next).profile);
+    setUrlAccount(id, null);
     const acct = next.accounts.find((a) => a.id === id);
     setNotice(`Switched to ${acct?.profile.name ?? "account"}.`);
   };
