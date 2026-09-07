@@ -17,8 +17,12 @@ import {
   type AccountsStore,
   type EnglishLevel,
 } from "@/lib/student-profile";
-import { TenantStorage } from "@/lib/tenant-storage";
+import {
+  applyAccountDeepLink,
+  accountDeepLinkParamFromUrl,
+} from "@/lib/account-deep-link";
 import { setUrlAccount } from "@/lib/storage";
+import { TenantStorage } from "@/lib/tenant-storage";
 
 const MAX_ACCOUNTS = 20;
 const SUBJECTS = ["math", "science", "reading", "writing", "general"] as const;
@@ -54,20 +58,46 @@ export function AccountHome() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState(0);
 
+  const applyProfile = (p: typeof initialActive.profile) => {
+    setName(p.name);
+    setAge(p.age);
+    setGrade(p.grade);
+    setEnglishLevel(p.englishLevel);
+    setSchool(p.school || "");
+    setSubjects(
+      p.curriculum?.subjects?.length ? [...p.curriculum.subjects] : ["math"],
+    );
+  };
+
+  // Honor ?account= on first paint (client-only; SSR has no search params).
   useEffect(() => {
+    const urlParam = accountDeepLinkParamFromUrl();
+    const linked = applyAccountDeepLink(loadAccounts(), urlParam);
+    setStore(linked.store);
+    const active = getActiveAccount(linked.store);
+    setEditingId(active.id);
+    applyProfile(active.profile);
+    setUrlAccount(active.id, null);
+
     let cancelled = false;
     void hydrateAccountsFromServer().then((hydrated) => {
       if (cancelled) return;
-      setStore(hydrated);
-      // Keep the form in sync unless the user is mid-edit of a local-only account
-      // that the server doesn't know about yet.
+      const again = applyAccountDeepLink(hydrated, urlParam);
+      setStore(again.store);
+      if (again.matched && again.accountId) {
+        setUrlAccount(again.accountId, null);
+        setEditingId(again.accountId);
+        applyProfile(getActiveAccount(again.store).profile);
+        return;
+      }
       const editingStillExists =
         editingId === "new" ||
-        hydrated.accounts.some((a) => a.id === editingId);
+        again.store.accounts.some((a) => a.id === editingId);
       if (!editingStillExists) {
-        const active = getActiveAccount(hydrated);
-        setEditingId(active.id);
-        applyProfile(active.profile);
+        const nextActive = getActiveAccount(again.store);
+        setEditingId(nextActive.id);
+        applyProfile(nextActive.profile);
+        setUrlAccount(nextActive.id, null);
       }
     });
     return () => {
@@ -85,17 +115,6 @@ export function AccountHome() {
   }
 
   const active = getActiveAccount(store);
-
-  const applyProfile = (p: typeof initialActive.profile) => {
-    setName(p.name);
-    setAge(p.age);
-    setGrade(p.grade);
-    setEnglishLevel(p.englishLevel);
-    setSchool(p.school || "");
-    setSubjects(
-      p.curriculum?.subjects?.length ? [...p.curriculum.subjects] : ["math"],
-    );
-  };
 
   const startEditing = (id: string) => {
     setEditingId(id);
@@ -151,6 +170,7 @@ export function AccountHome() {
     setStore(next);
     setEditingId(next.activeId);
     applyProfile(getActiveAccount(next).profile);
+    setUrlAccount(next.activeId, null);
     setNotice(`Created account "${trimmed}" (Grade ${grade}).`);
   };
 
@@ -230,6 +250,7 @@ export function AccountHome() {
       setStore(next);
       setEditingId(nextActiveId);
       applyProfile(getActiveAccount(next).profile);
+      setUrlAccount(nextActiveId, null);
       setNotice(
         `Account deleted. Switched to ${getActiveAccount(next).profile.name}.`,
       );
@@ -591,7 +612,7 @@ export function AccountHome() {
         ) : null}
 
         <Link
-          href="/"
+          href={`/?account=${encodeURIComponent(active.id)}`}
           className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-[var(--action-bg)] px-5 py-3 text-sm font-medium text-[var(--action-ink)] transition hover:opacity-90"
         >
           Continue to tutor →
