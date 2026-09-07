@@ -19,6 +19,9 @@ const FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
     <pubDate>Tue, 01 Jan 2026 10:00:00 GMT</pubDate>
     <enclosure url="https://cdn.example.com/ep1.mp3" length="123" type="audio/mpeg"/>
     <itunes:duration>1:02:33</itunes:duration>
+    <itunes:category text="Science"/>
+    <category>Nature</category>
+    <itunes:keywords>whales, ocean, kids</itunes:keywords>
   </item>
   <item>
     <title>Second Episode</title>
@@ -60,6 +63,9 @@ describe("parsePodcastFeed", () => {
     expect(ep.durationSec).toBe(3753);
     expect(ep.guid).toBe("abc-123");
     expect(ep.pubDate).toContain("2026");
+    expect(ep.categories).toEqual(
+      expect.arrayContaining(["Science", "Nature", "whales", "ocean", "kids"]),
+    );
   });
 
   it("falls back to title-based guid when guid is missing", () => {

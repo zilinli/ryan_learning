@@ -388,8 +388,8 @@ export function loadConversations(accountId: string): ConversationsStore { ... }
 
 ### 8.4 Account Count Limit
 
-- Soft cap: 6 accounts per device (practical for family/classroom)
-- localStorage quota: ~5MB per origin. With 6 accounts, ~800KB each
+- Soft cap: 20 accounts per device (practical for family/classroom)
+- localStorage quota: ~5MB per origin. With 20 accounts, ~250KB each
 - Server storage: one JSON file per account, negligible
 
 ---
@@ -454,7 +454,7 @@ PIN-gate, deletion, empty states.
 |---|------|--------|-------|
 | MT-E.1 | Account deletion with two-step confirmation + PIN-gate | 1h | `AccountHome.tsx`, `PinGate.tsx` |
 | MT-E.2 | Per-account empty state messaging (grade-band-appropriate) | 0.5h | `ChatThread.tsx`, `TutorShell.tsx` |
-| MT-E.3 | Account limit enforcement (max 6) with friendly message | 0.5h | `AccountHome.tsx` |
+| MT-E.3 | Account limit enforcement (max 20) with friendly message | 0.5h | `AccountHome.tsx` |
 
 ---
 
@@ -473,7 +473,7 @@ PIN-gate, deletion, empty states.
 | Risk | Mitigation |
 |------|-----------|
 | Breaking Ryan's existing data | Migration is **additive** — flat keys are never deleted, only read and copied. Regression test suite must pass at every phase boundary. |
-| localStorage quota with 6 accounts | Engagement + TTS voice are tiny. Chat history has per-message character caps. Learning memory caps at 24 skills. Total per-account <200KB. |
+| localStorage quota with 20 accounts | Engagement + TTS voice are tiny. Chat history has per-message character caps. Learning memory caps at 24 skills. Total per-account <200KB. |
 | Server data mismatch after migration | Default `accountId` = `"default"` maps to existing server files. Ryan keeps his server data untouched. |
 | Account switching feels slow | All data is in localStorage (synchronous read). Switch is instant. Server sync is async, non-blocking. |
 | Kid deletes sibling's account | Deletion requires PIN + two-step confirmation. Ryan account cannot be deleted. |

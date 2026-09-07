@@ -291,7 +291,7 @@ Spark supports multiple students on a single device — siblings, classmates, or
 | **Shared settings** | Theme and parent PIN are device-wide (same for every account) |
 | **Switching** | Tap the account avatar in the header — instant switch, no login required |
 | **Creation gate** | Adding, editing, or deleting accounts requires the parent PIN |
-| **Account limit** | Up to 6 accounts per device |
+| **Account limit** | Up to 20 accounts per device |
 | **Cross-device sync** | Accounts sync globally via server — create on iPad, see on laptop |
 
 Design: **[docs/subsystems/multi-tenant-isolation.md](docs/subsystems/multi-tenant-isolation.md)** — includes header layout spec, industry design references (Khan Academy Kids, ABCmouse, shadcn/ui, Duolingo), and global cross-device account sync. Also see [PIN gate](docs/subsystems/parent-gate.md) and [deletion sync](docs/subsystems/deletion-sync-and-themes.md).

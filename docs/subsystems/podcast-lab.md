@@ -18,9 +18,19 @@
 |---|---|---|
 | 媒体 | 视频（官方 iframe embed） | **纯音频**（原生 `<audio>`） |
 | 转写来源 | TED 官方字幕（`ted-transcript.ts`） | **音频真实转写**（本功能核心差异） |
-| 内容目录 | TED.com 实时搜索 + 精选 40 集 | 精选播客目录 + 每节目 RSS 单集列表 |
+| 内容目录 | TED.com 实时搜索 + 精选 40 集 | 跨节目聚合 **单集**（title/分类）搜索；节目名仅作次要元数据 |
 | 挑战引擎 | `buildFallbackChallenge` + Cursor Agent polish | **完全复用**同一引擎 |
 | 讨论 / 保存 / 学习记忆 | `LabDiscussDialogue` / creations / `recordStudioLearningTurn` | **完全复用** |
+
+### 1.2b 搜索修复（episode-first）· 2026-08-23
+
+**问题：** Browse/Search 列表绑在节目（show）名上（如 “TED Talks Daily”），学生需要按**具体单集 title** 与 **分类/主题** 发现内容，不是节目总名。
+
+**方案：**
+1. RSS 解析补 `categories`（`itunes:category` / `category` / `itunes:keywords`）。
+2. 新增 `podcast-search.ts`：并行拉取目录内各节目 feed（磁盘缓存），聚合成单集命中；按 `q` 匹配 **episode.title / description / categories** 与 show.topics；topic chip 过滤 show.topics 或 episode.categories。
+3. `GET /api/podcast/search?mode=search&q=&topic=` → `{ ok, episodes: PodcastEpisodeHit[] }`；`?show=` 仍返回单节目列表。
+4. `PodcastLab` 默认 **单集列表**（主标题=单集 title，副行=节目名·时长·分类）；placeholder「Search episodes — title, topic…」。节目网格降为可选入口或移除主导航。
 
 ### 1.3 内容来源
 
@@ -60,17 +70,18 @@
 ```mermaid
 flowchart LR
   subgraph client [PodcastLab.tsx]
-    Browse[shows 网格 + 搜索] -->|GET /api/podcast/search?show=| Episodes[单集列表]
-    Episodes -->|点击单集| Listen[原生 audio 播放器]
+    Browse[单集列表 + title/分类搜索] -->|GET /api/podcast/search?mode=search| Hits[PodcastEpisodeHit]
+    Hits -->|点击单集| Listen[原生 audio 播放器]
     Listen -->|POST /api/podcast/transcribe| Job[启动转写]
     Job -->|GET /api/podcast/transcribe?id= 每 5s| Progress[进度条]
     Progress -->|POST /api/podcast/challenge| Challenge[挑战]
     Challenge -->|复用| MediaLabChallengeView[选择题 + 论述 + 讨论]
   end
   subgraph server
-    RSS[podcast-rss.ts 解析 + feed 缓存] --> Episodes
-    Job[podcast-transcript.ts 任务管理器] --> DashScope[百炼 filetrans 异步 task]
-    Job -->|兜底| Local[本地 :8765 whisper]
+    Search[podcast-search.ts 跨节目聚合] --> Hits
+    RSS[podcast-rss.ts 解析 + categories + feed 缓存] --> Search
+    JobMgr[podcast-transcript.ts 任务管理器] --> DashScope[百炼 filetrans 异步 task]
+    JobMgr -->|兜底| Local[本地 :8765 whisper]
     DashScope --> Cache[data/podcast-cache/transcripts]
     Local --> Cache
     Cache --> Challenge
@@ -85,10 +96,11 @@ flowchart LR
 | 文件 | 职责 |
 |---|---|
 | `src/lib/entertain/podcast-catalog.ts` | 节目目录 + feed 解析（iTunes lookup/search + 硬编码 feedUrl） |
-| `src/lib/entertain/podcast-rss.ts` | 无依赖 RSS 解析（regex）+ 原始 feed 磁盘缓存 |
+| `src/lib/entertain/podcast-rss.ts` | 无依赖 RSS 解析（regex）+ categories + 原始 feed 磁盘缓存 |
+| `src/lib/entertain/podcast-search.ts` | 跨节目聚合单集搜索（title / categories / topics） |
 | `src/lib/entertain/podcast-transcript.ts` | 转写任务管理器（百炼 filetrans 主 / 本地 whisper 兜底 / 磁盘缓存） |
 | `src/lib/entertain/podcast-challenge.ts` | episode→talk 映射 + 播客版系统提示词 |
-| `src/app/api/podcast/search/route.ts` | 节目列表 / 单集列表 |
+| `src/app/api/podcast/search/route.ts` | mode=search 单集命中 / ?show= 单节目列表 / 兼容目录 |
 | `src/app/api/podcast/transcribe/route.ts` | POST 启动任务 / GET 查进度 |
 | `src/app/api/podcast/challenge/route.ts` | 构建挑战（复用 TED 引擎） |
 | `src/components/PodcastLab.tsx` | 三阶段 UI |
@@ -130,6 +142,15 @@ type PodcastEpisode = {
   audioUrl: string;              // enclosure URL（http(s)）
   durationSec: number;           // itunes:duration（h/m/s 解析）
   pubDate: string;
+  categories: string[];          // itunes:category / category / keywords
+};
+
+type PodcastEpisodeHit = PodcastEpisode & {
+  showId: string;
+  showTitle: string;
+  showHost: string;
+  topics: PodcastTopic[];        // 来自节目目录（分类 chip 主数据）
+  kidFriendly?: boolean;
 };
 
 type PodcastTranscriptJob = {
@@ -171,10 +192,11 @@ none → queued → running → done（transcript 写入缓存）
 
 | 文件 | 覆盖 |
 |---|---|
-| `podcast-rss.test.ts` | 合法 RSS fixture 解析（title/CDATA/description/enclosure/duration h:m:s）；坏 feed / 缺 enclosure 容错 |
+| `podcast-rss.test.ts` | 合法 RSS fixture 解析（title/CDATA/description/enclosure/duration/categories）；坏 feed / 缺 enclosure 容错 |
+| `podcast-search.test.ts` | 跨节目聚合过滤（title/q/topic）；分页；坏 feed 跳过 |
 | `podcast-catalog.test.ts` | show 查找；`resolveShowFeed`（硬编码 feed 优先；iTunes lookup mock；search mock）；feed 缓存 |
 | `podcast-transcript.test.ts` | 缓存命中返回 done；状态机；百炼结果文本抽取（transcripts/sentences 两种形状）；本地兜底；job 持久化 |
-| `src/app/api/podcast/search/route.test.ts` | 无 show → 返回目录；有 show → mock feed 返回单集；坏 show → 400/404 |
+| `src/app/api/podcast/search/route.test.ts` | mode=search 返回单集命中；?show= 单节目；无参目录兼容；坏 show → 404 |
 | `src/app/api/podcast/challenge/route.test.ts` | transcript 未就绪 409；`PODCAST_CHALLENGE_FORCE_FALLBACK=1` 返回合法 challenge（≥4 items，含 literal/critique）；episodeToTalk 元数据 |
 | `src/lib/entertain/podcast-challenge.test.ts` | episode→talk 映射；播客版 prompt 含节目/单集上下文 |
 | `studio-learning` / `cross-lab` / `creations` | source `podcast` 前缀/seed/chatTitle、cross-lab 路由、`podcast_challenge` 类型 |

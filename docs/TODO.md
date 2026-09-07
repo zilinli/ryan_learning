@@ -5,15 +5,27 @@
 > **Design:** [subsystems/podcast-lab.md](subsystems/podcast-lab.md)
 > **Goal:** 音频版 TED Lab：精选 7 档英文播客单集 → 百炼 filetrans/本地 whisper 转文字 → 按年级/水平出选择+论述题 → 讨论/保存/学习记忆全复用 TED。
 
-- [ ] **PL.1** — 需求分析 + 系统设计 + 测试设计文档（`podcast-lab.md`）
-- [ ] **PL.2** — `podcast-catalog.ts` + `podcast-rss.ts`（iTunes feed 解析 + 无依赖 RSS 解析 + 磁盘缓存）
-- [ ] **PL.3** — `podcast-transcript.ts` + `/api/podcast/transcribe`（百炼 filetrans 异步任务 / 本地 whisper 兜底 / 任务状态机）
-- [ ] **PL.4** — `podcast-challenge.ts` + `/api/podcast/challenge`、`/api/podcast/search`
-- [ ] **PL.5** — `PodcastLab.tsx`（browse → listen → challenge，audio 播放器 + 转写进度轮询）
-- [ ] **PL.6** — 接线：GameId / STUDIO / lab-discuss / MediaLabChallengeView / studio-learning / learning-memory / creations / cross-lab / .gitignore
-- [ ] **PL.7** — 单测（rss/catalog/transcript/challenge/search/podcast-challenge）+ `npm test`
-- [ ] **PL.8** — lint + `smoke-podcast-api.ts` + 本地 build
-- [ ] **PL.9** — apply_changes → publish_develop → merge develop→master → push 两分支 → deploy_live
+- [x] **PL.1** — 需求分析 + 系统设计 + 测试设计文档（`podcast-lab.md`）
+- [x] **PL.2** — `podcast-catalog.ts` + `podcast-rss.ts`（iTunes feed 解析 + 无依赖 RSS 解析 + 磁盘缓存）
+- [x] **PL.3** — `podcast-transcript.ts` + `/api/podcast/transcribe`（百炼 filetrans 异步任务 / 本地 whisper 兜底 / 任务状态机）
+- [x] **PL.4** — `podcast-challenge.ts` + `/api/podcast/challenge`、`/api/podcast/search`
+- [x] **PL.5** — `PodcastLab.tsx`（browse → listen → challenge，audio 播放器 + 转写进度轮询）
+- [x] **PL.6** — 接线：GameId / STUDIO / lab-discuss / MediaLabChallengeView / studio-learning / learning-memory / creations / cross-lab / .gitignore
+- [x] **PL.7** — 单测（rss/catalog/transcript/challenge/search/podcast-challenge）+ `npm test`
+- [x] **PL.8** — lint + `smoke-podcast-api.ts` + 本地 build
+- [x] **PL.9** — apply_changes → publish_develop → merge develop→master → push 两分支 → deploy_live
+
+### PL-SEARCH — Episode-first search（title + 分类，非节目名）· 2026-08-23
+
+> **Design:** [subsystems/podcast-lab.md §1.2b](subsystems/podcast-lab.md)
+> **Goal:** Search/browse 展示具体单集 title 与分类；节目名仅作副行元数据。
+
+- [x] **PL-S.1** — RSS 解析 `categories`；扩展 `PodcastEpisode`
+- [x] **PL-S.2** — `podcast-search.ts` 跨节目聚合 + title/categories/topics 过滤 + 分页
+- [x] **PL-S.3** — `/api/podcast/search?mode=search` 返回 `PodcastEpisodeHit[]`
+- [x] **PL-S.4** — `PodcastLab.tsx` 默认单集列表 + 搜索占位「Search episodes…」
+- [x] **PL-S.5** — 单测（rss categories / podcast-search / search route）+ run_tests
+- [x] **PL-S.6** — apply_changes → publish_develop → deploy_live（`eece2e4`，线上已验证 mode=search）
 
 ---
 
@@ -1832,7 +1844,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 | ✅ 13E.1a | Two-step delete + Ryan undeletable + clear namespaced keys | done | `AccountHome.tsx` |
 | [ ] 13E.1b | PIN gate before delete forever | open | two-step confirm only; no `PinGate` on delete path |
 | [ ] 13E.2 | Grade-band-specific empty welcome copy | open | `ChatThread` empty state is generic |
-| ✅ 13E.3 | Max 6 accounts enforcement | done | `MAX_ACCOUNTS = 6` |
+| ✅ 13E.3 | Max 20 accounts enforcement | done | `MAX_ACCOUNTS = 20` |
 
 ---
 
