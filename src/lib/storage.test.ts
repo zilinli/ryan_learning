@@ -4,6 +4,7 @@ import {
   MAX_MESSAGES_PER_CHAT,
   newSessionId,
   sessionIdFromUrl,
+  setUrlAccount,
   setUrlSession,
   slimMessages,
   titleFromMessages,
@@ -319,5 +320,48 @@ describe("accountIdFromUrl", () => {
       configurable: true,
     });
     expect(accountIdFromUrl()).toBe("acct_ching");
+  });
+});
+
+describe("setUrlAccount", () => {
+  it("writes account and session into the URL", () => {
+    let replaced = "";
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: { search: "", href: "http://localhost:3000/" },
+        history: {
+          replaceState(_d: unknown, _t: string, u: string) {
+            replaced = u;
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    setUrlAccount("acct_ching", "sess-1");
+    expect(replaced).toContain("account=acct_ching");
+    expect(replaced).toContain("session=sess-1");
+  });
+
+  it("clears a previous session when switching account-only", () => {
+    let replaced = "";
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        location: {
+          search: "?account=acct_ryan&session=old-sess",
+          href: "http://localhost:3000/?account=acct_ryan&session=old-sess",
+        },
+        history: {
+          replaceState(_d: unknown, _t: string, u: string) {
+            replaced = u;
+          },
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
+    setUrlAccount("acct_ching", null);
+    expect(replaced).toContain("account=acct_ching");
+    expect(replaced).not.toContain("session=");
   });
 });

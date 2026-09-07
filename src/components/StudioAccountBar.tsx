@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AccountAvatar from "@/components/AccountAvatar";
-import { accountIdFromUrl } from "@/lib/storage";
+import { applyAccountDeepLink } from "@/lib/account-deep-link";
 import {
   getActiveAccount,
   hydrateAccountsFromServer,
@@ -34,10 +34,14 @@ export function StudioAccountBar({
   const [acct, setAcct] = useState<AccountRecord | null>(null);
 
   useEffect(() => {
-    const local = getActiveAccount(loadAccounts());
-    setAcct(local);
+    const pick = (s: Parameters<typeof getActiveAccount>[0]) => {
+      // Persist ?account= deep-links so Studio stats / timeline match the URL.
+      const linked = applyAccountDeepLink(s);
+      return getActiveAccount(linked.store);
+    };
+    setAcct(pick(loadAccounts()));
     void hydrateAccountsFromServer().then((store) => {
-      setAcct(getActiveAccount(store));
+      setAcct(pick(store));
     });
   }, []);
 
@@ -163,11 +167,8 @@ export function useActiveStudioAccount(): {
     // active account in localStorage, otherwise a parent opening a Ching link
     // on a device that was last used by Ryan would see Ryan's timeline.
     const pick = (s: Parameters<typeof getActiveAccount>[0]) => {
-      const urlId = accountIdFromUrl();
-      if (urlId && s.accounts.some((a) => a.id === urlId)) {
-        return getActiveAccount({ ...s, activeId: urlId });
-      }
-      return getActiveAccount(s);
+      const linked = applyAccountDeepLink(s);
+      return getActiveAccount(linked.store);
     };
     apply(pick(loadAccounts()));
     void hydrateAccountsFromServer().then((s) => apply(pick(s)));
