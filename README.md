@@ -22,7 +22,7 @@ Most chatbots spoil homework. Spark is tuned for **thinking first**:
 | Medium computation (e.g. `256÷8`) | One scaffold first, then check |
 | Conceptual / homework | Hint ladder L0→L3 with **explain-your-reasoning**, second chances, analogies |
 
-Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish, French, Malay, Shanghainese, and TTS/STT for experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
+Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pick the Yunxi voice), plus English, Spanish, French, German, Malay, Shanghainese, and TTS/STT for experimental written-form **闽南话 (Hokkien)** / **客家话 (Hakka)** reply modes.
 
 ---
 
@@ -31,7 +31,7 @@ Also: **粤语 / Cantonese by default** for Chinese (普通话 only when you pic
 ### Chat & Learning
 
 - **Socratic chat** — locate → choose → explain why → nudge → second chance on mistakes
-- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. Voice picker labels are language-only (no engine names). See [design doc](docs/subsystems/dialect-support-teochew-hakka.md) and [Shanghainese](docs/subsystems/shanghainese-support.md).
+- **Multi-language & dialect** — English, 普通话 (Mandarin), 粤语 (Cantonese), Español, Français, **Deutsch (German)**, **Bahasa Melayu (Malay)**; plus experimental written-form support for **闽南话 (Hokkien)** and **客家话 (Hakka)**, and **上海话 (Shanghainese)** with Wu character normalisation for TTS. Voice picker labels are language-only (no engine names). See [design doc](docs/subsystems/dialect-support-teochew-hakka.md), [Shanghainese](docs/subsystems/shanghainese-support.md), and [German](docs/subsystems/german-language-support.md).
 - **Help & feedback** — sidebar panel: **Ask AI** (default; answers from docs + code, any language, voice/photo/file), browse FAQ, or submit suggestions to GitHub Issues (with feasibility → `docs/TODO.md`). See [faq-feedback-panel.md](docs/subsystems/faq-feedback-panel.md) and [ai-faq.md](docs/subsystems/ai-faq.md).
 - **Homework photos & PDFs** — multi-file upload; quote evidence from the right place first
 - **Math & diagrams** — LaTeX (KaTeX), SVG geometry via `draw_geometry`, Mermaid; comic/joke SVG viewBoxes auto-expand so labels are not clipped
@@ -94,7 +94,7 @@ Student-facing **Progress** — BKT skill maps across subjects, recent activity,
 Word lookup **and** AI sentence/photo translation in one page:
 
 **Word (dictionary)**
-- **Languages** — English · Español · Français · 中文 (Mandarin) · 粵語 (Cantonese) · Bahasa Melayu · 閩南話 (Hokkien) · 客家話 (Hakka) · 上海話 (Shanghainese)
+- **Languages** — English · Español · Français · Deutsch · 中文 (Mandarin) · 粵語 (Cantonese) · Bahasa Melayu · 閩南話 (Hokkien) · 客家話 (Hakka) · 上海話 (Shanghainese)
 - **Sources** — Merriam-Webster School Dictionary + Spanish-English (when API keys configured), Free Dictionary / local seeds / translate fallback, local Cantonese dataset (開放粵語字典, CC-BY), plus local Hokkien & Hakka seed lexicons
 - **Voice input** — Hold/tap mic (same 16 kHz WAV + `/api/transcribe` pipeline as the main tutor; language follows the selected dict pill)
 - **Text-to-speech** — 🔊 beside each headword (edge-tts)
@@ -103,7 +103,7 @@ Word lookup **and** AI sentence/photo translation in one page:
 **Sentence (AI translation)**
 - Full sentences / paragraphs via Cursor Agent (LLM)
 - **Photo upload & camera** — OCR + translate worksheets, signs, screenshots (up to 3 images)
-- From / To language pickers (including Auto-detect → EN/ES/FR/MS/中文/粵語/閩南話/客家話/上海話)
+- From / To language pickers (including Auto-detect → EN/ES/FR/DE/MS/中文/粵語/閩南話/客家話/上海話)
 - Learner-friendly notes + speak the translation aloud
 
 Open from the sidebar link **Dictionary / Translation**, or go to `/dict`.

@@ -1,4 +1,4 @@
-export type EntLang = "en" | "zh" | "yue" | "es" | "fr" | "teo" | "hak";
+export type EntLang = "en" | "zh" | "yue" | "es" | "fr" | "de" | "teo" | "hak";
 
 export type GameId =
   | "sudoku"

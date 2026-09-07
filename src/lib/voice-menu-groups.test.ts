@@ -15,7 +15,7 @@ describe("voice-menu-groups", () => {
     expect(isCoreVoiceId("hakka")).toBe(false);
     expect(isCoreVoiceId("shanghainese")).toBe(false);
     expect(moreVoiceIds()).toEqual(
-      expect.arrayContaining(["teochew", "hakka", "shanghainese", "osman"]),
+      expect.arrayContaining(["teochew", "hakka", "shanghainese", "osman", "conrad"]),
     );
   });
 

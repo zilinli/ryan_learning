@@ -9,6 +9,7 @@ export function entLangFromVoice(voiceId?: string): EntLang {
     mode === "yue" ||
     mode === "es" ||
     mode === "fr" ||
+    mode === "de" ||
     mode === "teo" ||
     mode === "hak"
   ) {
@@ -150,9 +151,43 @@ const FR: Dict = {
   goBlurb: "Capture par encerclement — plateau d'apprentissage.",
 };
 
+const DE: Dict = {
+  ...EN,
+  hubTitle: "Unterhaltung",
+  hubSub: "Rätsel und Brettspiele",
+  back: "Zurück",
+  close: "Schließen",
+  newGame: "Neu",
+  undo: "Rückgängig",
+  reset: "Zurücksetzen",
+  youWin: "Gut gemacht — gewonnen!",
+  turn: "Zug",
+  moves: "Züge",
+  level: "Stufe",
+  check: "Prüfen",
+  easy: "Leicht",
+  medium: "Mittel",
+  hard: "Schwer",
+  vsCpu: "vs Computer",
+  vsHuman: "Zwei Spieler",
+  sudoku: "Sudoku",
+  sudokuBlurb: "Fülle 1–9 ohne Wiederholung in Zeile, Spalte oder Block.",
+  sokoban: "Sokoban",
+  sokobanBlurb: "Schiebe die Kisten auf die Zielpunkte.",
+  klotski: "Klotski",
+  klotskiBlurb: "Schiebe Blöcke, damit das große Stück entkommt.",
+  chess: "Schach",
+  chessBlurb: "Klassisches internationales Schach auf 8×8.",
+  xiangqi: "Chinesisches Schach",
+  xiangqiBlurb: "Xiangqi — Generäle, Streitwagen und Kanonen.",
+  go: "Go (9×9)",
+  goBlurb: "Fange durch Umzingeln — Lernbrett.",
+};
+
 function pack(lang: EntLang): Dict {
   if (lang === "es") return ES;
   if (lang === "fr") return FR;
+  if (lang === "de") return DE;
   if (lang === "zh" || lang === "yue" || lang === "teo" || lang === "hak") {
     return ZH;
   }

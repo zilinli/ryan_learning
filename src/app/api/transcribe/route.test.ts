@@ -61,6 +61,10 @@ describe("normalizeTranscribeLang", () => {
     expect(normalizeTranscribeLang("ms")).toBe("ms");
     expect(normalizeTranscribeLang("malay")).toBe("ms");
     expect(normalizeTranscribeLang("ms-my")).toBe("ms");
+    expect(normalizeTranscribeLang("de")).toBe("de");
+    expect(normalizeTranscribeLang("german")).toBe("de");
+    expect(normalizeTranscribeLang("deutsch")).toBe("de");
+    expect(normalizeTranscribeLang("de-de")).toBe("de");
   });
 
   it("falls back to auto for unknown languages", () => {

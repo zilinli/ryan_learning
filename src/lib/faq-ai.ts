@@ -11,6 +11,7 @@ export type FaqReplyLang =
   | "ms"
   | "es"
   | "fr"
+  | "de"
   | "teo"
   | "hak"
   | "sha";
@@ -22,6 +23,7 @@ const LANG_LINE: Record<Exclude<FaqReplyLang, "auto">, string> = {
   ms: "Jawab dalam Bahasa Melayu yang mudah difahami.",
   es: "Responde en español claro y sencillo.",
   fr: "Réponds en français clair et simple.",
+  de: "Antworte auf klarem, einfachem Deutsch.",
   teo: "用闽南话书面习惯回答（可用汉字）。",
   hak: "用客家话书面习惯回答（可用汉字）。",
   sha: "用上海话书面习惯回答（可用汉字）。",
@@ -88,6 +90,7 @@ export function normalizeFaqReplyLang(raw: string | null | undefined): FaqReplyL
     v === "ms" ||
     v === "es" ||
     v === "fr" ||
+    v === "de" ||
     v === "teo" ||
     v === "hak" ||
     v === "sha"

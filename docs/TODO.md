@@ -1,5 +1,16 @@
 # 📋 Downstream Development TODO
 
+## 🇩🇪 German (Deutsch) Language Support (2026-09-07)
+
+> **Design:** [subsystems/german-language-support.md](subsystems/german-language-support.md)
+> **Goal:** Full tutoring parity with `es`/`fr`/`ms` — voice, STT, TTS, prompts, dictionary, FAQ, Writing Pad.
+
+- [x] **DE.1** — Design doc + types (`SpeechLang`/`SttLang`/`ReplyLangMode`/`DictLang`) + Conrad voice
+- [x] **DE.2** — STT/TTS/Bailian wiring + `/api/tts` allow-list sync with `ALLOWED_EDGE_VOICES`
+- [x] **DE.3** — Prompts + dictionary seeds/FreeDict/GTX + UI pills
+- [x] **DE.4** — Unit tests + README/DESIGN/TODO
+- [x] **DE.5** — Push + rebuild & restart
+
 ## PODCAST-LAB — Studio Podcast Lab（audio → transcript → challenge）· 2026-08-23
 
 > **Design:** [subsystems/podcast-lab.md](subsystems/podcast-lab.md)

@@ -95,6 +95,9 @@ async function exactLookup(
   } else if (lang === "fr") {
     const fd = await freeDictLookup(wordLower, "fr");
     if (fd?.entries.length) return { result: fd, source: "freedict" };
+  } else if (lang === "de") {
+    const fd = await freeDictLookup(wordLower, "de");
+    if (fd?.entries.length) return { result: fd, source: "freedict" };
   } else if (lang === "zh") {
     const fd = await freeDictLookup(wordLower, "zh");
     if (fd?.entries.length) return { result: fd, source: "freedict" };

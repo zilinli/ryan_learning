@@ -121,6 +121,39 @@ const SPANISH_SEEDS: SeedEntry[] = [
   e("diccionario", "noun", "dictionary", { pronunciation: "/dikθjoˈnaɾjo/" }),
 ];
 
+const GERMAN_SEEDS: SeedEntry[] = [
+  e("hallo", "interjection", "hello, hi", { pronunciation: "/ˈhalo/", example: "Hallo!", exampleTranslation: "Hello!" }),
+  e("danke", "interjection", "thank you, thanks", { pronunciation: "/ˈdaŋkə/", example: "Danke schön.", exampleTranslation: "Thank you very much." }),
+  e("bitte", "interjection / adverb", "please / you're welcome", { pronunciation: "/ˈbɪtə/" }),
+  e("wasser", "noun", "water", { pronunciation: "/ˈvasɐ/", aliases: ["Wasser"] }),
+  e("buch", "noun", "book", { pronunciation: "/buːx/", aliases: ["Buch"] }),
+  e("schule", "noun", "school", { pronunciation: "/ˈʃuːlə/", aliases: ["Schule"] }),
+  e("freund", "noun", "friend (male)", { pronunciation: "/fʁɔʏnt/", aliases: ["Freund", "freundin", "Freundin"], inflections: [{ label: "feminine", form: "Freundin" }] }),
+  e("schön", "adjective", "beautiful, nice, lovely", { pronunciation: "/ʃøːn/", aliases: ["schoen", "Schöne"] }),
+  e("wörterbuch", "noun", "dictionary", { pronunciation: "/ˈvœʁtɐbuːx/", aliases: ["woerterbuch", "Wörterbuch"] }),
+  e("liebe", "noun", "love", { pronunciation: "/ˈliːbə/", aliases: ["Liebe"] }),
+  e("tschüss", "interjection", "bye, goodbye (informal)", { pronunciation: "/tʃʏs/", aliases: ["tschuss", "Tschüss"] }),
+  e("ja", "adverb", "yes", { pronunciation: "/jaː/" }),
+  e("nein", "adverb", "no", { pronunciation: "/naɪn/" }),
+  e("hausaufgabe", "noun", "homework", { pronunciation: "/ˈhaʊsʔaʊfɡaːbə/", aliases: ["Hausaufgabe", "hausaufgaben", "Hausaufgaben"] }),
+  e("hilfe", "noun", "help", { pronunciation: "/ˈhɪlfə/", aliases: ["Hilfe"] }),
+  e("lernen", "verb", "to learn / to study", { pronunciation: "/ˈlɛʁnən/" }),
+  e("mathematik", "noun", "mathematics", { pronunciation: "/matemaˈtiːk/", aliases: ["Mathematik", "mathe", "Mathe"] }),
+  e("lehrer", "noun", "teacher (male)", { pronunciation: "/ˈleːʁɐ/", aliases: ["Lehrer", "lehrerin", "Lehrerin"] }),
+  e("schüler", "noun", "student / pupil (male)", { pronunciation: "/ˈʃyːlɐ/", aliases: ["Schueler", "Schülerin", "schuelerin"] }),
+  e("deutsch", "noun / adjective", "German (language / from Germany)", { pronunciation: "/dɔʏtʃ/", aliases: ["Deutsch", "german"] }),
+  e("guten tag", "phrase", "good day / hello", { pronunciation: "/ˈɡuːtn̩ taːk/", aliases: ["Guten Tag"] }),
+  e("auf wiedersehen", "interjection", "goodbye (formal)", { pronunciation: "/aʊf ˈviːdɐzeːən/", aliases: ["Auf Wiedersehen"] }),
+  e("ich", "pronoun", "I", { pronunciation: "/ɪç/" }),
+  e("du", "pronoun", "you (informal singular)", { pronunciation: "/duː/" }),
+  e("wir", "pronoun", "we", { pronunciation: "/viːɐ/" }),
+  e("heute", "adverb", "today", { pronunciation: "/ˈhɔʏtə/" }),
+  e("morgen", "adverb / noun", "tomorrow / morning", { pronunciation: "/ˈmɔʁɡn̩/" }),
+  e("familie", "noun", "family", { pronunciation: "/faˈmiːliə/", aliases: ["Familie"] }),
+  e("mutter", "noun", "mother", { pronunciation: "/ˈmʊtɐ/", aliases: ["Mutter", "mama", "Mama"] }),
+  e("vater", "noun", "father", { pronunciation: "/ˈfaːtɐ/", aliases: ["Vater", "papa", "Papa"] }),
+];
+
 const FRENCH_SEEDS: SeedEntry[] = [
   e("bonjour", "interjection", "hello, good morning, good day", { pronunciation: "/bɔ̃ʒuʁ/", example: "Bonjour !", exampleTranslation: "Hello!" }),
   e("merci", "interjection", "thank you, thanks", { pronunciation: "/mɛʁsi/", example: "Merci beaucoup.", exampleTranslation: "Thank you very much." }),
@@ -320,6 +353,7 @@ const SEEDS: Record<string, SeedEntry[]> = {
   en: EN_SEEDS,
   es: SPANISH_SEEDS,
   fr: FRENCH_SEEDS,
+  de: GERMAN_SEEDS,
   zh: ZH_SEEDS,
 };
 

@@ -2,7 +2,18 @@ import { normalizeVoiceId, type TutorVoiceId } from "./voices";
 import type { DictLang } from "./dict-types";
 
 /** Languages the STT backend understands */
-export type SttLang = "auto" | "en" | "zh" | "yue" | "es" | "fr" | "ms" | "teo" | "hak" | "sha";
+export type SttLang =
+  | "auto"
+  | "en"
+  | "zh"
+  | "yue"
+  | "es"
+  | "fr"
+  | "ms"
+  | "de"
+  | "teo"
+  | "hak"
+  | "sha";
 
 /**
  * Dictionary / Translation language → tutor voice id for TTS.
@@ -22,6 +33,8 @@ export function voiceIdFromDictLang(lang: DictLang | string | null): TutorVoiceI
       return "henri";
     case "ms":
       return "osman";
+    case "de":
+      return "conrad";
     case "teo":
       return "teochew";
     case "hak":
@@ -50,6 +63,8 @@ export function sttLangFromVoice(voiceId: TutorVoiceId | string | null): SttLang
       return "fr";
     case "osman":
       return "ms";
+    case "conrad":
+      return "de";
     case "teochew":
       // Dedicated dialect STT path — Whisper with Teochew function-word
       // initial_prompt biases the decoder toward dialect characters.
@@ -84,6 +99,8 @@ export function sttLangFromDictLang(lang: DictLang | string | null): SttLang {
       return "sha";
     case "ms":
       return "ms";
+    case "de":
+      return "de";
     default:
       return "auto";
   }

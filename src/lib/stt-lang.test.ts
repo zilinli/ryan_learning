@@ -15,9 +15,10 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromVoice("alvaro")).toBe("es");
     expect(sttLangFromVoice("jorge")).toBe("es");
     expect(sttLangFromVoice("henri")).toBe("fr");
+    expect(sttLangFromVoice("osman")).toBe("ms");
+    expect(sttLangFromVoice("conrad")).toBe("de");
     expect(sttLangFromVoice("teochew")).toBe("teo");
     expect(sttLangFromVoice("hakka")).toBe("hak");
-    expect(sttLangFromVoice("osman")).toBe("ms");
   });
 
   it("honors legacy voice ids via normalizeVoiceId", () => {
@@ -41,6 +42,7 @@ describe("sttLangFromVoice", () => {
     expect(sttLangFromDictLang("es")).toBe("es");
     expect(sttLangFromDictLang("fr")).toBe("fr");
     expect(sttLangFromDictLang("ms")).toBe("ms");
+    expect(sttLangFromDictLang("de")).toBe("de");
     expect(sttLangFromDictLang(null)).toBe("auto");
   });
 });
@@ -53,5 +55,6 @@ describe("voiceIdFromDictLang", () => {
     expect(voiceIdFromDictLang("yue")).toBe("wanLung");
     expect(voiceIdFromDictLang("en")).toBe("ryan");
     expect(voiceIdFromDictLang("ms")).toBe("osman");
+    expect(voiceIdFromDictLang("de")).toBe("conrad");
   });
 });

@@ -12,7 +12,7 @@ const FREE_DICT_BASE = "https://api.dictionaryapi.dev/api/v2/entries";
 
 /** Map our lang codes to FreeDict ISO 639-1 codes. */
 const LANG_MAP: Record<string, string> = {
-  en: "en", es: "es", fr: "fr", zh: "zh",
+  en: "en", es: "es", fr: "fr", de: "de", zh: "zh",
 };
 
 type FreeDictEntry = {

@@ -24,6 +24,8 @@ describe("dict-translate helpers", () => {
   it("localTranslate maps English to other languages", () => {
     expect(localTranslate("hello", "en", "es")?.toLowerCase()).toBe("hola");
     expect(localTranslate("hello", "en", "fr")?.toLowerCase()).toBe("bonjour");
+    expect(localTranslate("hello", "en", "de")?.toLowerCase()).toBe("hallo");
+    expect(localTranslate("hallo", "de", "en")?.toLowerCase()).toMatch(/hello|hi/);
     expect(localTranslate("water", "en", "zh")).toBe("水");
     expect(localTranslate("water", "en", "yue")).toBe("水");
   });
@@ -58,6 +60,7 @@ describe("enrichDictResponse", () => {
     const langs = new Set(out.crossTranslations!.map((t) => t.lang));
     expect(langs.has("es")).toBe(true);
     expect(langs.has("fr")).toBe(true);
+    expect(langs.has("de")).toBe(true);
     expect(out.entries[0]!.senses[0]!.translations?.some((t) => t.lang === "es")).toBe(
       true,
     );

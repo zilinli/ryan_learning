@@ -13,6 +13,7 @@ import { normalizeHakkaForTts } from "@/lib/hakka-tts-text";
 import { cleanTutorSpeechText } from "@/lib/tts-text";
 import { sniffTtsAudioMime } from "@/lib/tts-audio-mime";
 import { checkApiRateLimit, RATE_PRESETS } from "@/lib/api-rate-limit";
+import { ALLOWED_EDGE_VOICES } from "@/lib/voices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,23 +21,8 @@ export const maxDuration = 120;
 
 const TTS_URL = process.env.TTS_URL || "http://127.0.0.1:8765/tts";
 
-const ALLOWED_VOICES = new Set([
-  "en-US-AvaNeural",
-  "en-GB-RyanNeural",
-  "en-US-JennyNeural",
-  "en-GB-ThomasNeural",
-  "zh-CN-XiaoxiaoNeural",
-  "zh-CN-YunxiNeural",
-  "zh-HK-HiuMaanNeural",
-  "zh-HK-WanLungNeural",
-  "es-ES-ElviraNeural",
-  "es-ES-AlvaroNeural",
-  "es-MX-DaliaNeural",
-  "es-MX-JorgeNeural",
-  "es-US-PalomaNeural",
-  "fr-FR-HenriNeural",
-  "fr-FR-DeniseNeural",
-]);
+/** Keep in sync with voices.ts — Malay/German etc. must not fall back to Ryan. */
+const ALLOWED_VOICES = new Set<string>(ALLOWED_EDGE_VOICES);
 
 async function fetchTtsOnce(
   text: string,

@@ -18,6 +18,7 @@ const LANG_NAME: Record<DictLang, string> = {
   teo: "Hokkien (闽南话) — written in Chinese characters with Hokkien grammar and vocabulary",
   hak: "Hakka (客家话) — written in Chinese characters with Hakka grammar and vocabulary",
   ms: "Malay (Bahasa Melayu) — natural Malay language for tutoring and conversation",
+  de: "German (Deutsch) — natural German for tutoring and conversation",
   sha: "Shanghainese (上海话) — Wu dialect, written in Chinese characters with Shanghainese vocabulary and grammar",
 };
 
@@ -54,7 +55,7 @@ export function buildSentenceTranslatePrompt(params: {
     "",
     "Return ONLY a single JSON object (no markdown fences, no extra prose):",
     "{",
-    '  "detectedSourceLang": "en|es|fr|zh|yue|other",',
+    '  "detectedSourceLang": "en|es|fr|de|zh|yue|other",',
     '  "sourceText": "exact text you translated (from input and/or OCR)",',
     '  "translation": "the translation in the target language",',
     '  "notes": "optional one short learner tip (max 1 sentence), or empty string"',

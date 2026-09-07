@@ -34,6 +34,7 @@ const REPLY_LANGS: { id: FaqReplyLang; label: string }[] = [
   { id: "ms", label: "Melayu" },
   { id: "es", label: "Español" },
   { id: "fr", label: "Français" },
+  { id: "de", label: "Deutsch" },
   { id: "teo", label: "闽南" },
   { id: "hak", label: "客家" },
   { id: "sha", label: "上海" },

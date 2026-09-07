@@ -26,6 +26,10 @@ describe("bailianAsrLanguageHint", () => {
   it("returns ms for Malay", () => {
     expect(bailianAsrLanguageHint("ms")).toBe("ms");
   });
+
+  it("returns de for German", () => {
+    expect(bailianAsrLanguageHint("de")).toBe("de");
+  });
 });
 
 describe("bailianAsrModelFor", () => {
@@ -55,6 +59,8 @@ describe("bailianAsrScriptMismatch", () => {
     );
     expect(bailianAsrScriptMismatch("Hello there", "en")).toBe(false);
     expect(bailianAsrScriptMismatch("你好世界测试", "en")).toBe(true);
+    expect(bailianAsrScriptMismatch("你好世界测试", "de")).toBe(true);
+    expect(bailianAsrScriptMismatch("Danke für die Hilfe", "de")).toBe(false);
     expect(bailianAsrScriptMismatch("你好", "zh")).toBe(false);
   });
 });

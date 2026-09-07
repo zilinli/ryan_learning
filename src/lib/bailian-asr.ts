@@ -56,7 +56,7 @@ export function bailianAsrScriptMismatch(
   text: string,
   lang: string,
 ): boolean {
-  if (lang !== "ms" && lang !== "en" && lang !== "es" && lang !== "fr") {
+  if (lang !== "ms" && lang !== "en" && lang !== "es" && lang !== "fr" && lang !== "de") {
     return false;
   }
   const t = (text || "").trim();
@@ -86,6 +86,8 @@ export function bailianAsrLanguageHint(
       return "fr";
     case "ms":
       return "ms";
+    case "de":
+      return "de";
     default:
       return undefined;
   }

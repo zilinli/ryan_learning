@@ -93,6 +93,7 @@ describe("ttsProviderForLang", () => {
     expect(ttsProviderForLang("zh").kind).toBe("edge");
     expect(ttsProviderForLang("es").kind).toBe("edge");
     expect(ttsProviderForLang("fr").kind).toBe("edge");
+    expect(ttsProviderForLang("de").kind).toBe("edge");
   });
 });
 

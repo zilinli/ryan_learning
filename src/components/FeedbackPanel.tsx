@@ -6,7 +6,7 @@ import { FaqAskPanel } from "./FaqAskPanel";
 const FAQ_ITEMS = [
   {
     q: "What languages does Spark support?",
-    a: "Spark supports English, Mandarin (普通话), Cantonese (粤语), Spanish, French, Malay (Bahasa Melayu), Shanghainese (上海话), Hokkien (闽南话), and Hakka (客家话). You can pick your voice in the sidebar.",
+    a: "Spark supports English, Mandarin (普通话), Cantonese (粤语), Spanish, French, German (Deutsch), Malay (Bahasa Melayu), Shanghainese (上海话), Hokkien (闽南话), and Hakka (客家话). You can pick your voice in the sidebar.",
   },
   {
     q: "How does voice input work?",
@@ -14,7 +14,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change the voice?",
-    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (普通话), WanLung (粤语), Álvaro (Español), Henri (Français), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
+    a: 'Yes — open the sidebar and tap the voice selector (e.g. "Auto (粤语优先)"). Pick from Ryan (British), Ava (American), Yunxi (普通话), WanLung (粤语), Álvaro (Español), Henri (Français), Conrad (Deutsch), Osman (Malay), Shanghainese, Hokkien, or Hakka.',
   },
   {
     q: "How do I translate a reply into English?",

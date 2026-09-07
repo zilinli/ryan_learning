@@ -156,6 +156,9 @@ function audienceLine(mode: ReplyLangMode): string {
   if (mode === "ms") {
     return "Audience: student who wants tutoring mainly in Bahasa Melayu (Malay).";
   }
+  if (mode === "de") {
+    return "Audience: student who wants tutoring mainly in German (Deutsch).";
+  }
   if (mode === "sha") {
     return "Audience: student who wants tutoring mainly in Shanghainese (上海话 · Wu dialect).";
   }
@@ -180,6 +183,9 @@ function styleLine(mode: ReplyLangMode): string {
   }
   if (mode === "ms") {
     return "Style: guru yang sabar dan mesra — bersifat Sokratik dan interaktif; pelajar berfikir dahulu; ringkas, sesuai untuk telefon dan suara.";
+  }
+  if (mode === "de") {
+    return "Style: geduldiger Lehrer auf Deutsch — sokratisch und interaktiv; der Schüler denkt zuerst; kurz, geeignet für Handy und Stimme.";
   }
   if (mode === "sha") {
     return "Style: 温暖有耐心个上海话老师 — 苏格拉底式互动提问，先让学生想/选/算，简短，适合手机和语音朗读。";
@@ -207,6 +213,7 @@ function findThisCue(mode: ReplyLangMode): string {
   if (mode === "es") return "**Mira aquí**";
   if (mode === "fr") return "**Regarde ici**";
   if (mode === "ms") return "**Lihat sini**";
+  if (mode === "de") return "**Schau hier**";
   if (mode === "sha") return "**看搿搭**";
   return "**Find this**";
 }
@@ -218,6 +225,7 @@ function defaultStudentLine(mode: ReplyLangMode, hasHomework: boolean): string {
     if (mode === "es") return "Ayúdame por favor.";
     if (mode === "fr") return "Aide-moi s'il te plaît.";
     if (mode === "ms") return "Tolong bantu saya.";
+    if (mode === "de") return "Bitte hilf mir.";
     if (mode === "sha") return "请帮帮我。";
     return "Please help me.";
   }
@@ -226,6 +234,7 @@ function defaultStudentLine(mode: ReplyLangMode, hasHomework: boolean): string {
   if (mode === "es") return "Por favor mira mi tarea y ayúdame paso a paso.";
   if (mode === "fr") return "S'il te plaît, regarde mon devoir et aide-moi étape par étape.";
   if (mode === "ms") return "Tolong lihat kerja rumah saya dan bantu saya langkah demi langkah.";
+  if (mode === "de") return "Bitte schau dir meine Hausaufgabe an und hilf mir Schritt für Schritt.";
   if (mode === "sha") return "请看我的作业，一步一步教我。";
   return "Please look at my homework and help me understand it step by step.";
 }
@@ -420,7 +429,12 @@ export function buildTutorPrompt(params: {
     params.replyLanguage === "zh" ||
     params.replyLanguage === "yue" ||
     params.replyLanguage === "es" ||
-    params.replyLanguage === "fr"
+    params.replyLanguage === "fr" ||
+    params.replyLanguage === "ms" ||
+    params.replyLanguage === "de" ||
+    params.replyLanguage === "teo" ||
+    params.replyLanguage === "hak" ||
+    params.replyLanguage === "sha"
       ? params.replyLanguage
       : replyLangFromVoice(params.voiceId || params.replyLanguage);
 

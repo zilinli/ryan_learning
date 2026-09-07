@@ -58,6 +58,7 @@ const STT_LANG_OPTIONS: Array<{ id: SttLang; label: string }> = [
   { id: "yue", label: "粵語" },
   { id: "es", label: "Español" },
   { id: "fr", label: "Français" },
+  { id: "de", label: "Deutsch" },
   { id: "ms", label: "Bahasa Melayu" },
 ];
 

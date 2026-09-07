@@ -81,6 +81,7 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     expect(resolveEdgeVoice("yunxi", "Hello")).toBe("zh-CN-YunxiNeural");
     expect(resolveEdgeVoice("jorge", "Hello")).toBe("es-MX-JorgeNeural");
     expect(resolveEdgeVoice("henri", "Hello")).toBe("fr-FR-HenriNeural");
+    expect(resolveEdgeVoice("conrad", "Hello")).toBe("de-DE-ConradNeural");
   });
 
   it("switches English fixed voice when chunk is Chinese/Spanish/French", () => {
@@ -95,6 +96,9 @@ describe("getTutorVoice / resolveEdgeVoice", () => {
     );
     expect(resolveEdgeVoice("ryan", "Bonjour, comment ça va ?")).toBe(
       "fr-FR-HenriNeural",
+    );
+    expect(resolveEdgeVoice("ryan", "Danke für die Hilfe")).toBe(
+      "de-DE-ConradNeural",
     );
   });
 
@@ -130,6 +134,14 @@ describe("detectSpeechLang", () => {
     expect(detectSpeechLang("Merci beaucoup pour l'aide")).toBe("fr");
   });
 
+  it("detects German via ß and common words", () => {
+    expect(detectSpeechLang("Hallo, wie geht's?")).toBe("de");
+    expect(detectSpeechLang("Danke für die Hilfe mit der Hausaufgabe")).toBe(
+      "de",
+    );
+    expect(detectSpeechLang("Das ist eine schöne Straße")).toBe("de");
+  });
+
   it("defaults to English", () => {
     expect(detectSpeechLang("Find the evidence in paragraph two.")).toBe("en");
   });
@@ -143,6 +155,7 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(replyLangFromVoice("wanLung")).toBe("yue");
     expect(replyLangFromVoice("alvaro")).toBe("es");
     expect(replyLangFromVoice("henri")).toBe("fr");
+    expect(replyLangFromVoice("conrad")).toBe("de");
     expect(replyLangFromVoice("teochew")).toBe("teo");
     expect(replyLangFromVoice("hakka")).toBe("hak");
     expect(replyLangFromVoice("xiaoxiao")).toBe("zh");
@@ -208,6 +221,19 @@ describe("replyLangFromVoice / resolveReplyLanguage", () => {
     expect(ms).toMatch(/Bahasa Melayu/);
     expect(ms).toMatch(/REQUIRED/);
     expect(ms).toMatch(/Malaysia|Melayu/);
+  });
+
+  it("maps German Conrad voice and emits Deutsch instructions", () => {
+    expect(getTutorVoice("conrad").lang).toBe("de");
+    expect(getTutorVoice("conrad").label).toMatch(/Deutsch/);
+    expect(getTutorVoice("conrad").edgeVoice).toBe("de-DE-ConradNeural");
+    expect(replyLangFromVoice("conrad")).toBe("de");
+    expect(resolveReplyLanguage("conrad", "hello")).toBe("de");
+    expect(resolveReplyLanguage("auto", "Danke für die Hilfe")).toBe("de");
+    expect(TUTOR_VOICES.filter((v) => v.lang === "de")).toHaveLength(1);
+    const de = replyLanguageInstructions("de").join("\n");
+    expect(de).toMatch(/Deutsch/);
+    expect(de).toMatch(/REQUIRED/);
   });
 });
 

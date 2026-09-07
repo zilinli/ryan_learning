@@ -16,7 +16,7 @@ export const maxDuration = 120;
 
 const STT_URL = process.env.STT_URL || "http://127.0.0.1:8765/transcribe";
 
-const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr", "ms", "teo", "hak", "sha"]);
+const ALLOWED = new Set(["auto", "en", "zh", "yue", "es", "fr", "ms", "de", "teo", "hak", "sha"]);
 
 /** Map browser / BCP-47 tags (e.g. zh-CN) onto STT backend codes. */
 export function normalizeTranscribeLang(raw: string): string {
@@ -54,6 +54,14 @@ export function normalizeTranscribeLang(raw: string): string {
     "ms-my": "ms",
     bahasa: "ms",
     "bahasa melayu": "ms",
+    de: "de",
+    deu: "de",
+    ger: "de",
+    german: "de",
+    deutsch: "de",
+    "de-de": "de",
+    "de-at": "de",
+    "de-ch": "de",
     teo: "teo",
     teochew: "teo",
     teochow: "teo",

@@ -16,7 +16,7 @@ import { searchHakka } from "./hakka-dict";
 import { freeDictLookup } from "./freedict-client";
 
 /** Target languages shown when the query language is English. */
-export const EN_CROSS_TARGETS: DictLang[] = ["es", "fr", "zh", "yue"];
+export const EN_CROSS_TARGETS: DictLang[] = ["es", "fr", "de", "zh", "yue"];
 
 const GTX_CODES: Record<DictLang, string> = {
   en: "en",
@@ -28,6 +28,7 @@ const GTX_CODES: Record<DictLang, string> = {
   hak: "zh-CN", // no Hakka engine on Google — closest is simplified Chinese
   sha: "zh-CN", // no Shanghainese engine on Google — closest is simplified Chinese
   ms: "ms", // Google Translate supports Malay natively
+  de: "de",
 };
 
 /** Extract a short English gloss from a seed-style definition. */
@@ -58,7 +59,7 @@ function ensureLocalMap(): Map<string, string> {
   if (LOCAL_MAP) return LOCAL_MAP;
   LOCAL_MAP = new Map();
 
-  for (const lang of ["en", "es", "fr", "zh"] as DictLang[]) {
+  for (const lang of ["en", "es", "fr", "de", "zh"] as DictLang[]) {
     for (const head of listSeedWords(lang)) {
       const resp = localSeedLookup(head, lang);
       if (!resp?.entries.length) continue;
@@ -90,46 +91,59 @@ function ensureLocalMap(): Map<string, string> {
   const extras: [string, DictLang, string][] = [
     ["hello", "es", "hola"],
     ["hello", "fr", "bonjour"],
+    ["hello", "de", "hallo"],
     ["hello", "zh", "你好"],
     ["hello", "yue", "你好"],
     ["thank you", "es", "gracias"],
     ["thank you", "fr", "merci"],
+    ["thank you", "de", "danke"],
     ["thank you", "zh", "谢谢"],
     ["thank you", "yue", "唔該"],
     ["water", "es", "agua"],
     ["water", "fr", "eau"],
+    ["water", "de", "wasser"],
     ["water", "zh", "水"],
     ["water", "yue", "水"],
     ["book", "es", "libro"],
     ["book", "fr", "livre"],
+    ["book", "de", "buch"],
     ["book", "zh", "书"],
     ["book", "yue", "書"],
     ["school", "es", "escuela"],
     ["school", "fr", "école"],
+    ["school", "de", "schule"],
     ["school", "zh", "学校"],
     ["school", "yue", "學校"],
     ["friend", "es", "amigo"],
     ["friend", "fr", "ami"],
+    ["friend", "de", "freund"],
     ["friend", "zh", "朋友"],
     ["friend", "yue", "朋友"],
     ["beautiful", "es", "bonito"],
     ["beautiful", "fr", "beau"],
+    ["beautiful", "de", "schön"],
     ["beautiful", "zh", "美丽"],
     ["beautiful", "yue", "靚"],
     ["dictionary", "es", "diccionario"],
     ["dictionary", "fr", "dictionnaire"],
+    ["dictionary", "de", "wörterbuch"],
     ["dictionary", "zh", "字典"],
     ["love", "es", "amor"],
     ["love", "fr", "amour"],
+    ["love", "de", "liebe"],
     ["love", "zh", "爱"],
     ["goodbye", "es", "adiós"],
     ["goodbye", "fr", "au revoir"],
+    ["goodbye", "de", "tschüss"],
     ["yes", "es", "sí"],
     ["yes", "fr", "oui"],
+    ["yes", "de", "ja"],
     ["no", "es", "no"],
     ["no", "fr", "non"],
+    ["no", "de", "nein"],
     ["please", "es", "por favor"],
     ["please", "fr", "s'il vous plaît"],
+    ["please", "de", "bitte"],
     ["I", "yue", "我"],
     ["me", "yue", "我"],
     ["you", "yue", "你"],

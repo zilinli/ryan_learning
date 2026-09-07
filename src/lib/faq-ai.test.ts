@@ -15,6 +15,7 @@ describe("faq-ai prompt", () => {
 
   it("normalizes reply language", () => {
     expect(normalizeFaqReplyLang("ms")).toBe("ms");
+    expect(normalizeFaqReplyLang("de")).toBe("de");
     expect(normalizeFaqReplyLang("YUE")).toBe("yue");
     expect(normalizeFaqReplyLang("nope")).toBe("auto");
   });
