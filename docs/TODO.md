@@ -1844,7 +1844,7 @@ Design: **[subsystems/multi-tenant-isolation.md](subsystems/multi-tenant-isolati
 | ✅ 13E.1a | Two-step delete + Ryan undeletable + clear namespaced keys | done | `AccountHome.tsx` |
 | [ ] 13E.1b | PIN gate before delete forever | open | two-step confirm only; no `PinGate` on delete path |
 | [ ] 13E.2 | Grade-band-specific empty welcome copy | open | `ChatThread` empty state is generic |
-| ✅ 13E.3 | Max 6 accounts enforcement | done | `MAX_ACCOUNTS = 6` |
+| ✅ 13E.3 | Max 20 accounts enforcement | done | `MAX_ACCOUNTS = 20` |
 
 ---
 

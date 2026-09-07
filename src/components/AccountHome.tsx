@@ -19,7 +19,7 @@ import {
 } from "@/lib/student-profile";
 import { TenantStorage } from "@/lib/tenant-storage";
 
-const MAX_ACCOUNTS = 6;
+const MAX_ACCOUNTS = 20;
 const SUBJECTS = ["math", "science", "reading", "writing", "general"] as const;
 
 const ENGLISH_LEVEL_OPTIONS: Array<{ value: EnglishLevel; label: string }> = [
